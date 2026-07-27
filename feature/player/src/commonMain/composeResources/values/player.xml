@@ -1,0 +1,16 @@
+<resources>
+    <string name="offline_public_domain">Offline • Public Domain</string>
+    <string name="audio_not_found">Audio not found</string>
+    <string name="audio_could_not_open">Could not open audio</string>
+    <string name="volume">Volume</string>
+    <string name="volume_percentage">%1$d%%</string>
+    <string name="loop_sound">Loop sound</string>
+    <string name="sleep_timer">Sleep timer</string>
+    <string name="sleep_timer_off">Off</string>
+    <string name="sleep_timer_stops_in">Stops in %1$s</string>
+    <string name="timer_15_minutes">15 min</string>
+    <string name="timer_30_minutes">30 min</string>
+    <string name="timer_45_minutes">45 min</string>
+    <string name="timer_60_minutes">60 min</string>
+    <string name="cancel_timer">Cancel timer</string>
+</resources>
