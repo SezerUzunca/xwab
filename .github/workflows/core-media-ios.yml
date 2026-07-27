@@ -1,0 +1,55 @@
+name: Core Media iOS
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/core-media-ios.yml"
+      - "core/media/**"
+      - "gradle/**"
+      - "gradle.properties"
+      - "settings.gradle.kts"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/core-media-ios.yml"
+      - "core/media/**"
+      - "gradle/**"
+      - "gradle.properties"
+      - "settings.gradle.kts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Compile and test core:media for iOS
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Compile iPhone ARM64 main code
+        run: ./gradlew -PenableIos=true :core:media:iosArm64MainKlibrary --stacktrace
+
+      - name: Link iPhone ARM64 tests
+        run: ./gradlew -PenableIos=true :core:media:linkDebugTestIosArm64 --stacktrace
+
+      - name: Compile Simulator ARM64 main code
+        run: ./gradlew -PenableIos=true :core:media:iosSimulatorArm64MainKlibrary --stacktrace
+
+      - name: Run Simulator ARM64 tests
+        run: ./gradlew -PenableIos=true :core:media:iosSimulatorArm64Test --stacktrace
