@@ -1,5 +1,11 @@
 # PlaybackCoordinator — ne yapıldı, ne kaldı?
 
+> 2026-07-28 güncellemesi: Bu belge ilk playback ayrımının tarihsel karar kaydıdır. O tarihte
+> kapsam dışı bırakılan resource/katalog ayrımı, hibrit katalog ihtiyacı doğunca
+> `core:audio-content` içinde uygulanmıştır; `Music.audioResource` kaldırılmış, paketli MP3'ler ve
+> uzak HTTPS kaynakları aynı manifestin sahibi olmuştur. Aşağıdaki “yapılmayacak” ifadeleri ilk
+> çalışmanın kapsamını anlatır, mevcut mimariyi değil.
+
 Kapsam: port [PlaybackCoordinator.kt](core/domain/src/commonMain/kotlin/com/xwab/app/core/domain/port/PlaybackCoordinator.kt),
 adaptör [DefaultPlaybackCoordinator.kt](core/playback/src/commonMain/kotlin/com/xwab/app/core/playback/DefaultPlaybackCoordinator.kt)
 ve testi [DefaultPlaybackCoordinatorTest.kt](core/playback/src/commonTest/kotlin/com/xwab/app/core/playback/DefaultPlaybackCoordinatorTest.kt).

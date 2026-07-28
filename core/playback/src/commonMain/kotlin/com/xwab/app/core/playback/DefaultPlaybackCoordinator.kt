@@ -1,5 +1,6 @@
 package com.xwab.app.core.playback
 
+import com.xwab.app.core.domain.port.AudioContentResolver
 import com.xwab.app.core.domain.port.PlaybackCoordinator
 import com.xwab.app.core.domain.port.PlaybackSummary
 import com.xwab.app.core.media.AudioPlayerState
@@ -12,12 +13,12 @@ import com.xwab.app.core.media.PlaybackRequest
 import com.xwab.app.core.model.Music
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import org.jetbrains.compose.resources.ExperimentalResourceApi
-import xwab.core.playback.generated.resources.Res
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 internal class DefaultPlaybackCoordinator(
     private val controller: PlaybackController,
-    private val audioUriForResource: (String) -> String = Res::getUri,
+    private val contentResolver: AudioContentResolver,
 ) : PlaybackCoordinator {
     /**
      * Mapping to the domain summary here, rather than in a use case, is what keeps the engine's
@@ -34,13 +35,27 @@ internal class DefaultPlaybackCoordinator(
      * point where that product default stops applying because a real preference exists to read.
      */
     private var loopPreferenceEstablished = false
+    private val sourceResolutionMutex = Mutex()
+    private var latestSourceRequest = 0L
 
-    @OptIn(ExperimentalResourceApi::class)
-    override fun togglePlayback(music: Music) {
+    override suspend fun togglePlayback(music: Music) {
+        // Every user action invalidates an older source lookup, including a pause/play action on
+        // the currently active track while another track is still being resolved.
+        val request = sourceResolutionMutex.withLock {
+            latestSourceRequest += 1
+            latestSourceRequest
+        }
         val current = controller.state.value
         when {
-            current.activeSource?.id != music.id || current.phase == PlaybackPhase.Failed ->
-                controller.submit(PlaybackCommand.Load(music.toPlaybackRequest(current)))
+            current.activeSource?.id != music.id || current.phase == PlaybackPhase.Failed -> {
+                val resolved = contentResolver.resolve(music.id) ?: return
+                sourceResolutionMutex.withLock {
+                    if (request == latestSourceRequest) {
+                        val stateAtLoad = controller.state.value
+                        controller.submit(PlaybackCommand.Load(music.toPlaybackRequest(stateAtLoad, resolved.uri)))
+                    }
+                }
+            }
             current.playRequested -> controller.submit(PlaybackCommand.Pause)
             else -> controller.submit(PlaybackCommand.Play)
         }
@@ -64,8 +79,8 @@ internal class DefaultPlaybackCoordinator(
         controller.submit(PlaybackCommand.CancelSleepTimer)
     }
 
-    private fun Music.toPlaybackRequest(current: AudioPlayerState): PlaybackRequest = PlaybackRequest(
-        source = AudioSource(id, audioUriForResource(audioResource), playbackTitle, playbackArtist),
+    private fun Music.toPlaybackRequest(current: AudioPlayerState, resolvedUri: String): PlaybackRequest = PlaybackRequest(
+        source = AudioSource(id, resolvedUri, playbackTitle, playbackArtist),
         autoplay = true,
         loopMode = current.loopModeToCarryOver(),
         volume = current.volume,

@@ -121,7 +121,6 @@ private fun CategoryScreenPreview() {
                         name = "Rain on the Window",
                         categoryId = "rain",
                         durationSeconds = 9,
-                        audioResource = "files/audio/gentle_rain.mp3",
                     ),
                 ),
                 favoriteIds = setOf("gentle-rain"),

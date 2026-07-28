@@ -3,10 +3,13 @@ package com.xwab.app.di
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
-import com.xwab.app.core.data.di.dataModule
+import com.xwab.app.core.audiocontent.AudioFileStore
+import com.xwab.app.core.audiocontent.di.audioContentModule
+import com.xwab.app.core.audiocontent.di.audioContentPlatformModule
 import com.xwab.app.core.domain.port.FavoritesRepository
 import com.xwab.app.core.domain.port.MusicCatalogRepository
 import com.xwab.app.core.domain.port.PlaybackCoordinator
+import com.xwab.app.core.domain.port.AudioContentResolver
 import com.xwab.app.core.domain.usecase.CancelSleepTimerUseCase
 import com.xwab.app.core.domain.usecase.ObserveCategoryContentUseCase
 import com.xwab.app.core.domain.usecase.ObserveHomeContentUseCase
@@ -20,6 +23,7 @@ import com.xwab.app.core.media.AudioPlayerState
 import com.xwab.app.core.media.PlaybackCommand
 import com.xwab.app.core.media.PlaybackController
 import com.xwab.app.core.media.SleepTimerState
+import com.xwab.app.core.favorites.di.favoritesModule
 import com.xwab.app.core.playback.di.playbackCoordinatorModule
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,10 +53,11 @@ class AppModulesTest {
     private val platformBindings = module {
         single<DataStore<Preferences>> { FakePreferencesDataStore() }
         single<PlaybackController> { FakePlaybackController() }
+        single<AudioFileStore> { FakeAudioFileStore() }
     }
 
     private val koin = koinApplication {
-        modules(dataModule, playbackCoordinatorModule, domainModule, platformBindings)
+        modules(audioContentModule, favoritesModule, playbackCoordinatorModule, domainModule, platformBindings)
     }.koin
 
     @AfterTest
@@ -62,7 +67,12 @@ class AppModulesTest {
     fun theApplicationShipsTheModulesUnderTest() {
         val shipped = appModules()
 
-        assertTrue(dataModule in shipped, "dataModule is missing from appModules()")
+        assertTrue(audioContentModule in shipped, "audioContentModule is missing from appModules()")
+        assertTrue(
+            audioContentPlatformModule in shipped,
+            "audioContentPlatformModule is missing from appModules()",
+        )
+        assertTrue(favoritesModule in shipped, "favoritesModule is missing from appModules()")
         assertTrue(playbackCoordinatorModule in shipped, "playbackCoordinatorModule is missing from appModules()")
         assertTrue(domainModule in shipped, "domainModule is missing from appModules()")
     }
@@ -71,6 +81,7 @@ class AppModulesTest {
     fun everyPortIsBoundToAnImplementation() {
         koin.get<MusicCatalogRepository>()
         koin.get<FavoritesRepository>()
+        koin.get<AudioContentResolver>()
         koin.get<PlaybackCoordinator>()
     }
 
@@ -98,5 +109,10 @@ class AppModulesTest {
         override val sleepTimerState: StateFlow<SleepTimerState> = MutableStateFlow(SleepTimerState())
         override fun submit(command: PlaybackCommand) = Unit
         override fun release() = Unit
+    }
+
+    private class FakeAudioFileStore : AudioFileStore {
+        override suspend fun find(cacheFileName: String): String? = null
+        override suspend fun download(cacheFileName: String, remoteHttpsUrl: String) = Unit
     }
 }

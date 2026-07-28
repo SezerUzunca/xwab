@@ -5,8 +5,7 @@ data class Music(
     val name: String,
     val categoryId: String,
     val durationSeconds: Int,
-    val audioResource: String,
-    val playbackTitle: String = id,
+    val playbackTitle: String = name,
     val playbackArtist: String = "Sleep Sounds",
 ) {
     val formattedDuration: String

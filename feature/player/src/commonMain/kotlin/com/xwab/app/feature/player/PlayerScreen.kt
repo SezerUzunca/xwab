@@ -385,7 +385,6 @@ private fun PlayerScreenPreview() {
                     name = "Ontario Waves",
                     categoryId = "ocean",
                     durationSeconds = 286,
-                    audioResource = "files/audio/calm_waves.mp3",
                 ),
                 isFavorite = true,
                 sleepTimerRemainingMs = 29L * MINUTE_MS + 42_000L,

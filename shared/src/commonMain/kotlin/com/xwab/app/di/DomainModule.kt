@@ -18,7 +18,8 @@ import org.koin.dsl.module
  * plain Kotlin and knows no DI container, so the framework stays replaceable and a test can
  * construct any use case by hand without a container at all.
  *
- * The adapter modules (`dataModule`, `playbackCoordinatorModule`) keep owning their own wiring,
+ * The adapter modules (`audioContentModule`, `favoritesModule`, `playbackCoordinatorModule`) keep
+ * owning their own wiring,
  * because the implementations they bind are `internal` — publishing them just to register them
  * here would widen those modules' API surface for nothing.
  */

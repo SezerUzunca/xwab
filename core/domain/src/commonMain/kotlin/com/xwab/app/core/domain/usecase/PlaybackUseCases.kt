@@ -18,7 +18,8 @@ class ToggleMusicPlaybackUseCase(
     private val playbackCoordinator: PlaybackCoordinator,
 ) {
     suspend operator fun invoke(musicId: String) {
-        musicCatalog.observeMusic(musicId).first()?.let(playbackCoordinator::togglePlayback)
+        val music = musicCatalog.observeMusic(musicId).first() ?: return
+        playbackCoordinator.togglePlayback(music)
     }
 }
 

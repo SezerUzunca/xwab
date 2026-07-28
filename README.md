@@ -5,12 +5,20 @@ Serenity is a free, account-free relaxation sound app. Its feature slices are `h
 
 ## Included features
 
-- Five all-ages sound categories: rain, ocean, forest, white noise, and lullabies.
+- Five all-ages sound categories with 15 tracks: rain, ocean, forest, white noise, and lullabies.
+- Hybrid audio delivery: five bundled offline tracks plus ten HTTPS tracks that stream immediately
+  and are saved to app-owned storage for later local playback.
 - Persistent favorites backed by Kotlin Multiplatform DataStore.
 - Browsing, track details, favorites, and active audio playback.
 - A `core:media` KMP playback layer built with Media3 ExoPlayer on Android and
   AVFoundation AVPlayer on iOS, including platform media-session integration.
-- Public-domain audio with a source and checksum manifest in [THIRD_PARTY_AUDIO.md](./THIRD_PARTY_AUDIO.md).
+- Public-domain/CC0 audio with a source and checksum manifest in
+  [THIRD_PARTY_AUDIO.md](./THIRD_PARTY_AUDIO.md).
+
+The core capability boundary is intentionally incremental: `core:audio-content` owns catalog
+metadata, bundled MP3s, remote sources, and local resolution; `core:favorites` owns favorite
+persistence; `core:playback` owns app session policy; and `core:media` remains the reusable
+platform playback engine.
 
 SQLDelight is intentionally not included: favorites are a small key-value set without relational
 queries, partial-row updates, or referential-integrity needs, which makes DataStore the smaller and

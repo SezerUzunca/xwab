@@ -15,7 +15,6 @@ internal fun track(id: String, categoryId: String = "rain") = Music(
     name = id,
     categoryId = categoryId,
     durationSeconds = 60,
-    audioResource = "files/audio/$id.mp3",
 )
 
 internal fun category(id: String, musicCount: Int = 0) = Category(
@@ -74,7 +73,7 @@ internal class FakePlaybackCoordinator : PlaybackCoordinator {
         remainingMs.value = remaining
     }
 
-    override fun togglePlayback(music: Music) {
+    override suspend fun togglePlayback(music: Music) {
         toggledTrack = music
     }
 

@@ -11,5 +11,5 @@ import org.koin.dsl.module
  * `playbackModule` — the one that builds the platform [com.xwab.app.core.media.PlaybackController].
  */
 val playbackCoordinatorModule = module {
-    single<PlaybackCoordinator> { DefaultPlaybackCoordinator(get()) }
+    single<PlaybackCoordinator> { DefaultPlaybackCoordinator(get(), get()) }
 }

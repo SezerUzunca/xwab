@@ -17,7 +17,7 @@ interface PlaybackCoordinator {
     /** Milliseconds left on the sleep timer, or null when no timer is running. */
     val sleepTimerRemainingMs: Flow<Long?>
 
-    fun togglePlayback(music: Music)
+    suspend fun togglePlayback(music: Music)
     fun setLooping(enabled: Boolean)
     fun setVolume(volume: Float)
     fun startSleepTimer(durationMs: Long)
