@@ -22,10 +22,10 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            // Deliberately framework-free: ports and use cases are plain Kotlin. No DI
+            // container here — the composition root in `shared` owns the wiring.
             api(projects.core.model)
-            api(projects.core.data)
             api(libs.kotlinx.coroutines.core)
-            implementation(libs.koin.core)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

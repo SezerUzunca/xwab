@@ -1,8 +1,8 @@
 package com.xwab.app.core.domain.usecase
 
-import com.xwab.app.core.repository.FavoritesRepository
-import com.xwab.app.core.repository.MusicRepository
-import com.xwab.app.core.playback.PlaybackCoordinator
+import com.xwab.app.core.domain.port.FavoritesRepository
+import com.xwab.app.core.domain.port.MusicCatalogRepository
+import com.xwab.app.core.domain.port.PlaybackCoordinator
 import kotlinx.coroutines.flow.first
 
 class ToggleFavoriteUseCase(
@@ -14,11 +14,11 @@ class ToggleFavoriteUseCase(
 }
 
 class ToggleMusicPlaybackUseCase(
-    private val musicRepository: MusicRepository,
+    private val musicCatalog: MusicCatalogRepository,
     private val playbackCoordinator: PlaybackCoordinator,
 ) {
     suspend operator fun invoke(musicId: String) {
-        musicRepository.getMusic(musicId).first()?.let(playbackCoordinator::toggle)
+        musicCatalog.observeMusic(musicId).first()?.let(playbackCoordinator::togglePlayback)
     }
 }
 

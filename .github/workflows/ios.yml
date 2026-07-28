@@ -1,0 +1,50 @@
+name: iOS
+
+# No `paths` allowlist on purpose: it used to name `core/media/**` only, so the
+# core:data / core:domain / core:playback split would have skipped iOS entirely.
+# An ignore list cannot go stale the same way — a new module is covered by default.
+on:
+  pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - "LICENSE"
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**/*.md"
+      - "LICENSE"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Compile and test the iOS targets
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      # Covers every module that has iOS tests, so a new one is picked up without
+      # touching this file: core:media, core:data, core:domain, core:playback, shared.
+      - name: Run Simulator ARM64 tests
+        run: ./gradlew -PenableIos=true iosSimulatorArm64Test --stacktrace
+
+      # The device target is a separate compilation; linking the framework the iOS app
+      # actually consumes is what proves every module builds for real hardware.
+      - name: Link the iPhone ARM64 framework
+        run: ./gradlew -PenableIos=true :shared:linkDebugFrameworkIosArm64 --stacktrace

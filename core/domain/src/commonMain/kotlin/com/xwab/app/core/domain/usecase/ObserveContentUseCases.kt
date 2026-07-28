@@ -1,10 +1,11 @@
 package com.xwab.app.core.domain.usecase
 
+import com.xwab.app.core.domain.port.FavoritesRepository
+import com.xwab.app.core.domain.port.MusicCatalogRepository
+import com.xwab.app.core.domain.port.PlaybackCoordinator
+import com.xwab.app.core.domain.port.PlaybackSummary
 import com.xwab.app.core.model.Category
 import com.xwab.app.core.model.Music
-import com.xwab.app.core.repository.FavoritesRepository
-import com.xwab.app.core.repository.MusicRepository
-import com.xwab.app.core.playback.PlaybackCoordinator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
@@ -15,20 +16,20 @@ data class HomeContent(
 )
 
 class ObserveHomeContentUseCase(
-    private val musicRepository: MusicRepository,
+    private val musicCatalog: MusicCatalogRepository,
     private val favoritesRepository: FavoritesRepository,
     private val playbackCoordinator: PlaybackCoordinator,
 ) {
     operator fun invoke(): Flow<HomeContent> = combine(
-        musicRepository.getCategories(),
-        musicRepository.getAllMusic(),
+        musicCatalog.observeCategories(),
+        musicCatalog.observeAllMusic(),
         favoritesRepository.favoriteIds,
-        playbackCoordinator.state,
+        playbackCoordinator.playback,
     ) { categories, musics, favoriteIds, playback ->
         HomeContent(
             categories = categories,
             favoriteMusics = musics.filter { it.id in favoriteIds },
-            playback = playback.toPlaybackSummary(),
+            playback = playback,
         )
     }
 }
@@ -41,17 +42,17 @@ data class CategoryContent(
 )
 
 class ObserveCategoryContentUseCase(
-    private val musicRepository: MusicRepository,
+    private val musicCatalog: MusicCatalogRepository,
     private val favoritesRepository: FavoritesRepository,
     private val playbackCoordinator: PlaybackCoordinator,
 ) {
     operator fun invoke(categoryId: String): Flow<CategoryContent> = combine(
-        musicRepository.getCategory(categoryId),
-        musicRepository.getMusicForCategory(categoryId),
+        musicCatalog.observeCategory(categoryId),
+        musicCatalog.observeMusicForCategory(categoryId),
         favoritesRepository.favoriteIds,
-        playbackCoordinator.state,
+        playbackCoordinator.playback,
     ) { category, musics, favoriteIds, playback ->
-        CategoryContent(category, musics, favoriteIds, playback.toPlaybackSummary())
+        CategoryContent(category, musics, favoriteIds, playback)
     }
 }
 
@@ -63,21 +64,21 @@ data class PlayerContent(
 )
 
 class ObservePlayerContentUseCase(
-    private val musicRepository: MusicRepository,
+    private val musicCatalog: MusicCatalogRepository,
     private val favoritesRepository: FavoritesRepository,
     private val playbackCoordinator: PlaybackCoordinator,
 ) {
     operator fun invoke(musicId: String): Flow<PlayerContent> = combine(
-        musicRepository.getMusic(musicId),
+        musicCatalog.observeMusic(musicId),
         favoritesRepository.favoriteIds,
-        playbackCoordinator.state,
-        playbackCoordinator.sleepTimerState,
-    ) { music, favoriteIds, playback, sleepTimerState ->
+        playbackCoordinator.playback,
+        playbackCoordinator.sleepTimerRemainingMs,
+    ) { music, favoriteIds, playback, sleepTimerRemainingMs ->
         PlayerContent(
             music = music,
             favoriteIds = favoriteIds,
-            playback = playback.toPlaybackSummary(),
-            sleepTimerRemainingMs = sleepTimerState.remainingMs,
+            playback = playback,
+            sleepTimerRemainingMs = sleepTimerRemainingMs,
         )
     }
 }
