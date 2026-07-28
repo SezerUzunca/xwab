@@ -22,7 +22,11 @@ permissions:
 jobs:
   build:
     name: Compile and test the iOS targets
-    runs-on: macos-15
+    # macos-15 (Xcode 16.4, iOS 18.5 SDK) cannot link a test binary that pulls in
+    # compose.ui:ui-uikit: its CMPLayoutRegion references UIViewLayoutRegion, a UIKit
+    # class that only exists in the iOS 26 SDK. This never showed up while the workflow
+    # only built core:media, which has no Compose dependency.
+    runs-on: macos-26
     timeout-minutes: 45
 
     steps:
