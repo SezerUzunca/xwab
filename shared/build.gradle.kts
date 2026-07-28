@@ -44,6 +44,7 @@ kotlin {
             implementation(projects.core.domain)
             implementation(projects.core.navigation)
             implementation(projects.core.data)
+            implementation(projects.core.playback)
             implementation(projects.core.ui)
             implementation(projects.feature.home)
             implementation(projects.feature.home.navigation)
@@ -53,6 +54,8 @@ kotlin {
             implementation(projects.feature.player.navigation)
             implementation(libs.compose.runtime)
             implementation(libs.compose.ui)
+            // The composition root owns every Koin module the domain layer needs.
+            implementation(libs.koin.core)
             implementation(libs.koin.compose.navigation3)
             implementation(libs.navigation3.ui)
             implementation(libs.androidx.lifecycle.viewmodelNavigation3)
