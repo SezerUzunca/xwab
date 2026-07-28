@@ -186,12 +186,19 @@ feature:*     → core:domain, core:model, core:ui, core:navigation
 Bütün adımlar (1–8) Android/common tarafında **yeşil** doğrulandı.
 
 ```bash
-./gradlew :shared:allTests :core:data:allTests :core:playback:allTests
+./gradlew :shared:allTests :core:data:allTests :core:playback:allTests :core:domain:allTests
 ```
 
-**Doğrulanmayanlar:** iOS bu Windows ortamında derlenmedi (macOS + `-PenableIos=true` gerekir);
-`core:domain` için davranış testi yok — use case'ler artık plain Kotlin olduğu için konteynersiz
-yazılabilirler.
+**iOS de yeşil.** [PR #2](https://github.com/SezerUzunca/xwab/pull/2) üzerinde
+[run 30340856100](https://github.com/SezerUzunca/xwab/actions/runs/30340856100): yedi modülün
+simülatör testleri koştu (`core:data`, `core:domain`, `core:media`, `core:model`,
+`core:navigation`, `core:playback`, `shared`), on beş modülün test binary'si linklendi ve
+`:shared:linkDebugFrameworkIosArm64` ile cihaz framework'ü de bağlandı.
+
+⚠️ **iOS CI `macos-26` gerektiriyor.** `macos-15` (Xcode 16.4, iOS 18.5 SDK) Compose'a bağlı bir
+modülün test binary'sini linkleyemiyor: `compose.ui:ui-uikit` içindeki `CMPLayoutRegion`,
+yalnız iOS 26 SDK'sında bulunan `UIViewLayoutRegion`'a referans veriyor. Bu, workflow yalnız
+`core:media`'yı derlerken görünmüyordu — o modülün Compose bağımlılığı yok.
 
 Adım 4 DI kayıtlarını böldüğü için uygulamanın gerçekten açılması da kontrol edilmeli
 (Koin çözümlemesi çalışma zamanında patlar, derlemede değil). `core:media` instrumentation
