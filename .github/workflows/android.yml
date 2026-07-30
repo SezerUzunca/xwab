@@ -1,0 +1,43 @@
+name: Android
+
+on:
+  pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - "LICENSE"
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**/*.md"
+      - "LICENSE"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Check architecture, test, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Check architecture and run Android host tests
+        run: ./gradlew checkArchitecture testAndroidHostTest --stacktrace
+
+      - name: Assemble debug APK
+        run: ./gradlew :androidApp:assembleDebug --stacktrace
