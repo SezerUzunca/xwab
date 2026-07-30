@@ -1,7 +1,7 @@
 name: iOS
 
 # No `paths` allowlist on purpose: it used to name `core/media/**` only, so the
-# core:data / core:domain / core:playback split would have skipped iOS entirely.
+# core:data / core:playback split would have skipped iOS entirely.
 # An ignore list cannot go stale the same way — a new module is covered by default.
 on:
   pull_request:
@@ -44,7 +44,7 @@ jobs:
         run: chmod +x gradlew
 
       # Covers every module that has iOS tests, so a new one is picked up without
-      # touching this file: core:media, core:data, core:domain, core:playback, shared.
+      # touching this file: core:playback-engine, core:data, core:playback, shared.
       - name: Run Simulator ARM64 tests
         run: ./gradlew -PenableIos=true iosSimulatorArm64Test --stacktrace
 
