@@ -187,7 +187,7 @@ Doğrulama durumu:
 | `./gradlew checkArchitecture` | ✅ |
 | `./gradlew testAndroidHostTest` | ✅ (core + üç feature + shared) |
 | iOS CI: `iosSimulatorArm64Test` + `:shared:linkDebugFrameworkIosArm64` | ✅ ([koşu 30533555035](https://github.com/SezerUzunca/xwab/actions/runs/30533555035)) |
-| `./gradlew :androidApp:assembleDebug` | henüz koşulmadı |
+| `./gradlew :androidApp:assembleDebug` | ✅ |
 
 Yol boyunca migrasyondan bağımsız iki şey çıktı ve ayrı commit'lerde düzeltildi:
 
