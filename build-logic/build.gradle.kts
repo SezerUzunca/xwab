@@ -36,23 +36,23 @@ gradlePlugin {
     plugins {
         register("kmpLibrary") {
             id = "xwab.kmp.library"
-            implementationClass = "com.xwab.build.KmpLibraryConventionPlugin"
+            implementationClass = "com.xwab.convention.KmpLibraryConventionPlugin"
         }
         register("kmpCompose") {
             id = "xwab.kmp.compose"
-            implementationClass = "com.xwab.build.KmpComposeConventionPlugin"
+            implementationClass = "com.xwab.convention.KmpComposeConventionPlugin"
         }
         register("kmpFeature") {
             id = "xwab.kmp.feature"
-            implementationClass = "com.xwab.build.KmpFeatureConventionPlugin"
+            implementationClass = "com.xwab.convention.KmpFeatureConventionPlugin"
         }
         register("kmpFeatureNavigation") {
             id = "xwab.kmp.feature.navigation"
-            implementationClass = "com.xwab.build.KmpFeatureNavigationConventionPlugin"
+            implementationClass = "com.xwab.convention.KmpFeatureNavigationConventionPlugin"
         }
         register("architecture") {
             id = "xwab.architecture"
-            implementationClass = "com.xwab.build.ArchitectureConventionPlugin"
+            implementationClass = "com.xwab.convention.ArchitectureConventionPlugin"
         }
     }
 }
