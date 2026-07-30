@@ -2,8 +2,8 @@ package com.xwab.app.feature.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xwab.app.core.domain.port.FavoritesRepository
-import com.xwab.app.core.domain.usecase.ToggleMusicPlaybackUseCase
+import com.xwab.app.core.data.FavoritesRepository
+import com.xwab.app.core.playback.PlaybackCoordinator
 import com.xwab.app.feature.player.domain.CancelSleepTimerUseCase
 import com.xwab.app.feature.player.domain.ObservePlayerContentUseCase
 import com.xwab.app.feature.player.domain.SetPlaybackLoopingUseCase
@@ -11,6 +11,7 @@ import com.xwab.app.feature.player.domain.SetPlaybackVolumeUseCase
 import com.xwab.app.feature.player.domain.StartSleepTimerUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -19,7 +20,7 @@ internal class PlayerViewModel(
     private val musicId: String,
     private val observePlayerContentUseCase: ObservePlayerContentUseCase,
     private val favoritesRepository: FavoritesRepository,
-    private val toggleMusicPlaybackUseCase: ToggleMusicPlaybackUseCase,
+    private val playbackCoordinator: PlaybackCoordinator,
     private val setPlaybackLoopingUseCase: SetPlaybackLoopingUseCase,
     private val setPlaybackVolumeUseCase: SetPlaybackVolumeUseCase,
     private val startSleepTimerUseCase: StartSleepTimerUseCase,
@@ -55,7 +56,10 @@ internal class PlayerViewModel(
     }
 
     fun togglePlayback() {
-        viewModelScope.launch { toggleMusicPlaybackUseCase(musicId) }
+        viewModelScope.launch {
+            val music = playerContent.first().music ?: return@launch
+            playbackCoordinator.togglePlayback(music)
+        }
     }
 
     fun setLooping(enabled: Boolean) {

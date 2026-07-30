@@ -2,7 +2,7 @@ This is a Kotlin Multiplatform project targeting Android, iOS.
 
 Serenity is a free, account-free relaxation sound app. Its feature slices are `home`, `category`
 and `player`; shared catalog and platform primitives live under `core`. Favouriting is a
-capability (`core:favorites`) used from several screens rather than a screen of its own.
+shared data capability used from several screens rather than a screen of its own.
 
 ## Included features
 
@@ -16,10 +16,10 @@ capability (`core:favorites`) used from several screens rather than a screen of 
 - Public-domain/CC0 audio with a source and checksum manifest in
   [THIRD_PARTY_AUDIO.md](./THIRD_PARTY_AUDIO.md).
 
-The core capability boundary is intentionally incremental: `core:audio-content` owns catalog
-metadata, bundled MP3s, remote sources, and local resolution; `core:favorites` owns favorite
-persistence; `core:playback` owns app session policy; and `core:playback-engine` remains the reusable
-platform playback engine.
+The core capability boundary is intentionally compact: `core:data` owns repository contracts,
+catalog metadata, bundled MP3s, remote sources, local resolution, and favorite persistence;
+`core:playback` owns app session policy; and `core:playback-engine` remains the reusable platform
+playback engine.
 
 SQLDelight is intentionally not included: favorites are a small key-value set without relational
 queries, partial-row updates, or referential-integrity needs, which makes DataStore the smaller and
@@ -37,20 +37,20 @@ iosApp ─────┘        │
         │            │                │
         └────────────┴───────┬────────┘
                              ▼
-   core:domain (ports + shared use cases) · core:model · core:designsystem · core:navigation
-   core:audio-content · core:favorites · core:playback · core:playback-engine · core:datastore
+   core:model · core:designsystem · core:navigation
+   core:data (repositories) · core:playback (session) · core:playback-engine · core:datastore
 ```
 
 A feature owns its screen, its state, its ViewModel, its use cases and its Koin bindings. It sees
 another feature only through that feature's `:navigation` module — a route, its serializers and a
-`Navigator` extension, no implementation. `core:domain` holds the ports every adapter implements
-and the use cases more than one screen performs; a screen-specific use case lives with its screen,
-so adding a screen does not touch `core`. A screen that only forwards to a port injects the port
-directly — a use case has to earn its name by holding a decision.
+`Navigator` extension, no implementation. `core:data` owns repository and audio-resolution
+contracts with their implementations; `core:playback` owns the session contract and implementation.
+Screen-specific orchestration lives with its screen. A screen action that already has the model it
+needs injects the capability directly — a use case has to earn its name by holding a decision.
 
 Three rules hold this in place, and `./gradlew checkArchitecture` fails the build when one breaks:
 a core module may not depend on a feature; a feature may depend only on another feature's
-`:navigation` module; a use case in `core:domain` must serve more than one feature.
+`:navigation` module; a use case in a shared core module must serve more than one feature.
 
 ### Build configuration
 

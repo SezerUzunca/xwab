@@ -16,8 +16,8 @@ iosApp ─────┘        │
         │            │                │
         └────────────┴───────┬────────┘
                              ▼
-   core:domain (port + use case) · core:model · core:designsystem · core:navigation
-   core:audio-content · core:favorites · core:playback · core:playback-engine · core:datastore
+   core:model · core:designsystem · core:navigation
+   core:data (repository'ler) · core:playback (oturum) · core:playback-engine · core:datastore
 ```
 
 Yapı doğru kurulmuş:
@@ -27,7 +27,7 @@ Yapı doğru kurulmuş:
   zaten uygulanıyor.
 - Ekranlar route (`NavKey`), Koin `navigation<Route> {}` entry'si ve ViewModel'iyle kendi
   modülünde yaşıyor.
-- `core` katmanı port/adapter ayrımıyla bölünmüş; `core:domain` saf Kotlin.
+- Ortak capability'ler `core:data` ve `core:playback` içinde kendi sözleşme ve adaptörlerine sahip.
 
 **Sonuç:** "Feature-first'e geçiş" değil, "feature ekleme maliyetini düşürme" problemi var.
 Sorun mimari şablonda değil, aşağıdaki sürtünme noktalarında.
@@ -65,7 +65,7 @@ büyümesine yol açıyor.
      `compileSdk`/`minSdk`, `withHostTest`. (`gradle.extra["enableIos"]` mantığı buraya taşınır.)
    - `xwab.kmp.compose` — Compose Multiplatform + compiler plugin'i ve ortak Compose bağımlılıkları.
    - `xwab.kmp.feature` — `xwab.kmp.library` + `xwab.kmp.compose` + her feature'ın zaten aldığı
-     ortak bağımlılıklar (`core:model`, `core:domain`, `core:designsystem`, `core:navigation`,
+     ortak bağımlılıklar (`core:model`, `core:data`, `core:playback`, `core:designsystem`, `core:navigation`,
      lifecycle-viewmodel, koin-compose-viewmodel, koin-compose-navigation3).
    - `xwab.kmp.feature.navigation` — navigation API modülleri için (navigation3-runtime +
      kotlinx-serialization).
@@ -86,9 +86,10 @@ Riski düşük, davranış değiştirmez; tabloda 2–3 numaralı maliyeti ortad
 
 ### Faz 2 — Ekrana özel use case'leri feature'lara taşı
 
-`core:domain` şu an iki şeyi karıştırıyor: gerçek paylaşılan sözleşmeler (portlar:
-`MusicCatalogRepository`, `FavoritesRepository`, `PlaybackCoordinator`) ve ekrana özel
+Geçiş öncesinde `core:domain` iki şeyi karıştırıyordu: gerçek paylaşılan sözleşmeler ve ekrana özel
 orkestrasyon (`ObserveHomeContentUseCase`, `HomeContent`, `ObserveCategoryContentUseCase`, …).
+Güncel yapıda repository ve resolver portları `core:data`, playback oturum portları
+`core:playback` içindedir; boş kalan `core:domain` modülü kaldırılmıştır.
 
 1. `ObserveHomeContentUseCase` + `HomeContent` → `feature:home` içine taşı; aynısını
    category ve player için yap.
@@ -177,8 +178,10 @@ Beş faz da uygulandı. Planın öngördüğünden sapan noktalar:
 | 1 | `shared` convention plugin'e geçirilmedi | Tek iOS framework binary'si onda ve host testleri Android resource istiyor; `withHostTest` ikinci kez çağrılamaz. Kalan 14 modül geçirildi. |
 | 1 | Convention plugin'ler `Plugin<Project>` sınıfı, precompiled script (`*.gradle.kts`) değil | Precompiled script derlemek Gradle'ın `kotlin-dsl` plugin'ini gerektiriyor; o da **yalnızca plugins.gradle.org'da** yayınlanıyor. Bu makine hiçbir zaman o host'tan indirme yapmadı (yalnızca dl.google.com, repo.maven.apache.org, jetbrains.space) ve ilk denemede tam olarak orada patladı. `build-logic` artık portala hiç bakmıyor. |
 | 2 | `SetPlaybackLooping/Volume`, `Start/CancelSleepTimer` de `feature:player`'a taşındı | Planın kendi kuralı: yalnızca birden fazla feature'ın kullandığı use case `core:domain`'de kalır. Bunları yalnızca player kullanıyordu. |
-| 2 | Yeni `core:testing` modülü | Üç feature de aynı üç port fake'ine ihtiyaç duyuyor; `xwab.kmp.feature` bunu her feature'ın `commonTest`'ine otomatik veriyor. `core:domain` kendi fake'lerini yerel tutuyor (aksi halde `core:testing` → `core:domain` döngüsü). |
-| 2 | `ToggleFavoriteUseCase` bırakılmadı, silindi | Gövdesi tek delege çağrısıydı (`favoritesRepository.toggle`), kendi testi de delege edenin delege ettiğini doğruluyordu. `category` ve `player` artık `FavoritesRepository` portunu doğrudan alıyor. `core:domain`'de tek use case kaldı: `ToggleMusicPlaybackUseCase` — o gerçekten iki portu birleştiriyor ve bilinmeyen id kararını taşıyor. |
+| 2 | Yeni `core:testing` modülü | Üç feature de aynı port fake'lerine ihtiyaç duyuyor; `xwab.kmp.feature` bunu her feature'ın `commonTest`'ine otomatik veriyor. Fake'ler `core:data` ve `core:playback` sözleşmelerini uygular. |
+| 2 | Ortak toggle use case'leri bırakılmadı, silindi | `ToggleFavoriteUseCase` tek delege çağrısıydı. `ToggleMusicPlaybackUseCase` ise yalnız id'yi tekrar katalogdan çözüp coordinator'a aktarıyordu; üç ekranın state'i zaten ilgili `Music` nesnesini taşıyor. ViewModel'ler artık `FavoritesRepository` ve `PlaybackCoordinator` portlarını doğrudan kullanıyor; boş kalan `shared/DomainModule.kt` kaldırıldı. |
+| Core | `core:audio-content` ve `core:favorites`, `core:data` altında birleştirildi | Katalog, ses içeriği, repository portları/implementasyonları ve favori kalıcılığı tek ortak data sınırında toplandı; iki Gradle modülü ve ayrı Koin kayıtları kaldırıldı. |
+| Core | Boşalan `core:domain` kaldırıldı | `AudioContentResolver` `core:data`ya, `PlaybackCoordinator` `core:playback`a, üç feature'ın tükettiği saf `PlaybackSummary` ise `core:model`a taşındı. |
 | 5 | Konsist yerine `checkArchitecture` Gradle task'i | Yeni bir dış bağımlılık gerekmiyor, offline çalışıyor ve modül grafiğini gerçek Gradle dependency modelinden okuyor. Üç kural da uygulanıyor. |
 
 Doğrulama durumu:
@@ -195,7 +198,7 @@ Yol boyunca migrasyondan bağımsız iki şey çıktı ve ayrı commit'lerde dü
 - `.gitignore`'daki `**/build/` kuralı convention plugin'lerin Kotlin paket klasörünü
   (`com/xwab/build/`) yuttu; kaynaklar hiç commit edilmedi ve CI descriptor'ları olan boş bir jar
   aldı. Paket `com.xwab.convention` oldu. **Bu repoda `src` altında `build` adlı klasör açma.**
-- `main` `e151e80`'den beri iOS'ta kırmızıydı (`core:audio-content`'in `IosAudioFileStore.kt`'si).
+- `main` `e151e80`'den beri iOS'ta kırmızıydı (bugün `core:data`da bulunan `IosAudioFileStore.kt`).
   İki Foundation çağrısı Objective-C kategorisi üyesi; Kotlin'e extension olarak geliyorlar ve
   adlarıyla import edilmeleri gerekiyor. `MAX_DOWNLOAD_BYTES` de `const` olamıyor.
 

@@ -1,6 +1,6 @@
 package com.xwab.app.feature.home.domain
 
-import com.xwab.app.core.domain.port.PlaybackSummary
+import com.xwab.app.core.model.PlaybackSummary
 import com.xwab.app.core.testing.FakeFavorites
 import com.xwab.app.core.testing.FakeMusicCatalog
 import com.xwab.app.core.testing.FakePlaybackCoordinator

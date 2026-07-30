@@ -178,7 +178,7 @@ import org.koin.dsl.module
 import org.koin.dsl.navigation3.navigation
 
 internal val ${camel}Module = module {
-    // This screen's own use cases are bound here too, never in core:domain.
+    // This screen's own use cases are bound here too, never in a shared core module.
     viewModel { ${Pascal}ViewModel() }
 
     navigation<${Pascal}Route> {

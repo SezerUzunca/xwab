@@ -4,19 +4,17 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.navigation3.runtime.NavKey
-import com.xwab.app.core.audiocontent.AudioFileStore
-import com.xwab.app.core.audiocontent.di.audioContentModule
-import com.xwab.app.core.audiocontent.di.audioContentPlatformModule
-import com.xwab.app.core.domain.port.FavoritesRepository
-import com.xwab.app.core.domain.port.MusicCatalogRepository
-import com.xwab.app.core.domain.port.PlaybackCoordinator
-import com.xwab.app.core.domain.port.AudioContentResolver
-import com.xwab.app.core.domain.usecase.ToggleMusicPlaybackUseCase
+import com.xwab.app.core.data.AudioContentResolver
+import com.xwab.app.core.data.AudioFileStore
+import com.xwab.app.core.data.FavoritesRepository
+import com.xwab.app.core.data.MusicCatalogRepository
+import com.xwab.app.core.data.di.dataModule
+import com.xwab.app.core.data.di.dataPlatformModule
 import com.xwab.app.core.media.AudioPlayerState
 import com.xwab.app.core.media.PlaybackCommand
 import com.xwab.app.core.media.PlaybackController
 import com.xwab.app.core.media.SleepTimerState
-import com.xwab.app.core.favorites.di.favoritesModule
+import com.xwab.app.core.playback.PlaybackCoordinator
 import com.xwab.app.core.playback.di.playbackCoordinatorModule
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.home.navigation.HomeRoute
@@ -34,13 +32,9 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * Catalog, playback and shared-use-case wiring is spread over several Koin modules living in
+ * Catalog and playback wiring is spread over several Koin modules living in
  * several Gradle modules. A binding that no module provides only surfaces when a screen first
  * asks for it — at runtime, on a device. These tests turn that into a build failure.
- *
- * Two halves, and both are needed: [theApplicationShipsTheModulesUnderTest] pins the production
- * list in [appModules], and [everySharedUseCaseResolvesFromTheAssembledGraph] proves that list
- * actually resolves. Either one alone can pass while the app crashes on launch.
  *
  * The feature modules are deliberately not resolved: their ViewModels and use cases are
  * `internal` to those modules, and the ViewModel definitions need a scope this plain container
@@ -55,7 +49,7 @@ class AppModulesTest {
     }
 
     private val koin = koinApplication {
-        modules(audioContentModule, favoritesModule, playbackCoordinatorModule, domainModule, platformBindings)
+        modules(dataModule, playbackCoordinatorModule, platformBindings)
     }.koin
 
     @AfterTest
@@ -65,14 +59,12 @@ class AppModulesTest {
     fun theApplicationShipsTheModulesUnderTest() {
         val shipped = appModules()
 
-        assertTrue(audioContentModule in shipped, "audioContentModule is missing from appModules()")
+        assertTrue(dataModule in shipped, "dataModule is missing from appModules()")
         assertTrue(
-            audioContentPlatformModule in shipped,
-            "audioContentPlatformModule is missing from appModules()",
+            dataPlatformModule in shipped,
+            "dataPlatformModule is missing from appModules()",
         )
-        assertTrue(favoritesModule in shipped, "favoritesModule is missing from appModules()")
         assertTrue(playbackCoordinatorModule in shipped, "playbackCoordinatorModule is missing from appModules()")
-        assertTrue(domainModule in shipped, "domainModule is missing from appModules()")
     }
 
     @Test
@@ -114,11 +106,6 @@ class AppModulesTest {
         koin.get<FavoritesRepository>()
         koin.get<AudioContentResolver>()
         koin.get<PlaybackCoordinator>()
-    }
-
-    @Test
-    fun everySharedUseCaseResolvesFromTheAssembledGraph() {
-        koin.get<ToggleMusicPlaybackUseCase>()
     }
 
     private class FakePreferencesDataStore : DataStore<Preferences> {

@@ -17,9 +17,8 @@ import java.io.File
  * 1. A core module may not depend on a feature. Dependencies point one way.
  * 2. A feature may depend on another feature's `:navigation` module and nothing else of it.
  *    That module is the whole contract: routes in, no implementation.
- * 3. A use case in `core:domain` must serve more than one feature. A screen-specific one belongs
- *    to that screen's module, otherwise every new screen edits `core:domain` and rebuilds every
- *    feature.
+ * 3. A use case in a core module must serve more than one feature. A screen-specific one belongs
+ *    to that screen's module, otherwise screen logic leaks into shared capabilities.
  */
 abstract class CheckArchitectureTask : DefaultTask() {
 
@@ -73,26 +72,29 @@ abstract class CheckArchitectureTask : DefaultTask() {
     }
 
     private fun leakedUseCaseViolations(root: File): List<String> {
-        val domainMain = root.resolve("core/domain/src/commonMain")
-        if (!domainMain.isDirectory) return emptyList()
+        val coreRoot = root.resolve("core")
+        if (!coreRoot.isDirectory) return emptyList()
 
-        val useCaseNames = kotlinSourcesIn(domainMain)
+        val useCases = kotlinSourcesIn(coreRoot)
             .flatMap { file ->
-                USE_CASE_DECLARATION.findAll(file.readText()).map { it.groupValues[1] }.toList()
+                val module = ":core:${file.relativeTo(coreRoot).invariantSeparatorsPath.substringBefore('/')}"
+                USE_CASE_DECLARATION.findAll(file.readText())
+                    .map { match -> match.groupValues[1] to module }
+                    .toList()
             }
             .distinct()
-        if (useCaseNames.isEmpty()) return emptyList()
+        if (useCases.isEmpty()) return emptyList()
 
         val featureDirs = root.resolve("feature").listFiles().orEmpty().filter { it.isDirectory }
         val sourcesByFeature = featureDirs.associate { dir ->
             dir.name to kotlinSourcesIn(dir).map { it.readText() }
         }
 
-        return useCaseNames.mapNotNull { useCase ->
+        return useCases.mapNotNull { (useCase, module) ->
             val users = sourcesByFeature.filterValues { sources -> sources.any { it.contains(useCase) } }.keys
             if (users.size != 1) return@mapNotNull null
 
-            "core:domain declares $useCase, but only feature:${users.single()} uses it. " +
+            "$module declares $useCase, but only feature:${users.single()} uses it. " +
                 "Move it into that feature's own `domain` package, or leave it here once a " +
                 "second feature needs it."
         }.sorted()
