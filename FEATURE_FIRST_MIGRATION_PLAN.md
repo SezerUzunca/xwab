@@ -180,16 +180,23 @@ Beş faz da uygulandı. Planın öngördüğünden sapan noktalar:
 | 2 | Yeni `core:testing` modülü | Üç feature de aynı üç port fake'ine ihtiyaç duyuyor; `xwab.kmp.feature` bunu her feature'ın `commonTest`'ine otomatik veriyor. `core:domain` kendi fake'lerini yerel tutuyor (aksi halde `core:testing` → `core:domain` döngüsü). |
 | 5 | Konsist yerine `checkArchitecture` Gradle task'i | Yeni bir dış bağımlılık gerekmiyor, offline çalışıyor ve modül grafiğini gerçek Gradle dependency modelinden okuyor. Üç kural da uygulanıyor. |
 
-Doğrulama bu oturumda yapılamadı (Gradle loopback engeli, §5). Kendi makinende sırasıyla:
+Doğrulama durumu:
 
-```
-./gradlew checkArchitecture
-./gradlew :shared:testAndroidHostTest
-./gradlew -PenableIos=true :shared:iosSimulatorArm64Test   # macOS
-```
+| Koşu | Sonuç |
+|------|-------|
+| `./gradlew checkArchitecture` | ✅ |
+| `./gradlew testAndroidHostTest` | ✅ (core + üç feature + shared) |
+| iOS CI: `iosSimulatorArm64Test` + `:shared:linkDebugFrameworkIosArm64` | ✅ ([koşu 30533555035](https://github.com/SezerUzunca/xwab/actions/runs/30533555035)) |
+| `./gradlew :androidApp:assembleDebug` | henüz koşulmadı |
 
-İlk çalıştırmada `build-logic` derlenecek; oradan gelecek bir hata convention plugin'lerin
-kendisindedir, modüllerde değil.
+Yol boyunca migrasyondan bağımsız iki şey çıktı ve ayrı commit'lerde düzeltildi:
+
+- `.gitignore`'daki `**/build/` kuralı convention plugin'lerin Kotlin paket klasörünü
+  (`com/xwab/build/`) yuttu; kaynaklar hiç commit edilmedi ve CI descriptor'ları olan boş bir jar
+  aldı. Paket `com.xwab.convention` oldu. **Bu repoda `src` altında `build` adlı klasör açma.**
+- `main` `e151e80`'den beri iOS'ta kırmızıydı (`core:audio-content`'in `IosAudioFileStore.kt`'si).
+  İki Foundation çağrısı Objective-C kategorisi üyesi; Kotlin'e extension olarak geliyorlar ve
+  adlarıyla import edilmeleri gerekiyor. `MAX_DOWNLOAD_BYTES` de `const` olamıyor.
 
 `build-logic`'in bağımlılık kuralı: **plugins.gradle.org kullanılmaz.** Hem `pluginManagement` hem
 `dependencyResolutionManagement` repo'ları `build-logic/settings.gradle.kts`'te açıkça yazılıdır
