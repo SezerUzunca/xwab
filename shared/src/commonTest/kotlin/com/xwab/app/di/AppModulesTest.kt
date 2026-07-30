@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.serialization.ExperimentalSerializationApi
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 import kotlin.test.AfterTest
@@ -91,7 +92,11 @@ class AppModulesTest {
     /**
      * A route whose serializer is missing compiles fine and only fails when the back stack is
      * restored after process death — a crash on the second launch, not the first.
+     *
+     * `getPolymorphic` is the only way to ask a `SerializersModule` what it holds, and it carries
+     * an opt-in; the alternative is not asking, which is what this test exists to stop.
      */
+    @OptIn(ExperimentalSerializationApi::class)
     @Test
     fun everyFeatureContributesTheSerializersForItsOwnRoutes() {
         val routes: List<NavKey> = listOf(HomeRoute, CategoryRoute("rain"), PlayerRoute("gentle-rain"))
