@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.retryWhen
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class DataStoreFavoritesRepository(
     private val dataStore: DataStore<Preferences>,
@@ -25,7 +26,7 @@ internal class DataStoreFavoritesRepository(
             val willRetry = attempt < MAX_READ_RETRIES
             if (willRetry) {
                 logger.w(error) { "Could not read the favorites (attempt ${attempt + 1}); retrying." }
-                delay(RETRY_DELAY_MS)
+                delay(RETRY_DELAY_MS.milliseconds)
             }
             willRetry
         }

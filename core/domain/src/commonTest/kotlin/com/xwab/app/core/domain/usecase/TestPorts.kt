@@ -1,6 +1,5 @@
 package com.xwab.app.core.domain.usecase
 
-import com.xwab.app.core.domain.port.FavoritesRepository
 import com.xwab.app.core.domain.port.MusicCatalogRepository
 import com.xwab.app.core.domain.port.PlaybackCoordinator
 import com.xwab.app.core.domain.port.PlaybackSummary
@@ -35,18 +34,6 @@ internal class FakeMusicCatalog(
         flowOf(tracks.filter { it.categoryId == categoryId })
 
     override fun observeMusic(musicId: String): Flow<Music?> = flowOf(tracks.find { it.id == musicId })
-}
-
-internal class FakeFavorites(favoriteIds: Set<String> = emptySet()) : FavoritesRepository {
-    private val state = MutableStateFlow(favoriteIds)
-    val toggles = mutableListOf<String>()
-
-    override val favoriteIds: Flow<Set<String>> = state
-
-    override suspend fun toggle(musicId: String) {
-        toggles += musicId
-        state.value = if (musicId in state.value) state.value - musicId else state.value + musicId
-    }
 }
 
 internal class FakePlaybackCoordinator : PlaybackCoordinator {

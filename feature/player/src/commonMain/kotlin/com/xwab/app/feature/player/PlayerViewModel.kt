@@ -2,7 +2,7 @@ package com.xwab.app.feature.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xwab.app.core.domain.usecase.ToggleFavoriteUseCase
+import com.xwab.app.core.domain.port.FavoritesRepository
 import com.xwab.app.core.domain.usecase.ToggleMusicPlaybackUseCase
 import com.xwab.app.feature.player.domain.CancelSleepTimerUseCase
 import com.xwab.app.feature.player.domain.ObservePlayerContentUseCase
@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 internal class PlayerViewModel(
     private val musicId: String,
     private val observePlayerContentUseCase: ObservePlayerContentUseCase,
-    private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
+    private val favoritesRepository: FavoritesRepository,
     private val toggleMusicPlaybackUseCase: ToggleMusicPlaybackUseCase,
     private val setPlaybackLoopingUseCase: SetPlaybackLoopingUseCase,
     private val setPlaybackVolumeUseCase: SetPlaybackVolumeUseCase,
@@ -51,7 +51,7 @@ internal class PlayerViewModel(
 
     fun toggleFavorite() {
         if (state.value.music == null) return
-        viewModelScope.launch { toggleFavoriteUseCase(musicId) }
+        viewModelScope.launch { favoritesRepository.toggle(musicId) }
     }
 
     fun togglePlayback() {
