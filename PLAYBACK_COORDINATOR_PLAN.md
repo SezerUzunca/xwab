@@ -40,16 +40,16 @@ ve testi [DefaultPlaybackCoordinatorTest.kt](core/playback/src/commonTest/kotlin
 
 Coordinator, controller state'ini yayımlarken ayrıca kendi `loopMode`/`volume` alanlarını
 tutuyordu ve yeni istek hazırlarken hangisini kullanacağına `current.source != null` ile karar
-veriyordu. `core:media` okunduğunda bu gate'in **yanlış sinyale** baktığı görüldü:
+veriyordu. `core:playback-engine` okunduğunda bu gate'in **yanlış sinyale** baktığı görüldü:
 
-- [PlaybackReducer.kt:125](core/media/src/commonMain/kotlin/com/xwab/app/core/media/PlaybackReducer.kt:125)
+- [PlaybackReducer.kt:125](core/playback-engine/src/commonMain/kotlin/com/xwab/app/core/media/PlaybackReducer.kt:125)
   — `reduceSetLooping`/`reduceSetVolume` `desired.isLooping`/`desired.volume`'u **koşulsuz**
   günceller; yani kaynak yüklenmeden yapılan seçimi medya katmanı zaten hatırlıyor.
-- [PlaybackReducer.kt:440](core/media/src/commonMain/kotlin/com/xwab/app/core/media/PlaybackReducer.kt:440)
+- [PlaybackReducer.kt:440](core/playback-engine/src/commonMain/kotlin/com/xwab/app/core/media/PlaybackReducer.kt:440)
   — bağlantı koptuğunda yalnızca `observed.source` null'lanıyor; `desired` korunuyor.
-- [PlaybackProjection.kt:33](core/media/src/commonMain/kotlin/com/xwab/app/core/media/PlaybackProjection.kt:33)
+- [PlaybackProjection.kt:33](core/playback-engine/src/commonMain/kotlin/com/xwab/app/core/media/PlaybackProjection.kt:33)
   — yayımlanan `isLooping` **`desired.isLooping`**, disconnect'te hayatta kalıyor.
-- [AndroidPlaybackFacade.kt:379](core/media/src/androidMain/kotlin/com/xwab/app/core/media/AndroidPlaybackFacade.kt:379)
+- [AndroidPlaybackFacade.kt:379](core/playback-engine/src/androidMain/kotlin/com/xwab/app/core/media/AndroidPlaybackFacade.kt:379)
   — controller yokken yayımlanan `volume` da `desired.volume`'a düşüyor.
 
 Yani `source == null` olduğu anda `desired` değerleri hâlâ doğruydu; coordinator gereksiz yere
@@ -72,7 +72,7 @@ Denenip **reddedilen** alternatifler:
 - Kurulumda `SetLooping(true)` göndermek → Android'de `ensureConnectedOrApply` controller yoksa
   `connection.connect()` çağırıyor, yani uygulama açılışında PlaybackService'e bağlanırdı.
 
-`core:media` bu yüzden **hiç değiştirilmedi**; düzeltme tamamen `core:data` içinde kaldı.
+`core:playback-engine` bu yüzden **hiç değiştirilmedi**; düzeltme tamamen `core:data` içinde kaldı.
 
 ---
 
@@ -105,7 +105,7 @@ neredeyse tamamen politika; eşleme dört satır.
 uygulamaya bakınca ikna edici değil:
 
 - Alan bir `String`. Hiçbir tip bağımlılığı yaratmıyor — Adım 5'ten sonra `core:model` ve
-  `core:domain`'in `core:media`'ya bağımlılığı zaten sıfır.
+  `core:domain`'in `core:playback-engine`'e bağımlılığı zaten sıfır.
 - Kaldırmanın iki yolu var, ikisi de daha kötü: (a) `core:playback` içinde ikinci bir
   `id → dosya` tablosu — katalogla sessizce ayrışabilecek bir kopya; (b) isim kuralına
   güvenmek (`gentle-rain` → `gentle_rain.mp3`) — bugün beş girdinin beşi uyuyor ama kural
@@ -127,12 +127,12 @@ repository arayüzlerini taşımak `core:data → core:domain → core:data` Gra
 
 ```text
 core:model    (bağımsız)
-core:media    (bağımsız)
-core:domain   → core:model, core:media      # portlar + use case'ler
+core:playback-engine (bağımsız)
+core:domain   → core:model, core:playback-engine # portlar + use case'ler
 core:data     → core:domain, core:model     # katalog + favoriler
-core:playback → core:domain, core:media     # playback oturumu + audio dosyaları
+core:playback → core:domain, core:playback-engine # playback oturumu + audio dosyaları
 shared        → hepsi (composition root)
-feature:*     → core:domain, core:model, core:ui
+feature:*     → core:domain, core:model, core:designsystem
 ```
 
 Bağımlılık yönü artık `data/playback → domain`. Gradle döngüsü yok.
@@ -147,10 +147,10 @@ Bağımlılık yönü artık `data/playback → domain`. Gradle döngüsü yok.
   `DataStoreFavoritesRepository`, `DefaultPlaybackCoordinator`) `internal` kaldı.
 - `core:domain` `api(projects.core.data)`'yı bıraktı; `core:data` ve `core:playback`
   `implementation(projects.core.domain)` aldı.
-- `core:data` compose eklentilerini ve `api(projects.core.media)`'yı bıraktı; artık media
+- `core:data` compose eklentilerini ve `api(projects.core.playbackEngine)`'ı bıraktı; artık playback engine
   tiplerini hiç görmüyor. Public yüzeyi yalnızca `dataModule`.
 - DI ikiye bölündü: `dataModule` (iki repository) + `playbackCoordinatorModule`. İkinci adın
-  `playbackModule` olmamasının sebebi `core:media`'nın o adı zaten kullanması.
+  `playbackModule` olmamasının sebebi `core:playback-engine`'in o adı zaten kullanması.
 
 ### 5.3 Adım 5 — domain sızıntısı kapatıldı
 
@@ -163,7 +163,7 @@ val sleepTimerRemainingMs: Flow<Long?>
 
 - `PlaybackSummary` `usecase` paketinden `port` paketine taşındı — port'un para birimi o.
 - `AudioPlayerState.toPlaybackSummary()` eşlemesi `core:playback` adaptörüne indi.
-- `core:domain` `api(projects.core.media)`'yı bıraktı. `core:media` artık yalnız `core:media`,
+- `core:domain` `api(projects.core.playbackEngine)`'ı bıraktı. `core:playback-engine` artık yalnız kendi,
   `core:playback` ve `shared` içinde görünüyor; `core:domain`, `core:data`, `core:model` ve
   bütün `feature:*` modülleri temiz.
 - `StateFlow` → `Flow` dönüşümü davranışı değiştirmiyor: use case'ler bu akışları yalnız
@@ -177,12 +177,12 @@ düşmesi ve sleep timer'ın ham milisaniye olarak yayımlanması.
 
 ```text
 core:model    (bağımsız)
-core:media    (bağımsız)
+core:playback-engine (bağımsız)
 core:domain   → core:model            # plain Kotlin: DI konteyneri yok
 core:data     → core:domain, core:model
-core:playback → core:domain, core:media, core:model
+core:playback → core:domain, core:playback-engine, core:model
 shared        → hepsi (composition root)
-feature:*     → core:domain, core:model, core:ui, core:navigation
+feature:*     → core:domain, core:model, core:designsystem, core:navigation
 ```
 
 ---
@@ -197,21 +197,21 @@ Bütün adımlar (1–8) Android/common tarafında **yeşil** doğrulandı.
 
 **iOS de yeşil.** [PR #2](https://github.com/SezerUzunca/xwab/pull/2) üzerinde
 [run 30340856100](https://github.com/SezerUzunca/xwab/actions/runs/30340856100): yedi modülün
-simülatör testleri koştu (`core:data`, `core:domain`, `core:media`, `core:model`,
+simülatör testleri koştu (`core:data`, `core:domain`, `core:playback-engine`, `core:model`,
 `core:navigation`, `core:playback`, `shared`), on beş modülün test binary'si linklendi ve
 `:shared:linkDebugFrameworkIosArm64` ile cihaz framework'ü de bağlandı.
 
 ⚠️ **iOS CI `macos-26` gerektiriyor.** `macos-15` (Xcode 16.4, iOS 18.5 SDK) Compose'a bağlı bir
 modülün test binary'sini linkleyemiyor: `compose.ui:ui-uikit` içindeki `CMPLayoutRegion`,
 yalnız iOS 26 SDK'sında bulunan `UIViewLayoutRegion`'a referans veriyor. Bu, workflow yalnız
-`core:media`'yı derlerken görünmüyordu — o modülün Compose bağımlılığı yok.
+`core:playback-engine`'i derlerken görünmüyordu — o modülün Compose bağımlılığı yok.
 
 Adım 4 DI kayıtlarını böldüğü için uygulamanın gerçekten açılması da kontrol edilmeli
-(Koin çözümlemesi çalışma zamanında patlar, derlemede değil). `core:media` instrumentation
+(Koin çözümlemesi çalışma zamanında patlar, derlemede değil). `core:playback-engine` instrumentation
 paketi disconnect/reconnect senaryolarını kapsıyor:
 
 ```bash
-./gradlew :core:media:connectedAndroidTest
+./gradlew :core:playback-engine:connectedAndroidTest
 ```
 
 macOS'ta ayrıca `-PenableIos=true` ile iOS derlemesi.

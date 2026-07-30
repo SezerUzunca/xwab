@@ -7,7 +7,7 @@ import org.koin.dsl.module
 /**
  * Binds the playback session adapter.
  *
- * Named for the coordinator rather than "playback" because `core:media` already owns a
+ * Named for the coordinator rather than "playback" because `core:playback-engine` already owns a
  * `playbackModule` — the one that builds the platform [com.xwab.app.core.media.PlaybackController].
  */
 val playbackCoordinatorModule = module {

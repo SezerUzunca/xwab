@@ -2,8 +2,8 @@ package com.xwab.app.feature.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xwab.app.core.domain.usecase.ObserveHomeContentUseCase
 import com.xwab.app.core.domain.usecase.ToggleMusicPlaybackUseCase
+import com.xwab.app.feature.home.domain.ObserveHomeContentUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map

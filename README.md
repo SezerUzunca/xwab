@@ -1,7 +1,8 @@
 This is a Kotlin Multiplatform project targeting Android, iOS.
 
-Serenity is a free, account-free relaxation sound app. Its feature slices are `home`, `category`,
-`favorites`, and `player`; shared catalog and platform primitives live under `core`.
+Serenity is a free, account-free relaxation sound app. Its feature slices are `home`, `category`
+and `player`; shared catalog and platform primitives live under `core`. Favouriting is a
+capability (`core:favorites`) used from several screens rather than a screen of its own.
 
 ## Included features
 
@@ -10,19 +11,77 @@ Serenity is a free, account-free relaxation sound app. Its feature slices are `h
   and are saved to app-owned storage for later local playback.
 - Persistent favorites backed by Kotlin Multiplatform DataStore.
 - Browsing, track details, favorites, and active audio playback.
-- A `core:media` KMP playback layer built with Media3 ExoPlayer on Android and
+- A `core:playback-engine` KMP playback layer built with Media3 ExoPlayer on Android and
   AVFoundation AVPlayer on iOS, including platform media-session integration.
 - Public-domain/CC0 audio with a source and checksum manifest in
   [THIRD_PARTY_AUDIO.md](./THIRD_PARTY_AUDIO.md).
 
 The core capability boundary is intentionally incremental: `core:audio-content` owns catalog
 metadata, bundled MP3s, remote sources, and local resolution; `core:favorites` owns favorite
-persistence; `core:playback` owns app session policy; and `core:media` remains the reusable
+persistence; `core:playback` owns app session policy; and `core:playback-engine` remains the reusable
 platform playback engine.
 
 SQLDelight is intentionally not included: favorites are a small key-value set without relational
 queries, partial-row updates, or referential-integrity needs, which makes DataStore the smaller and
 more appropriate persistence layer.
+
+## Architecture
+
+```
+androidApp ─┐
+            ├─► shared (composition root: Koin + NavDisplay)
+iosApp ─────┘        │
+        ┌────────────┼────────────────┐
+        ▼            ▼                ▼
+  feature:home  feature:category  feature:player   (each with a :navigation API module)
+        │            │                │
+        └────────────┴───────┬────────┘
+                             ▼
+   core:domain (ports + shared use cases) · core:model · core:designsystem · core:navigation
+   core:audio-content · core:favorites · core:playback · core:playback-engine · core:datastore
+```
+
+A feature owns its screen, its state, its ViewModel, its use cases and its Koin bindings. It sees
+another feature only through that feature's `:navigation` module — a route, its serializers and a
+`Navigator` extension, no implementation. `core:domain` holds the ports every adapter implements
+and the two use cases more than one screen performs; a screen-specific use case lives with its
+screen, so adding a screen does not touch `core`.
+
+Three rules hold this in place, and `./gradlew checkArchitecture` fails the build when one breaks:
+a core module may not depend on a feature; a feature may depend only on another feature's
+`:navigation` module; a use case in `core:domain` must serve more than one feature.
+
+### Build configuration
+
+Module build files carry no boilerplate — the convention plugins in
+[build-logic](./build-logic/src/main/kotlin) own the KMP targets, the SDK levels, the iOS guard
+and the shared dependency sets:
+
+| Plugin | For |
+|---|---|
+| `xwab.kmp.library` | every KMP library module |
+| `xwab.kmp.compose` | the above plus Compose Multiplatform |
+| `xwab.kmp.feature` | the above plus the core modules and Compose/Koin surface every screen uses |
+| `xwab.kmp.feature.navigation` | a feature's navigation API module |
+
+`shared` is the exception and configures itself: it is the only module producing an iOS framework.
+
+They are `Plugin<Project>` classes rather than precompiled `.gradle.kts` script plugins on
+purpose: compiling those needs Gradle's `kotlin-dsl` plugin, which is published only to
+plugins.gradle.org. This build resolves everything from Google's Maven and Maven Central, and
+`build-logic/settings.gradle.kts` declares both repository blocks explicitly to keep it that way.
+
+### Adding a feature
+
+```powershell
+./tools/new-feature.ps1 sleep-timer
+```
+
+That writes both modules, their build files and a working route/screen/ViewModel/Koin skeleton.
+Gradle finds them on its own — `settings.gradle.kts` scans `feature/`. Two lines are left, both
+in `shared`: the module dependency in `shared/build.gradle.kts`, and the feature's `FeatureEntry`
+in [AppFeatures.kt](./shared/src/commonMain/kotlin/com/xwab/app/di/AppFeatures.kt), which is what
+carries its Koin bindings and route serializers into the app.
 
 * [/iosApp](./iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
   you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
@@ -49,6 +108,7 @@ Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
 
 - Android tests: `./gradlew :shared:testAndroidHostTest`
 - iOS tests: `./gradlew :shared:iosSimulatorArm64Test`
+- Architecture rules: `./gradlew checkArchitecture`
 
 ---
 

@@ -51,8 +51,8 @@ import xwab.feature.player.generated.resources.timer_15_minutes
 import xwab.feature.player.generated.resources.timer_30_minutes
 import xwab.feature.player.generated.resources.timer_45_minutes
 import xwab.feature.player.generated.resources.timer_60_minutes
-import xwab.core.ui.generated.resources.Res as UiRes
-import xwab.core.ui.generated.resources.duration_public_domain
+import xwab.core.designsystem.generated.resources.Res as UiRes
+import xwab.core.designsystem.generated.resources.duration_public_domain
 import xwab.feature.player.generated.resources.volume
 import xwab.feature.player.generated.resources.volume_percentage
 

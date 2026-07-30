@@ -7,4 +7,7 @@ plugins {
     alias(libs.plugins.composeCompiler) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.kotlinxSerialization) apply false
+
+    // `checkArchitecture`: the feature-first rules, enforced instead of documented.
+    id("xwab.architecture")
 }

@@ -6,20 +6,17 @@ import com.xwab.app.core.favorites.di.favoritesModule
 import com.xwab.app.core.media.di.playbackModule
 import com.xwab.app.core.playback.di.playbackCoordinatorModule
 import com.xwab.app.core.preferences.di.dataStoreModule
-import com.xwab.app.feature.category.di.categoryModule
-import com.xwab.app.feature.home.di.homeModule
-import com.xwab.app.feature.player.di.playerModule
 import org.koin.core.module.Module
 
-fun appModules(): List<Module> = listOf(
+/** The capability modules: one per adapter, plus the use cases more than one feature performs. */
+internal val coreModules: List<Module> = listOf(
     audioContentModule,
     audioContentPlatformModule,
     favoritesModule,
     playbackCoordinatorModule,
     domainModule,
-    homeModule,
-    categoryModule,
-    playerModule,
     playbackModule,
     dataStoreModule,
 )
+
+fun appModules(): List<Module> = coreModules + features.map { it.koinModule }

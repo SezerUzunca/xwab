@@ -12,23 +12,15 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import com.xwab.app.core.navigation.LocalNavigator
 import com.xwab.app.core.navigation.rememberNavigator
+import com.xwab.app.di.featureSerializers
 import com.xwab.app.feature.home.navigation.HomeRoute
-import com.xwab.app.feature.category.navigation.categoryNavigationSerializers
-import com.xwab.app.feature.home.navigation.homeNavigationSerializers
-import com.xwab.app.feature.player.navigation.playerNavigationSerializers
-import kotlinx.serialization.modules.SerializersModule
 import org.koin.compose.navigation3.koinEntryProvider
 
 @Composable
 fun AppNavigation() {
     val configuration = remember {
-        SavedStateConfiguration {
-            serializersModule = SerializersModule {
-                include(homeNavigationSerializers)
-                include(categoryNavigationSerializers)
-                include(playerNavigationSerializers)
-            }
-        }
+        // Collected from the feature list; the only route this file names is the start one.
+        SavedStateConfiguration { serializersModule = featureSerializers }
     }
     val backStack = rememberNavBackStack(configuration, HomeRoute)
     val navigator = rememberNavigator(backStack)

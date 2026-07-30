@@ -8,6 +8,9 @@ gradle.extra["enableIos"] = startParameter.projectProperties["enableIos"]?.toBoo
     ?: System.getProperty("os.name").contains("Mac", ignoreCase = true)
 
 pluginManagement {
+    // Convention plugins (`xwab.*`) that every module applies instead of repeating build config.
+    includeBuild("build-logic")
+
     repositories {
         google {
             mavenContent {
@@ -36,19 +39,27 @@ dependencyResolutionManagement {
 }
 
 include(":androidApp")
-include(":core:preferences")
-include(":core:media")
+include(":core:datastore")
+include(":core:playback-engine")
 include(":core:model")
 include(":core:domain")
 include(":core:audio-content")
 include(":core:favorites")
 include(":core:playback")
-include(":core:ui")
+include(":core:designsystem")
 include(":core:navigation")
+include(":core:testing")
 include(":shared")
-include(":feature:home")
-include(":feature:home:navigation")
-include(":feature:category")
-include(":feature:category:navigation")
-include(":feature:player")
-include(":feature:player:navigation")
+
+// Feature modules are discovered, not listed: `tools/new-feature.ps1` writes the directories and
+// they are part of the build on the next sync. A feature is a directory under `feature/` with a
+// build file, optionally holding a `navigation/` API module beside it.
+rootDir.resolve("feature").listFiles()
+    ?.filter { it.isDirectory && it.resolve("build.gradle.kts").exists() }
+    ?.sortedBy { it.name }
+    ?.forEach { featureDir ->
+        include(":feature:${featureDir.name}")
+        if (featureDir.resolve("navigation/build.gradle.kts").exists()) {
+            include(":feature:${featureDir.name}:navigation")
+        }
+    }

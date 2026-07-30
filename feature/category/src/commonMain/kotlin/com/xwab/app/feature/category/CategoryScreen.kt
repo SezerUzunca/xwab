@@ -20,8 +20,8 @@ import com.xwab.app.core.ui.theme.SleepRelaxTheme
 import androidx.compose.ui.tooling.preview.Preview
 import org.jetbrains.compose.resources.stringResource
 import xwab.feature.category.generated.resources.*
-import xwab.core.ui.generated.resources.Res as UiRes
-import xwab.core.ui.generated.resources.duration_public_domain
+import xwab.core.designsystem.generated.resources.Res as UiRes
+import xwab.core.designsystem.generated.resources.duration_public_domain
 
 import com.xwab.app.core.ui.components.BackButton
 import com.xwab.app.core.ui.components.FavoriteButton
