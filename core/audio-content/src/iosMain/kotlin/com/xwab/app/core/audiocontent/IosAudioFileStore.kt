@@ -7,6 +7,10 @@ import kotlinx.coroutines.withContext
 import platform.Foundation.NSData
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSURL
+// Objective-C categories reach Kotlin as extensions, so these two need importing by name even
+// though `NSData` itself is already in scope.
+import platform.Foundation.dataWithContentsOfURL
+import platform.Foundation.writeToFile
 
 internal class IosAudioFileStore(
     private val rootPath: String,
@@ -75,6 +79,9 @@ internal class IosAudioFileStore(
 
     private companion object {
         val CACHE_FILE_PATTERN = Regex("[a-z0-9-]+-v[0-9]+\\.mp3")
-        const val MAX_DOWNLOAD_BYTES = 25uL * 1024uL * 1024uL
+
+        // Not `const`: unsigned arithmetic runs through inline value-class operators, so the
+        // product is not a compile-time constant.
+        val MAX_DOWNLOAD_BYTES: ULong = 25uL * 1024uL * 1024uL
     }
 }
