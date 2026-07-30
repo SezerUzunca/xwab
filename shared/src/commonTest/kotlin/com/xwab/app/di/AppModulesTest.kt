@@ -3,6 +3,7 @@ package com.xwab.app.di
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.navigation3.runtime.NavKey
 import com.xwab.app.core.audiocontent.AudioFileStore
 import com.xwab.app.core.audiocontent.di.audioContentModule
 import com.xwab.app.core.audiocontent.di.audioContentPlatformModule
@@ -10,13 +11,6 @@ import com.xwab.app.core.domain.port.FavoritesRepository
 import com.xwab.app.core.domain.port.MusicCatalogRepository
 import com.xwab.app.core.domain.port.PlaybackCoordinator
 import com.xwab.app.core.domain.port.AudioContentResolver
-import com.xwab.app.core.domain.usecase.CancelSleepTimerUseCase
-import com.xwab.app.core.domain.usecase.ObserveCategoryContentUseCase
-import com.xwab.app.core.domain.usecase.ObserveHomeContentUseCase
-import com.xwab.app.core.domain.usecase.ObservePlayerContentUseCase
-import com.xwab.app.core.domain.usecase.SetPlaybackLoopingUseCase
-import com.xwab.app.core.domain.usecase.SetPlaybackVolumeUseCase
-import com.xwab.app.core.domain.usecase.StartSleepTimerUseCase
 import com.xwab.app.core.domain.usecase.ToggleFavoriteUseCase
 import com.xwab.app.core.domain.usecase.ToggleMusicPlaybackUseCase
 import com.xwab.app.core.media.AudioPlayerState
@@ -25,6 +19,9 @@ import com.xwab.app.core.media.PlaybackController
 import com.xwab.app.core.media.SleepTimerState
 import com.xwab.app.core.favorites.di.favoritesModule
 import com.xwab.app.core.playback.di.playbackCoordinatorModule
+import com.xwab.app.feature.category.navigation.CategoryRoute
+import com.xwab.app.feature.home.navigation.HomeRoute
+import com.xwab.app.feature.player.navigation.PlayerRoute
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,20 +30,21 @@ import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 import kotlin.test.AfterTest
 import kotlin.test.Test
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * Catalog, playback and domain wiring is spread over three Koin modules living in three Gradle
- * modules. A binding that no module provides only surfaces when a screen first asks for its use
- * case — at runtime, on a device. These tests turn that into a build failure.
+ * Catalog, playback and shared-use-case wiring is spread over several Koin modules living in
+ * several Gradle modules. A binding that no module provides only surfaces when a screen first
+ * asks for it — at runtime, on a device. These tests turn that into a build failure.
  *
  * Two halves, and both are needed: [theApplicationShipsTheModulesUnderTest] pins the production
- * list in [appModules], and [everyUseCaseResolvesFromTheAssembledGraph] proves that list actually
- * resolves. Either one alone can pass while the app crashes on launch.
+ * list in [appModules], and [everySharedUseCaseResolvesFromTheAssembledGraph] proves that list
+ * actually resolves. Either one alone can pass while the app crashes on launch.
  *
- * The feature modules are deliberately not resolved: their ViewModels are `internal` to those
- * modules and are registered as ViewModel definitions, which need a scope this plain container
- * has not got.
+ * The feature modules are deliberately not resolved: their ViewModels and use cases are
+ * `internal` to those modules, and the ViewModel definitions need a scope this plain container
+ * has not got. Each feature tests its own use case in its own `commonTest` instead.
  */
 class AppModulesTest {
     /** Stands in for the two bindings the platform DI modules contribute. */
@@ -78,6 +76,35 @@ class AppModulesTest {
     }
 
     @Test
+    fun everyRegisteredFeatureReachesTheContainer() {
+        val shipped = appModules()
+
+        assertTrue(features.isNotEmpty(), "no feature is registered in `features`")
+        features.forEach { feature ->
+            assertTrue(
+                feature.koinModule in shipped,
+                "a registered feature's Koin module is missing from appModules()",
+            )
+        }
+    }
+
+    /**
+     * A route whose serializer is missing compiles fine and only fails when the back stack is
+     * restored after process death — a crash on the second launch, not the first.
+     */
+    @Test
+    fun everyFeatureContributesTheSerializersForItsOwnRoutes() {
+        val routes: List<NavKey> = listOf(HomeRoute, CategoryRoute("rain"), PlayerRoute("gentle-rain"))
+
+        routes.forEach { route ->
+            assertNotNull(
+                featureSerializers.getPolymorphic(NavKey::class, route),
+                "no NavKey serializer registered for ${route::class.simpleName}",
+            )
+        }
+    }
+
+    @Test
     fun everyPortIsBoundToAnImplementation() {
         koin.get<MusicCatalogRepository>()
         koin.get<FavoritesRepository>()
@@ -86,16 +113,9 @@ class AppModulesTest {
     }
 
     @Test
-    fun everyUseCaseResolvesFromTheAssembledGraph() {
-        koin.get<ObserveHomeContentUseCase>()
-        koin.get<ObserveCategoryContentUseCase>()
-        koin.get<ObservePlayerContentUseCase>()
+    fun everySharedUseCaseResolvesFromTheAssembledGraph() {
         koin.get<ToggleFavoriteUseCase>()
         koin.get<ToggleMusicPlaybackUseCase>()
-        koin.get<SetPlaybackLoopingUseCase>()
-        koin.get<SetPlaybackVolumeUseCase>()
-        koin.get<StartSleepTimerUseCase>()
-        koin.get<CancelSleepTimerUseCase>()
     }
 
     private class FakePreferencesDataStore : DataStore<Preferences> {

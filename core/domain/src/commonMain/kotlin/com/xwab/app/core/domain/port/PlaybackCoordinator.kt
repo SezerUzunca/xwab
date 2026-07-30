@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
  * Not a repository: there is nothing to store or query here, only a live session to steer.
  *
  * Everything it publishes is domain-owned. The engine's own state model stays behind the
- * adapter, which is what keeps `core:media` off the upper layers' classpath.
+ * adapter, which is what keeps `core:playback-engine` off the upper layers' classpath.
  */
 interface PlaybackCoordinator {
     val playback: Flow<PlaybackSummary>

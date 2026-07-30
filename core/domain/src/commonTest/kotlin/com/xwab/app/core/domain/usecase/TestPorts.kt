@@ -10,19 +10,16 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 
+/**
+ * The same fakes `core:testing` publishes for the feature modules, kept local on purpose:
+ * `core:testing` implements these ports, so depending on it from here would point `core:domain`
+ * back at a module that depends on `core:domain`.
+ */
 internal fun track(id: String, categoryId: String = "rain") = Music(
     id = id,
     name = id,
     categoryId = categoryId,
     durationSeconds = 60,
-)
-
-internal fun category(id: String, musicCount: Int = 0) = Category(
-    id = id,
-    name = id,
-    description = "",
-    symbol = "*",
-    musicCount = musicCount,
 )
 
 internal class FakeMusicCatalog(
@@ -53,43 +50,17 @@ internal class FakeFavorites(favoriteIds: Set<String> = emptySet()) : FavoritesR
 }
 
 internal class FakePlaybackCoordinator : PlaybackCoordinator {
-    private val summary = MutableStateFlow(PlaybackSummary())
-    private val remainingMs = MutableStateFlow<Long?>(null)
-
-    override val playback: Flow<PlaybackSummary> = summary
-    override val sleepTimerRemainingMs: Flow<Long?> = remainingMs
+    override val playback: Flow<PlaybackSummary> = MutableStateFlow(PlaybackSummary())
+    override val sleepTimerRemainingMs: Flow<Long?> = MutableStateFlow<Long?>(null)
 
     var toggledTrack: Music? = null
-    var looping: Boolean? = null
-    var volume: Float? = null
-    var startedTimerMs: Long? = null
-    var cancelledTimers = 0
-
-    fun publish(playback: PlaybackSummary) {
-        summary.value = playback
-    }
-
-    fun publishSleepTimer(remaining: Long?) {
-        remainingMs.value = remaining
-    }
 
     override suspend fun togglePlayback(music: Music) {
         toggledTrack = music
     }
 
-    override fun setLooping(enabled: Boolean) {
-        looping = enabled
-    }
-
-    override fun setVolume(volume: Float) {
-        this.volume = volume
-    }
-
-    override fun startSleepTimer(durationMs: Long) {
-        startedTimerMs = durationMs
-    }
-
-    override fun cancelSleepTimer() {
-        cancelledTimers++
-    }
+    override fun setLooping(enabled: Boolean) = Unit
+    override fun setVolume(volume: Float) = Unit
+    override fun startSleepTimer(durationMs: Long) = Unit
+    override fun cancelSleepTimer() = Unit
 }

@@ -2,13 +2,13 @@ package com.xwab.app.feature.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xwab.app.core.domain.usecase.CancelSleepTimerUseCase
-import com.xwab.app.core.domain.usecase.ObservePlayerContentUseCase
-import com.xwab.app.core.domain.usecase.SetPlaybackLoopingUseCase
-import com.xwab.app.core.domain.usecase.SetPlaybackVolumeUseCase
-import com.xwab.app.core.domain.usecase.StartSleepTimerUseCase
 import com.xwab.app.core.domain.usecase.ToggleFavoriteUseCase
 import com.xwab.app.core.domain.usecase.ToggleMusicPlaybackUseCase
+import com.xwab.app.feature.player.domain.CancelSleepTimerUseCase
+import com.xwab.app.feature.player.domain.ObservePlayerContentUseCase
+import com.xwab.app.feature.player.domain.SetPlaybackLoopingUseCase
+import com.xwab.app.feature.player.domain.SetPlaybackVolumeUseCase
+import com.xwab.app.feature.player.domain.StartSleepTimerUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map

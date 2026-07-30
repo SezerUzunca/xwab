@@ -1,5 +1,12 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+/**
+ * The composition root configures its own targets rather than applying `xwab.kmp.compose`.
+ *
+ * It is the only module that produces an iOS framework binary, and the only one whose host tests
+ * need Android resources — and `withHostTest` cannot be called a second time on top of the one
+ * the convention plugin already declares. Everything else below matches what that plugin does.
+ */
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
@@ -38,21 +45,21 @@ kotlin {
     
     sourceSets {
         commonMain.dependencies {
-            implementation(projects.core.media)
-            implementation(projects.core.preferences)
+            implementation(projects.core.playbackEngine)
+            implementation(projects.core.datastore)
             implementation(projects.core.model)
             implementation(projects.core.domain)
             implementation(projects.core.navigation)
             implementation(projects.core.audioContent)
             implementation(projects.core.favorites)
             implementation(projects.core.playback)
-            implementation(projects.core.ui)
+            implementation(projects.core.designsystem)
             implementation(projects.feature.home)
-            implementation(projects.feature.home.navigation)
             implementation(projects.feature.category)
-            implementation(projects.feature.category.navigation)
             implementation(projects.feature.player)
-            implementation(projects.feature.player.navigation)
+            // The one route the composition root names itself: the start destination. Every
+            // other route reaches it through the feature's `FeatureEntry`.
+            implementation(projects.feature.home.navigation)
             implementation(libs.compose.runtime)
             implementation(libs.compose.ui)
             // The composition root owns every Koin module the domain layer needs.
@@ -65,6 +72,9 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            // Test-only: proves each feature really contributes the serializers for its routes.
+            implementation(projects.feature.category.navigation)
+            implementation(projects.feature.player.navigation)
         }
     }
 }

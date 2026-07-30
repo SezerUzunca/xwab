@@ -4,6 +4,7 @@ package com.xwab.app.feature.home.di
 
 import com.xwab.app.feature.home.HomeScreenRoute
 import com.xwab.app.feature.home.HomeViewModel
+import com.xwab.app.feature.home.domain.ObserveHomeContentUseCase
 import com.xwab.app.feature.home.navigation.HomeRoute
 import com.xwab.app.core.navigation.LocalNavigator
 import com.xwab.app.feature.category.navigation.navigateToCategory
@@ -13,7 +14,10 @@ import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 import org.koin.dsl.navigation3.navigation
 
-val homeModule = module {
+internal val homeModule = module {
+    // The screen's own use case is bound here; the ports it reads come from the core modules.
+    factory { ObserveHomeContentUseCase(get(), get(), get()) }
+
     viewModel {
         HomeViewModel(
             observeHomeContentUseCase = get(),

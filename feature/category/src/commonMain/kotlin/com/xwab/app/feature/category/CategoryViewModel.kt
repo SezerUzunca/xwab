@@ -2,9 +2,9 @@ package com.xwab.app.feature.category
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xwab.app.core.domain.usecase.ObserveCategoryContentUseCase
 import com.xwab.app.core.domain.usecase.ToggleFavoriteUseCase
 import com.xwab.app.core.domain.usecase.ToggleMusicPlaybackUseCase
+import com.xwab.app.feature.category.domain.ObserveCategoryContentUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
