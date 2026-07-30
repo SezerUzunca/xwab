@@ -1,6 +1,6 @@
 package com.xwab.app.feature.player.domain
 
-import com.xwab.app.core.domain.port.PlaybackCoordinator
+import com.xwab.app.core.playback.PlaybackCoordinator
 
 /**
  * Looping, volume and the sleep timer are steered from the player screen and nowhere else, so

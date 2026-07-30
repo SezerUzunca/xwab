@@ -21,7 +21,7 @@ internal val homeModule = module {
     viewModel {
         HomeViewModel(
             observeHomeContentUseCase = get(),
-            toggleMusicPlaybackUseCase = get(),
+            playbackCoordinator = get(),
         )
     }
 

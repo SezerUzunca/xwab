@@ -23,7 +23,7 @@ internal val categoryModule = module {
             categoryId = parameters.get(),
             observeCategoryContentUseCase = get(),
             favoritesRepository = get(),
-            toggleMusicPlaybackUseCase = get(),
+            playbackCoordinator = get(),
         )
     }
 

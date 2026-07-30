@@ -1,8 +1,7 @@
 package com.xwab.app.core.playback
 
-import com.xwab.app.core.domain.port.AudioContentResolver
-import com.xwab.app.core.domain.port.PlaybackSummary
-import com.xwab.app.core.domain.port.ResolvedAudioContent
+import com.xwab.app.core.data.AudioContentResolver
+import com.xwab.app.core.data.ResolvedAudioContent
 import com.xwab.app.core.media.AudioPlayerState
 import com.xwab.app.core.media.AudioSource
 import com.xwab.app.core.media.LoopMode
@@ -12,6 +11,7 @@ import com.xwab.app.core.media.PlaybackPhase
 import com.xwab.app.core.media.PlaybackRequest
 import com.xwab.app.core.media.SleepTimerState
 import com.xwab.app.core.model.Music
+import com.xwab.app.core.model.PlaybackSummary
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

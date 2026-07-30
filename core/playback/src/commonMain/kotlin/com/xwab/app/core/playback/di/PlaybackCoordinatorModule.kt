@@ -1,7 +1,7 @@
 package com.xwab.app.core.playback.di
 
-import com.xwab.app.core.domain.port.PlaybackCoordinator
 import com.xwab.app.core.playback.DefaultPlaybackCoordinator
+import com.xwab.app.core.playback.PlaybackCoordinator
 import org.koin.dsl.module
 
 /**

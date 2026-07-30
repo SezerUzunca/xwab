@@ -5,7 +5,7 @@ import org.gradle.api.Project
 
 /**
  * `xwab.kmp.feature` — everything a feature slice needs: [KmpComposeConventionPlugin] plus the
- * four core modules and the Compose/Koin surface every screen in this app uses.
+ * shared core modules and the Compose/Koin surface every screen in this app uses.
  *
  * A feature's own build file is then only its namespace and the `:navigation` modules it routes
  * to. A feature must never depend on another feature's implementation module — `checkArchitecture`
@@ -19,7 +19,8 @@ class KmpFeatureConventionPlugin : Plugin<Project> {
             kotlinMultiplatform {
                 dependenciesOf("commonMain") {
                     implementation(project(":core:model"))
-                    implementation(project(":core:domain"))
+                    implementation(project(":core:data"))
+                    implementation(project(":core:playback"))
                     implementation(project(":core:designsystem"))
                     implementation(project(":core:navigation"))
                     implementation(libs.library("compose-foundation"))
@@ -32,8 +33,7 @@ class KmpFeatureConventionPlugin : Plugin<Project> {
                     implementation(libs.library("koin-compose-navigation3"))
                 }
 
-                // Every feature owns a use case joining the same three domain ports, so every
-                // feature needs the same three fakes to test it.
+                // Every feature joins the same shared ports, so each receives the common fakes.
                 dependenciesOf("commonTest") {
                     implementation(project(":core:testing"))
                 }

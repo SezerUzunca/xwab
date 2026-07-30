@@ -7,12 +7,11 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(projects.core.domain)
+            implementation(projects.core.data)
             implementation(projects.core.playbackEngine)
-            implementation(projects.core.model)
-            implementation(libs.kotlinx.coroutines.core)
-            // The module's only public surface is a Koin Module, which puts Koin's own
-            // types in this module's API. Same reason as core:playback-engine.
+            api(projects.core.model)
+            api(libs.kotlinx.coroutines.core)
+            // The DI entry point exposes Koin's Module type.
             api(libs.koin.core)
         }
     }

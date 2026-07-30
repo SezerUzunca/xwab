@@ -7,8 +7,9 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // The fakes implement the domain ports and build model objects, so both are API.
-            api(projects.core.domain)
+            // The fakes implement ports from data/playback and build model objects.
+            api(projects.core.data)
+            api(projects.core.playback)
             api(projects.core.model)
         }
     }

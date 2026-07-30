@@ -2,7 +2,7 @@ package com.xwab.app.feature.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xwab.app.core.domain.usecase.ToggleMusicPlaybackUseCase
+import com.xwab.app.core.playback.PlaybackCoordinator
 import com.xwab.app.feature.home.domain.ObserveHomeContentUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 
 internal class HomeViewModel(
     observeHomeContentUseCase: ObserveHomeContentUseCase,
-    private val toggleMusicPlaybackUseCase: ToggleMusicPlaybackUseCase,
+    private val playbackCoordinator: PlaybackCoordinator,
 ) : ViewModel() {
     val state: StateFlow<HomeState> = observeHomeContentUseCase()
         .map { content ->
@@ -29,6 +29,7 @@ internal class HomeViewModel(
         )
 
     fun togglePlayback(musicId: String) {
-        viewModelScope.launch { toggleMusicPlaybackUseCase(musicId) }
+        val music = state.value.favoriteMusics.firstOrNull { it.id == musicId } ?: return
+        viewModelScope.launch { playbackCoordinator.togglePlayback(music) }
     }
 }

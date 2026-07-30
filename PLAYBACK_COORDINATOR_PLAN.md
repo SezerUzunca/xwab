@@ -2,11 +2,15 @@
 
 > 2026-07-28 güncellemesi: Bu belge ilk playback ayrımının tarihsel karar kaydıdır. O tarihte
 > kapsam dışı bırakılan resource/katalog ayrımı, hibrit katalog ihtiyacı doğunca
-> `core:audio-content` içinde uygulanmıştır; `Music.audioResource` kaldırılmış, paketli MP3'ler ve
+> Güncel yapıda `core:data` içinde uygulanmıştır; `Music.audioResource` kaldırılmış, paketli MP3'ler ve
 > uzak HTTPS kaynakları aynı manifestin sahibi olmuştur. Aşağıdaki “yapılmayacak” ifadeleri ilk
 > çalışmanın kapsamını anlatır, mevcut mimariyi değil.
+>
+> 2026-07-30 güncellemesi: Ayrı `core:domain` modülü kaldırıldı. `AudioContentResolver`
+> `core:data`ya, `PlaybackCoordinator` `core:playback`a ve ortak saf `PlaybackSummary`
+> `core:model`a taşındı.
 
-Kapsam: port [PlaybackCoordinator.kt](core/domain/src/commonMain/kotlin/com/xwab/app/core/domain/port/PlaybackCoordinator.kt),
+Kapsam: port [PlaybackCoordinator.kt](core/playback/src/commonMain/kotlin/com/xwab/app/core/playback/PlaybackCoordinator.kt),
 adaptör [DefaultPlaybackCoordinator.kt](core/playback/src/commonMain/kotlin/com/xwab/app/core/playback/DefaultPlaybackCoordinator.kt)
 ve testi [DefaultPlaybackCoordinatorTest.kt](core/playback/src/commonTest/kotlin/com/xwab/app/core/playback/DefaultPlaybackCoordinatorTest.kt).
 
@@ -72,14 +76,14 @@ Denenip **reddedilen** alternatifler:
 - Kurulumda `SetLooping(true)` göndermek → Android'de `ensureConnectedOrApply` controller yoksa
   `connection.connect()` çağırıyor, yani uygulama açılışında PlaybackService'e bağlanırdı.
 
-`core:playback-engine` bu yüzden **hiç değiştirilmedi**; düzeltme tamamen `core:data` içinde kaldı.
+`core:playback-engine` bu yüzden **hiç değiştirilmedi**; düzeltme tamamen `core:playback` içinde kaldı.
 
 ---
 
 ## 3. Yapılan isimlendirme değişiklikleri
 
 - `PlaybackCoordinator.toggle(music)` → `togglePlayback(music)`
-  (çağıran: [PlaybackUseCases.kt:21](core/domain/src/commonMain/kotlin/com/xwab/app/core/domain/usecase/PlaybackUseCases.kt:21)).
+  (tarihsel çağıran: `PlaybackUseCases.kt`).
 - `toPlaybackRequest(autoplay: Boolean)` parametresi kaldırıldı; her çağrı `true` idi.
 - Testteki `val repository = DefaultPlaybackCoordinator(...)` → `coordinator`; test adları
   `togglePlayback...` ile hizalandı.
@@ -128,11 +132,10 @@ repository arayüzlerini taşımak `core:data → core:domain → core:data` Gra
 ```text
 core:model    (bağımsız)
 core:playback-engine (bağımsız)
-core:domain   → core:model, core:playback-engine # portlar + use case'ler
-core:data     → core:domain, core:model     # katalog + favoriler
-core:playback → core:domain, core:playback-engine # playback oturumu + audio dosyaları
+core:data     → core:model                  # repository/resolver portları + implementasyonları
+core:playback → core:data, core:playback-engine, core:model # playback portu + oturumu
 shared        → hepsi (composition root)
-feature:*     → core:domain, core:model, core:designsystem
+feature:*     → core:data, core:playback, core:model, core:designsystem
 ```
 
 Bağımlılık yönü artık `data/playback → domain`. Gradle döngüsü yok.
@@ -142,14 +145,12 @@ Bağımlılık yönü artık `data/playback → domain`. Gradle döngüsü yok.
 - Yeni `core:playback` modülü: `DefaultPlaybackCoordinator`, `playbackCoordinatorModule` ve
   `files/audio/*.mp3` composeResources. Generated `Res` sınıfı
   `xwab.core.playback.generated.resources` oldu.
-- Üç arayüz `com.xwab.app.core.domain.port` altına taşındı: `MusicCatalogRepository`,
-  `FavoritesRepository`, `PlaybackCoordinator`. Implementasyonlar (`BundledMusicCatalogRepository`,
-  `DataStoreFavoritesRepository`, `DefaultPlaybackCoordinator`) `internal` kaldı.
-- `core:domain` `api(projects.core.data)`'yı bıraktı; `core:data` ve `core:playback`
-  `implementation(projects.core.domain)` aldı.
-- `core:data` compose eklentilerini ve `api(projects.core.playbackEngine)`'ı bıraktı; artık playback engine
-  tiplerini hiç görmüyor. Public yüzeyi yalnızca `dataModule`.
-- DI ikiye bölündü: `dataModule` (iki repository) + `playbackCoordinatorModule`. İkinci adın
+- Repository/resolver arayüzleri `com.xwab.app.core.data`, playback arayüzleri
+  `com.xwab.app.core.playback` altında kendi implementasyonlarıyla birlikte tutuluyor.
+- Ayrı `core:domain` modülü kalmadı; capability sözleşmeleri sahip oldukları modüllere taşındı.
+- `core:data` paketli ses kaynakları için Compose eklentisini koruyor fakat playback engine
+  tiplerini görmüyor. Public yüzeyi repository portları ile Koin modülleri.
+- DI `dataModule` + `dataPlatformModule` + `playbackCoordinatorModule` olarak ayrıldı. Son adın
   `playbackModule` olmamasının sebebi `core:playback-engine`'in o adı zaten kullanması.
 
 ### 5.3 Adım 5 — domain sızıntısı kapatıldı
@@ -161,7 +162,7 @@ val playback: Flow<PlaybackSummary>
 val sleepTimerRemainingMs: Flow<Long?>
 ```
 
-- `PlaybackSummary` `usecase` paketinden `port` paketine taşındı — port'un para birimi o.
+- `PlaybackSummary`, üç feature'ın paylaştığı engine-bağımsız model olarak `core:model`a taşındı.
 - `AudioPlayerState.toPlaybackSummary()` eşlemesi `core:playback` adaptörüne indi.
 - `core:domain` `api(projects.core.playbackEngine)`'ı bıraktı. `core:playback-engine` artık yalnız kendi,
   `core:playback` ve `shared` içinde görünüyor; `core:domain`, `core:data`, `core:model` ve
@@ -178,11 +179,10 @@ düşmesi ve sleep timer'ın ham milisaniye olarak yayımlanması.
 ```text
 core:model    (bağımsız)
 core:playback-engine (bağımsız)
-core:domain   → core:model            # plain Kotlin: DI konteyneri yok
-core:data     → core:domain, core:model
-core:playback → core:domain, core:playback-engine, core:model
+core:data     → core:model # repository/resolver portları + implementasyonları
+core:playback → core:data, core:playback-engine, core:model
 shared        → hepsi (composition root)
-feature:*     → core:domain, core:model, core:designsystem, core:navigation
+feature:*     → core:data, core:playback, core:model, core:designsystem, core:navigation
 ```
 
 ---
@@ -192,14 +192,19 @@ feature:*     → core:domain, core:model, core:designsystem, core:navigation
 Bütün adımlar (1–8) Android/common tarafında **yeşil** doğrulandı.
 
 ```bash
-./gradlew :shared:allTests :core:data:allTests :core:playback:allTests :core:domain:allTests
+./gradlew :shared:allTests :core:data:allTests :core:playback:allTests
 ```
 
-**iOS de yeşil.** [PR #2](https://github.com/SezerUzunca/xwab/pull/2) üzerinde
+**Önceki yapı iOS'ta yeşildi.** [PR #2](https://github.com/SezerUzunca/xwab/pull/2) üzerinde
 [run 30340856100](https://github.com/SezerUzunca/xwab/actions/runs/30340856100): yedi modülün
-simülatör testleri koştu (`core:data`, `core:domain`, `core:playback-engine`, `core:model`,
+simülatör testleri koştu (`core:data`, `core:playback-engine`, `core:model`,
 `core:navigation`, `core:playback`, `shared`), on beş modülün test binary'si linklendi ve
 `:shared:linkDebugFrameworkIosArm64` ile cihaz framework'ü de bağlandı.
+
+Bu koşu, 2026-07-30 tarihli paket ve modül taşımalarından önce yapıldığı için mevcut çalışma
+ağacının iOS doğrulaması sayılmaz. Güncel yapı Windows'ta Android/common tarafında doğrulandı;
+`audiocontent` → `data` paket değişikliği dahil iOS simülatör testleri ve framework linkleme
+macOS CI'da yeniden çalıştırılmalıdır.
 
 ⚠️ **iOS CI `macos-26` gerektiriyor.** `macos-15` (Xcode 16.4, iOS 18.5 SDK) Compose'a bağlı bir
 modülün test binary'sini linkleyemiyor: `compose.ui:ui-uikit` içindeki `CMPLayoutRegion`,
@@ -258,5 +263,5 @@ testinin derlenmediği yazıyordu; asset testinin yorumu ise §4'ün yapılmayac
 Ktor, `CatalogSync`, `AudioDownloadRepository`, manifest'ten katalog üretimi, arama/paging) ürün
 kararıyla kapsam dışı: katalog ve ses dosyaları değişmeyecek. `Music.audioResource` → `assetId`
 önerisinin gerekçesi de remote/downloaded kaynaklardı; §4 kararı bu kısıt altında geçerliliğini
-koruyor. `PlaybackSummary`'nin `port` yerine `domain.model` paketinde olması ise zevk meselesi
-sayıldı; taşınmadı.
+koruyor. `PlaybackSummary` daha sonra üç feature'ın ortak engine-bağımsız modeli olduğu için
+`core:model`a taşındı.
