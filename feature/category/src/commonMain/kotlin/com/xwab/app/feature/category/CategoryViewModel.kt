@@ -2,7 +2,7 @@ package com.xwab.app.feature.category
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xwab.app.core.domain.usecase.ToggleFavoriteUseCase
+import com.xwab.app.core.domain.port.FavoritesRepository
 import com.xwab.app.core.domain.usecase.ToggleMusicPlaybackUseCase
 import com.xwab.app.feature.category.domain.ObserveCategoryContentUseCase
 import kotlinx.coroutines.flow.SharingStarted
@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 internal class CategoryViewModel(
     categoryId: String,
     observeCategoryContentUseCase: ObserveCategoryContentUseCase,
-    private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
+    private val favoritesRepository: FavoritesRepository,
     private val toggleMusicPlaybackUseCase: ToggleMusicPlaybackUseCase,
 ) : ViewModel() {
     val state: StateFlow<CategoryState> = observeCategoryContentUseCase(categoryId)
@@ -33,7 +33,7 @@ internal class CategoryViewModel(
         )
 
     fun toggleFavorite(musicId: String) {
-        viewModelScope.launch { toggleFavoriteUseCase(musicId) }
+        viewModelScope.launch { favoritesRepository.toggle(musicId) }
     }
 
     fun togglePlayback(musicId: String) {

@@ -11,7 +11,6 @@ import com.xwab.app.core.domain.port.FavoritesRepository
 import com.xwab.app.core.domain.port.MusicCatalogRepository
 import com.xwab.app.core.domain.port.PlaybackCoordinator
 import com.xwab.app.core.domain.port.AudioContentResolver
-import com.xwab.app.core.domain.usecase.ToggleFavoriteUseCase
 import com.xwab.app.core.domain.usecase.ToggleMusicPlaybackUseCase
 import com.xwab.app.core.media.AudioPlayerState
 import com.xwab.app.core.media.PlaybackCommand
@@ -119,7 +118,6 @@ class AppModulesTest {
 
     @Test
     fun everySharedUseCaseResolvesFromTheAssembledGraph() {
-        koin.get<ToggleFavoriteUseCase>()
         koin.get<ToggleMusicPlaybackUseCase>()
     }
 

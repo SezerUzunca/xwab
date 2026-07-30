@@ -5,7 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-class SharedUseCasesTest {
+class ToggleMusicPlaybackUseCaseTest {
     private val rain = track("gentle-rain")
     private val catalog = FakeMusicCatalog(tracks = listOf(rain))
 
@@ -25,14 +25,5 @@ class SharedUseCasesTest {
         ToggleMusicPlaybackUseCase(catalog, coordinator)("no-such-track")
 
         assertNull(coordinator.toggledTrack)
-    }
-
-    @Test
-    fun togglingAFavoriteReachesTheRepository() = runBlocking {
-        val favorites = FakeFavorites()
-
-        ToggleFavoriteUseCase(favorites)("gentle-rain")
-
-        assertEquals(listOf("gentle-rain"), favorites.toggles)
     }
 }

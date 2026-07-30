@@ -22,7 +22,7 @@ internal val categoryModule = module {
         CategoryViewModel(
             categoryId = parameters.get(),
             observeCategoryContentUseCase = get(),
-            toggleFavoriteUseCase = get(),
+            favoritesRepository = get(),
             toggleMusicPlaybackUseCase = get(),
         )
     }

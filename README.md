@@ -44,8 +44,9 @@ iosApp ─────┘        │
 A feature owns its screen, its state, its ViewModel, its use cases and its Koin bindings. It sees
 another feature only through that feature's `:navigation` module — a route, its serializers and a
 `Navigator` extension, no implementation. `core:domain` holds the ports every adapter implements
-and the two use cases more than one screen performs; a screen-specific use case lives with its
-screen, so adding a screen does not touch `core`.
+and the use cases more than one screen performs; a screen-specific use case lives with its screen,
+so adding a screen does not touch `core`. A screen that only forwards to a port injects the port
+directly — a use case has to earn its name by holding a decision.
 
 Three rules hold this in place, and `./gradlew checkArchitecture` fails the build when one breaks:
 a core module may not depend on a feature; a feature may depend only on another feature's

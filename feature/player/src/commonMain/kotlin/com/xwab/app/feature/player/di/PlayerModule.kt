@@ -29,7 +29,7 @@ internal val playerModule = module {
         PlayerViewModel(
             musicId = parameters.get(),
             observePlayerContentUseCase = get(),
-            toggleFavoriteUseCase = get(),
+            favoritesRepository = get(),
             toggleMusicPlaybackUseCase = get(),
             setPlaybackLoopingUseCase = get(),
             setPlaybackVolumeUseCase = get(),
