@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout 180 ./gradlew --version)",
+      "Bash(python -c ' *)",
+      "PowerShell($p = \"D:\\\\ANDROID\\\\Sleep Sounds\\\\XWAB\\\\core\\\\data\\\\src\\\\commonMain\\\\kotlin\\\\com\\\\xwab\\\\app\\\\core\\\\data\\\\repository\\\\MusicCatalogRepository.kt\"; $s = [IO.File]::ReadAllText\\($p\\); $map = @{ [char]0x2602 = '\\\\u2602'; [char]0x2248 = '\\\\u2248'; [char]0x2667 = '\\\\u2667'; [char]0x25CC = '\\\\u25cc'; [char]0x263E = '\\\\u263e' }; foreach \\($k in $map.Keys\\) { $s = $s.Replace\\([string]$k, $map[$k]\\) }; [IO.File]::WriteAllText\\($p, $s, \\(New-Object Text.UTF8Encoding\\($false\\)\\)\\))",
+      "Bash(git rm *)",
+      "Bash(timeout 900 ./gradlew :core:data:testAndroidHostTest :core:domain:compileDebugKotlinAndroid --no-daemon)",
+      "Bash(timeout 900 ./gradlew :core:data:testAndroidHostTest)",
+      "Bash(xargs -I{} sh -c 'echo \"--- {} ---\"; cat \"{}\"')",
+      "Bash(mkdir -p core/playback/src/commonMain/kotlin/com/xwab/app/core/playback/di core/playback/src/commonTest/kotlin/com/xwab/app/core/playback core/playback/src/commonMain/composeResources core/domain/src/commonMain/kotlin/com/xwab/app/core/domain/port)",
+      "Bash(git mv *)",
+      "Bash(rmdir core/data/src/commonMain/composeResources/values core/data/src/commonMain/composeResources core/data/src/commonMain/kotlin/com/xwab/app/core/playback core/data/src/commonTest/kotlin/com/xwab/app/core/playback)",
+      "Bash(git add *)",
+      "Bash(grep -v \"^$\")",
+      "Bash(sed -n '/sourceSets/,$p' core/domain/build.gradle.kts)",
+      "Bash(awk '{print $5, $9}')",
+      "Bash(gh auth *)",
+      "Bash(gh api *)",
+      "Bash(gh run *)",
+      "Bash(gh pr create --title 'Invert the data/domain dependency and split playback into its own module' --body ' *)",
+      "Bash(grep -A 12 -iE \"^#### Xcode$|Installed Xcodes|^\\\\| Version\")",
+      "Bash(gh pr *)",
+      "Bash(git fetch *)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)",
+      "Bash(git push *)",
+      "Bash(git branch *)",
+      "Bash(awk '/^## 4\\\\./,/^## 5\\\\./' PLAYBACK_COORDINATOR_PLAN.md)"
+    ]
+  }
+}
