@@ -47,11 +47,11 @@ internal class DefaultPlaybackCoordinator(
         val current = controller.state.value
         when {
             current.activeSource?.id != music.id || current.phase == PlaybackPhase.Failed -> {
-                val resolved = contentResolver.resolve(music.id) ?: return
+                val resolvedUri = contentResolver.resolve(music.id) ?: return
                 sourceResolutionMutex.withLock {
                     if (request == latestSourceRequest) {
                         val stateAtLoad = controller.state.value
-                        controller.submit(PlaybackCommand.Load(music.toPlaybackRequest(stateAtLoad, resolved.uri)))
+                        controller.submit(PlaybackCommand.Load(music.toPlaybackRequest(stateAtLoad, resolvedUri)))
                     }
                 }
             }

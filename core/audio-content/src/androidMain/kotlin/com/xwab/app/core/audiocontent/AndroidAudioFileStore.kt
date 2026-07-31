@@ -43,19 +43,22 @@ internal class AndroidAudioFileStore(
                 connection.setRequestProperty("Accept", "audio/mpeg")
                 connection.setRequestProperty("User-Agent", USER_AGENT)
 
-                check(connection.responseCode in 200..299) {
-                    "Audio download failed with HTTP ${connection.responseCode}."
-                }
-                check(connection.url.protocol.equals("https", ignoreCase = true)) {
-                    "Audio download redirected away from HTTPS."
-                }
+                // `HttpURLConnection` never follows a redirect across protocols, so an
+                // https -> http hop arrives as an unhandled 3xx and is rejected right here.
+                // A 4xx is the source's final answer; a 5xx may not be, so only the former is
+                // reported as unusable.
+                val status = connection.responseCode
+                if (status in 400..499) throw UnusableAudioSourceException("Audio source answered HTTP $status.")
+                check(status in 200..299) { "Audio download failed with HTTP $status." }
 
                 val contentType = connection.contentType.orEmpty().substringBefore(';')
-                check(contentType == "audio/mpeg" || contentType == "application/octet-stream") {
-                    "Unexpected audio content type: $contentType"
+                if (contentType != "audio/mpeg" && contentType != "application/octet-stream") {
+                    throw UnusableAudioSourceException("Unexpected audio content type: $contentType")
                 }
                 val declaredLength = connection.contentLengthLong
-                check(declaredLength <= MAX_DOWNLOAD_BYTES) { "Audio download is too large." }
+                if (declaredLength > MAX_DOWNLOAD_BYTES) {
+                    throw UnusableAudioSourceException("Audio download is too large: $declaredLength bytes.")
+                }
 
                 var copied = 0L
                 connection.inputStream.use { input ->
@@ -65,7 +68,9 @@ internal class AndroidAudioFileStore(
                             val read = input.read(buffer)
                             if (read < 0) break
                             copied += read
-                            check(copied <= MAX_DOWNLOAD_BYTES) { "Audio download exceeded the size limit." }
+                            if (copied > MAX_DOWNLOAD_BYTES) {
+                                throw UnusableAudioSourceException("Audio download exceeded the size limit.")
+                            }
                             output.write(buffer, 0, read)
                         }
                         output.fd.sync()
@@ -77,19 +82,26 @@ internal class AndroidAudioFileStore(
                     "Downloaded audio is incomplete."
                 }
                 check(partial.renameTo(target)) { "Could not promote the completed audio download." }
+                removeSupersededVersions(cacheFileName)
             } finally {
                 connection.disconnect()
                 if (partial.exists()) partial.delete()
             }
         }
 
+    private fun removeSupersededVersions(cacheFileName: String) {
+        val existing = rootDirectory.list().orEmpty().toList()
+        supersededCacheFileNames(existing, cacheFileName).forEach { name ->
+            File(rootDirectory, name).delete()
+        }
+    }
+
     private fun targetFile(cacheFileName: String): File {
-        require(CACHE_FILE_PATTERN.matches(cacheFileName)) { "Unsafe audio cache file name." }
+        require(CACHE_FILE_NAME.matches(cacheFileName)) { "Unsafe audio cache file name." }
         return File(rootDirectory, cacheFileName)
     }
 
     private companion object {
-        val CACHE_FILE_PATTERN = Regex("[a-z0-9-]+-v[0-9]+\\.mp3")
         const val CONNECT_TIMEOUT_MS = 10_000
         const val READ_TIMEOUT_MS = 30_000
         const val MAX_DOWNLOAD_BYTES = 25L * 1024L * 1024L

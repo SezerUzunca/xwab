@@ -1,7 +1,7 @@
 plugins {
-    // Compose Multiplatform is applied for its resource pipeline only: the bundled MP3 files ship
-    // as Compose Resources so one `Res.getUri` call works on both platforms.
-    id("xwab.kmp.compose")
+    // No Compose here: nothing in this module renders, and since every track is fetched over
+    // HTTPS there are no bundled MP3 files needing the Compose Resources pipeline either.
+    id("xwab.kmp.library")
 }
 
 kotlin {
@@ -10,7 +10,6 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(projects.core.model)
-            implementation(libs.compose.components.resources)
             // The catalog repository publishes Flow.
             api(libs.kotlinx.coroutines.core)
             implementation(libs.kermit)
@@ -20,8 +19,4 @@ kotlin {
             implementation(libs.koin.android)
         }
     }
-}
-
-compose.resources {
-    packageOfResClass = "com.xwab.app.core.audiocontent.generated.resources"
 }

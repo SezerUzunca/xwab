@@ -115,9 +115,9 @@ abstract class CheckArchitectureTask : DefaultTask() {
 
         return featureDirs.flatMap { dir ->
             val sources = kotlinSourcesIn(dir).map { it.readText() }
-            DELIVERY_TYPES.filter { type -> sources.any { it.contains(type) } }
-                .map { type ->
-                    "feature:${dir.name} references $type. Audio delivery belongs to " +
+            DELIVERY_SYMBOLS.filter { symbol -> sources.any { it.contains(symbol) } }
+                .map { symbol ->
+                    "feature:${dir.name} references $symbol. Audio delivery belongs to " +
                         "core:audio-content and reaches a screen only through core:playback."
                 }
         }.sorted()
@@ -136,6 +136,6 @@ abstract class CheckArchitectureTask : DefaultTask() {
         const val FEATURE_PREFIX = ":feature:"
         const val NAVIGATION_SUFFIX = ":navigation"
         val USE_CASE_DECLARATION = Regex("""^\s*(?:internal\s+|public\s+)?class\s+(\w+UseCase)\b""", RegexOption.MULTILINE)
-        val DELIVERY_TYPES = listOf("AudioContentResolver", "AudioFileStore")
+        val DELIVERY_SYMBOLS = listOf("AudioContentResolver", "AudioFileStore")
     }
 }

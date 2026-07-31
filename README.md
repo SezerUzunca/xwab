@@ -7,8 +7,8 @@ shared data capability used from several screens rather than a screen of its own
 ## Included features
 
 - Five all-ages sound categories with 15 tracks: rain, ocean, forest, white noise, and lullabies.
-- Hybrid audio delivery: five bundled offline tracks plus ten HTTPS tracks that stream immediately
-  and are saved to app-owned storage for later local playback.
+- On-demand audio delivery: no audio ships in the app. A picked track streams over HTTPS
+  immediately and is saved to app-owned storage, so later plays of it are local and offline.
 - Persistent favorites backed by Kotlin Multiplatform DataStore.
 - Browsing, track details, favorites, and active audio playback.
 - A `core:playback-engine` KMP playback layer built with Media3 ExoPlayer on Android and
@@ -17,8 +17,8 @@ shared data capability used from several screens rather than a screen of its own
   [THIRD_PARTY_AUDIO.md](./THIRD_PARTY_AUDIO.md).
 
 Each core module owns one capability, contract and implementation together: `core:audio-content`
-owns the sound catalog — the manifest, the bundled MP3s, the remote sources, local caching, the
-repository screens read and the resolver playback resolves through; `core:preferences` owns what
+owns the sound catalog — the manifest, the remote sources, local caching, the repository screens
+read and the resolver playback resolves through; `core:preferences` owns what
 the app persists, favorites today; `core:playback` owns app session policy; and
 `core:playback-engine` remains the reusable platform playback engine. There is no separate
 repository layer: a port lives in the module that owns the data behind it.

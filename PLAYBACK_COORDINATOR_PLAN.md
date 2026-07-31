@@ -9,6 +9,10 @@
 > 2026-07-30 güncellemesi: Ayrı `core:domain` modülü kaldırıldı. `AudioContentResolver`
 > `core:data`ya, `PlaybackCoordinator` `core:playback`a ve ortak saf `PlaybackSummary`
 > `core:model`a taşındı.
+>
+> 2026-07-31 güncellemesi: Paketli MP3'ler tamamen kaldırıldı. Aşağıda geçen
+> `files/audio/*.mp3` composeResources ve üretilen `Res` sınıfı artık yok; her parça HTTPS'ten
+> çalınıp yerele indiriliyor. Katalog `core:audio-content` içinde.
 
 Kapsam: port [PlaybackCoordinator.kt](core/playback/src/commonMain/kotlin/com/xwab/app/core/playback/PlaybackCoordinator.kt),
 adaptör [DefaultPlaybackCoordinator.kt](core/playback/src/commonMain/kotlin/com/xwab/app/core/playback/DefaultPlaybackCoordinator.kt)
