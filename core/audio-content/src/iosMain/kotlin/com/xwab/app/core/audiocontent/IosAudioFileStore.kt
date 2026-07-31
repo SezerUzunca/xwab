@@ -100,10 +100,12 @@ internal class IosAudioFileStore(
         val session = NSURLSession.sessionWithConfiguration(configuration)
         try {
             suspendCancellableCoroutine<Unit> { continuation ->
-                val request = NSMutableURLRequest.requestWithURL(remoteUrl).apply {
-                    setValue("audio/mpeg", forHTTPHeaderField = "Accept")
-                    setValue(USER_AGENT, forHTTPHeaderField = "User-Agent")
-                }
+                // `requestWithURL:` is declared on `NSURLRequest`, so interop types the result as
+                // the immutable class even though the mutable subclass is what answers the
+                // message. Only the static type is wrong; the instance really is mutable.
+                val request = (NSMutableURLRequest.requestWithURL(remoteUrl) as NSMutableURLRequest)
+                request.setValue("audio/mpeg", forHTTPHeaderField = "Accept")
+                request.setValue(USER_AGENT, forHTTPHeaderField = "User-Agent")
                 val task = session.downloadTaskWithRequest(request) { location, response, error ->
                     // The system deletes `location` as soon as this handler returns, so the file
                     // has to be claimed here rather than after the coroutine resumes.
