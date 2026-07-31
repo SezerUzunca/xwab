@@ -18,9 +18,12 @@ import platform.Foundation.NSURLResponse
 import platform.Foundation.NSURLIsExcludedFromBackupKey
 import platform.Foundation.NSURLSession
 import platform.Foundation.NSURLSessionConfiguration
-// Objective-C categories reach Kotlin as extensions, so the asynchronous convenience method needs
-// importing by name even though `NSURLSession` itself is already in scope.
+// Objective-C categories reach Kotlin as extensions, so these two need importing by name even
+// though the classes that answer them are already in scope: `downloadTaskWithRequest:` lives in
+// NSURLSession's asynchronous convenience category, and the header setter in
+// NSMutableURLRequest's NSMutableHTTPURLRequest category.
 import platform.Foundation.downloadTaskWithRequest
+import platform.Foundation.setValue
 
 internal class IosAudioFileStore(
     private val rootPath: String,
