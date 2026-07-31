@@ -1,7 +1,6 @@
 package com.xwab.app.core.playback
 
-import com.xwab.app.core.data.AudioContentResolver
-import com.xwab.app.core.data.ResolvedAudioContent
+import com.xwab.app.core.audiocontent.AudioContentResolver
 import com.xwab.app.core.media.AudioPlayerState
 import com.xwab.app.core.media.AudioSource
 import com.xwab.app.core.media.LoopMode
@@ -24,9 +23,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class DefaultPlaybackCoordinatorTest {
-    private val testContentResolver = AudioContentResolver { musicId ->
-        ResolvedAudioContent("test://$musicId", isLocal = true)
-    }
+    private val testContentResolver = AudioContentResolver { musicId -> "test://$musicId" }
 
     @Test
     fun togglePlaybackReloadsFailedRequestedSourceWithAutoplay() {
@@ -165,8 +162,8 @@ class DefaultPlaybackCoordinatorTest {
     fun anOlderSlowResolutionCannotReplaceTheUsersNewerSelection() = runBlocking {
         val rainStarted = CompletableDeferred<Unit>()
         val wavesStarted = CompletableDeferred<Unit>()
-        val rainResult = CompletableDeferred<ResolvedAudioContent>()
-        val wavesResult = CompletableDeferred<ResolvedAudioContent>()
+        val rainResult = CompletableDeferred<String>()
+        val wavesResult = CompletableDeferred<String>()
         val resolver = AudioContentResolver { musicId ->
             when (musicId) {
                 "gentle-rain" -> {
@@ -188,9 +185,9 @@ class DefaultPlaybackCoordinatorTest {
         val newerRequest = launch { coordinator.togglePlayback(calmWaves()) }
         wavesStarted.await()
 
-        wavesResult.complete(ResolvedAudioContent("https://example.test/waves.mp3", isLocal = false))
+        wavesResult.complete("https://example.test/waves.mp3")
         newerRequest.join()
-        rainResult.complete(ResolvedAudioContent("https://example.test/rain.mp3", isLocal = false))
+        rainResult.complete("https://example.test/rain.mp3")
         olderRequest.join()
 
         assertEquals("calm-waves", player.lastLoadRequest?.source?.id)

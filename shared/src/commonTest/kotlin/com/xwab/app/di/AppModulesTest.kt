@@ -4,18 +4,20 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.navigation3.runtime.NavKey
-import com.xwab.app.core.data.AudioContentResolver
-import com.xwab.app.core.data.AudioFileStore
-import com.xwab.app.core.data.FavoritesRepository
-import com.xwab.app.core.data.MusicCatalogRepository
-import com.xwab.app.core.data.di.dataModule
-import com.xwab.app.core.data.di.dataPlatformModule
+import com.xwab.app.core.audiocontent.AudioContentResolver
+import com.xwab.app.core.audiocontent.AudioFileStore
+import com.xwab.app.core.audiocontent.MusicCatalogRepository
+import com.xwab.app.core.audiocontent.di.audioContentModule
+import com.xwab.app.core.audiocontent.di.audioContentPlatformModule
 import com.xwab.app.core.media.AudioPlayerState
 import com.xwab.app.core.media.PlaybackCommand
 import com.xwab.app.core.media.PlaybackController
 import com.xwab.app.core.media.SleepTimerState
 import com.xwab.app.core.playback.PlaybackCoordinator
 import com.xwab.app.core.playback.di.playbackCoordinatorModule
+import com.xwab.app.core.preferences.FavoritesRepository
+import com.xwab.app.core.preferences.di.preferencesModule
+import com.xwab.app.core.preferences.di.preferencesPlatformModule
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.home.navigation.HomeRoute
 import com.xwab.app.feature.player.navigation.PlayerRoute
@@ -41,7 +43,7 @@ import kotlin.test.assertTrue
  * has not got. Each feature tests its own use case in its own `commonTest` instead.
  */
 class AppModulesTest {
-    /** Stands in for the two bindings the platform DI modules contribute. */
+    /** Stands in for the bindings the platform DI modules contribute. */
     private val platformBindings = module {
         single<DataStore<Preferences>> { FakePreferencesDataStore() }
         single<PlaybackController> { FakePlaybackController() }
@@ -49,7 +51,7 @@ class AppModulesTest {
     }
 
     private val koin = koinApplication {
-        modules(dataModule, playbackCoordinatorModule, platformBindings)
+        modules(audioContentModule, preferencesModule, playbackCoordinatorModule, platformBindings)
     }.koin
 
     @AfterTest
@@ -59,10 +61,15 @@ class AppModulesTest {
     fun theApplicationShipsTheModulesUnderTest() {
         val shipped = appModules()
 
-        assertTrue(dataModule in shipped, "dataModule is missing from appModules()")
+        assertTrue(audioContentModule in shipped, "audioContentModule is missing from appModules()")
         assertTrue(
-            dataPlatformModule in shipped,
-            "dataPlatformModule is missing from appModules()",
+            audioContentPlatformModule in shipped,
+            "audioContentPlatformModule is missing from appModules()",
+        )
+        assertTrue(preferencesModule in shipped, "preferencesModule is missing from appModules()")
+        assertTrue(
+            preferencesPlatformModule in shipped,
+            "preferencesPlatformModule is missing from appModules()",
         )
         assertTrue(playbackCoordinatorModule in shipped, "playbackCoordinatorModule is missing from appModules()")
     }

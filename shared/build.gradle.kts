@@ -46,10 +46,10 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(projects.core.playbackEngine)
-            implementation(projects.core.datastore)
+            implementation(projects.core.preferences)
             implementation(projects.core.model)
             implementation(projects.core.navigation)
-            implementation(projects.core.data)
+            implementation(projects.core.audioContent)
             implementation(projects.core.playback)
             implementation(projects.core.designsystem)
             implementation(projects.feature.home)

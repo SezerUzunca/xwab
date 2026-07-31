@@ -1,6 +1,6 @@
 package com.xwab.app.core.playback
 
-import com.xwab.app.core.data.AudioContentResolver
+import com.xwab.app.core.audiocontent.AudioContentResolver
 import com.xwab.app.core.model.PlaybackSummary
 import com.xwab.app.core.media.AudioPlayerState
 import com.xwab.app.core.media.AudioSource
@@ -47,11 +47,11 @@ internal class DefaultPlaybackCoordinator(
         val current = controller.state.value
         when {
             current.activeSource?.id != music.id || current.phase == PlaybackPhase.Failed -> {
-                val resolved = contentResolver.resolve(music.id) ?: return
+                val resolvedUri = contentResolver.resolve(music.id) ?: return
                 sourceResolutionMutex.withLock {
                     if (request == latestSourceRequest) {
                         val stateAtLoad = controller.state.value
-                        controller.submit(PlaybackCommand.Load(music.toPlaybackRequest(stateAtLoad, resolved.uri)))
+                        controller.submit(PlaybackCommand.Load(music.toPlaybackRequest(stateAtLoad, resolvedUri)))
                     }
                 }
             }

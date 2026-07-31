@@ -7,8 +7,8 @@ shared data capability used from several screens rather than a screen of its own
 ## Included features
 
 - Five all-ages sound categories with 15 tracks: rain, ocean, forest, white noise, and lullabies.
-- Hybrid audio delivery: five bundled offline tracks plus ten HTTPS tracks that stream immediately
-  and are saved to app-owned storage for later local playback.
+- On-demand audio delivery: no audio ships in the app. A picked track streams over HTTPS
+  immediately and is saved to app-owned storage, so later plays of it are local and offline.
 - Persistent favorites backed by Kotlin Multiplatform DataStore.
 - Browsing, track details, favorites, and active audio playback.
 - A `core:playback-engine` KMP playback layer built with Media3 ExoPlayer on Android and
@@ -16,10 +16,12 @@ shared data capability used from several screens rather than a screen of its own
 - Public-domain/CC0 audio with a source and checksum manifest in
   [THIRD_PARTY_AUDIO.md](./THIRD_PARTY_AUDIO.md).
 
-The core capability boundary is intentionally compact: `core:data` owns repository contracts,
-catalog metadata, bundled MP3s, remote sources, local resolution, and favorite persistence;
-`core:playback` owns app session policy; and `core:playback-engine` remains the reusable platform
-playback engine.
+Each core module owns one capability, contract and implementation together: `core:audio-content`
+owns the sound catalog — the manifest, the remote sources, local caching, the repository screens
+read and the resolver playback resolves through; `core:preferences` owns what
+the app persists, favorites today; `core:playback` owns app session policy; and
+`core:playback-engine` remains the reusable platform playback engine. There is no separate
+repository layer: a port lives in the module that owns the data behind it.
 
 SQLDelight is intentionally not included: favorites are a small key-value set without relational
 queries, partial-row updates, or referential-integrity needs, which makes DataStore the smaller and
@@ -38,19 +40,21 @@ iosApp ─────┘        │
         └────────────┴───────┬────────┘
                              ▼
    core:model · core:designsystem · core:navigation
-   core:data (repositories) · core:playback (session) · core:playback-engine · core:datastore
+   core:audio-content (catalog, MP3s, delivery) · core:preferences (favorites)
+   core:playback (session) ─► core:audio-content, core:playback-engine
 ```
 
 A feature owns its screen, its state, its ViewModel, its use cases and its Koin bindings. It sees
 another feature only through that feature's `:navigation` module — a route, its serializers and a
-`Navigator` extension, no implementation. `core:data` owns repository and audio-resolution
-contracts with their implementations; `core:playback` owns the session contract and implementation.
-Screen-specific orchestration lives with its screen. A screen action that already has the model it
-needs injects the capability directly — a use case has to earn its name by holding a decision.
+`Navigator` extension, no implementation. Screen-specific orchestration lives with its screen. A
+screen action that already has the model it needs injects the capability directly — a use case has
+to earn its name by holding a decision.
 
-Three rules hold this in place, and `./gradlew checkArchitecture` fails the build when one breaks:
+Four rules hold this in place, and `./gradlew checkArchitecture` fails the build when one breaks:
 a core module may not depend on a feature; a feature may depend only on another feature's
-`:navigation` module; a use case in a shared core module must serve more than one feature.
+`:navigation` module; a use case in a shared core module must serve more than one feature; and a
+feature may not reference `AudioContentResolver` or `AudioFileStore` — `core:audio-content` is on
+its classpath for the catalog, not for delivery.
 
 ### Build configuration
 

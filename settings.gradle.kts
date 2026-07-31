@@ -39,10 +39,10 @@ dependencyResolutionManagement {
 }
 
 include(":androidApp")
-include(":core:datastore")
+include(":core:preferences")
 include(":core:playback-engine")
 include(":core:model")
-include(":core:data")
+include(":core:audio-content")
 include(":core:playback")
 include(":core:designsystem")
 include(":core:navigation")

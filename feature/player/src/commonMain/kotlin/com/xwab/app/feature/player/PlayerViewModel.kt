@@ -2,8 +2,8 @@ package com.xwab.app.feature.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xwab.app.core.data.FavoritesRepository
 import com.xwab.app.core.playback.PlaybackCoordinator
+import com.xwab.app.core.preferences.FavoritesRepository
 import com.xwab.app.feature.player.domain.CancelSleepTimerUseCase
 import com.xwab.app.feature.player.domain.ObservePlayerContentUseCase
 import com.xwab.app.feature.player.domain.SetPlaybackLoopingUseCase

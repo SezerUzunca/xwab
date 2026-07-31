@@ -7,7 +7,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(projects.core.data)
+            implementation(projects.core.audioContent)
             implementation(projects.core.playbackEngine)
             api(projects.core.model)
             api(libs.kotlinx.coroutines.core)
