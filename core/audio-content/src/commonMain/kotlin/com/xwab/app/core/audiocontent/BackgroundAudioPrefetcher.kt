@@ -75,6 +75,7 @@ internal class BackgroundAudioPrefetcher(
         }
     }
 
+    /** Records the cache result and marks failed downloads for the cooldown period. */
     private suspend fun recordOutcome(cacheFileName: String, cached: Boolean) {
         withContext(NonCancellable) {
             stateMutex.withLock {
