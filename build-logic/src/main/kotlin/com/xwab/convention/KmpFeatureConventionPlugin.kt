@@ -19,7 +19,8 @@ class KmpFeatureConventionPlugin : Plugin<Project> {
             kotlinMultiplatform {
                 dependenciesOf("commonMain") {
                     implementation(project(":core:model"))
-                    implementation(project(":core:data"))
+                    implementation(project(":core:audio-content"))
+                    implementation(project(":core:preferences"))
                     implementation(project(":core:playback"))
                     implementation(project(":core:designsystem"))
                     implementation(project(":core:navigation"))

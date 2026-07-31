@@ -10,7 +10,7 @@ import org.gradle.api.tasks.TaskAction
 import java.io.File
 
 /**
- * Holds the three rules that keep feature slices independent. All of them are easy to break by
+ * Holds the four rules that keep feature slices independent. All of them are easy to break by
  * accident and none of them fail to compile, which is why they are checked rather than written
  * down.
  *
@@ -19,6 +19,9 @@ import java.io.File
  *    That module is the whole contract: routes in, no implementation.
  * 3. A use case in a core module must serve more than one feature. A screen-specific one belongs
  *    to that screen's module, otherwise screen logic leaks into shared capabilities.
+ * 4. A feature may not reach audio delivery. `core:audio-content` is on every feature's classpath
+ *    for the catalog it serves; resolving a track to a URI or touching the audio file store is
+ *    playback's job, and a screen doing it itself would bypass the session entirely.
  */
 abstract class CheckArchitectureTask : DefaultTask() {
 
@@ -33,7 +36,9 @@ abstract class CheckArchitectureTask : DefaultTask() {
     @TaskAction
     fun check() {
         val root = repositoryRoot.get().asFile
-        val violations = dependencyViolations(moduleDependencies.get()) + leakedUseCaseViolations(root)
+        val violations = dependencyViolations(moduleDependencies.get()) +
+            leakedUseCaseViolations(root) +
+            audioDeliveryViolations(root)
 
         if (violations.isNotEmpty()) {
             throw GradleException(
@@ -100,6 +105,24 @@ abstract class CheckArchitectureTask : DefaultTask() {
         }.sorted()
     }
 
+    /**
+     * Rule 4 cannot be checked from the dependency graph: `core:audio-content` is a legitimate
+     * feature dependency because it also serves the catalog. Only the source can say whether a
+     * screen reached past that into delivery.
+     */
+    private fun audioDeliveryViolations(root: File): List<String> {
+        val featureDirs = root.resolve("feature").listFiles().orEmpty().filter { it.isDirectory }
+
+        return featureDirs.flatMap { dir ->
+            val sources = kotlinSourcesIn(dir).map { it.readText() }
+            DELIVERY_TYPES.filter { type -> sources.any { it.contains(type) } }
+                .map { type ->
+                    "feature:${dir.name} references $type. Audio delivery belongs to " +
+                        "core:audio-content and reaches a screen only through core:playback."
+                }
+        }.sorted()
+    }
+
     /** Kotlin sources under [dir], skipping Gradle output so generated code is never read. */
     private fun kotlinSourcesIn(dir: File): List<File> = dir.walkTopDown()
         .onEnter { it.name != "build" }
@@ -113,5 +136,6 @@ abstract class CheckArchitectureTask : DefaultTask() {
         const val FEATURE_PREFIX = ":feature:"
         const val NAVIGATION_SUFFIX = ":navigation"
         val USE_CASE_DECLARATION = Regex("""^\s*(?:internal\s+|public\s+)?class\s+(\w+UseCase)\b""", RegexOption.MULTILINE)
+        val DELIVERY_TYPES = listOf("AudioContentResolver", "AudioFileStore")
     }
 }
