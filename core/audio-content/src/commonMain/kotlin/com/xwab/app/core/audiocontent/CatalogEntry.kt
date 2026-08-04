@@ -9,7 +9,7 @@ import com.xwab.app.core.model.Music
  * cached for later. [version] is part of the cache file name, so raising it retires the previously
  * cached file instead of serving stale audio.
  */
-internal data class CatalogEntry(
+internal class CatalogEntry(
     val music: Music,
     val httpsUrl: String,
     val version: Int = 1,

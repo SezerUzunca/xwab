@@ -131,14 +131,16 @@ class AndroidAudioCacheDirectoryTest {
         assertEquals(File(root, cached).canonicalFile, File(URI(store.find(cached)!!)).canonicalFile)
     }
 
-    /** An interrupted write leaves a zero-length file, which would otherwise never play. */
+    /**
+     * An interrupted write leaves a zero-length file. `File` reports it as a regular file, so this
+     * answers `0` rather than `null` — which is what makes the store's "empty is not a hit" branch
+     * reachable at all. The branch itself is asserted against a fake in `CachingAudioFileStoreTest`.
+     */
     @Test
-    fun anEmptyCachedFileIsDiscardedOnLookup() = runBlocking {
+    fun aZeroLengthFileReportsZeroRatherThanAbsent() = runBlocking {
         write(FILE_NAME, bytes = 0)
-        val store = CachingAudioFileStore(directory, TransportWritingBytes(root, bytes = 1))
 
-        assertNull(store.find(FILE_NAME))
-        assertNull(directory.sizeOf(FILE_NAME))
+        assertEquals(0L, directory.sizeOf(FILE_NAME))
     }
 
     private fun write(fileName: String, bytes: Int) {
