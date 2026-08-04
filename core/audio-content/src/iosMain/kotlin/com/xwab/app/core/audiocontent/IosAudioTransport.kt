@@ -19,16 +19,52 @@ import platform.Foundation.NSURLSessionConfiguration
 // NSMutableURLRequest's NSMutableHTTPURLRequest category.
 import platform.Foundation.downloadTaskWithRequest
 import platform.Foundation.setValue
+import platform.posix.O_RDONLY
+import platform.posix.close
+import platform.posix.fsync
+import platform.posix.open
 
 internal class IosAudioTransport(
     private val rootPath: String,
 ) : AudioTransport {
+    /**
+     * One session for the life of the transport, as Apple asks. A session per download built its
+     * own connection pool and threw away the TLS handshake, which the prefetcher pays for on every
+     * track it fills the cache with.
+     */
+    private val session by lazy {
+        NSURLSession.sessionWithConfiguration(
+            NSURLSessionConfiguration.defaultSessionConfiguration.apply {
+                timeoutIntervalForRequest = REQUEST_TIMEOUT_SECONDS
+                timeoutIntervalForResource = RESOURCE_TIMEOUT_SECONDS
+            },
+        )
+    }
+
     override suspend fun fetchInto(remoteHttpsUrl: String, partialFileName: String) {
         withContext(Dispatchers.Default) {
             val remoteUrl = requireNotNull(NSURL.URLWithString(remoteHttpsUrl)) {
                 "Could not parse the remote audio URL."
             }
-            streamToFile(remoteUrl, "$rootPath/$partialFileName")
+            val partialPath = "$rootPath/$partialFileName"
+            streamToFile(remoteUrl, partialPath)
+            flushToDisk(partialPath)
+        }
+    }
+
+    /**
+     * Matches the `FileDescriptor.sync()` the Android transport ends on. The promotion that follows
+     * is a rename, which orders nothing by itself: without this a crash could leave a file that is
+     * truncated but not empty under the final name — and a non-empty file is a cache hit, so it
+     * would be served as audio and never re-fetched.
+     */
+    private fun flushToDisk(path: String) {
+        val descriptor = open(path, O_RDONLY)
+        if (descriptor < 0) return
+        try {
+            fsync(descriptor)
+        } finally {
+            close(descriptor)
         }
     }
 
@@ -42,31 +78,22 @@ internal class IosAudioTransport(
      * closed, `RESOURCE_TIMEOUT_SECONDS` is the real ceiling on a source that declares nothing.
      */
     private suspend fun streamToFile(remoteUrl: NSURL, partialPath: String) {
-        val configuration = NSURLSessionConfiguration.defaultSessionConfiguration.apply {
-            timeoutIntervalForRequest = REQUEST_TIMEOUT_SECONDS
-            timeoutIntervalForResource = RESOURCE_TIMEOUT_SECONDS
-        }
-        val session = NSURLSession.sessionWithConfiguration(configuration)
-        try {
-            suspendCancellableCoroutine<Unit> { continuation ->
-                // `requestWithURL:` is declared on `NSURLRequest`, so interop types the result as
-                // the immutable class even though the mutable subclass is what answers the
-                // message. Only the static type is wrong; the instance really is mutable.
-                val request = (NSMutableURLRequest.requestWithURL(remoteUrl) as NSMutableURLRequest)
-                request.setValue(AUDIO_ACCEPT_HEADER, forHTTPHeaderField = "Accept")
-                request.setValue(AUDIO_USER_AGENT, forHTTPHeaderField = "User-Agent")
-                val task = session.downloadTaskWithRequest(request) { location, response, error ->
-                    // The system deletes `location` as soon as this handler returns, so the file
-                    // has to be claimed here rather than after the coroutine resumes.
-                    continuation.resumeWith(
-                        runCatching { claimDownload(location, response, error, partialPath) },
-                    )
-                }
-                continuation.invokeOnCancellation { task.cancel() }
-                task.resume()
+        suspendCancellableCoroutine<Unit> { continuation ->
+            // `requestWithURL:` is declared on `NSURLRequest`, so interop types the result as
+            // the immutable class even though the mutable subclass is what answers the
+            // message. Only the static type is wrong; the instance really is mutable.
+            val request = (NSMutableURLRequest.requestWithURL(remoteUrl) as NSMutableURLRequest)
+            request.setValue(AUDIO_ACCEPT_HEADER, forHTTPHeaderField = "Accept")
+            request.setValue(AUDIO_USER_AGENT, forHTTPHeaderField = "User-Agent")
+            val task = session.downloadTaskWithRequest(request) { location, response, error ->
+                // The system deletes `location` as soon as this handler returns, so the file
+                // has to be claimed here rather than after the coroutine resumes.
+                continuation.resumeWith(
+                    runCatching { claimDownload(location, response, error, partialPath) },
+                )
             }
-        } finally {
-            session.finishTasksAndInvalidate()
+            continuation.invokeOnCancellation { task.cancel() }
+            task.resume()
         }
     }
 
