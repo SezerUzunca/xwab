@@ -2,8 +2,8 @@ package com.xwab.app.core.audiocontent
 
 /**
  * A cache file name is `<track id>-v<version>.mp3`, and it is the only string this module ever
- * hands to a file system. Both stores validate against this pattern before touching a path, so a
- * manifest typo cannot become a traversal.
+ * hands to a file system. [CatalogEntry] refuses a track id that cannot form one, and the store
+ * checks again before a name reaches a path, so a manifest typo cannot become a traversal.
  */
 internal val CACHE_FILE_NAME = Regex("[a-z0-9-]+-v[0-9]+\\.mp3")
 

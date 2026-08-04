@@ -5,8 +5,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Both file stores delete whatever this returns, so a false positive costs a listener the audio
- * they just downloaded.
+ * The cache deletes whatever this returns, so a false positive costs a listener the audio they
+ * just downloaded.
  */
 class CacheFileNameTest {
     @Test
@@ -52,12 +52,5 @@ class CacheFileNameTest {
         )
 
         assertTrue(unreferencedCacheFileNames(existing, keep = emptySet()).isEmpty())
-    }
-
-    /** The manifest is the keep list, so a name it omits is a name the cache must not hold. */
-    @Test
-    fun everyCatalogCacheFileNameIsWellFormedAndKept() {
-        assertTrue(catalogCacheFileNames.all { CACHE_FILE_NAME.matches(it) })
-        assertTrue(unreferencedCacheFileNames(catalogCacheFileNames.toList(), catalogCacheFileNames).isEmpty())
     }
 }

@@ -27,21 +27,18 @@ class CatalogManifestTest {
         assertEquals(musicIds.size, musicIds.toSet().size, "duplicate music ids")
         assertTrue(catalogEntries.all { it.music.categoryId in categoryIds })
         assertEquals(httpsUrls.size, httpsUrls.toSet().size, "duplicate source URLs")
-        assertTrue(httpsUrls.all { it.startsWith("https://") && it.endsWith(".mp3") })
+        // Only the suffix: `CatalogEntry.init` already refuses anything that is not HTTPS.
+        assertTrue(httpsUrls.all { it.endsWith(".mp3") })
     }
 
     /**
-     * The cache file name is what the file store validates and what deduplicates downloads, so a
-     * collision would make two tracks share one cached file.
+     * Uniqueness is the half no entry can check on its own — [CatalogEntry] rejects a name the file
+     * store would refuse, but only the whole manifest can say whether two tracks collide on one.
      */
     @Test
-    fun everyTrackCachesUnderItsOwnValidFileName() {
+    fun everyTrackCachesUnderItsOwnFileName() {
         val cacheFileNames = catalogEntries.map { it.cacheFileName }
 
         assertEquals(cacheFileNames.size, cacheFileNames.toSet().size, "duplicate cache file names")
-        assertTrue(
-            cacheFileNames.all { CACHE_FILE_NAME.matches(it) },
-            "a cache file name would be rejected by the file store: $cacheFileNames",
-        )
     }
 }

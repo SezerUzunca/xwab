@@ -40,7 +40,7 @@ iosApp ─────┘        │
         └────────────┴───────┬────────┘
                              ▼
    core:model · core:designsystem · core:navigation
-   core:audio-content (catalog, MP3s, delivery) · core:preferences (favorites)
+   core:audio-content (catalog, download, cache) · core:preferences (favorites)
    core:playback (session) ─► core:audio-content, core:playback-engine
 ```
 

@@ -28,11 +28,13 @@ internal class CachingAudioFileStore(
 
     override suspend fun download(cacheFileName: String, remoteHttpsUrl: String) {
         require(remoteHttpsUrl.startsWith("https://")) { "Only HTTPS audio downloads are allowed." }
-        requireSafeName(cacheFileName)
-        directory.prepare()
 
-        if ((directory.sizeOf(cacheFileName) ?: 0L) > 0L) return
-        directory.delete(cacheFileName)
+        // Asking [find] rather than repeating its three cases here: a hit ends the call, and the
+        // one case that is not a hit but leaves a file behind — a zero-length write — is cleared on
+        // the way out, which is exactly what has to happen before a fresh transfer is staged. It
+        // also runs the name check, so an unsafe name is refused before the directory is touched.
+        if (find(cacheFileName) != null) return
+        directory.prepare()
 
         // Staged under a name that fails the cache pattern, so a concurrent sweep leaves it alone
         // and a reader never mistakes an unfinished transfer for a playable file.
