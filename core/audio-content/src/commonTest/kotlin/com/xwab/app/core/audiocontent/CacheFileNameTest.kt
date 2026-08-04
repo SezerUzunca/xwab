@@ -10,50 +10,54 @@ import kotlin.test.assertTrue
  */
 class CacheFileNameTest {
     @Test
-    fun olderVersionsOfTheSameTrackAreSuperseded() {
+    fun olderVersionsOfATrackAreUnreferenced() {
         val existing = listOf("heavy-rain-v1.mp3", "heavy-rain-v2.mp3", "heavy-rain-v3.mp3")
 
         assertEquals(
             listOf("heavy-rain-v1.mp3", "heavy-rain-v2.mp3"),
-            supersededCacheFileNames(existing, current = "heavy-rain-v3.mp3"),
+            unreferencedCacheFileNames(existing, keep = setOf("heavy-rain-v3.mp3")),
+        )
+    }
+
+    /** A track dropped from the manifest leaves a file that no version bump would ever clear. */
+    @Test
+    fun aTrackThatLeftTheCatalogIsUnreferenced() {
+        val existing = listOf("heavy-rain-v1.mp3", "window-storm-v1.mp3")
+
+        assertEquals(
+            listOf("window-storm-v1.mp3"),
+            unreferencedCacheFileNames(existing, keep = setOf("heavy-rain-v1.mp3")),
         )
     }
 
     @Test
-    fun otherTracksAreNeverSuperseded() {
-        val existing = listOf("heavy-rain-window-v1.mp3", "rain-v1.mp3", "window-storm-v1.mp3")
+    fun referencedFilesAreKeptWhicheverTrackTheyBelongTo() {
+        val existing = listOf("heavy-rain-v1.mp3", "rain-v1.mp3", "night-view-v2.mp3")
 
-        assertTrue(supersededCacheFileNames(existing, current = "heavy-rain-v2.mp3").isEmpty())
+        assertTrue(unreferencedCacheFileNames(existing, keep = existing.toSet()).isEmpty())
     }
 
     /**
-     * A track id may contain the letter sequence the version marker uses, so the split has to take
-     * the last one.
+     * A transfer in progress is staged under a name this must not match, or a second track
+     * finishing first would delete the file the first one is still writing.
      */
     @Test
-    fun anIdContainingTheVersionMarkerStillMatchesItsOwnVersionsOnly() {
-        val existing = listOf("night-view-v1.mp3", "night-v1.mp3")
-
-        assertEquals(
-            listOf("night-view-v1.mp3"),
-            supersededCacheFileNames(existing, current = "night-view-v2.mp3"),
-        )
-    }
-
-    @Test
-    fun unrelatedOrMalformedNamesAreLeftAlone() {
+    fun partialAndMalformedNamesAreLeftAlone() {
         val existing = listOf(
-            ".heavy-rain-v1.mp3.part",
+            partialCacheFileName("heavy-rain-v1.mp3"),
             "heavy-rain-v1.mp3.tmp",
             "heavy-rain-v1.wav",
             "Heavy-Rain-v1.mp3",
+            "heavy-rain.mp3",
         )
 
-        assertTrue(supersededCacheFileNames(existing, current = "heavy-rain-v2.mp3").isEmpty())
+        assertTrue(unreferencedCacheFileNames(existing, keep = emptySet()).isEmpty())
     }
 
+    /** The manifest is the keep list, so a name it omits is a name the cache must not hold. */
     @Test
-    fun aNameWithoutAVersionSupersedesNothing() {
-        assertTrue(supersededCacheFileNames(listOf("heavy-rain.mp3"), current = "heavy-rain.mp3").isEmpty())
+    fun everyCatalogCacheFileNameIsWellFormedAndKept() {
+        assertTrue(catalogCacheFileNames.all { CACHE_FILE_NAME.matches(it) })
+        assertTrue(unreferencedCacheFileNames(catalogCacheFileNames.toList(), catalogCacheFileNames).isEmpty())
     }
 }
