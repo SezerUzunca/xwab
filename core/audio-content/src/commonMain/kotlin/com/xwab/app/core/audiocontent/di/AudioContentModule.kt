@@ -1,11 +1,11 @@
 package com.xwab.app.core.audiocontent.di
 
-import com.xwab.app.core.audiocontent.AudioContentResolver
-import com.xwab.app.core.audiocontent.AudioPrefetcher
-import com.xwab.app.core.audiocontent.BackgroundAudioPrefetcher
-import com.xwab.app.core.audiocontent.DefaultMusicCatalogRepository
-import com.xwab.app.core.audiocontent.LocalFirstAudioContentResolver
-import com.xwab.app.core.audiocontent.MusicCatalogRepository
+import com.xwab.app.core.audiocontent.resolution.AudioContentResolver
+import com.xwab.app.core.audiocontent.resolution.AudioPrefetcher
+import com.xwab.app.core.audiocontent.resolution.BackgroundAudioPrefetcher
+import com.xwab.app.core.audiocontent.catalog.DefaultMusicCatalogRepository
+import com.xwab.app.core.audiocontent.resolution.LocalFirstAudioContentResolver
+import com.xwab.app.core.audiocontent.catalog.MusicCatalogRepository
 import org.koin.dsl.module
 import org.koin.dsl.onClose
 

@@ -1,4 +1,4 @@
-package com.xwab.app.core.audiocontent
+package com.xwab.app.core.audiocontent.cache
 
 /**
  * The ceiling a cached track may not cross. Generous for a sleep sound and small enough that a

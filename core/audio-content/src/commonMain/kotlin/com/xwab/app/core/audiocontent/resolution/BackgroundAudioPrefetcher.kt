@@ -1,6 +1,8 @@
-package com.xwab.app.core.audiocontent
+package com.xwab.app.core.audiocontent.resolution
 
 import co.touchlab.kermit.Logger
+import com.xwab.app.core.audiocontent.cache.AudioFileStore
+import com.xwab.app.core.audiocontent.cache.UnusableAudioSourceException
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes

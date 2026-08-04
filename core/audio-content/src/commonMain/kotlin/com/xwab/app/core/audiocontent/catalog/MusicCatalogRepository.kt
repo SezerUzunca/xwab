@@ -1,4 +1,4 @@
-package com.xwab.app.core.audiocontent
+package com.xwab.app.core.audiocontent.catalog
 
 import com.xwab.app.core.model.Category
 import com.xwab.app.core.model.Music

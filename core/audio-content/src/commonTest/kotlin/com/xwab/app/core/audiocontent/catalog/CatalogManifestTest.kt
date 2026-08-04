@@ -1,4 +1,4 @@
-package com.xwab.app.core.audiocontent
+package com.xwab.app.core.audiocontent.catalog
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -1,4 +1,4 @@
-package com.xwab.app.core.audiocontent
+package com.xwab.app.core.audiocontent.cache
 
 /**
  * Platform storage and transport boundary for remotely hosted audio.
