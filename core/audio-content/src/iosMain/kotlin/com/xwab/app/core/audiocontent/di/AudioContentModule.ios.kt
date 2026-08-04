@@ -3,7 +3,9 @@
 package com.xwab.app.core.audiocontent.di
 
 import com.xwab.app.core.audiocontent.AudioFileStore
-import com.xwab.app.core.audiocontent.IosAudioFileStore
+import com.xwab.app.core.audiocontent.CachingAudioFileStore
+import com.xwab.app.core.audiocontent.IosAudioCacheDirectory
+import com.xwab.app.core.audiocontent.IosAudioTransport
 import org.koin.core.module.Module
 import org.koin.dsl.module
 import platform.Foundation.NSApplicationSupportDirectory
@@ -12,6 +14,9 @@ import platform.Foundation.NSUserDomainMask
 
 actual val audioContentPlatformModule: Module = module {
     single<AudioFileStore> {
+        // Application Support rather than Caches: the system may empty Caches under storage
+        // pressure, and a track that vanishes mid-flight costs offline playback. The directory is
+        // excluded from backup instead, which is what Apple asks for re-downloadable media.
         val applicationSupport = requireNotNull(
             NSFileManager.defaultManager.URLForDirectory(
                 directory = NSApplicationSupportDirectory,
@@ -21,6 +26,7 @@ actual val audioContentPlatformModule: Module = module {
                 error = null,
             )?.path,
         )
-        IosAudioFileStore("$applicationSupport/audio-content")
+        val root = "$applicationSupport/audio-content"
+        CachingAudioFileStore(IosAudioCacheDirectory(root), IosAudioTransport(root))
     }
 }

@@ -77,6 +77,13 @@ internal val catalogEntries = listOf(
     ),
 )
 
+/**
+ * Every cache file the catalog still refers to, which is also the complete list of what the audio
+ * cache is allowed to keep: anything else on disk belongs to a version or a track that a later
+ * build has left behind.
+ */
+internal val catalogCacheFileNames: Set<String> = catalogEntries.mapTo(mutableSetOf()) { it.cacheFileName }
+
 internal val catalogCategories = listOf(
     Category("rain", "Rain", "Gentle raindrops", "\u2602", 0),
     Category("ocean", "Ocean", "Calming waves", "\u2248", 0),

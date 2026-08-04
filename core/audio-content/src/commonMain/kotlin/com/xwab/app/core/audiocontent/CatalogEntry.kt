@@ -14,10 +14,19 @@ internal data class CatalogEntry(
     val httpsUrl: String,
     val version: Int = 1,
 ) {
+    /**
+     * Held rather than derived on each read, so that the check below covers every entry that
+     * exists: an id the file stores would refuse is caught where the entry is written, not on the
+     * device where the refusal would surface as a failed tap.
+     */
+    val cacheFileName: String = "${music.id}-v$version.mp3"
+
     init {
         require(httpsUrl.startsWith("https://")) { "Catalog audio must use HTTPS." }
+        // The pattern rejects a malformed or empty id and a negative version, but accepts v0.
         require(version > 0) { "Catalog audio versions must be positive." }
+        require(CACHE_FILE_NAME.matches(cacheFileName)) {
+            "Catalog track ids must cache under a safe file name: $cacheFileName"
+        }
     }
-
-    val cacheFileName: String get() = "${music.id}-v$version.mp3"
 }
