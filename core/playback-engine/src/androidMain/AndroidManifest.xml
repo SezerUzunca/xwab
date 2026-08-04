@@ -7,7 +7,7 @@
 
     <application>
         <service
-            android:name="com.xwab.app.core.media.PlaybackService"
+            android:name="com.xwab.app.core.media.platform.PlaybackService"
             android:foregroundServiceType="mediaPlayback"
             android:exported="true">
             <intent-filter>
