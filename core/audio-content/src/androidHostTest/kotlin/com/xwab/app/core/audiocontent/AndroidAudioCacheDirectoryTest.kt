@@ -91,9 +91,14 @@ class AndroidAudioCacheDirectoryTest {
         assertNull(directory.sizeOf(partialCacheFileName(FILE_NAME)))
     }
 
-    /** A silent failure here would leave the caller believing a track was cached. */
+    /**
+     * A silent failure here would leave the caller believing a track was cached.
+     *
+     * Returns Unit explicitly: `assertFailsWith` hands back the exception it caught, and an
+     * expression body would make this method return it — which JUnit rejects as an invalid test.
+     */
     @Test
-    fun promotingNothingFails() = runBlocking {
+    fun promotingNothingFails(): Unit = runBlocking {
         assertFailsWith<IllegalStateException> {
             directory.promote(partialCacheFileName(FILE_NAME), FILE_NAME)
         }
