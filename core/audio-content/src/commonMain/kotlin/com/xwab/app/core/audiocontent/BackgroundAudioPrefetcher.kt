@@ -7,6 +7,8 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
@@ -28,24 +30,30 @@ internal class BackgroundAudioPrefetcher(
     private val backgroundScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     private val timeSource: TimeSource = TimeSource.Monotonic,
 ) : AudioPrefetcher {
-    private val logger = Logger.withTag("AudioContent")
+    private val logger = Logger.withTag("BackgroundAudioPrefetcher")
     private val inFlight = mutableSetOf<String>()
     private val failedAt = mutableMapOf<String, TimeMark>()
     private val stateMutex = Mutex()
 
+    // An atomic start is what makes the `finally` below the only place a slot is handed back: the
+    // body is entered even when the scope is already closed, or is closed while this coroutine
+    // waits to be dispatched. A plain `launch` would skip both the body and its `finally` in that
+    // window, leaving the slot claimed for the lifetime of the prefetcher.
+    //
+    // What makes the API delicate is the same thing: a body that ignores cancellation would keep
+    // working after `close()`. This one does not — the store suspends before it reaches the
+    // network, so a canceled transfer unwinds at once and the `finally` is all that runs.
+    @OptIn(DelicateCoroutinesApi::class)
     override suspend fun prefetch(cacheFileName: String, remoteHttpsUrl: String) {
         if (!claimSlot(cacheFileName)) return
 
-        val download = backgroundScope.launch {
+        backgroundScope.launch(start = CoroutineStart.ATOMIC) {
             try {
                 downloadWithRetry(cacheFileName, remoteHttpsUrl)
             } finally {
                 releaseSlot(cacheFileName)
             }
         }
-        // `launch` on a closed prefetcher's scope never starts the body, so the `finally` above
-        // never runs either. The slot has to be handed back here instead.
-        if (download.isCancelled) releaseSlot(cacheFileName)
     }
 
     override fun close() {
@@ -58,10 +66,15 @@ internal class BackgroundAudioPrefetcher(
      * A file that has just exhausted its attempts is refused until [FAILURE_COOLDOWN] passes.
      * Without that, browsing the catalog while offline would start a fresh three-attempt burst on
      * every tap, since a finished failure leaves nothing behind but a log line.
+     *
+     * Letting a file through also drops its expired mark, which is the only thing that keeps
+     * [failedAt] from holding an entry per track that has ever failed.
      */
     private suspend fun claimSlot(cacheFileName: String): Boolean = stateMutex.withLock {
         val coolingDown = failedAt[cacheFileName]?.elapsedNow()?.let { it < FAILURE_COOLDOWN } == true
-        if (coolingDown) false else inFlight.add(cacheFileName)
+        if (coolingDown) return@withLock false
+        failedAt.remove(cacheFileName)
+        inFlight.add(cacheFileName)
     }
 
     /**
@@ -75,22 +88,28 @@ internal class BackgroundAudioPrefetcher(
         }
     }
 
-    /** Records the cache result and marks failed downloads for the cooldown period. */
-    private suspend fun recordOutcome(cacheFileName: String, cached: Boolean) {
+    /**
+     * Starts the cooldown [claimSlot] reads. Runs outside cancellation for the same reason
+     * [releaseSlot] does: the mark has to survive a prefetcher that is closing.
+     *
+     * Only failures are recorded — a success has nothing to write, since claiming the slot already
+     * cleared whatever mark the file carried.
+     */
+    private suspend fun markFailed(cacheFileName: String) {
         withContext(NonCancellable) {
-            stateMutex.withLock {
-                if (cached) failedAt.remove(cacheFileName) else failedAt[cacheFileName] = timeSource.markNow()
-            }
+            stateMutex.withLock { failedAt[cacheFileName] = timeSource.markNow() }
         }
     }
 
+    /**
+     * A file that is already cached costs nothing here: [AudioFileStore.download] returns without
+     * transferring anything, so this does not check the cache first — the resolver has just looked
+     * and missed, and a fourth answer to the same question would not be any fresher.
+     */
     private suspend fun downloadWithRetry(cacheFileName: String, remoteHttpsUrl: String) {
         repeat(DOWNLOAD_ATTEMPTS) { attempt ->
             try {
-                if (fileStore.find(cacheFileName) == null) {
-                    fileStore.download(cacheFileName, remoteHttpsUrl)
-                }
-                recordOutcome(cacheFileName, cached = true)
+                fileStore.download(cacheFileName, remoteHttpsUrl)
                 return
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -98,13 +117,13 @@ internal class BackgroundAudioPrefetcher(
                 // The source answered and the answer was wrong; asking twice more only wastes
                 // requests and delays the cooldown that keeps the next tap quiet.
                 logger.w(unusable) { "Will not cache $cacheFileName; playback will keep using HTTPS." }
-                recordOutcome(cacheFileName, cached = false)
+                markFailed(cacheFileName)
                 return
             } catch (error: Throwable) {
                 val isLastAttempt = attempt == DOWNLOAD_ATTEMPTS - 1
                 if (isLastAttempt) {
                     logger.w(error) { "Could not cache $cacheFileName; playback will keep using HTTPS." }
-                    recordOutcome(cacheFileName, cached = false)
+                    markFailed(cacheFileName)
                 } else {
                     delay(RETRY_BASE_DELAY * (1 shl attempt))
                 }

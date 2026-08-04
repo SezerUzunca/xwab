@@ -51,20 +51,6 @@ class BackgroundAudioPrefetcherTest {
         }
     }
 
-    @Test
-    fun anAlreadyCachedFileIsNotDownloadedAgain() = runBlocking {
-        val fileStore = FakeAudioFileStore(cached = mutableMapOf(FILE_NAME to "file:///audio/$FILE_NAME"))
-        val prefetcher = BackgroundAudioPrefetcher(fileStore)
-        try {
-            prefetcher.prefetch(FILE_NAME, REMOTE_URL)
-
-            withTimeout(TIMEOUT_MS) { fileStore.lookedUp.await() }
-            assertEquals(0, fileStore.downloadCount)
-        } finally {
-            prefetcher.close()
-        }
-    }
-
     /**
      * The caller is never told: a track that cannot be cached still plays from HTTPS, so a failed
      * prefetch is a log line and nothing else.
@@ -157,22 +143,14 @@ class BackgroundAudioPrefetcherTest {
         this.coroutineContext.job.children.toList().forEach { it.join() }
     }
 
-    private class FakeAudioFileStore(
-        private val cached: MutableMap<String, String> = mutableMapOf(),
-    ) : AudioFileStore {
-        val lookedUp = CompletableDeferred<Unit>()
+    private class FakeAudioFileStore : AudioFileStore {
         val downloaded = CompletableDeferred<Unit>()
         var downloadCount = 0
 
-        override suspend fun find(cacheFileName: String): String? {
-            val hit = cached[cacheFileName]
-            lookedUp.complete(Unit)
-            return hit
-        }
+        override suspend fun find(cacheFileName: String): String? = null
 
         override suspend fun download(cacheFileName: String, remoteHttpsUrl: String) {
             downloadCount++
-            cached[cacheFileName] = "file:///audio/$cacheFileName"
             downloaded.complete(Unit)
         }
     }
