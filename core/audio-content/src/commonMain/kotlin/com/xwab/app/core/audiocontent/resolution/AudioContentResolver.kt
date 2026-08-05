@@ -1,4 +1,4 @@
-package com.xwab.app.core.audiocontent
+package com.xwab.app.core.audiocontent.resolution
 
 /**
  * Resolves a catalog track into its best currently available playback source.

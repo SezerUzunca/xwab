@@ -1,5 +1,11 @@
-package com.xwab.app.core.audiocontent
+package com.xwab.app.core.audiocontent.platform
 
+import com.xwab.app.core.audiocontent.cache.AUDIO_ACCEPT_HEADER
+import com.xwab.app.core.audiocontent.cache.AUDIO_USER_AGENT
+import com.xwab.app.core.audiocontent.cache.AudioTransport
+import com.xwab.app.core.audiocontent.cache.requireUsableContentType
+import com.xwab.app.core.audiocontent.cache.requireUsableStatus
+import com.xwab.app.core.audiocontent.cache.requireWithinSizeLimit
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URL

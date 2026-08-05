@@ -1,5 +1,6 @@
-package com.xwab.app.core.audiocontent
+package com.xwab.app.core.audiocontent.resolution
 
+import com.xwab.app.core.audiocontent.cache.AudioFileStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull

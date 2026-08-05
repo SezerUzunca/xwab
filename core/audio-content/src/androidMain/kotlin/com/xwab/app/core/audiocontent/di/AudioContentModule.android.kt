@@ -1,9 +1,9 @@
 package com.xwab.app.core.audiocontent.di
 
-import com.xwab.app.core.audiocontent.AndroidAudioCacheDirectory
-import com.xwab.app.core.audiocontent.AndroidAudioTransport
-import com.xwab.app.core.audiocontent.AudioFileStore
-import com.xwab.app.core.audiocontent.CachingAudioFileStore
+import com.xwab.app.core.audiocontent.platform.AndroidAudioCacheDirectory
+import com.xwab.app.core.audiocontent.platform.AndroidAudioTransport
+import com.xwab.app.core.audiocontent.cache.AudioFileStore
+import com.xwab.app.core.audiocontent.cache.CachingAudioFileStore
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
 import org.koin.dsl.module

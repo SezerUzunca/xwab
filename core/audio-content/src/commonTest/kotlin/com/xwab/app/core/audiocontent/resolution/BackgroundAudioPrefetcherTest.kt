@@ -1,5 +1,7 @@
-package com.xwab.app.core.audiocontent
+package com.xwab.app.core.audiocontent.resolution
 
+import com.xwab.app.core.audiocontent.cache.AudioFileStore
+import com.xwab.app.core.audiocontent.cache.UnusableAudioSourceException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration

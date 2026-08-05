@@ -22,6 +22,28 @@ Metadata and source live together on purpose: adding a track is one edit in one 
 split — metadata in `core:data`, resource names in the domain model, MP3s in `core:playback` — is
 what made that a three-module change.
 
+## Packages
+
+Four packages, and the dependencies between them run one way only:
+
+```
+catalog  ←  cache  ←  resolution
+              ↑
+           platform            di → all four
+```
+
+- `catalog` — the manifest, `CatalogEntry`, the cache-name rules, and the repository screens read.
+  It is the only package that knows a track exists, and it depends on nothing else here.
+- `cache` — `AudioFileStore` and the flow behind it: staging, promotion, the sweep, and the rules
+  for reading an HTTP answer. It asks `catalog` which names are still referred to.
+- `resolution` — which URI plays now, and what is worth fetching for later.
+- `platform` — the `androidMain`/`iosMain` adapters, the only code that touches a file system or a
+  socket. They implement ports declared in `cache` and know nothing of the catalog.
+
+The naming rules sit in `catalog` rather than `cache` for that reason: a cache file name is
+something the catalog *produces* and the cache *consumes*. The other way round, the two packages
+would import each other and the layering would say nothing.
+
 ## Nothing ships inside the app
 
 Every track is fetched over HTTPS the first time it is played; the APK and the iOS bundle carry no

@@ -1,4 +1,7 @@
-package com.xwab.app.core.audiocontent
+package com.xwab.app.core.audiocontent.resolution
+
+import com.xwab.app.core.audiocontent.cache.AudioFileStore
+import com.xwab.app.core.audiocontent.catalog.catalogEntries
 
 /**
  * Picks the best source a track can be played from right now: an app-owned local copy when one has

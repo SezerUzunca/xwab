@@ -1,6 +1,6 @@
 package com.xwab.app.core.testing
 
-import com.xwab.app.core.audiocontent.MusicCatalogRepository
+import com.xwab.app.core.audiocontent.catalog.MusicCatalogRepository
 import com.xwab.app.core.model.Category
 import com.xwab.app.core.model.Music
 import com.xwab.app.core.model.PlaybackSummary

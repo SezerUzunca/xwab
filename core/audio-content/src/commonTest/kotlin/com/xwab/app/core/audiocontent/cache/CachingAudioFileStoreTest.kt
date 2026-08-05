@@ -1,5 +1,7 @@
-package com.xwab.app.core.audiocontent
+package com.xwab.app.core.audiocontent.cache
 
+import com.xwab.app.core.audiocontent.catalog.catalogCacheFileNames
+import com.xwab.app.core.audiocontent.catalog.partialCacheFileName
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

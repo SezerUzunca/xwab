@@ -1,5 +1,9 @@
-package com.xwab.app.core.audiocontent
+package com.xwab.app.core.audiocontent.platform
 
+import com.xwab.app.core.audiocontent.cache.AudioTransport
+import com.xwab.app.core.audiocontent.cache.CachingAudioFileStore
+import com.xwab.app.core.audiocontent.catalog.catalogCacheFileNames
+import com.xwab.app.core.audiocontent.catalog.partialCacheFileName
 import java.io.File
 import java.net.URI
 import java.nio.file.Files
