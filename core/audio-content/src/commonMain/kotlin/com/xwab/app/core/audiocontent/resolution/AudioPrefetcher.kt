@@ -1,4 +1,4 @@
-package com.xwab.app.core.audiocontent
+package com.xwab.app.core.audiocontent.resolution
 
 /**
  * Fills the local audio cache in the background.

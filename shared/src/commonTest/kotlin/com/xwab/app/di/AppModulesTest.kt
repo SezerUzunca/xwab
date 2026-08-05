@@ -4,9 +4,9 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.navigation3.runtime.NavKey
-import com.xwab.app.core.audiocontent.AudioContentResolver
-import com.xwab.app.core.audiocontent.AudioFileStore
-import com.xwab.app.core.audiocontent.MusicCatalogRepository
+import com.xwab.app.core.audiocontent.resolution.AudioContentResolver
+import com.xwab.app.core.audiocontent.cache.AudioFileStore
+import com.xwab.app.core.audiocontent.catalog.MusicCatalogRepository
 import com.xwab.app.core.audiocontent.di.audioContentModule
 import com.xwab.app.core.audiocontent.di.audioContentPlatformModule
 import com.xwab.app.core.media.api.AudioPlayerState

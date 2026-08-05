@@ -1,4 +1,6 @@
-package com.xwab.app.core.audiocontent
+package com.xwab.app.core.audiocontent.catalog
+
+import com.xwab.app.core.audiocontent.cache.AudioFileStore
 
 /**
  * A cache file name is `<track id>-v<version>.mp3`, and it is the only string this module ever

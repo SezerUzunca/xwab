@@ -1,6 +1,6 @@
 package com.xwab.app.core.playback
 
-import com.xwab.app.core.audiocontent.AudioContentResolver
+import com.xwab.app.core.audiocontent.resolution.AudioContentResolver
 import com.xwab.app.core.media.api.AudioPlayerState
 import com.xwab.app.core.media.api.AudioSource
 import com.xwab.app.core.media.api.LoopMode

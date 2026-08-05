@@ -1,7 +1,8 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
-package com.xwab.app.core.audiocontent
+package com.xwab.app.core.audiocontent.platform
 
+import com.xwab.app.core.audiocontent.cache.AudioCacheDirectory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import platform.Foundation.NSFileManager

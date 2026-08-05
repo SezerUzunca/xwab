@@ -2,10 +2,10 @@
 
 package com.xwab.app.core.audiocontent.di
 
-import com.xwab.app.core.audiocontent.AudioFileStore
-import com.xwab.app.core.audiocontent.CachingAudioFileStore
-import com.xwab.app.core.audiocontent.IosAudioCacheDirectory
-import com.xwab.app.core.audiocontent.IosAudioTransport
+import com.xwab.app.core.audiocontent.cache.AudioFileStore
+import com.xwab.app.core.audiocontent.cache.CachingAudioFileStore
+import com.xwab.app.core.audiocontent.platform.IosAudioCacheDirectory
+import com.xwab.app.core.audiocontent.platform.IosAudioTransport
 import org.koin.core.module.Module
 import org.koin.dsl.module
 import platform.Foundation.NSApplicationSupportDirectory
