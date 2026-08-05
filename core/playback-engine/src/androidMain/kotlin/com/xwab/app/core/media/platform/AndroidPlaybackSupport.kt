@@ -3,6 +3,10 @@ package com.xwab.app.core.media.platform
 import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import com.xwab.app.core.media.api.PlaybackError
+import com.xwab.app.core.media.api.PlaybackErrorCode
+import com.xwab.app.core.media.api.PlaybackPhase
+import com.xwab.app.core.media.store.playbackPhase
 
 /**
  * Android-specific helper functions used by [PlaybackService] and the
@@ -58,7 +62,3 @@ internal fun androidPlaybackPhase(
     isReadyToPlay = hasSource && !isLoadPending,
     isWaitingToPlay = playbackState == Player.STATE_BUFFERING,
 )
-import com.xwab.app.core.media.api.PlaybackError
-import com.xwab.app.core.media.api.PlaybackErrorCode
-import com.xwab.app.core.media.api.PlaybackPhase
-import com.xwab.app.core.media.store.playbackPhase

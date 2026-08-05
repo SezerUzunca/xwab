@@ -2,6 +2,7 @@ package com.xwab.app.core.media.platform
 
 import android.os.Handler
 import android.os.Looper
+import com.xwab.app.core.media.timer.TickScheduler
 
 /** [TickScheduler] backed by the Android main-looper [Handler]. */
 internal class HandlerTickScheduler : TickScheduler {
@@ -23,4 +24,3 @@ internal class HandlerTickScheduler : TickScheduler {
         pendingTick = null
     }
 }
-import com.xwab.app.core.media.timer.TickScheduler

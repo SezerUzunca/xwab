@@ -20,6 +20,7 @@ import androidx.media3.session.SessionResult
 import co.touchlab.kermit.Logger
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.xwab.app.core.media.store.remainingDurationUntil
 
 class PlaybackService : MediaSessionService() {
 
@@ -238,4 +239,3 @@ private class SleepTimer(
         deadlineElapsedRealtimeMs = null
     }
 }
-import com.xwab.app.core.media.store.remainingDurationUntil
