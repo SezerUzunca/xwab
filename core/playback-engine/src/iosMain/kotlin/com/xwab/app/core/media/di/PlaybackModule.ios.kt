@@ -1,7 +1,7 @@
 package com.xwab.app.core.media.di
 
-import com.xwab.app.core.media.PlaybackController
-import com.xwab.app.core.media.createIosPlaybackController
+import com.xwab.app.core.media.api.PlaybackController
+import com.xwab.app.core.media.platform.createIosPlaybackController
 import org.koin.core.module.Module
 import org.koin.dsl.module
 import org.koin.dsl.onClose

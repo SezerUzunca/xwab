@@ -1,7 +1,7 @@
 package com.xwab.app.core.media.di
 
-import com.xwab.app.core.media.PlaybackController
-import com.xwab.app.core.media.createAndroidPlaybackController
+import com.xwab.app.core.media.api.PlaybackController
+import com.xwab.app.core.media.platform.createAndroidPlaybackController
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
 import org.koin.dsl.module

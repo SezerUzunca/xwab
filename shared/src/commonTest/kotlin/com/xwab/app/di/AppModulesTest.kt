@@ -9,10 +9,10 @@ import com.xwab.app.core.audiocontent.cache.AudioFileStore
 import com.xwab.app.core.audiocontent.catalog.MusicCatalogRepository
 import com.xwab.app.core.audiocontent.di.audioContentModule
 import com.xwab.app.core.audiocontent.di.audioContentPlatformModule
-import com.xwab.app.core.media.AudioPlayerState
-import com.xwab.app.core.media.PlaybackCommand
-import com.xwab.app.core.media.PlaybackController
-import com.xwab.app.core.media.SleepTimerState
+import com.xwab.app.core.media.api.AudioPlayerState
+import com.xwab.app.core.media.api.PlaybackCommand
+import com.xwab.app.core.media.api.PlaybackController
+import com.xwab.app.core.media.api.SleepTimerState
 import com.xwab.app.core.playback.PlaybackCoordinator
 import com.xwab.app.core.playback.di.playbackCoordinatorModule
 import com.xwab.app.core.preferences.FavoritesRepository
