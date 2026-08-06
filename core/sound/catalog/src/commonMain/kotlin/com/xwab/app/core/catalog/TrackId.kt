@@ -1,5 +1,9 @@
 package com.xwab.app.core.catalog
 
+// Explicit because this is common code: `kotlin.jvm.*` is a default import on the JVM only, so
+// Android compiles this file without the import and the Kotlin/Native targets do not.
+import kotlin.jvm.JvmInline
+
 /**
  * The identity of one catalog track.
  *
