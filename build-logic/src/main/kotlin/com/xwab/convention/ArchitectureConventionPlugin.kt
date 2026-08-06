@@ -23,16 +23,18 @@ class ArchitectureConventionPlugin : Plugin<Project> {
             // The dependency graph is only complete once every module has been configured.
             gradle.projectsEvaluated {
                 val graph = rootProject.subprojects.associate { module ->
-                    val projectDependencies = sortedSetOf<String>()
-                    module.configurations.forEach { configuration ->
-                        configuration.dependencies
-                            .withType(ProjectDependency::class.java)
-                            .forEach { dependency -> projectDependencies += dependency.path }
-                    }
-                    module.path to projectDependencies.toList()
+                    module.path to module.projectDependencies { true }
+                }
+                // Collected separately rather than filtered out of the graph, because the two
+                // answer different questions: what a module declares, and what it re-exports.
+                val apiGraph = rootProject.subprojects.associate { module ->
+                    module.path to module.projectDependencies(FeatureFirstRules::isApiConfiguration)
                 }
 
-                checkArchitecture.configure { task -> task.moduleDependencies.set(graph) }
+                checkArchitecture.configure { task ->
+                    task.moduleDependencies.set(graph)
+                    task.moduleApiDependencies.set(apiGraph)
+                }
             }
 
             // A broken rule should surface the way a broken test does — and so should a rule that
@@ -44,5 +46,17 @@ class ArchitectureConventionPlugin : Plugin<Project> {
                 task.dependsOn(gradle.includedBuild("build-logic").task(":test"))
             }
         }
+    }
+
+    /** The paths of the projects this module depends on, in configurations matching [include]. */
+    private fun Project.projectDependencies(include: (String) -> Boolean): List<String> {
+        val paths = sortedSetOf<String>()
+        configurations.forEach { configuration ->
+            if (!include(configuration.name)) return@forEach
+            configuration.dependencies
+                .withType(ProjectDependency::class.java)
+                .forEach { dependency -> paths += dependency.path }
+        }
+        return paths.toList()
     }
 }

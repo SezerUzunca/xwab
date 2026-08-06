@@ -12,8 +12,10 @@ kotlin {
             // track to a URI or reach the engine's own state model.
             implementation(projects.core.sound.delivery)
             implementation(projects.core.playback.engine)
-            // `togglePlayback` takes a catalog track, and `PlaybackSummary` is published from here.
-            api(projects.core.sound.catalog)
+            // Read by the internal sound resolver only. Nothing this module publishes names a
+            // catalog type — the session speaks `PlaybackItemId` — so this does not travel, and a
+            // screen that wants `TrackId` declares the catalog itself, as all three already do.
+            implementation(projects.core.sound.catalog)
             api(libs.kotlinx.coroutines.core)
             // The DI entry point exposes Koin's Module type.
             api(libs.koin.core)

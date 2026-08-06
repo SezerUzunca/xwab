@@ -6,6 +6,7 @@ import com.xwab.app.core.catalog.MusicCatalogRepository
 import com.xwab.app.core.catalog.TrackId
 import com.xwab.app.core.favorites.FavoritesRepository
 import com.xwab.app.core.playbacksession.PlaybackCoordinator
+import com.xwab.app.core.playbacksession.PlaybackItemId
 import com.xwab.app.core.playbacksession.PlaybackSummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -71,7 +72,7 @@ class FakePlaybackCoordinator : PlaybackCoordinator {
     override val playback: Flow<PlaybackSummary> = summary
     override val sleepTimerRemainingMs: Flow<Long?> = remainingMs
 
-    var playedTrackId: TrackId? = null
+    var playedItemId: PlaybackItemId? = null
     var pauses = 0
     var looping: Boolean? = null
     var volume: Float? = null
@@ -86,8 +87,8 @@ class FakePlaybackCoordinator : PlaybackCoordinator {
         remainingMs.value = remaining
     }
 
-    override suspend fun play(trackId: TrackId) {
-        playedTrackId = trackId
+    override suspend fun play(itemId: PlaybackItemId) {
+        playedItemId = itemId
     }
 
     override fun pause() {

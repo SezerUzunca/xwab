@@ -116,6 +116,97 @@ class FeatureFirstRulesTest {
         assertEquals(1, violations.size)
     }
 
+    // Rule 4 — what a screen can reach, not only what it names.
+
+    /**
+     * The hole this closes. `:core:testing` is a module every feature declares, so one `api` edge
+     * added to it — a fake resolver would be reason enough — puts delivery on three screens'
+     * compile classpaths. Nobody declared anything forbidden, and before the rule followed api
+     * edges it reported success.
+     */
+    @Test
+    fun aFeatureReachingAnOffLimitsModuleThroughAnApiEdgeIsAViolation() {
+        val violations = FeatureFirstRules.dependencyViolations(
+            graph = mapOf(":feature:home" to listOf(":core:testing")),
+            apiEdges = mapOf(":core:testing" to listOf(":core:sound:delivery")),
+        )
+
+        assertEquals(1, violations.size)
+        assertTrue(
+            violations.single().startsWith(":feature:home reaches :core:sound:delivery through :core:testing,"),
+            violations.single(),
+        )
+    }
+
+    /** The shape the build actually has: session declares delivery, and keeps it to itself. */
+    @Test
+    fun aModuleThatKeepsAnOffLimitsDependencyToItselfIsFine() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.dependencyViolations(
+                graph = mapOf(
+                    ":feature:home" to listOf(":core:playback:session"),
+                    ":core:playback:session" to listOf(":core:sound:delivery"),
+                ),
+                apiEdges = mapOf(":core:playback:session" to emptyList<String>()),
+            ),
+        )
+    }
+
+    @Test
+    fun anApiEdgeIsFollowedAsFarAsItGoes() {
+        val violations = FeatureFirstRules.dependencyViolations(
+            graph = mapOf(":feature:player" to listOf(":core:testing")),
+            apiEdges = mapOf(
+                ":core:testing" to listOf(":core:playback:session"),
+                ":core:playback:session" to listOf(":core:playback:engine"),
+            ),
+        )
+
+        assertEquals(1, violations.size)
+        assertTrue(
+            violations.single().contains(":core:testing -> :core:playback:session"),
+            violations.single(),
+        )
+    }
+
+    /** A cycle in api edges must not hang the check. */
+    @Test
+    fun apiEdgesThatLoopAreWalkedOnce() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.dependencyViolations(
+                graph = mapOf(":feature:home" to listOf(":core:sound:catalog")),
+                apiEdges = mapOf(
+                    ":core:sound:catalog" to listOf(":core:testing"),
+                    ":core:testing" to listOf(":core:sound:catalog"),
+                ),
+            ),
+        )
+    }
+
+    /** Declared *and* reachable reports the declaration: that is the line to delete. */
+    @Test
+    fun aModuleBothDeclaredAndReachedIsReportedOnce() {
+        val violations = FeatureFirstRules.dependencyViolations(
+            graph = mapOf(":feature:home" to listOf(":core:sound:delivery", ":core:testing")),
+            apiEdges = mapOf(":core:testing" to listOf(":core:sound:delivery")),
+        )
+
+        assertEquals(1, violations.size)
+        assertTrue(violations.single().startsWith(":feature:home depends on"), violations.single())
+    }
+
+    @Test
+    fun onlyConfigurationsThatReExportDependenciesCount() {
+        listOf("api", "commonMainApi", "androidMainApi", "iosMainApi", "commonTestApi").forEach {
+            assertTrue(FeatureFirstRules.isApiConfiguration(it), "$it re-exports its dependencies")
+        }
+        listOf("implementation", "commonMainImplementation", "apiElements", "compileOnly").forEach {
+            assertEquals(false, FeatureFirstRules.isApiConfiguration(it), "$it does not")
+        }
+    }
+
     // Rule 4's own upkeep.
 
     @Test
@@ -309,7 +400,19 @@ class FeatureFirstRulesTest {
             ":androidApp" to listOf(":shared"),
         )
 
+        // What each module re-exports. `:core:playback:session` declares delivery and the engine
+        // and re-exports neither, which is the only reason three screens can depend on it.
+        val apiEdges = mapOf(
+            ":core:sound:manifest" to listOf(":core:sound:catalog"),
+            ":core:sound:delivery" to listOf(":core:sound:catalog"),
+            ":core:sound:favorites" to listOf(":core:sound:catalog"),
+            ":core:story:manifest" to listOf(":core:story:catalog"),
+            ":core:playback:session" to emptyList(),
+            ":core:testing" to
+                listOf(":core:sound:catalog", ":core:sound:favorites", ":core:playback:session"),
+        )
+
         assertEquals(emptyList(), FeatureFirstRules.staleRuleViolations(graph.keys))
-        assertEquals(emptyList(), FeatureFirstRules.dependencyViolations(graph))
+        assertEquals(emptyList(), FeatureFirstRules.dependencyViolations(graph, apiEdges))
     }
 }

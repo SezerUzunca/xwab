@@ -7,10 +7,14 @@ import kotlin.jvm.JvmInline
 /**
  * The identity of one sleep story.
  *
- * A type of its own rather than a bare `String`, for the reason `TrackId` is one in `core:sound:catalog`:
- * these ids will travel through navigation routes, playback requests and — once stories are played
- * — a session that also carries sound ids. `play(trackId)` must not compile where a story is meant,
- * and neither must the reverse.
+ * A type of its own rather than a bare `String`, for the reason `TrackId` is one in
+ * `core:sound:catalog`: these ids travel through navigation routes, favorites-like sets and screen
+ * state, all of which handle other strings too. Passing a category id where a story is meant must
+ * not compile.
+ *
+ * Playback is the one place the raw value is handed over deliberately:
+ * `PlaybackItemId.story(id.value)` pairs it with a kind, which is what keeps a story and a sound of
+ * the same name two different items inside the session.
  *
  * `@JvmInline` erases to the `String` it holds, so the safety costs nothing at runtime while the id
  * stays in a typed position. Unwrap it only at the edges where a string genuinely is the format: a

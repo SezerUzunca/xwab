@@ -19,7 +19,8 @@ import org.gradle.api.tasks.TaskAction
  *    That module is the whole contract: routes in, no implementation.
  * 3. A use case in a core module must serve more than one feature. A screen-specific one belongs
  *    to that screen's module, otherwise screen logic leaks into shared capabilities.
- * 4. A feature may not declare a module in [FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES].
+ * 4. A feature may not declare — or reach through an `api` dependency — a module in
+ *    [FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES].
  *    Fetching audio, driving a platform player and reading the shipped manifest are things done on
  *    a screen's behalf; a screen reaching any of them directly bypasses the port that exists for it.
  *
@@ -39,6 +40,14 @@ abstract class CheckArchitectureTask : DefaultTask() {
     @get:Input
     abstract val moduleDependencies: MapProperty<String, List<String>>
 
+    /**
+     * The same, narrowed to `api` configurations: the dependencies that do not stop at the module
+     * declaring them. Rule 4 follows these, so a forbidden module cannot reach a screen by being
+     * re-exported from a module the screen is allowed to declare.
+     */
+    @get:Input
+    abstract val moduleApiDependencies: MapProperty<String, List<String>>
+
     /** The repository root; rule 3 reads Kotlin sources under it. */
     @get:Internal
     abstract val repositoryRoot: DirectoryProperty
@@ -47,7 +56,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
     fun check() {
         val graph = moduleDependencies.get()
         val violations = FeatureFirstRules.staleRuleViolations(graph.keys) +
-            FeatureFirstRules.dependencyViolations(graph) +
+            FeatureFirstRules.dependencyViolations(graph, moduleApiDependencies.get()) +
             leakedUseCaseViolations(repositoryRoot.get().asFile, graph.keys)
 
         if (violations.isNotEmpty()) {

@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.xwab.app.core.catalog.TrackId
 import com.xwab.app.core.favorites.FavoritesRepository
 import com.xwab.app.core.playbacksession.PlaybackCoordinator
+import com.xwab.app.core.playbacksession.PlaybackItemId
+import com.xwab.app.core.playbacksession.PlaybackKind
+import com.xwab.app.core.playbacksession.requestedValueOf
 import com.xwab.app.feature.category.domain.ObserveCategoryContentUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,7 +27,8 @@ internal class CategoryViewModel(
                 category = content.category,
                 musics = content.musics,
                 favoriteIds = content.favoriteIds,
-                requestedTrackId = content.playback.requestedTrackId,
+                // A story occupying the session lights up no row on a screen that lists sounds.
+                requestedTrackId = content.playback.requestedValueOf(PlaybackKind.SOUND)?.let(::TrackId),
                 playIntent = content.playback.playIntent,
             )
         }.stateIn(
@@ -43,7 +47,7 @@ internal class CategoryViewModel(
         if (current.requestedTrackId == musicId && current.playIntent) {
             playbackCoordinator.pause()
         } else {
-            viewModelScope.launch { playbackCoordinator.play(musicId) }
+            viewModelScope.launch { playbackCoordinator.play(PlaybackItemId.sound(musicId.value)) }
         }
     }
 }

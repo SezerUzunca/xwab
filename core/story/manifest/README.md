@@ -39,6 +39,7 @@ Until those are answered, a stream URL here would be a guess with tests written 
   shape that does not exist yet.
 - **No progress storage.** Resuming needs position, duration and seek from `core:playback:engine`,
   none of which it publishes; `core:story:progress` follows that, not this.
-- **No playback wiring.** `core:playback:session` still speaks in `TrackId`. Playing a story means
-  a generic item id and a resolver per content kind inside that module — a migration through all
-  three existing features, and a separate piece of work from adding these two modules.
+- **No playback wiring.** The session is already generic — it plays a `PlaybackItemId` and knows
+  `PlaybackKind.STORY` — so what is missing is only the answer this module will hold: where a story
+  streams from. When the feed lands, a `StoryPlaybackResolver` reads it and joins the resolver list
+  in `core:playback:session`. No screen changes for it.

@@ -1,6 +1,5 @@
 package com.xwab.app.core.playbacksession
 
-import com.xwab.app.core.catalog.TrackId
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -29,17 +28,20 @@ interface PlaybackCoordinator {
     val sleepTimerRemainingMs: Flow<Long?>
 
     /**
-     * Wants [trackId] playing: resumes it when the session is already on it, and otherwise makes it
-     * the session's track and starts it.
+     * Wants [itemId] playing: resumes it when the session is already on it, and otherwise makes it
+     * the session's item and starts it.
      *
-     * Takes an id rather than a track, so the metadata the media session publishes is read from the
-     * catalog beside the source it is paired with. A screen handing over its own `Music` could pair
-     * a stale title with a fresh URI, and nothing would have noticed.
+     * Takes an id rather than the thing itself, so the metadata the media session publishes is read
+     * beside the source it is paired with. A screen handing over its own `Music` could pair a stale
+     * title with a fresh URI, and nothing would have noticed.
      *
-     * The session is on [trackId] from the moment this is called — before the source lookup that
+     * The session is on [itemId] from the moment this is called — before the source lookup that
      * follows — so a second tap finds something to pause rather than an idle session to start again.
+     *
+     * An item of a kind the session has no resolver for fails as
+     * [PlaybackFailure.ItemNotFound]; it never reaches the engine.
      */
-    suspend fun play(trackId: TrackId)
+    suspend fun play(itemId: PlaybackItemId)
 
     /**
      * Stops wanting playback, and abandons a source lookup still in flight.

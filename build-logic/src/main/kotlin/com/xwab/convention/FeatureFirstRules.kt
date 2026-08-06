@@ -52,8 +52,22 @@ internal object FeatureFirstRules {
                 "FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES, or the rule protects nothing."
         }
 
-    /** Rules 1, 2 and 4, all of which are readable straight off the dependency graph. */
-    fun dependencyViolations(graph: Map<String, List<String>>): List<String> {
+    /**
+     * Rules 1, 2 and 4, all of which are readable straight off the dependency graph.
+     *
+     * Rules 1 and 2 are about what a module *declares*, so they read the direct edges. Rule 4 is
+     * about what a screen can *reach*, which is not the same thing: an `api` dependency puts its
+     * own `api` dependencies on every consumer's compile classpath. A feature that declares nothing
+     * forbidden can still end up compiling against a forbidden module, and until [apiEdges] existed
+     * this rule would have reported success while that happened.
+     *
+     * @param apiEdges the project dependencies each module declares in an `api` configuration —
+     *   the ones that travel. Left empty, rule 4 sees direct declarations only.
+     */
+    fun dependencyViolations(
+        graph: Map<String, List<String>>,
+        apiEdges: Map<String, List<String>> = emptyMap(),
+    ): List<String> {
         val violations = mutableListOf<String>()
 
         graph.forEach { (module, dependencies) ->
@@ -71,17 +85,62 @@ internal object FeatureFirstRules {
                         "$dependency$NAVIGATION_SUFFIX instead: a feature's navigation module is " +
                         "the only part of it another feature may see."
                 }
+            }
 
-                MODULES_OFF_LIMITS_TO_FEATURES[dependency]?.let { reason ->
-                    if (module.startsWith(FEATURE_PREFIX)) {
-                        violations += "$module depends on $dependency. A feature may not: $reason."
-                    }
-                }
+            if (module.startsWith(FEATURE_PREFIX)) {
+                violations += offLimitsReachableFrom(module, dependencies, apiEdges)
             }
         }
 
         return violations.distinct().sorted()
     }
+
+    /**
+     * Rule 4, over everything [feature] compiles against rather than everything it names.
+     *
+     * Breadth-first, so the path reported is the shortest one — and so a module that is both
+     * declared and reachable is reported as declared, which is the more actionable of the two.
+     */
+    private fun offLimitsReachableFrom(
+        feature: String,
+        directDependencies: List<String>,
+        apiEdges: Map<String, List<String>>,
+    ): List<String> {
+        val violations = mutableListOf<String>()
+        val visited = mutableSetOf<String>()
+        val paths = ArrayDeque(directDependencies.map { listOf(it) })
+
+        while (paths.isNotEmpty()) {
+            val path = paths.removeFirst()
+            val reached = path.last()
+            if (!visited.add(reached)) continue
+
+            MODULES_OFF_LIMITS_TO_FEATURES[reached]?.let { reason ->
+                violations += if (path.size == 1) {
+                    "$feature depends on $reached. A feature may not: $reason."
+                } else {
+                    "$feature reaches $reached through ${path.dropLast(1).joinToString(" -> ")}, " +
+                        "whose api dependencies travel onto this feature's compile classpath. " +
+                        "A feature may not: $reason."
+                }
+            }
+
+            apiEdges[reached].orEmpty().forEach { paths.addLast(path + it) }
+        }
+
+        return violations
+    }
+
+    /**
+     * Whether a Gradle configuration is one whose project dependencies reach a consumer's compile
+     * classpath — `api`, and the per-source-set `commonMainApi`, `androidMainApi` and the rest.
+     *
+     * Everything else, `implementation` above all, stops at the module that declares it. Gradle's
+     * own outgoing variants (`apiElements`) are deliberately not matched: they carry the same
+     * dependencies again under a name this does not accept.
+     */
+    fun isApiConfiguration(configurationName: String): Boolean =
+        configurationName == "api" || configurationName.endsWith("Api")
 
     /**
      * Rule 3, over sources the task has already read.

@@ -39,14 +39,14 @@ class DefaultPlaybackCoordinatorTest {
     fun playReloadsAFailedSourceWithAutoplay() = runBlocking {
         val player = FakePlaybackController().apply {
             mutableState.value = AudioPlayerState(
-                requestedSource = AudioSource(id = "gentle-rain", uri = "file.mp3"),
+                requestedSource = AudioSource(id = "sound:gentle-rain", uri = "file.mp3"),
                 phase = PlaybackPhase.Failed,
                 isLooping = true,
             )
         }
         val coordinator = coordinator(player)
 
-        coordinator.play(TrackId("gentle-rain"))
+        coordinator.play(sound("gentle-rain"))
 
         assertEquals(true, player.lastLoadRequest?.autoplay)
         assertEquals(LoopMode.One, player.lastLoadRequest?.loopMode)
@@ -56,7 +56,7 @@ class DefaultPlaybackCoordinatorTest {
     fun pauseStopsTheActiveSourceWithoutReloadingIt() = runBlocking {
         val player = FakePlaybackController().apply {
             mutableState.value = AudioPlayerState(
-                source = AudioSource(id = "gentle-rain", uri = "file.mp3"),
+                source = AudioSource(id = "sound:gentle-rain", uri = "file.mp3"),
                 phase = PlaybackPhase.Ready,
                 playRequested = true,
                 isPlaying = true,
@@ -74,7 +74,7 @@ class DefaultPlaybackCoordinatorTest {
     fun playResumesTheActiveSourceWithoutReloadingIt() = runBlocking {
         val player = FakePlaybackController().apply {
             mutableState.value = AudioPlayerState(
-                source = AudioSource(id = "gentle-rain", uri = "file.mp3"),
+                source = AudioSource(id = "sound:gentle-rain", uri = "file.mp3"),
                 phase = PlaybackPhase.Ready,
                 playRequested = false,
                 isPlaying = false,
@@ -82,7 +82,7 @@ class DefaultPlaybackCoordinatorTest {
         }
         val coordinator = coordinator(player)
 
-        coordinator.play(TrackId("gentle-rain"))
+        coordinator.play(sound("gentle-rain"))
 
         assertEquals(1, player.playCalls)
         assertEquals(0, player.pauseCalls)
@@ -98,7 +98,7 @@ class DefaultPlaybackCoordinatorTest {
     fun whatThePlayControlRendersIsWhatATapActsOn() = runBlocking {
         val player = FakePlaybackController().apply {
             mutableState.value = AudioPlayerState(
-                requestedSource = AudioSource(id = "gentle-rain", uri = "file.mp3"),
+                requestedSource = AudioSource(id = "sound:gentle-rain", uri = "file.mp3"),
                 phase = PlaybackPhase.Buffering,
                 playRequested = true,
                 isPlaying = false,
@@ -128,11 +128,11 @@ class DefaultPlaybackCoordinatorTest {
             AudioSourceResolution.Resolved(lookupResult.await())
         }
 
-        val firstTap = launch { coordinator.play(TrackId("gentle-rain")) }
+        val firstTap = launch { coordinator.play(sound("gentle-rain")) }
         lookupStarted.await()
 
         val whileResolving = coordinator.playback.first()
-        assertEquals(TrackId("gentle-rain"), whileResolving.requestedTrackId)
+        assertEquals(sound("gentle-rain"), whileResolving.requestedItemId)
         assertTrue(whileResolving.playIntent, "a second tap must find something to pause")
         assertTrue(whileResolving.isPreparing)
 
@@ -150,7 +150,7 @@ class DefaultPlaybackCoordinatorTest {
             AudioSourceResolution.Resolved(lookupResult.await())
         }
 
-        val firstTap = launch { coordinator.play(TrackId("gentle-rain")) }
+        val firstTap = launch { coordinator.play(sound("gentle-rain")) }
         lookupStarted.await()
         coordinator.pause()
 
@@ -165,7 +165,7 @@ class DefaultPlaybackCoordinatorTest {
     fun theFirstSoundLoopsBecauseThatIsTheProductDefault() = runBlocking {
         val player = FakePlaybackController()
 
-        coordinator(player).play(TrackId("gentle-rain"))
+        coordinator(player).play(sound("gentle-rain"))
 
         assertEquals(LoopMode.One, player.lastLoadRequest?.loopMode)
     }
@@ -188,7 +188,7 @@ class DefaultPlaybackCoordinatorTest {
         coordinator.setLooping(false)
 
         assertEquals(false, coordinator.playback.first().isLooping)
-        coordinator.play(TrackId("gentle-rain"))
+        coordinator.play(sound("gentle-rain"))
         assertEquals(LoopMode.Off, player.lastLoadRequest?.loopMode)
     }
 
@@ -199,7 +199,7 @@ class DefaultPlaybackCoordinatorTest {
 
         coordinator.setLooping(false)
         coordinator.setVolume(0.42f)
-        coordinator.play(TrackId("gentle-rain"))
+        coordinator.play(sound("gentle-rain"))
 
         assertEquals(LoopMode.Off, player.lastLoadRequest?.loopMode)
         assertEquals(0.42f, player.lastLoadRequest?.volume)
@@ -211,14 +211,14 @@ class DefaultPlaybackCoordinatorTest {
     fun playbackSettingsAreRetainedWhenAnotherSoundIsLoaded() = runBlocking {
         val player = FakePlaybackController()
         val coordinator = coordinator(player)
-        coordinator.play(TrackId("gentle-rain"))
+        coordinator.play(sound("gentle-rain"))
         player.attachRequestedSource()
 
         coordinator.setLooping(false)
         coordinator.setVolume(0.42f)
-        coordinator.play(TrackId("calm-waves"))
+        coordinator.play(sound("calm-waves"))
 
-        assertEquals("calm-waves", player.lastLoadRequest?.source?.id)
+        assertEquals("sound:calm-waves", player.lastLoadRequest?.source?.id)
         assertEquals(LoopMode.Off, player.lastLoadRequest?.loopMode)
         assertEquals(0.42f, player.lastLoadRequest?.volume)
     }
@@ -227,7 +227,7 @@ class DefaultPlaybackCoordinatorTest {
     fun settingsChangedOutsideTheAppSurviveALostServiceConnection() = runBlocking {
         val player = FakePlaybackController()
         val coordinator = coordinator(player)
-        coordinator.play(TrackId("gentle-rain"))
+        coordinator.play(sound("gentle-rain"))
         player.attachRequestedSource()
 
         // A notification or Bluetooth control changes the settings behind the app's back;
@@ -236,7 +236,7 @@ class DefaultPlaybackCoordinatorTest {
         // The service connection then drops, which clears only the *attached* source.
         player.mutableState.update { it.copy(source = null) }
 
-        coordinator.play(TrackId("calm-waves"))
+        coordinator.play(sound("calm-waves"))
 
         assertEquals(LoopMode.Off, player.lastLoadRequest?.loopMode)
         assertEquals(0.3f, player.lastLoadRequest?.volume)
@@ -263,9 +263,9 @@ class DefaultPlaybackCoordinatorTest {
             }
         }
 
-        val olderRequest = launch { coordinator.play(TrackId("gentle-rain")) }
+        val olderRequest = launch { coordinator.play(sound("gentle-rain")) }
         rainStarted.await()
-        val newerRequest = launch { coordinator.play(TrackId("calm-waves")) }
+        val newerRequest = launch { coordinator.play(sound("calm-waves")) }
         wavesStarted.await()
 
         wavesResult.complete("https://example.test/waves.mp3")
@@ -273,7 +273,7 @@ class DefaultPlaybackCoordinatorTest {
         rainResult.complete("https://example.test/rain.mp3")
         olderRequest.join()
 
-        assertEquals("calm-waves", player.lastLoadRequest?.source?.id)
+        assertEquals("sound:calm-waves", player.lastLoadRequest?.source?.id)
     }
 
     /**
@@ -284,7 +284,7 @@ class DefaultPlaybackCoordinatorTest {
     fun theMediaSessionMetadataIsReadFromTheCatalog() = runBlocking {
         val player = FakePlaybackController()
 
-        coordinator(player).play(TrackId("gentle-rain"))
+        coordinator(player).play(sound("gentle-rain"))
 
         assertEquals("Gentle Rain", player.lastLoadRequest?.source?.title)
         assertEquals("Sleep Sounds", player.lastLoadRequest?.source?.artist)
@@ -299,10 +299,10 @@ class DefaultPlaybackCoordinatorTest {
         val player = FakePlaybackController()
         val coordinator = coordinator(player)
 
-        coordinator.play(TrackId("no-such-track"))
+        coordinator.play(sound("no-such-track"))
 
         assertEquals(
-            PlaybackFailure.TrackNotFound(TrackId("no-such-track")),
+            PlaybackFailure.ItemNotFound(sound("no-such-track")),
             coordinator.playback.first().failure,
         )
         assertNull(player.lastLoadRequest)
@@ -313,10 +313,10 @@ class DefaultPlaybackCoordinatorTest {
         val player = FakePlaybackController()
         val coordinator = coordinator(player) { AudioSourceResolution.Unavailable("offline") }
 
-        coordinator.play(TrackId("gentle-rain"))
+        coordinator.play(sound("gentle-rain"))
 
         assertEquals(
-            PlaybackFailure.SourceUnavailable(TrackId("gentle-rain")),
+            PlaybackFailure.SourceUnavailable(sound("gentle-rain")),
             coordinator.playback.first().failure,
         )
         assertNull(player.lastLoadRequest)
@@ -326,12 +326,12 @@ class DefaultPlaybackCoordinatorTest {
     fun actingAgainClearsTheFailureTheListenerJustActedPast() = runBlocking {
         val player = FakePlaybackController()
         val coordinator = coordinator(player)
-        coordinator.play(TrackId("no-such-track"))
+        coordinator.play(sound("no-such-track"))
 
-        coordinator.play(TrackId("gentle-rain"))
+        coordinator.play(sound("gentle-rain"))
 
         assertNull(coordinator.playback.first().failure)
-        assertEquals("gentle-rain", player.lastLoadRequest?.source?.id)
+        assertEquals("sound:gentle-rain", player.lastLoadRequest?.source?.id)
     }
 
     @Test
@@ -357,7 +357,7 @@ class DefaultPlaybackCoordinatorTest {
                 coordinator.setVolume(invalid)
             }
         }
-        coordinator.play(TrackId("gentle-rain"))
+        coordinator.play(sound("gentle-rain"))
 
         assertEquals(0.42f, player.lastVolume)
         assertEquals(0.42f, player.lastLoadRequest?.volume)
@@ -367,7 +367,7 @@ class DefaultPlaybackCoordinatorTest {
     fun publishedPlaybackIsADomainSummaryOfTheEngineState() = runBlocking {
         val player = FakePlaybackController().apply {
             mutableState.value = AudioPlayerState(
-                source = AudioSource(id = "gentle-rain", uri = "file.mp3"),
+                source = AudioSource(id = "sound:gentle-rain", uri = "file.mp3"),
                 phase = PlaybackPhase.Failed,
                 playRequested = true,
                 isPlaying = true,
@@ -378,14 +378,14 @@ class DefaultPlaybackCoordinatorTest {
 
         assertEquals(
             PlaybackSummary(
-                requestedTrackId = TrackId("gentle-rain"),
-                activeTrackId = TrackId("gentle-rain"),
+                requestedItemId = sound("gentle-rain"),
+                activeItemId = sound("gentle-rain"),
                 playIntent = true,
                 isPlaying = true,
                 isPreparing = false,
                 isLooping = true,
                 volume = 0.7f,
-                failure = PlaybackFailure.EngineFailed(TrackId("gentle-rain")),
+                failure = PlaybackFailure.EngineFailed(sound("gentle-rain")),
             ),
             coordinator(player).playback.first(),
         )
@@ -400,15 +400,15 @@ class DefaultPlaybackCoordinatorTest {
     fun publishedPlaybackFallsBackToTheRequestedSourceWhileReconnecting() = runBlocking {
         val player = FakePlaybackController().apply {
             mutableState.value = AudioPlayerState(
-                requestedSource = AudioSource(id = "calm-waves", uri = "file.mp3"),
+                requestedSource = AudioSource(id = "sound:calm-waves", uri = "file.mp3"),
                 phase = PlaybackPhase.Loading,
             )
         }
 
         val summary = coordinator(player).playback.first()
 
-        assertEquals(TrackId("calm-waves"), summary.requestedTrackId)
-        assertNull(summary.activeTrackId)
+        assertEquals(sound("calm-waves"), summary.requestedItemId)
+        assertNull(summary.activeItemId)
     }
 
     /**
@@ -422,7 +422,7 @@ class DefaultPlaybackCoordinatorTest {
         val lookupResult = CompletableDeferred<String>()
         val player = FakePlaybackController().apply {
             mutableState.value = AudioPlayerState(
-                source = AudioSource(id = "gentle-rain", uri = "file.mp3"),
+                source = AudioSource(id = "sound:gentle-rain", uri = "file.mp3"),
                 phase = PlaybackPhase.Ready,
                 playRequested = true,
                 isPlaying = true,
@@ -433,12 +433,12 @@ class DefaultPlaybackCoordinatorTest {
             AudioSourceResolution.Resolved(lookupResult.await())
         }
 
-        val switch = launch { coordinator.play(TrackId("calm-waves")) }
+        val switch = launch { coordinator.play(sound("calm-waves")) }
         lookupStarted.await()
 
         val midSwitch = coordinator.playback.first()
-        assertEquals(TrackId("calm-waves"), midSwitch.requestedTrackId, "what was asked for")
-        assertEquals(TrackId("gentle-rain"), midSwitch.activeTrackId, "what is audible")
+        assertEquals(sound("calm-waves"), midSwitch.requestedItemId, "what was asked for")
+        assertEquals(sound("gentle-rain"), midSwitch.activeItemId, "what is audible")
         assertTrue(midSwitch.isPlaying, "the old sound has not stopped")
         assertTrue(midSwitch.isPreparing, "and the new one is not ready")
 
@@ -455,7 +455,7 @@ class DefaultPlaybackCoordinatorTest {
     fun aFailureNamesTheTrackItIsAboutEvenAfterTheSessionMovesOn() = runBlocking {
         val player = FakePlaybackController().apply {
             mutableState.value = AudioPlayerState(
-                source = AudioSource(id = "gentle-rain", uri = "file.mp3"),
+                source = AudioSource(id = "sound:gentle-rain", uri = "file.mp3"),
                 phase = PlaybackPhase.Ready,
                 playRequested = true,
                 isPlaying = true,
@@ -463,15 +463,15 @@ class DefaultPlaybackCoordinatorTest {
         }
         val coordinator = coordinator(player) { AudioSourceResolution.Unavailable("offline") }
 
-        coordinator.play(TrackId("calm-waves"))
+        coordinator.play(sound("calm-waves"))
 
         val summary = coordinator.playback.first()
         assertEquals(
-            PlaybackFailure.SourceUnavailable(TrackId("calm-waves")),
+            PlaybackFailure.SourceUnavailable(sound("calm-waves")),
             summary.failure,
             "the failure belongs to the track that failed",
         )
-        assertEquals(TrackId("gentle-rain"), summary.requestedTrackId, "the session fell back")
+        assertEquals(sound("gentle-rain"), summary.requestedItemId, "the session fell back")
     }
 
     /**
@@ -488,12 +488,12 @@ class DefaultPlaybackCoordinatorTest {
             awaitCancellation()
         }
 
-        val abandoned = launch { coordinator.play(TrackId("gentle-rain")) }
+        val abandoned = launch { coordinator.play(sound("gentle-rain")) }
         lookupStarted.await()
         abandoned.cancelAndJoin()
 
         val summary = coordinator.playback.first()
-        assertNull(summary.requestedTrackId, "the claim should not outlive the coroutine that made it")
+        assertNull(summary.requestedItemId, "the claim should not outlive the coroutine that made it")
         assertEquals(false, summary.playIntent)
         assertEquals(false, summary.isPreparing)
         assertNull(player.lastLoadRequest)
@@ -511,10 +511,89 @@ class DefaultPlaybackCoordinatorTest {
         assertEquals(90_000L, coordinator.sleepTimerRemainingMs.first())
     }
 
+    /**
+     * The upgrade path. On Android the media service outlives the app, so a session started by a
+     * build that wrote bare track ids can still be attached when this one connects to it. Reading
+     * `gentle-rain` as a sound is what lets playback carry on; without it the session would see a
+     * different item, resolve it again and restart the sound under the listener.
+     */
+    @Test
+    fun aServiceStillHoldingAPreNamespacingIdIsRecognisedAsTheSameSound() = runBlocking {
+        val player = FakePlaybackController().apply {
+            mutableState.value = AudioPlayerState(
+                source = AudioSource(id = "gentle-rain", uri = "file.mp3"),
+                phase = PlaybackPhase.Ready,
+            )
+        }
+        val coordinator = coordinator(player)
+
+        coordinator.play(sound("gentle-rain"))
+
+        assertEquals(1, player.playCalls)
+        assertNull(player.lastLoadRequest, "the attached sound must not be reloaded")
+        assertEquals(sound("gentle-rain"), coordinator.playback.first().activeItemId)
+    }
+
+    /**
+     * The reason ids are namespaced at all: `forest` is a plausible name for both a sound and a
+     * story, and an unqualified id would have made the session take this for the item it already
+     * holds and send `Play` — playing a story where a sound was asked for.
+     */
+    @Test
+    fun aSoundAndAStoryThatShareAnIdAreNotTheSameItem() = runBlocking {
+        val player = FakePlaybackController().apply {
+            mutableState.value = AudioPlayerState(
+                source = AudioSource(id = "story:gentle-rain", uri = "https://example.test/story.mp3"),
+                phase = PlaybackPhase.Ready,
+            )
+        }
+        val coordinator = coordinator(player)
+
+        coordinator.play(sound("gentle-rain"))
+
+        assertEquals(0, player.playCalls, "a story of the same name is not this sound")
+        assertEquals("sound:gentle-rain", player.lastLoadRequest?.source?.id)
+    }
+
+    /**
+     * Stories have no resolver until something can say where one streams from. Until then a story
+     * request has to fail where it is made — reaching the engine with an unresolved item is how a
+     * wiring gap turns into a player that sits on a source it cannot open.
+     */
+    @Test
+    fun anItemOfAKindNothingResolvesFailsWithoutReachingTheEngine() = runBlocking {
+        val player = FakePlaybackController()
+        val coordinator = coordinator(player)
+
+        coordinator.play(PlaybackItemId.story("forest-lantern"))
+
+        assertEquals(
+            PlaybackFailure.ItemNotFound(PlaybackItemId.story("forest-lantern")),
+            coordinator.playback.first().failure,
+        )
+        assertNull(player.lastLoadRequest)
+    }
+
+    /** One resolver per kind: a second would never run, and nothing would say which. */
+    @Test
+    fun twoResolversForOneKindAreRejected() {
+        assertFailsWith<IllegalArgumentException> {
+            DefaultPlaybackCoordinator(
+                FakePlaybackController(),
+                listOf(
+                    SoundPlaybackResolver(FakeCatalog, testContentResolver),
+                    SoundPlaybackResolver(FakeCatalog, testContentResolver),
+                ),
+            )
+        }
+    }
+
+    private fun sound(value: String) = PlaybackItemId.sound(value)
+
     private fun coordinator(
         player: FakePlaybackController,
         resolver: AudioContentResolver = testContentResolver,
-    ) = DefaultPlaybackCoordinator(player, resolver, FakeCatalog)
+    ) = DefaultPlaybackCoordinator(player, listOf(SoundPlaybackResolver(FakeCatalog, resolver)))
 
     /** The catalog the coordinator reads its metadata from; only `observeMusic` is ever asked. */
     private object FakeCatalog : MusicCatalogRepository {

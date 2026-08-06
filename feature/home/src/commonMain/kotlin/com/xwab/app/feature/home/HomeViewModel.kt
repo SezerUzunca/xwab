@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xwab.app.core.catalog.TrackId
 import com.xwab.app.core.playbacksession.PlaybackCoordinator
+import com.xwab.app.core.playbacksession.PlaybackItemId
+import com.xwab.app.core.playbacksession.PlaybackKind
+import com.xwab.app.core.playbacksession.requestedValueOf
 import com.xwab.app.feature.home.domain.ObserveHomeContentUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +23,9 @@ internal class HomeViewModel(
             HomeState(
                 categories = content.categories,
                 favoriteMusics = content.favoriteMusics,
-                requestedTrackId = content.playback.requestedTrackId,
+                // This screen lists sounds, so the session being on a story is the same to it as
+                // the session being on nothing: no row here is the current item.
+                requestedTrackId = content.playback.requestedValueOf(PlaybackKind.SOUND)?.let(::TrackId),
                 playIntent = content.playback.playIntent,
             )
         }.stateIn(
@@ -35,7 +40,7 @@ internal class HomeViewModel(
         if (current.requestedTrackId == musicId && current.playIntent) {
             playbackCoordinator.pause()
         } else {
-            viewModelScope.launch { playbackCoordinator.play(musicId) }
+            viewModelScope.launch { playbackCoordinator.play(PlaybackItemId.sound(musicId.value)) }
         }
     }
 }

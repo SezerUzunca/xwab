@@ -1,6 +1,7 @@
 package com.xwab.app.feature.home.domain
 
 import com.xwab.app.core.catalog.TrackId
+import com.xwab.app.core.playbacksession.PlaybackItemId
 import com.xwab.app.core.playbacksession.PlaybackSummary
 import com.xwab.app.core.testing.FakeFavorites
 import com.xwab.app.core.testing.FakeMusicCatalog
@@ -60,7 +61,7 @@ class ObserveHomeContentUseCaseTest {
     fun homeCarriesThePlaybackSummaryStraightThrough() = runBlocking {
         val coordinator = FakePlaybackCoordinator()
         val playing = PlaybackSummary(
-            requestedTrackId = TrackId("gentle-rain"),
+            requestedItemId = PlaybackItemId.sound("gentle-rain"),
             playIntent = true,
             isPlaying = true,
             volume = 0.4f,

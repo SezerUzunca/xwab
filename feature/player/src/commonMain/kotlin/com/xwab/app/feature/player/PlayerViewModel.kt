@@ -6,6 +6,7 @@ import com.xwab.app.core.catalog.TrackId
 import com.xwab.app.core.favorites.FavoritesRepository
 import com.xwab.app.core.playbacksession.PlaybackCoordinator
 import com.xwab.app.core.playbacksession.PlaybackFailure
+import com.xwab.app.core.playbacksession.PlaybackItemId
 import com.xwab.app.feature.player.domain.ObservePlayerContentUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,9 +20,12 @@ internal class PlayerViewModel(
     private val favoritesRepository: FavoritesRepository,
     private val playbackCoordinator: PlaybackCoordinator,
 ) : ViewModel() {
+    /** This screen is about one sound, so that is the item it recognises in the session. */
+    private val itemId = PlaybackItemId.sound(trackId.value)
+
     val state: StateFlow<PlayerState> = observePlayerContentUseCase(trackId).map { content ->
         val playback = content.playback
-        val isRequested = playback.requestedTrackId == trackId
+        val isRequested = playback.requestedItemId == itemId
         // Bound locally: `failure` is another module's property, so the null check below cannot
         // smart-cast it in place.
         val failure = playback.failure
@@ -40,7 +44,7 @@ internal class PlayerViewModel(
                 // Matched against the failure's own track, not the session's current one. A lookup
                 // that fails releases its claim, so the session has already fallen back to whatever
                 // was playing before — gating on that hid every resolution error this screen caused.
-                failure != null && failure.trackId == trackId -> failure.asPlayerError()
+                failure != null && failure.itemId == itemId -> failure.asPlayerError()
                 else -> null
             },
         )
@@ -63,7 +67,7 @@ internal class PlayerViewModel(
         if (state.value.playIntent) {
             playbackCoordinator.pause()
         } else {
-            viewModelScope.launch { playbackCoordinator.play(trackId) }
+            viewModelScope.launch { playbackCoordinator.play(itemId) }
         }
     }
 
@@ -87,7 +91,7 @@ internal class PlayerViewModel(
  * same advice: one is a dead end, the other is worth another tap.
  */
 private fun PlaybackFailure.asPlayerError(): PlayerError = when (this) {
-    is PlaybackFailure.TrackNotFound -> PlayerError.AudioNotFound
+    is PlaybackFailure.ItemNotFound -> PlayerError.AudioNotFound
     is PlaybackFailure.SourceUnavailable -> PlayerError.AudioUnavailable
     is PlaybackFailure.EngineFailed -> PlayerError.AudioCouldNotOpen
 }

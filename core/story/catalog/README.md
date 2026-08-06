@@ -35,7 +35,8 @@ never opens.
 
 ## Status
 
-There is no `feature:story` yet, and `core:playback:session` still speaks in `TrackId`. Playing a
-story needs that session to accept a generic item id and to pick a resolver per content kind —
-a cross-cutting migration through all three existing features, which is deliberately not part of
-adding this module.
+There is no `feature:story` yet. The session is ready for one: `core:playback:session` plays a
+`PlaybackItemId`, already knows `PlaybackKind.STORY`, and resolves each kind through an internal
+resolver of its own. A story request today fails as `ItemNotFound`, because nothing can yet say
+where a story streams from — that answer arrives with the feed, in
+[core:story:manifest](../manifest/README.md), and adding it is one resolver and one line of DI.

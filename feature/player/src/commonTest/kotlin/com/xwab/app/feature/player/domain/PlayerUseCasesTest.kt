@@ -1,6 +1,7 @@
 package com.xwab.app.feature.player.domain
 
 import com.xwab.app.core.catalog.TrackId
+import com.xwab.app.core.playbacksession.PlaybackItemId
 import com.xwab.app.core.playbacksession.PlaybackSummary
 import com.xwab.app.core.testing.FakeFavorites
 import com.xwab.app.core.testing.FakeMusicCatalog
@@ -21,7 +22,7 @@ class PlayerUseCasesTest {
     fun thePlayerScreenCombinesTrackFavoritesPlaybackAndSleepTimer() = runBlocking {
         val coordinator = FakePlaybackCoordinator()
         coordinator.publish(
-            PlaybackSummary(requestedTrackId = TrackId("gentle-rain"), playIntent = true, isPlaying = true),
+            PlaybackSummary(requestedItemId = PlaybackItemId.sound("gentle-rain"), playIntent = true, isPlaying = true),
         )
         coordinator.publishSleepTimer(90_000L)
         val useCase = ObservePlayerContentUseCase(

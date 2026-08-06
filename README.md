@@ -103,6 +103,12 @@ a core module may not depend on a feature; a feature may depend only on another 
 feature may not declare `core:sound:delivery`, `core:playback:engine`, `core:sound:manifest` or
 `core:story:manifest`.
 
+That fourth rule reads what a screen can *reach*, not only what it names. An `api` dependency
+re-exports its own `api` dependencies onto every consumer's compile classpath, so one edge added to
+a module every feature already declares — `core:testing` would be enough — would have put delivery
+in front of three screens without anyone declaring it. The rule follows those edges and names the
+path it took.
+
 That fourth rule used to scan feature sources for the strings `AudioContentResolver` and
 `AudioFileStore`, because the catalog and delivery shared one module that every feature needed for
 the catalog's sake — the graph could not tell a legitimate dependency from a reach through it.
@@ -122,20 +128,24 @@ One session, steered through `PlaybackCoordinator`, which must be driven from th
 platform engines behind it are main-thread-only and check it.
 
 Its `PlaybackSummary` keeps apart four things that disagree during a switch, when the listener has
-asked for B while A is still audible: `requestedTrackId` (what was asked for), `activeTrackId` (what
+asked for B while A is still audible: `requestedItemId` (what was asked for), `activeItemId` (what
 the engine holds), `playIntent` (whether playback is wanted) and `isPlaying` (whether sound is
 coming out). A screen highlights and acts on the first and third. Mixing them up is how a tap during
 buffering used to pause a sound the screen was showing as stopped.
 
-`play(trackId)` claims the session before it resolves anything, so a second tap on the same sound
+`play(itemId)` claims the session before it resolves anything, so a second tap on the same sound
 finds something to pause, and it releases that claim even when the lookup is cancelled. `pause()`
 abandons a lookup still in flight. A lookup that came back `NotFound` or `Unavailable` reaches the
-screen as a `PlaybackFailure` — which names the track it is about, because by then the session has
+screen as a `PlaybackFailure` — which names the item it is about, because by then the session has
 already fallen back to whatever came before.
 
-It takes a `TrackId`, not a `String` and not a `Music`: the metadata the media session publishes is
-read from the catalog beside the source it is paired with, so a screen cannot hand over a stale
-title, and it cannot hand over a category id either.
+It takes a `PlaybackItemId` — a kind and a raw value — not a `Music` and not a bare string. Not a
+`Music`, because the metadata the media session publishes is read beside the source it is paired
+with, so a screen cannot hand over a stale title. Not a bare string, because the session holds one
+playback for the whole app and a sound is not the only thing that can occupy it: a sound and a story
+may share a raw id, and the kind is what keeps them two items rather than one. Inside the session,
+one internal resolver per kind turns an item into a URI, a title and a loop policy — which is why
+adding stories to playback will not touch a screen.
 
 ### Build configuration
 
