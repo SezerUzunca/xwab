@@ -2,6 +2,7 @@ package com.xwab.app.feature.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.xwab.app.core.catalog.TrackId
 import com.xwab.app.core.favorites.FavoritesRepository
 import com.xwab.app.core.playbacksession.PlaybackCoordinator
 import com.xwab.app.core.playbacksession.PlaybackFailure
@@ -20,12 +21,15 @@ internal class PlayerViewModel(
 ) : ViewModel() {
     val state: StateFlow<PlayerState> = observePlayerContentUseCase(trackId).map { content ->
         val playback = content.playback
-        val isSelected = playback.trackId == trackId
+        val isRequested = playback.requestedTrackId == trackId
+        // Bound locally: `failure` is another module's property, so the null check below cannot
+        // smart-cast it in place.
+        val failure = playback.failure
         PlayerState(
             music = content.music,
             isFavorite = trackId in content.favoriteIds,
-            playIntent = isSelected && playback.playIntent,
-            isPreparing = isSelected && playback.isPreparing,
+            playIntent = isRequested && playback.playIntent,
+            isPreparing = isRequested && playback.isPreparing,
             // Straight from the session, including before anything is loaded: the product default
             // lives there, so this screen has no second opinion to disagree with it.
             isLooping = playback.isLooping,
@@ -33,7 +37,10 @@ internal class PlayerViewModel(
             sleepTimerRemainingMs = content.sleepTimerRemainingMs,
             error = when {
                 content.music == null -> PlayerError.AudioNotFound
-                isSelected -> playback.failure?.asPlayerError()
+                // Matched against the failure's own track, not the session's current one. A lookup
+                // that fails releases its claim, so the session has already fallen back to whatever
+                // was playing before — gating on that hid every resolution error this screen caused.
+                failure != null && failure.trackId == trackId -> failure.asPlayerError()
                 else -> null
             },
         )
@@ -80,7 +87,7 @@ internal class PlayerViewModel(
  * same advice: one is a dead end, the other is worth another tap.
  */
 private fun PlaybackFailure.asPlayerError(): PlayerError = when (this) {
-    PlaybackFailure.TrackNotFound -> PlayerError.AudioNotFound
-    PlaybackFailure.SourceUnavailable -> PlayerError.AudioUnavailable
-    PlaybackFailure.EngineFailed -> PlayerError.AudioCouldNotOpen
+    is PlaybackFailure.TrackNotFound -> PlayerError.AudioNotFound
+    is PlaybackFailure.SourceUnavailable -> PlayerError.AudioUnavailable
+    is PlaybackFailure.EngineFailed -> PlayerError.AudioCouldNotOpen
 }

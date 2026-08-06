@@ -44,8 +44,8 @@ jobs:
         run: chmod +x gradlew
 
       # Covers every module that has iOS tests, so a new one is picked up without touching this
-      # file: core:catalog, core:catalog-manifest, core:audio-delivery, core:favorites,
-      # core:playback-session, core:playback-engine, shared.
+      # file: core:sound:catalog, core:sound:manifest, core:sound:delivery, core:sound:favorites,
+      # core:story:catalog, core:story:manifest, core:playback:session, core:playback:engine, shared.
       - name: Run Simulator ARM64 tests
         run: ./gradlew -PenableIos=true iosSimulatorArm64Test --stacktrace
 

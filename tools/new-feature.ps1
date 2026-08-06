@@ -69,9 +69,9 @@ kotlin {
         commonMain.dependencies {
             // The capabilities this screen reads. `xwab.kmp.feature` deliberately hands out none
             // of them, so declare what you actually use:
-            //     implementation(projects.core.catalog)
-            //     implementation(projects.core.favorites)
-            //     implementation(projects.core.playbackSession)
+            //     implementation(projects.core.sound.catalog)
+            //     implementation(projects.core.sound.favorites)
+            //     implementation(projects.core.playback.session)
             //
             // Delivery, the playback engine and the shipped manifest are not on the menu —
             // `checkArchitecture` rule 4 refuses a feature that declares any of them.

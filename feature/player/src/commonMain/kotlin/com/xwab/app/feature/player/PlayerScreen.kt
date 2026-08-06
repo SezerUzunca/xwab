@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xwab.app.core.catalog.Music
+import com.xwab.app.core.catalog.TrackId
 import com.xwab.app.core.ui.components.BackButton
 import com.xwab.app.core.ui.components.FavoriteButton
 import com.xwab.app.core.ui.components.PlayPauseButton
@@ -383,7 +384,7 @@ private fun PlayerScreenPreview() {
         PlayerScreen(
             state = PlayerState(
                 music = Music(
-                    id = "calm-waves",
+                    id = TrackId("calm-waves"),
                     name = "Ontario Waves",
                     categoryId = "ocean",
                     durationSeconds = 286,

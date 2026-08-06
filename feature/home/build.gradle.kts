@@ -11,9 +11,9 @@ kotlin {
             // module to every feature, so what a screen can reach is exactly what it asks for here.
             // Delivery, the playback engine and the shipped manifest are not askable:
             // `checkArchitecture` rule 4 fails the build on a feature that declares any of them.
-            implementation(projects.core.catalog)
-            implementation(projects.core.favorites)
-            implementation(projects.core.playbackSession)
+            implementation(projects.core.sound.catalog)
+            implementation(projects.core.sound.favorites)
+            implementation(projects.core.playback.session)
 
             implementation(projects.feature.home.navigation)
             // Screens this one routes to — their navigation API only, never their implementation.

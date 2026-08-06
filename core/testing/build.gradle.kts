@@ -8,9 +8,9 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             // The fakes implement the three ports every screen reads, and build catalog values.
-            api(projects.core.catalog)
-            api(projects.core.favorites)
-            api(projects.core.playbackSession)
+            api(projects.core.sound.catalog)
+            api(projects.core.sound.favorites)
+            api(projects.core.playback.session)
         }
     }
 }

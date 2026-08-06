@@ -107,7 +107,7 @@ internal fun HomeScreen(
             if (state.favoriteMusics.isNotEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingSmall)) {
-                        items(state.favoriteMusics, key = { it.id }) { music ->
+                        items(state.favoriteMusics, key = { it.id.value }) { music ->
                             MusicCard(
                                 title = music.name,
                                 subtitle = music.formattedDuration,
@@ -115,7 +115,7 @@ internal fun HomeScreen(
                                 modifier = Modifier.width(SleepRelaxTheme.dimens.albumArtSize),
                                 trailingContent = {
                                     PlayPauseButton(
-                                        isPlaying = state.playingMusicId == music.id && state.playIntent,
+                                        isPlaying = state.requestedTrackId == music.id && state.playIntent,
                                         onClick = { onPlaybackClick(music.id) },
                                     )
                                 },
@@ -221,7 +221,7 @@ private fun HomeScreenPreview() {
                 ),
                 favoriteMusics = listOf(
                     Music(
-                        id = "gentle-rain",
+                        id = TrackId("gentle-rain"),
                         name = "Rain on the Window",
                         categoryId = "rain",
                         durationSeconds = 9,

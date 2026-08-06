@@ -24,7 +24,7 @@ internal class CategoryViewModel(
                 category = content.category,
                 musics = content.musics,
                 favoriteIds = content.favoriteIds,
-                playingMusicId = content.playback.trackId,
+                requestedTrackId = content.playback.requestedTrackId,
                 playIntent = content.playback.playIntent,
             )
         }.stateIn(
@@ -40,7 +40,7 @@ internal class CategoryViewModel(
     /** Branches on the value the control renders, so the icon and the tap cannot disagree. */
     fun togglePlayback(musicId: TrackId) {
         val current = state.value
-        if (current.playingMusicId == musicId && current.playIntent) {
+        if (current.requestedTrackId == musicId && current.playIntent) {
             playbackCoordinator.pause()
         } else {
             viewModelScope.launch { playbackCoordinator.play(musicId) }

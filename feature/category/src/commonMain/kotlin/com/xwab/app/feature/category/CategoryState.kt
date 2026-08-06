@@ -8,7 +8,7 @@ internal data class CategoryState(
     val category: Category? = null,
     val musics: List<Music> = emptyList(),
     val favoriteIds: Set<TrackId> = emptySet(),
-    val playingMusicId: TrackId? = null,
+    val requestedTrackId: TrackId? = null,
     /** What the row's play/pause control shows: the session's intent, not audible sound. */
     val playIntent: Boolean = false,
 )
