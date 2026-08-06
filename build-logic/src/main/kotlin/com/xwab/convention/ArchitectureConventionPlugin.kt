@@ -6,7 +6,7 @@ import org.gradle.api.artifacts.ProjectDependency
 
 /**
  * `xwab.architecture` — registers `checkArchitecture` on the root project.
- * [CheckArchitectureTask] holds the rules.
+ * [CheckArchitectureTask] runs the rules; [FeatureFirstRules] holds them.
  */
 class ArchitectureConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
@@ -35,10 +35,13 @@ class ArchitectureConventionPlugin : Plugin<Project> {
                 checkArchitecture.configure { task -> task.moduleDependencies.set(graph) }
             }
 
-            // A broken rule should surface the way a broken test does.
+            // A broken rule should surface the way a broken test does — and so should a rule that
+            // has stopped rejecting anything, which is what `build-logic`'s own tests cover.
+            // Included builds run nothing on their own, so the dependency has to be spelled out.
             tasks.register("check") { task ->
                 task.group = "verification"
                 task.dependsOn(checkArchitecture)
+                task.dependsOn(gradle.includedBuild("build-logic").task(":test"))
             }
         }
     }

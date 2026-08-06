@@ -1,16 +1,17 @@
 package com.xwab.app.feature.category.domain
 
+import com.xwab.app.core.catalog.TrackId
 import com.xwab.app.core.testing.FakeFavorites
 import com.xwab.app.core.testing.FakeMusicCatalog
 import com.xwab.app.core.testing.FakePlaybackCoordinator
 import com.xwab.app.core.testing.category
 import com.xwab.app.core.testing.track
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 class ObserveCategoryContentUseCaseTest {
     private val rain = track("gentle-rain", categoryId = "rain")
@@ -23,14 +24,14 @@ class ObserveCategoryContentUseCaseTest {
 
     @Test
     fun aCategoryScreenSeesItsOwnTracksOnly() = runBlocking {
-        val favorites = FakeFavorites(setOf("calm-waves"))
+        val favorites = FakeFavorites(setOf(TrackId("calm-waves")))
         val useCase = ObserveCategoryContentUseCase(catalog, favorites, FakePlaybackCoordinator())
 
         val content = useCase("ocean").first()
 
         assertEquals("ocean", content.category?.id)
         assertEquals(listOf(waves), content.musics)
-        assertEquals(setOf("calm-waves"), content.favoriteIds)
+        assertEquals(setOf(TrackId("calm-waves")), content.favoriteIds)
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.xwab.app.feature.home
 
+import com.xwab.app.core.catalog.TrackId
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,8 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import com.xwab.app.core.model.Category
-import com.xwab.app.core.model.Music
+import com.xwab.app.core.catalog.Category
+import com.xwab.app.core.catalog.Music
 import com.xwab.app.core.ui.theme.SleepRelaxTheme
 import androidx.compose.ui.tooling.preview.Preview
 import org.jetbrains.compose.resources.stringResource
@@ -43,7 +44,7 @@ import com.xwab.app.core.ui.components.PlayPauseButton
 @Composable
 internal fun HomeScreenRoute(
     onCategoryClick: (categoryId: String) -> Unit,
-    onMusicClick: (musicId: String) -> Unit,
+    onMusicClick: (musicId: TrackId) -> Unit,
     viewModel: HomeViewModel,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -60,8 +61,8 @@ internal fun HomeScreenRoute(
 internal fun HomeScreen(
     state: HomeState,
     onCategoryClick: (categoryId: String) -> Unit,
-    onMusicClick: (musicId: String) -> Unit,
-    onPlaybackClick: (musicId: String) -> Unit,
+    onMusicClick: (musicId: TrackId) -> Unit,
+    onPlaybackClick: (musicId: TrackId) -> Unit,
 ) {
     SleepRelaxBackground {
         LazyVerticalGrid(
@@ -114,7 +115,7 @@ internal fun HomeScreen(
                                 modifier = Modifier.width(SleepRelaxTheme.dimens.albumArtSize),
                                 trailingContent = {
                                     PlayPauseButton(
-                                        isPlaying = state.playingMusicId == music.id && state.isPlaying,
+                                        isPlaying = state.playingMusicId == music.id && state.playIntent,
                                         onClick = { onPlaybackClick(music.id) },
                                     )
                                 },

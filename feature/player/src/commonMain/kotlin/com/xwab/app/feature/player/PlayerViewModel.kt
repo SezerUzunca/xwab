@@ -2,45 +2,38 @@ package com.xwab.app.feature.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xwab.app.core.playback.PlaybackCoordinator
-import com.xwab.app.core.preferences.FavoritesRepository
-import com.xwab.app.feature.player.domain.CancelSleepTimerUseCase
+import com.xwab.app.core.favorites.FavoritesRepository
+import com.xwab.app.core.playbacksession.PlaybackCoordinator
+import com.xwab.app.core.playbacksession.PlaybackFailure
 import com.xwab.app.feature.player.domain.ObservePlayerContentUseCase
-import com.xwab.app.feature.player.domain.SetPlaybackLoopingUseCase
-import com.xwab.app.feature.player.domain.SetPlaybackVolumeUseCase
-import com.xwab.app.feature.player.domain.StartSleepTimerUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 internal class PlayerViewModel(
-    private val musicId: String,
-    private val observePlayerContentUseCase: ObservePlayerContentUseCase,
+    private val trackId: TrackId,
+    observePlayerContentUseCase: ObservePlayerContentUseCase,
     private val favoritesRepository: FavoritesRepository,
     private val playbackCoordinator: PlaybackCoordinator,
-    private val setPlaybackLoopingUseCase: SetPlaybackLoopingUseCase,
-    private val setPlaybackVolumeUseCase: SetPlaybackVolumeUseCase,
-    private val startSleepTimerUseCase: StartSleepTimerUseCase,
-    private val cancelSleepTimerUseCase: CancelSleepTimerUseCase,
 ) : ViewModel() {
-    private val playerContent = observePlayerContentUseCase(musicId)
-
-    val state: StateFlow<PlayerState> = playerContent.map { content ->
-        val selectedMusic = content.music
-        val isSelectedSource = content.playback.activeSourceId == musicId
+    val state: StateFlow<PlayerState> = observePlayerContentUseCase(trackId).map { content ->
+        val playback = content.playback
+        val isSelected = playback.trackId == trackId
         PlayerState(
-            music = selectedMusic,
-            isFavorite = musicId in content.favoriteIds,
-            isPlaying = isSelectedSource && content.playback.isPlaying,
-            isLooping = content.playback.activeSourceId?.let { content.playback.isLooping } ?: true,
-            volume = content.playback.volume,
+            music = content.music,
+            isFavorite = trackId in content.favoriteIds,
+            playIntent = isSelected && playback.playIntent,
+            isPreparing = isSelected && playback.isPreparing,
+            // Straight from the session, including before anything is loaded: the product default
+            // lives there, so this screen has no second opinion to disagree with it.
+            isLooping = playback.isLooping,
+            volume = playback.volume,
             sleepTimerRemainingMs = content.sleepTimerRemainingMs,
             error = when {
-                selectedMusic == null -> PlayerError.AudioNotFound
-                isSelectedSource && content.playback.hasFailed -> PlayerError.AudioCouldNotOpen
+                content.music == null -> PlayerError.AudioNotFound
+                isSelected -> playback.failure?.asPlayerError()
                 else -> null
             },
         )
@@ -52,29 +45,42 @@ internal class PlayerViewModel(
 
     fun toggleFavorite() {
         if (state.value.music == null) return
-        viewModelScope.launch { favoritesRepository.toggle(musicId) }
+        viewModelScope.launch { favoritesRepository.toggle(trackId) }
     }
 
+    /**
+     * Branches on the same value the control renders, which is the whole point of the session
+     * publishing an intent: whatever the icon says, the tap does.
+     */
     fun togglePlayback() {
-        viewModelScope.launch {
-            val music = playerContent.first().music ?: return@launch
-            playbackCoordinator.togglePlayback(music)
+        if (state.value.playIntent) {
+            playbackCoordinator.pause()
+        } else {
+            viewModelScope.launch { playbackCoordinator.play(trackId) }
         }
     }
 
-    fun setLooping(enabled: Boolean) {
-        setPlaybackLoopingUseCase(enabled)
-    }
+    /**
+     * The four settings below reach the coordinator unchanged. They used to go through a use case
+     * each, and none of those held a decision — a use case has to earn its name.
+     */
+    fun setLooping(enabled: Boolean) = playbackCoordinator.setLooping(enabled)
 
-    fun setVolume(volume: Float) {
-        setPlaybackVolumeUseCase(volume)
-    }
+    fun setVolume(volume: Float) = playbackCoordinator.setVolume(volume)
 
     fun startSleepTimer(durationMs: Long) {
-        if (state.value.music != null) startSleepTimerUseCase(durationMs)
+        if (state.value.music != null) playbackCoordinator.startSleepTimer(durationMs)
     }
 
-    fun cancelSleepTimer() {
-        cancelSleepTimerUseCase()
-    }
+    fun cancelSleepTimer() = playbackCoordinator.cancelSleepTimer()
+}
+
+/**
+ * A missing track and an unreachable one read the same on screen otherwise, and they are not the
+ * same advice: one is a dead end, the other is worth another tap.
+ */
+private fun PlaybackFailure.asPlayerError(): PlayerError = when (this) {
+    PlaybackFailure.TrackNotFound -> PlayerError.AudioNotFound
+    PlaybackFailure.SourceUnavailable -> PlayerError.AudioUnavailable
+    PlaybackFailure.EngineFailed -> PlayerError.AudioCouldNotOpen
 }

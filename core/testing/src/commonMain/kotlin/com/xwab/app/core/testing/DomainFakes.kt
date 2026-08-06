@@ -1,11 +1,12 @@
 package com.xwab.app.core.testing
 
-import com.xwab.app.core.audiocontent.catalog.MusicCatalogRepository
-import com.xwab.app.core.model.Category
-import com.xwab.app.core.model.Music
-import com.xwab.app.core.model.PlaybackSummary
-import com.xwab.app.core.playback.PlaybackCoordinator
-import com.xwab.app.core.preferences.FavoritesRepository
+import com.xwab.app.core.catalog.Category
+import com.xwab.app.core.catalog.Music
+import com.xwab.app.core.catalog.MusicCatalogRepository
+import com.xwab.app.core.catalog.TrackId
+import com.xwab.app.core.favorites.FavoritesRepository
+import com.xwab.app.core.playbacksession.PlaybackCoordinator
+import com.xwab.app.core.playbacksession.PlaybackSummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -22,7 +23,7 @@ import kotlinx.coroutines.flow.flowOf
  * depends on it.
  */
 fun track(id: String, categoryId: String = "rain") = Music(
-    id = id,
+    id = TrackId(id),
     name = id,
     categoryId = categoryId,
     durationSeconds = 60,
@@ -48,16 +49,16 @@ class FakeMusicCatalog(
     override fun observeMusicForCategory(categoryId: String): Flow<List<Music>> =
         flowOf(tracks.filter { it.categoryId == categoryId })
 
-    override fun observeMusic(musicId: String): Flow<Music?> = flowOf(tracks.find { it.id == musicId })
+    override fun observeMusic(musicId: TrackId): Flow<Music?> = flowOf(tracks.find { it.id == musicId })
 }
 
-class FakeFavorites(favoriteIds: Set<String> = emptySet()) : FavoritesRepository {
+class FakeFavorites(favoriteIds: Set<TrackId> = emptySet()) : FavoritesRepository {
     private val state = MutableStateFlow(favoriteIds)
-    val toggles = mutableListOf<String>()
+    val toggles = mutableListOf<TrackId>()
 
-    override val favoriteIds: Flow<Set<String>> = state
+    override val favoriteIds: Flow<Set<TrackId>> = state
 
-    override suspend fun toggle(musicId: String) {
+    override suspend fun toggle(musicId: TrackId) {
         toggles += musicId
         state.value = if (musicId in state.value) state.value - musicId else state.value + musicId
     }
@@ -70,7 +71,8 @@ class FakePlaybackCoordinator : PlaybackCoordinator {
     override val playback: Flow<PlaybackSummary> = summary
     override val sleepTimerRemainingMs: Flow<Long?> = remainingMs
 
-    var toggledTrack: Music? = null
+    var playedTrackId: TrackId? = null
+    var pauses = 0
     var looping: Boolean? = null
     var volume: Float? = null
     var startedTimerMs: Long? = null
@@ -84,8 +86,12 @@ class FakePlaybackCoordinator : PlaybackCoordinator {
         remainingMs.value = remaining
     }
 
-    override suspend fun togglePlayback(music: Music) {
-        toggledTrack = music
+    override suspend fun play(trackId: TrackId) {
+        playedTrackId = trackId
+    }
+
+    override fun pause() {
+        pauses++
     }
 
     override fun setLooping(enabled: Boolean) {

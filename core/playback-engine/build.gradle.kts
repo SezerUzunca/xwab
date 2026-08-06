@@ -4,7 +4,7 @@ plugins {
 
 kotlin {
     android {
-        namespace = "com.xwab.app.core.media"
+        namespace = "com.xwab.app.core.playbackengine"
         // The only module with instrumentation tests: the Media3 service and the
         // MediaController handshake can only be exercised on a device.
         withDeviceTest {}

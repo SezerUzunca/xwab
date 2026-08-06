@@ -1,11 +1,11 @@
 package com.xwab.app.feature.home.domain
 
-import com.xwab.app.core.audiocontent.catalog.MusicCatalogRepository
-import com.xwab.app.core.model.Category
-import com.xwab.app.core.model.Music
-import com.xwab.app.core.model.PlaybackSummary
-import com.xwab.app.core.playback.PlaybackCoordinator
-import com.xwab.app.core.preferences.FavoritesRepository
+import com.xwab.app.core.catalog.Category
+import com.xwab.app.core.catalog.Music
+import com.xwab.app.core.catalog.MusicCatalogRepository
+import com.xwab.app.core.favorites.FavoritesRepository
+import com.xwab.app.core.playbacksession.PlaybackCoordinator
+import com.xwab.app.core.playbacksession.PlaybackSummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 

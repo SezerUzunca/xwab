@@ -1,16 +1,17 @@
 package com.xwab.app.feature.home.domain
 
-import com.xwab.app.core.model.PlaybackSummary
+import com.xwab.app.core.catalog.TrackId
+import com.xwab.app.core.playbacksession.PlaybackSummary
 import com.xwab.app.core.testing.FakeFavorites
 import com.xwab.app.core.testing.FakeMusicCatalog
 import com.xwab.app.core.testing.FakePlaybackCoordinator
 import com.xwab.app.core.testing.category
 import com.xwab.app.core.testing.track
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 /**
  * The home screen's use case is the only place where catalog, favorites and playback are woven
@@ -28,7 +29,7 @@ class ObserveHomeContentUseCaseTest {
 
     @Test
     fun homeShowsOnlyFavoritedTracksAndKeepsTheCatalogOrder() = runBlocking {
-        val favorites = FakeFavorites(setOf("forest-birds", "gentle-rain"))
+        val favorites = FakeFavorites(setOf(TrackId("forest-birds"), TrackId("gentle-rain")))
         val useCase = ObserveHomeContentUseCase(catalog, favorites, FakePlaybackCoordinator())
 
         val content = useCase().first()
@@ -58,7 +59,12 @@ class ObserveHomeContentUseCaseTest {
     @Test
     fun homeCarriesThePlaybackSummaryStraightThrough() = runBlocking {
         val coordinator = FakePlaybackCoordinator()
-        val playing = PlaybackSummary(activeSourceId = "gentle-rain", isPlaying = true, volume = 0.4f)
+        val playing = PlaybackSummary(
+            trackId = TrackId("gentle-rain"),
+            playIntent = true,
+            isPlaying = true,
+            volume = 0.4f,
+        )
         coordinator.publish(playing)
         val useCase = ObserveHomeContentUseCase(catalog, FakeFavorites(), coordinator)
 

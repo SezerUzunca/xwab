@@ -7,11 +7,10 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // The fakes implement the catalog, favorites and playback ports, and build model objects.
-            api(projects.core.audioContent)
-            api(projects.core.preferences)
-            api(projects.core.playback)
-            api(projects.core.model)
+            // The fakes implement the three ports every screen reads, and build catalog values.
+            api(projects.core.catalog)
+            api(projects.core.favorites)
+            api(projects.core.playbackSession)
         }
     }
 }

@@ -67,8 +67,20 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            // The capabilities this screen reads. `xwab.kmp.feature` deliberately hands out none
+            // of them, so declare what you actually use:
+            //     implementation(projects.core.catalog)
+            //     implementation(projects.core.favorites)
+            //     implementation(projects.core.playbackSession)
+            //
+            // Delivery, the playback engine and the shipped manifest are not on the menu —
+            // `checkArchitecture` rule 4 refuses a feature that declares any of them.
+
             implementation(projects.feature.${camel}.navigation)
             // Screens this one routes to go here, their navigation module only.
+        }
+        commonTest.dependencies {
+            implementation(projects.core.testing)
         }
     }
 }
@@ -212,8 +224,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * The domain port fakes from core:testing are already on this module's test classpath; see the
- * xwab.kmp.feature convention plugin.
+ * The port fakes from core:testing are on this module's test classpath — the generated build file
+ * declares it. Add the capability modules this screen reads beside it in commonMain.
  */
 class ${Pascal}ViewModelTest {
     @Test

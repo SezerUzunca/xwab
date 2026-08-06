@@ -18,12 +18,14 @@ background controls, and playback metadata required by its player.
 DI creates the platform `PlaybackController` (`createAndroidPlaybackController(context)` /
 `createIosPlaybackController()`).
 
-The application-specific adapter in `core:playback` depends on `PlaybackController`: it observes
-`state` / `sleepTimerState` and drives playback through the single
-`submit(PlaybackCommand...)` entry point. Feature and domain code use `PlaybackCoordinator`
-instead of depending on this engine directly. Use one app-scoped controller instance and call it
-only from the main thread; DI owns the engine's `release()`. Every `AudioSource` needs a stable
-non-blank ID and a non-blank playable URI.
+The application-specific adapter in `core:playback-session` depends on `PlaybackController`: it
+observes `state` / `sleepTimerState` and drives playback through the single
+`submit(PlaybackCommand...)` entry point. That module and the composition root are the only two
+that declare this one — a feature may not, which `checkArchitecture` rule 4 enforces as a
+dependency edge, so screens reach playback through `PlaybackCoordinator` and never see this
+engine's state model. Use one app-scoped
+controller instance and call it only from the main thread; DI owns the engine's `release()`. Every
+`AudioSource` needs a stable non-blank ID and a non-blank playable URI.
 
 ## Host-level background integration
 

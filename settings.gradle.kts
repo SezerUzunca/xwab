@@ -39,11 +39,12 @@ dependencyResolutionManagement {
 }
 
 include(":androidApp")
-include(":core:preferences")
+include(":core:catalog")
+include(":core:catalog-manifest")
+include(":core:audio-delivery")
+include(":core:favorites")
+include(":core:playback-session")
 include(":core:playback-engine")
-include(":core:model")
-include(":core:audio-content")
-include(":core:playback")
 include(":core:designsystem")
 include(":core:navigation")
 include(":core:testing")

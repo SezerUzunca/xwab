@@ -2,7 +2,8 @@ package com.xwab.app.feature.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xwab.app.core.playback.PlaybackCoordinator
+import com.xwab.app.core.catalog.TrackId
+import com.xwab.app.core.playbacksession.PlaybackCoordinator
 import com.xwab.app.feature.home.domain.ObserveHomeContentUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,8 +20,8 @@ internal class HomeViewModel(
             HomeState(
                 categories = content.categories,
                 favoriteMusics = content.favoriteMusics,
-                playingMusicId = content.playback.activeSourceId,
-                isPlaying = content.playback.isPlaying,
+                playingMusicId = content.playback.trackId,
+                playIntent = content.playback.playIntent,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -28,8 +29,13 @@ internal class HomeViewModel(
             initialValue = HomeState(),
         )
 
-    fun togglePlayback(musicId: String) {
-        val music = state.value.favoriteMusics.firstOrNull { it.id == musicId } ?: return
-        viewModelScope.launch { playbackCoordinator.togglePlayback(music) }
+    /** Branches on the value the control renders, so the icon and the tap cannot disagree. */
+    fun togglePlayback(musicId: TrackId) {
+        val current = state.value
+        if (current.playingMusicId == musicId && current.playIntent) {
+            playbackCoordinator.pause()
+        } else {
+            viewModelScope.launch { playbackCoordinator.play(musicId) }
+        }
     }
 }

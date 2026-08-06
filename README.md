@@ -16,12 +16,20 @@ shared data capability used from several screens rather than a screen of its own
 - Public-domain/CC0 audio with a source and checksum manifest in
   [THIRD_PARTY_AUDIO.md](./THIRD_PARTY_AUDIO.md).
 
-Each core module owns one capability, contract and implementation together: `core:audio-content`
-owns the sound catalog — the manifest, the remote sources, local caching, the repository screens
-read and the resolver playback resolves through; `core:preferences` owns what
-the app persists, favorites today; `core:playback` owns app session policy; and
-`core:playback-engine` remains the reusable platform playback engine. There is no separate
-repository layer: a port lives in the module that owns the data behind it.
+Each core module owns one capability, contract and implementation together, and is named for the
+question it answers rather than for the mechanism behind it:
+
+| Module | Answers |
+|---|---|
+| `core:catalog` | *what can be played?* — `Music`, `Category`, `MusicCatalogRepository` |
+| `core:catalog-manifest` | *what ships, and where does each track's audio live?* — the manifest and its two ports |
+| `core:audio-delivery` | *where do this track's bytes come from now?* — resolution, download, cache |
+| `core:favorites` | *what did the listener mark?* — persisted through DataStore |
+| `core:playback-session` | *how is the one session steered?* — `PlaybackCoordinator`, `PlaybackSummary` |
+| `core:playback-engine` | *how does this platform play audio?* — the reusable Media3/AVFoundation engine |
+
+There is no separate repository layer and no shared model module: a port lives in the module that
+owns the data behind it, and so does the type it publishes.
 
 SQLDelight is intentionally not included: favorites are a small key-value set without relational
 queries, partial-row updates, or referential-integrity needs, which makes DataStore the smaller and
@@ -39,9 +47,16 @@ iosApp ─────┘        │
         │            │                │
         └────────────┴───────┬────────┘
                              ▼
-   core:model · core:designsystem · core:navigation
-   core:audio-content (catalog, download, cache) · core:preferences (favorites)
-   core:playback (session) ─► core:audio-content, core:playback-engine
+   core:catalog      core:favorites      core:playback-session
+        ▲                                        │
+        │                        ┌───────────────┴───────────────┐
+        │                        ▼                               ▼
+        │                core:audio-delivery            core:playback-engine
+        │                        │
+        │                        ▼
+        └──────────────  core:catalog-manifest
+
+  crosscutting: core:designsystem · core:navigation · core:testing
 ```
 
 A feature owns its screen, its state, its ViewModel, its use cases and its Koin bindings. It sees
@@ -50,11 +65,46 @@ another feature only through that feature's `:navigation` module — a route, it
 screen action that already has the model it needs injects the capability directly — a use case has
 to earn its name by holding a decision.
 
+A feature also declares the capabilities it reads, in its own build file. `xwab.kmp.feature` hands
+out the design system, navigation and the Compose/Koin surface and nothing else. Delivery, the
+engine and the shipped manifest are declared by the modules that assemble a session and by the
+composition root, and nowhere else — so no screen can name a delivery type, the engine's own state
+model, or the URL behind a track.
+
 Four rules hold this in place, and `./gradlew checkArchitecture` fails the build when one breaks:
 a core module may not depend on a feature; a feature may depend only on another feature's
 `:navigation` module; a use case in a shared core module must serve more than one feature; and a
-feature may not reference `AudioContentResolver` or `AudioFileStore` — `core:audio-content` is on
-its classpath for the catalog, not for delivery.
+feature may not declare `core:audio-delivery`, `core:playback-engine` or `core:catalog-manifest`.
+
+That fourth rule used to scan feature sources for the strings `AudioContentResolver` and
+`AudioFileStore`, because the catalog and delivery shared one module that every feature needed for
+the catalog's sake — the graph could not tell a legitimate dependency from a reach through it.
+Splitting capabilities apart until each boundary was a real edge is what turned it into a
+dependency check, which survives a rename in a way a quoted class name did not. The rule also fails
+loudly if a module it names stops existing, so it cannot quietly end up protecting nothing.
+
+The rules live in `FeatureFirstRules` as plain functions over the dependency graph, and
+`FeatureFirstRulesTest` drives each of them from both sides — a graph that must pass and one that
+must fail. A rule only ever run against a repository that satisfies it has never been shown to
+reject anything, which is the failure mode the old version would have had. `./gradlew check` runs
+those tests; `./gradlew checkArchitecture` runs the rules against this repository.
+
+## Playback
+
+One session, steered through `PlaybackCoordinator`. It publishes a `PlaybackSummary` carrying both
+`playIntent` — whether playback is *wanted* — and `isPlaying` — whether sound is audible. A
+play/pause control renders the first, and a tap branches on the first; they differ while a source is
+being resolved or buffered, and mixing them up is how a tap during buffering used to pause a sound
+the screen was showing as stopped.
+
+`play(trackId)` claims the session before it resolves anything, so a second tap on the same sound
+finds something to pause. `pause()` abandons a lookup still in flight. A lookup that came back
+`NotFound` or `Unavailable` reaches the screen as a `PlaybackFailure` instead of a tap that did
+nothing at all.
+
+It takes a `TrackId`, not a `String` and not a `Music`: the metadata the media session publishes is
+read from the catalog beside the source it is paired with, so a screen cannot hand over a stale
+title, and it cannot hand over a category id either.
 
 ### Build configuration
 
@@ -66,7 +116,7 @@ and the shared dependency sets:
 |---|---|
 | `xwab.kmp.library` | every KMP library module |
 | `xwab.kmp.compose` | the above plus Compose Multiplatform |
-| `xwab.kmp.feature` | the above plus the core modules and Compose/Koin surface every screen uses |
+| `xwab.kmp.feature` | the above plus the design system, navigation and the Compose/Koin surface every screen uses — capability modules are declared per feature |
 | `xwab.kmp.feature.navigation` | a feature's navigation API module |
 
 `shared` is the exception and configures itself: it is the only module producing an iOS framework.

@@ -1,5 +1,6 @@
 package com.xwab.app.feature.category
 
+import com.xwab.app.core.catalog.TrackId
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -14,8 +15,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.xwab.app.core.model.Music
-import com.xwab.app.core.model.Category
+import com.xwab.app.core.catalog.Music
+import com.xwab.app.core.catalog.Category
 import com.xwab.app.core.ui.theme.SleepRelaxTheme
 import androidx.compose.ui.tooling.preview.Preview
 import org.jetbrains.compose.resources.stringResource
@@ -33,7 +34,7 @@ import androidx.compose.foundation.layout.widthIn
 
 @Composable
 internal fun CategoryScreenRoute(
-    onMusicClick: (musicId: String) -> Unit,
+    onMusicClick: (musicId: TrackId) -> Unit,
     onBack: () -> Unit,
     viewModel: CategoryViewModel,
 ) {
@@ -51,9 +52,9 @@ internal fun CategoryScreenRoute(
 @Composable
 internal fun CategoryScreen(
     state: CategoryState,
-    onMusicClick: (musicId: String) -> Unit,
-    onFavoriteClick: (musicId: String) -> Unit,
-    onPlaybackClick: (musicId: String) -> Unit,
+    onMusicClick: (musicId: TrackId) -> Unit,
+    onFavoriteClick: (musicId: TrackId) -> Unit,
+    onPlaybackClick: (musicId: TrackId) -> Unit,
     onBack: () -> Unit,
 ) {
     SleepRelaxBackground {
@@ -92,7 +93,7 @@ internal fun CategoryScreen(
                         trailingContent = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 PlayPauseButton(
-                                    isPlaying = state.playingMusicId == music.id && state.isPlaying,
+                                    isPlaying = state.playingMusicId == music.id && state.playIntent,
                                     onClick = { onPlaybackClick(music.id) },
                                 )
                                 FavoriteButton(
@@ -123,7 +124,7 @@ private fun CategoryScreenPreview() {
                         durationSeconds = 9,
                     ),
                 ),
-                favoriteIds = setOf("gentle-rain"),
+                favoriteIds = setOf(TrackId("gentle-rain")),
             ),
             onMusicClick = {},
             onFavoriteClick = {},

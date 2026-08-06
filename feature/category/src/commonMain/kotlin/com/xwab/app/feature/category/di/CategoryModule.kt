@@ -2,11 +2,11 @@
 
 package com.xwab.app.feature.category.di
 
+import com.xwab.app.core.navigation.LocalNavigator
 import com.xwab.app.feature.category.CategoryScreenRoute
 import com.xwab.app.feature.category.CategoryViewModel
 import com.xwab.app.feature.category.domain.ObserveCategoryContentUseCase
 import com.xwab.app.feature.category.navigation.CategoryRoute
-import com.xwab.app.core.navigation.LocalNavigator
 import com.xwab.app.feature.player.navigation.navigateToPlayer
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.module.dsl.viewModel
@@ -30,7 +30,8 @@ internal val categoryModule = module {
     navigation<CategoryRoute> { route ->
         val navigator = LocalNavigator.current
         CategoryScreenRoute(
-            onMusicClick = navigator::navigateToPlayer,
+            // The route carries a plain id; the screen deals in `TrackId`. This is the seam.
+            onMusicClick = { trackId -> navigator.navigateToPlayer(trackId.value) },
             onBack = navigator::goBack,
             viewModel = koinViewModel {
                 parametersOf(route.categoryId)

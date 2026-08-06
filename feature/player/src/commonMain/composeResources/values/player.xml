@@ -2,6 +2,7 @@
     <string name="offline_public_domain">Offline • Public Domain</string>
     <string name="audio_not_found">Audio not found</string>
     <string name="audio_could_not_open">Could not open audio</string>
+    <string name="audio_unavailable">Could not reach this sound. Tap to try again.</string>
     <string name="volume">Volume</string>
     <string name="volume_percentage">%1$d%%</string>
     <string name="loop_sound">Loop sound</string>

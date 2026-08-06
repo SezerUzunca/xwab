@@ -30,6 +30,10 @@ dependencies {
     implementation(pluginMarker(libs.plugins.composeMultiplatform))
     implementation(pluginMarker(libs.plugins.composeCompiler))
     implementation(pluginMarker(libs.plugins.kotlinxSerialization))
+
+    // `FeatureFirstRules` is plain Kotlin over a dependency map, so its tests need nothing from
+    // Gradle. Left on the default JUnit 4 runner `kotlin-test` picks for the JVM.
+    testImplementation(libs.kotlin.test)
 }
 
 gradlePlugin {

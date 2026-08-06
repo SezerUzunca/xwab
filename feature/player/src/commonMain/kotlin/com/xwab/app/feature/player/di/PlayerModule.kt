@@ -2,15 +2,11 @@
 
 package com.xwab.app.feature.player.di
 
+import com.xwab.app.core.navigation.LocalNavigator
 import com.xwab.app.feature.player.PlayerScreenRoute
 import com.xwab.app.feature.player.PlayerViewModel
-import com.xwab.app.feature.player.domain.CancelSleepTimerUseCase
 import com.xwab.app.feature.player.domain.ObservePlayerContentUseCase
-import com.xwab.app.feature.player.domain.SetPlaybackLoopingUseCase
-import com.xwab.app.feature.player.domain.SetPlaybackVolumeUseCase
-import com.xwab.app.feature.player.domain.StartSleepTimerUseCase
 import com.xwab.app.feature.player.navigation.PlayerRoute
-import com.xwab.app.core.navigation.LocalNavigator
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.parameter.parametersOf
@@ -18,23 +14,17 @@ import org.koin.dsl.module
 import org.koin.dsl.navigation3.navigation
 
 internal val playerModule = module {
-    // The screen's own use cases are bound here; the ports they drive come from the core modules.
+    // The screen's one use case is bound here; the ports it reads come from the core modules.
+    // Looping, volume and the sleep timer reach the coordinator straight from the ViewModel —
+    // they carry no decision, so there is nothing for a use case to own.
     factory { ObservePlayerContentUseCase(get(), get(), get()) }
-    factory { SetPlaybackLoopingUseCase(get()) }
-    factory { SetPlaybackVolumeUseCase(get()) }
-    factory { StartSleepTimerUseCase(get()) }
-    factory { CancelSleepTimerUseCase(get()) }
 
     viewModel { parameters ->
         PlayerViewModel(
-            musicId = parameters.get(),
+            trackId = parameters.get(),
             observePlayerContentUseCase = get(),
             favoritesRepository = get(),
             playbackCoordinator = get(),
-            setPlaybackLoopingUseCase = get(),
-            setPlaybackVolumeUseCase = get(),
-            startSleepTimerUseCase = get(),
-            cancelSleepTimerUseCase = get(),
         )
     }
 
@@ -43,7 +33,9 @@ internal val playerModule = module {
         PlayerScreenRoute(
             onBack = navigator::goBack,
             viewModel = koinViewModel {
-                parametersOf(route.musicId)
+                // A route is a serialized wire format, so it carries the plain id and the wrapper
+                // goes back on here — the one place this feature handles a bare track string.
+                parametersOf(TrackId(route.musicId))
             },
         )
     }

@@ -4,12 +4,18 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 
 /**
- * `xwab.kmp.feature` — everything a feature slice needs: [KmpComposeConventionPlugin] plus the
- * shared core modules and the Compose/Koin surface every screen in this app uses.
+ * `xwab.kmp.feature` — what every screen in this app is built out of regardless of what it shows:
+ * [KmpComposeConventionPlugin], the design system, navigation, and the Compose/Koin surface.
  *
- * A feature's own build file is then only its namespace and the `:navigation` modules it routes
- * to. A feature must never depend on another feature's implementation module — `checkArchitecture`
- * fails the build if one does.
+ * Capability modules are deliberately **not** here. A feature declares the ones it reads in its own
+ * build file, which is what lets `checkArchitecture` state rule 4 as a dependency edge — a feature
+ * may not declare `core:audio-delivery` or `core:playback-engine` — instead of scanning sources for
+ * class names. Handing every core module to every feature is what made that impossible before.
+ * This is also why `core:testing` is declared per feature: a slice that reads two capabilities has
+ * no business compiling against fakes for a third.
+ *
+ * A feature must never depend on another feature's implementation module either — again rule-checked
+ * rather than prevented, since nothing stops a build file from declaring one.
  */
 class KmpFeatureConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
@@ -18,10 +24,6 @@ class KmpFeatureConventionPlugin : Plugin<Project> {
 
             kotlinMultiplatform {
                 dependenciesOf("commonMain") {
-                    implementation(project(":core:model"))
-                    implementation(project(":core:audio-content"))
-                    implementation(project(":core:preferences"))
-                    implementation(project(":core:playback"))
                     implementation(project(":core:designsystem"))
                     implementation(project(":core:navigation"))
                     implementation(libs.library("compose-foundation"))
@@ -32,11 +34,6 @@ class KmpFeatureConventionPlugin : Plugin<Project> {
                     implementation(libs.library("androidx-lifecycle-viewmodelCompose"))
                     implementation(libs.library("koin-compose-viewmodel"))
                     implementation(libs.library("koin-compose-navigation3"))
-                }
-
-                // Every feature joins the same shared ports, so each receives the common fakes.
-                dependenciesOf("commonTest") {
-                    implementation(project(":core:testing"))
                 }
             }
 

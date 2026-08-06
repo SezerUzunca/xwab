@@ -45,12 +45,16 @@ kotlin {
     
     sourceSets {
         commonMain.dependencies {
+            // Every capability module, because the composition root is what binds them. This is
+            // also the only module outside `core:playback-session` that names delivery or the
+            // engine; `checkArchitecture` rule 4 keeps features from joining that list.
+            implementation(projects.core.catalog)
+            implementation(projects.core.catalogManifest)
+            implementation(projects.core.audioDelivery)
+            implementation(projects.core.favorites)
+            implementation(projects.core.playbackSession)
             implementation(projects.core.playbackEngine)
-            implementation(projects.core.preferences)
-            implementation(projects.core.model)
             implementation(projects.core.navigation)
-            implementation(projects.core.audioContent)
-            implementation(projects.core.playback)
             implementation(projects.core.designsystem)
             implementation(projects.feature.home)
             implementation(projects.feature.category)

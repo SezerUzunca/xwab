@@ -31,16 +31,19 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.xwab.app.core.model.Music
+import com.xwab.app.core.catalog.Music
 import com.xwab.app.core.ui.components.BackButton
 import com.xwab.app.core.ui.components.FavoriteButton
 import com.xwab.app.core.ui.components.PlayPauseButton
 import com.xwab.app.core.ui.components.SleepRelaxBackground
 import com.xwab.app.core.ui.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.stringResource
+import xwab.core.designsystem.generated.resources.Res as UiRes
+import xwab.core.designsystem.generated.resources.duration_public_domain
 import xwab.feature.player.generated.resources.Res
 import xwab.feature.player.generated.resources.audio_could_not_open
 import xwab.feature.player.generated.resources.audio_not_found
+import xwab.feature.player.generated.resources.audio_unavailable
 import xwab.feature.player.generated.resources.cancel_timer
 import xwab.feature.player.generated.resources.loop_sound
 import xwab.feature.player.generated.resources.offline_public_domain
@@ -51,8 +54,6 @@ import xwab.feature.player.generated.resources.timer_15_minutes
 import xwab.feature.player.generated.resources.timer_30_minutes
 import xwab.feature.player.generated.resources.timer_45_minutes
 import xwab.feature.player.generated.resources.timer_60_minutes
-import xwab.core.designsystem.generated.resources.Res as UiRes
-import xwab.core.designsystem.generated.resources.duration_public_domain
 import xwab.feature.player.generated.resources.volume
 import xwab.feature.player.generated.resources.volume_percentage
 
@@ -169,7 +170,7 @@ internal fun PlayerScreen(
 
                 Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
                 PlayPauseButton(
-                    isPlaying = state.isPlaying,
+                    isPlaying = state.playIntent,
                     onClick = onPlaybackClick,
                     large = true,
                 )
@@ -190,6 +191,7 @@ internal fun PlayerScreen(
                             when (error) {
                                 PlayerError.AudioNotFound -> Res.string.audio_not_found
                                 PlayerError.AudioCouldNotOpen -> Res.string.audio_could_not_open
+                                PlayerError.AudioUnavailable -> Res.string.audio_unavailable
                             },
                         ),
                         color = SleepRelaxTheme.colors.error,

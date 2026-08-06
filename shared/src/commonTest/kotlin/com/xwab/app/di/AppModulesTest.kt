@@ -4,23 +4,29 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.navigation3.runtime.NavKey
-import com.xwab.app.core.audiocontent.resolution.AudioContentResolver
-import com.xwab.app.core.audiocontent.cache.AudioFileStore
-import com.xwab.app.core.audiocontent.catalog.MusicCatalogRepository
-import com.xwab.app.core.audiocontent.di.audioContentModule
-import com.xwab.app.core.audiocontent.di.audioContentPlatformModule
-import com.xwab.app.core.media.api.AudioPlayerState
-import com.xwab.app.core.media.api.PlaybackCommand
-import com.xwab.app.core.media.api.PlaybackController
-import com.xwab.app.core.media.api.SleepTimerState
-import com.xwab.app.core.playback.PlaybackCoordinator
-import com.xwab.app.core.playback.di.playbackCoordinatorModule
-import com.xwab.app.core.preferences.FavoritesRepository
-import com.xwab.app.core.preferences.di.preferencesModule
-import com.xwab.app.core.preferences.di.preferencesPlatformModule
+import com.xwab.app.core.audiodelivery.cache.AudioFileStore
+import com.xwab.app.core.audiodelivery.di.audioDeliveryModule
+import com.xwab.app.core.audiodelivery.di.audioDeliveryPlatformModule
+import com.xwab.app.core.audiodelivery.resolution.AudioContentResolver
+import com.xwab.app.core.catalog.MusicCatalogRepository
+import com.xwab.app.core.catalogmanifest.di.catalogManifestModule
+import com.xwab.app.core.favorites.FavoritesRepository
+import com.xwab.app.core.favorites.di.favoritesModule
+import com.xwab.app.core.favorites.di.favoritesPlatformModule
+import com.xwab.app.core.playbackengine.api.AudioPlayerState
+import com.xwab.app.core.playbackengine.api.PlaybackCommand
+import com.xwab.app.core.playbackengine.api.PlaybackController
+import com.xwab.app.core.playbackengine.api.SleepTimerState
+import com.xwab.app.core.playbackengine.di.playbackModule
+import com.xwab.app.core.playbacksession.PlaybackCoordinator
+import com.xwab.app.core.playbacksession.di.playbackSessionModule
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.home.navigation.HomeRoute
 import com.xwab.app.feature.player.navigation.PlayerRoute
+import kotlin.test.AfterTest
+import kotlin.test.Test
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,10 +34,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.serialization.ExperimentalSerializationApi
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
-import kotlin.test.AfterTest
-import kotlin.test.Test
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 
 /**
  * Catalog and playback wiring is spread over several Koin modules living in
@@ -51,7 +53,13 @@ class AppModulesTest {
     }
 
     private val koin = koinApplication {
-        modules(audioContentModule, preferencesModule, playbackCoordinatorModule, platformBindings)
+        modules(
+            catalogManifestModule,
+            audioDeliveryModule,
+            favoritesModule,
+            playbackSessionModule,
+            platformBindings,
+        )
     }.koin
 
     @AfterTest
@@ -61,17 +69,21 @@ class AppModulesTest {
     fun theApplicationShipsTheModulesUnderTest() {
         val shipped = appModules()
 
-        assertTrue(audioContentModule in shipped, "audioContentModule is missing from appModules()")
+        assertTrue(catalogManifestModule in shipped, "catalogManifestModule is missing from appModules()")
+        assertTrue(audioDeliveryModule in shipped, "audioDeliveryModule is missing from appModules()")
         assertTrue(
-            audioContentPlatformModule in shipped,
-            "audioContentPlatformModule is missing from appModules()",
+            audioDeliveryPlatformModule in shipped,
+            "audioDeliveryPlatformModule is missing from appModules()",
         )
-        assertTrue(preferencesModule in shipped, "preferencesModule is missing from appModules()")
+        assertTrue(favoritesModule in shipped, "favoritesModule is missing from appModules()")
         assertTrue(
-            preferencesPlatformModule in shipped,
-            "preferencesPlatformModule is missing from appModules()",
+            favoritesPlatformModule in shipped,
+            "favoritesPlatformModule is missing from appModules()",
         )
-        assertTrue(playbackCoordinatorModule in shipped, "playbackCoordinatorModule is missing from appModules()")
+        assertTrue(playbackSessionModule in shipped, "playbackSessionModule is missing from appModules()")
+        // The container below stands a fake PlaybackController in for this module, so nothing else
+        // here would notice if the real platform binding stopped being shipped.
+        assertTrue(playbackModule in shipped, "playbackModule is missing from appModules()")
     }
 
     @Test
