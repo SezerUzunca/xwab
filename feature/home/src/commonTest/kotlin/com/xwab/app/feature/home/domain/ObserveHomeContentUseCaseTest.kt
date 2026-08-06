@@ -51,7 +51,7 @@ class ObserveHomeContentUseCaseTest {
         val useCase = ObserveHomeContentUseCase(catalog, favorites, FakePlaybackCoordinator())
         assertTrue(useCase().first().favoriteMusics.isEmpty())
 
-        favorites.toggle("calm-waves")
+        favorites.toggle(TrackId("calm-waves"))
 
         assertEquals(listOf(waves), useCase().first().favoriteMusics)
     }
@@ -60,7 +60,7 @@ class ObserveHomeContentUseCaseTest {
     fun homeCarriesThePlaybackSummaryStraightThrough() = runBlocking {
         val coordinator = FakePlaybackCoordinator()
         val playing = PlaybackSummary(
-            trackId = TrackId("gentle-rain"),
+            requestedTrackId = TrackId("gentle-rain"),
             playIntent = true,
             isPlaying = true,
             volume = 0.4f,

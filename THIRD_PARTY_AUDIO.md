@@ -28,10 +28,17 @@ Partial files are never selected.
 | `pink-noise` | [Pink.Noise.ogg](https://commons.wikimedia.org/wiki/File:Pink.Noise.ogg) | Bautsch | Public domain |
 | `chopin-berceuse` | [Chopin-Berceuse.ogg](https://commons.wikimedia.org/wiki/File:Chopin-Berceuse.ogg) | Veronica van der Knaap | Public domain |
 | `igbo-lullaby` | [Egwu Nwa.ogg](https://commons.wikimedia.org/wiki/File:Egwu_Nwa.ogg) | Akum20 | CC0 1.0 |
+| `thunder-rain` | [Rain and thunder.ogg](https://commons.wikimedia.org/wiki/File:Rain_and_thunder.ogg) | Caesar | Public domain |
+| `south-carolina-beach` | [Beach sounds South Carolina.ogg](https://commons.wikimedia.org/wiki/File:Beach_sounds_South_Carolina.ogg) | Anthropic42 | Public domain |
+| `nightingale-song` | [Common Nightingale's song 2.ogg](https://commons.wikimedia.org/wiki/File:Common_Nightingale%27s_song_2.ogg) | Digweed1 | CC0 1.0 |
+| `gray-noise` | [Gray noise.ogg](https://commons.wikimedia.org/wiki/File:Gray_noise.ogg) | Omegatron | Public domain |
+| `vierne-berceuse` | [Vierne Berceuse (Fernwerk und Hauptorgel).ogg](https://commons.wikimedia.org/wiki/File:Vierne_Berceuse_(Fernwerk_und_Hauptorgel).ogg) | Vox Mirabilis | CC0 1.0 |
 
-License status and direct MP3 availability were checked on 2026-07-28 for the ten streamed
-recordings, and on 2026-07-31 for the five that had been bundled. Every URL returned HTTP 200 with
-`audio/mpeg` content at verification time.
+License status and direct MP3 availability for the original catalog were checked on 2026-07-28 for
+the ten streamed recordings, and on 2026-07-31 for the five that had been bundled. Every original
+URL returned HTTP 200 with `audio/mpeg` content at verification time. The five additions were
+checked on 2026-08-06; every source page still marked its recording Public domain or CC0 and its MP3
+transcode as completed.
 
 ## Removed: the bundled copies
 

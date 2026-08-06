@@ -2,6 +2,7 @@
 
 package com.xwab.app.feature.player.di
 
+import com.xwab.app.core.catalog.TrackId
 import com.xwab.app.core.navigation.LocalNavigator
 import com.xwab.app.feature.player.PlayerScreenRoute
 import com.xwab.app.feature.player.PlayerViewModel

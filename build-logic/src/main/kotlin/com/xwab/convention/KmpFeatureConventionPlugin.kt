@@ -9,7 +9,7 @@ import org.gradle.api.Project
  *
  * Capability modules are deliberately **not** here. A feature declares the ones it reads in its own
  * build file, which is what lets `checkArchitecture` state rule 4 as a dependency edge — a feature
- * may not declare `core:audio-delivery` or `core:playback-engine` — instead of scanning sources for
+ * may not declare `core:sound:delivery` or `core:playback:engine` — instead of scanning sources for
  * class names. Handing every core module to every feature is what made that impossible before.
  * This is also why `core:testing` is declared per feature: a slice that reads two capabilities has
  * no business compiling against fakes for a third.

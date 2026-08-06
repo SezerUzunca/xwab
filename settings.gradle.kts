@@ -39,12 +39,21 @@ dependencyResolutionManagement {
 }
 
 include(":androidApp")
-include(":core:catalog")
-include(":core:catalog-manifest")
-include(":core:audio-delivery")
-include(":core:favorites")
-include(":core:playback-session")
-include(":core:playback-engine")
+
+// Core modules are grouped by the content they serve rather than listed flat. `sound`, `story` and
+// `playback` are directories with no build file of their own — Gradle creates a container project
+// for each, and nothing is ever declared on it. A module's Gradle path is its directory path, so
+// `core/sound/manifest` is `:core:sound:manifest`, and the architecture rules read that path.
+include(":core:sound:catalog")
+include(":core:sound:manifest")
+include(":core:sound:delivery")
+include(":core:sound:favorites")
+include(":core:story:catalog")
+include(":core:story:manifest")
+include(":core:playback:session")
+include(":core:playback:engine")
+
+// Crosscutting: used by every slice, tied to no content type, so grouped under none of them.
 include(":core:designsystem")
 include(":core:navigation")
 include(":core:testing")

@@ -26,14 +26,18 @@ internal object FeatureFirstRules {
      * the rule cannot quietly protect nothing after a rename.
      */
     val MODULES_OFF_LIMITS_TO_FEATURES = mapOf(
-        ":core:audio-delivery" to
+        ":core:sound:delivery" to
             "resolving a track to a URI and caching its bytes are the session's business; a " +
                 "screen steers playback through PlaybackCoordinator",
-        ":core:playback-engine" to
+        ":core:playback:engine" to
             "the engine's own state model is not a screen's to read; PlaybackSummary is",
-        ":core:catalog-manifest" to
-            "a screen reads the catalog through MusicCatalogRepository in :core:catalog; the " +
-                "shipped manifest and the physical source behind each track are not its business",
+        ":core:sound:manifest" to
+            "a screen reads the catalog through MusicCatalogRepository in :core:sound:catalog; " +
+                "the shipped manifest and the physical source behind each track are not its " +
+                "business",
+        ":core:story:manifest" to
+            "a screen reads stories through StoryCatalogRepository in :core:story:catalog; the " +
+                "story list and the source each story streams from are not its business",
     )
 
     /**
@@ -101,4 +105,30 @@ internal object FeatureFirstRules {
     /** `:feature:home` and `:feature:home:navigation` are both the `home` feature. */
     fun featureOf(modulePath: String): String =
         modulePath.removePrefix(FEATURE_PREFIX).substringBefore(':')
+
+    /**
+     * Which module a source file belongs to, given every module path in the build.
+     *
+     * Rule 3 used to read this off the first directory under `core/`, which was right only while
+     * every core module sat directly there. Core modules are grouped now — `core/sound/catalog` is
+     * `:core:sound:catalog` — and that shortcut would have attributed every use case in the group
+     * to `:core:sound`, a container project that declares nothing. It would not have *failed*: the
+     * rule would have kept reporting success while naming a module that cannot be depended on.
+     *
+     * So the owner is the longest module path that the file actually sits inside, and a file under
+     * no module at all belongs to none. A file lying directly in a group directory answers with
+     * the container project, which is what it is in; rule 3 never sees one, because Kotlin sources
+     * live in the modules below a group and never in the group itself.
+     *
+     * @param relativeSourcePath a source file's path from the repository root, `/`-separated.
+     * @param modulePaths the Gradle paths of every module in the build.
+     */
+    fun owningModule(relativeSourcePath: String, modulePaths: Collection<String>): String? =
+        modulePaths
+            .filter { relativeSourcePath.startsWith("${directoryOf(it)}/") }
+            .maxByOrNull { it.length }
+
+    /** `:core:sound:catalog` lives in `core/sound/catalog`: a Gradle path is a directory path. */
+    private fun directoryOf(modulePath: String): String =
+        modulePath.removePrefix(":").replace(':', '/')
 }

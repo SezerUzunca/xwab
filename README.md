@@ -6,27 +6,51 @@ shared data capability used from several screens rather than a screen of its own
 
 ## Included features
 
-- Five all-ages sound categories with 15 tracks: rain, ocean, forest, white noise, and lullabies.
+- Five all-ages sound categories with 20 tracks: rain, ocean, forest, white noise, and lullabies.
 - On-demand audio delivery: no audio ships in the app. A picked track streams over HTTPS
   immediately and is saved to app-owned storage, so later plays of it are local and offline.
 - Persistent favorites backed by Kotlin Multiplatform DataStore.
 - Browsing, track details, favorites, and active audio playback.
-- A `core:playback-engine` KMP playback layer built with Media3 ExoPlayer on Android and
+- A `core:playback:engine` KMP playback layer built with Media3 ExoPlayer on Android and
   AVFoundation AVPlayer on iOS, including platform media-session integration.
 - Public-domain/CC0 audio with a source and checksum manifest in
   [THIRD_PARTY_AUDIO.md](./THIRD_PARTY_AUDIO.md).
 
 Each core module owns one capability, contract and implementation together, and is named for the
-question it answers rather than for the mechanism behind it:
+question it answers rather than for the mechanism behind it. They are grouped by the content they
+serve, so a module's Gradle path says which half of the app it belongs to:
+
+```
+core/
+├── sound/       catalog · manifest · delivery · favorites
+├── story/       catalog · manifest
+├── playback/    session · engine
+├── designsystem
+├── navigation
+└── testing
+```
+
+`sound`, `story` and `playback` are directories, not modules: they have no build file, and the
+container projects Gradle makes for them are never declared on. `core/sound/manifest` is
+`:core:sound:manifest`, and the architecture rules read exactly that path.
 
 | Module | Answers |
 |---|---|
-| `core:catalog` | *what can be played?* — `Music`, `Category`, `MusicCatalogRepository` |
-| `core:catalog-manifest` | *what ships, and where does each track's audio live?* — the manifest and its two ports |
-| `core:audio-delivery` | *where do this track's bytes come from now?* — resolution, download, cache |
-| `core:favorites` | *what did the listener mark?* — persisted through DataStore |
-| `core:playback-session` | *how is the one session steered?* — `PlaybackCoordinator`, `PlaybackSummary` |
-| `core:playback-engine` | *how does this platform play audio?* — the reusable Media3/AVFoundation engine |
+| `core:sound:catalog` | *what can be played?* — `Music`, `Category`, `MusicCatalogRepository` |
+| `core:sound:manifest` | *what ships, and where does each track's audio live?* — the manifest and its two ports |
+| `core:sound:delivery` | *where do this track's bytes come from now?* — resolution, download, cache |
+| `core:sound:favorites` | *what did the listener mark?* — persisted through DataStore |
+| `core:story:catalog` | *what can be listened to?* — `Story`, `StoryId`, `StoryCatalogRepository` |
+| `core:story:manifest` | *which stories exist, and where does each one stream from?* — the list and its port |
+| `core:playback:session` | *how is the one session steered?* — `PlaybackCoordinator`, `PlaybackSummary` |
+| `core:playback:engine` | *how does this platform play audio?* — the reusable Media3/AVFoundation engine |
+
+Crosscutting modules — `core:designsystem`, `core:navigation`, `core:testing` — are tied to no
+content type, so they are grouped under none of them and stay directly under `core/`.
+
+Kotlin packages did not move with the directories: `:core:sound:manifest` still declares
+`com.xwab.app.core.catalogmanifest`. Renaming a package touches every import in the build, which is
+its own migration and not this one.
 
 There is no separate repository layer and no shared model module: a port lives in the module that
 owns the data behind it, and so does the type it publishes.
@@ -47,14 +71,16 @@ iosApp ─────┘        │
         │            │                │
         └────────────┴───────┬────────┘
                              ▼
-   core:catalog      core:favorites      core:playback-session
+   core:sound:catalog      core:sound:favorites      core:playback:session
         ▲                                        │
         │                        ┌───────────────┴───────────────┐
         │                        ▼                               ▼
-        │                core:audio-delivery            core:playback-engine
+        │                core:sound:delivery            core:playback:engine
         │                        │
         │                        ▼
-        └──────────────  core:catalog-manifest
+        └──────────────  core:sound:manifest
+
+  not on a screen yet:  core:story:catalog  ◄──  core:story:manifest
 
   crosscutting: core:designsystem · core:navigation · core:testing
 ```
@@ -74,7 +100,8 @@ model, or the URL behind a track.
 Four rules hold this in place, and `./gradlew checkArchitecture` fails the build when one breaks:
 a core module may not depend on a feature; a feature may depend only on another feature's
 `:navigation` module; a use case in a shared core module must serve more than one feature; and a
-feature may not declare `core:audio-delivery`, `core:playback-engine` or `core:catalog-manifest`.
+feature may not declare `core:sound:delivery`, `core:playback:engine`, `core:sound:manifest` or
+`core:story:manifest`.
 
 That fourth rule used to scan feature sources for the strings `AudioContentResolver` and
 `AudioFileStore`, because the catalog and delivery shared one module that every feature needed for
@@ -91,16 +118,20 @@ those tests; `./gradlew checkArchitecture` runs the rules against this repositor
 
 ## Playback
 
-One session, steered through `PlaybackCoordinator`. It publishes a `PlaybackSummary` carrying both
-`playIntent` — whether playback is *wanted* — and `isPlaying` — whether sound is audible. A
-play/pause control renders the first, and a tap branches on the first; they differ while a source is
-being resolved or buffered, and mixing them up is how a tap during buffering used to pause a sound
-the screen was showing as stopped.
+One session, steered through `PlaybackCoordinator`, which must be driven from the main thread — the
+platform engines behind it are main-thread-only and check it.
+
+Its `PlaybackSummary` keeps apart four things that disagree during a switch, when the listener has
+asked for B while A is still audible: `requestedTrackId` (what was asked for), `activeTrackId` (what
+the engine holds), `playIntent` (whether playback is wanted) and `isPlaying` (whether sound is
+coming out). A screen highlights and acts on the first and third. Mixing them up is how a tap during
+buffering used to pause a sound the screen was showing as stopped.
 
 `play(trackId)` claims the session before it resolves anything, so a second tap on the same sound
-finds something to pause. `pause()` abandons a lookup still in flight. A lookup that came back
-`NotFound` or `Unavailable` reaches the screen as a `PlaybackFailure` instead of a tap that did
-nothing at all.
+finds something to pause, and it releases that claim even when the lookup is cancelled. `pause()`
+abandons a lookup still in flight. A lookup that came back `NotFound` or `Unavailable` reaches the
+screen as a `PlaybackFailure` — which names the track it is about, because by then the session has
+already fallen back to whatever came before.
 
 It takes a `TrackId`, not a `String` and not a `Music`: the metadata the media session publishes is
 read from the catalog beside the source it is paired with, so a screen cannot hand over a stale

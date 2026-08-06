@@ -8,9 +8,9 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             // The capabilities this screen reads; see `feature/home/build.gradle.kts`.
-            implementation(projects.core.catalog)
-            implementation(projects.core.favorites)
-            implementation(projects.core.playbackSession)
+            implementation(projects.core.sound.catalog)
+            implementation(projects.core.sound.favorites)
+            implementation(projects.core.playback.session)
 
             implementation(projects.feature.category.navigation)
             // Screens this one routes to — their navigation API only, never their implementation.

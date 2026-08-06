@@ -48,7 +48,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
         val graph = moduleDependencies.get()
         val violations = FeatureFirstRules.staleRuleViolations(graph.keys) +
             FeatureFirstRules.dependencyViolations(graph) +
-            leakedUseCaseViolations(repositoryRoot.get().asFile)
+            leakedUseCaseViolations(repositoryRoot.get().asFile, graph.keys)
 
         if (violations.isNotEmpty()) {
             throw GradleException(
@@ -62,14 +62,24 @@ abstract class CheckArchitectureTask : DefaultTask() {
         logger.lifecycle("Feature-first rules hold across ${graph.size} modules.")
     }
 
-    /** Reads what rule 3 needs off the file system, then hands it to [FeatureFirstRules]. */
-    private fun leakedUseCaseViolations(root: File): List<String> {
+    /**
+     * Reads what rule 3 needs off the file system, then hands it to [FeatureFirstRules].
+     *
+     * @param modulePaths every module in the build, which is how a source file under a grouped
+     *   core module — `core/sound/catalog`, not `core/catalog` — is attributed to the module that
+     *   actually declares it rather than to the group directory above it.
+     */
+    private fun leakedUseCaseViolations(root: File, modulePaths: Set<String>): List<String> {
         val coreRoot = root.resolve("core")
         if (!coreRoot.isDirectory) return emptyList()
 
         val useCases = kotlinSourcesIn(coreRoot)
             .flatMap { file ->
-                val module = ":core:${file.relativeTo(coreRoot).invariantSeparatorsPath.substringBefore('/')}"
+                val module = FeatureFirstRules.owningModule(
+                    file.relativeTo(root).invariantSeparatorsPath,
+                    modulePaths,
+                ) ?: return@flatMap emptyList<Pair<String, String>>()
+
                 FeatureFirstRules.USE_CASE_DECLARATION.findAll(file.readText())
                     .map { match -> match.groupValues[1] to module }
                     .toList()

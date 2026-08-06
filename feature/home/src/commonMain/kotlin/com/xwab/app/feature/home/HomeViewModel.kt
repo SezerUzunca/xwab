@@ -20,7 +20,7 @@ internal class HomeViewModel(
             HomeState(
                 categories = content.categories,
                 favoriteMusics = content.favoriteMusics,
-                playingMusicId = content.playback.trackId,
+                requestedTrackId = content.playback.requestedTrackId,
                 playIntent = content.playback.playIntent,
             )
         }.stateIn(
@@ -32,7 +32,7 @@ internal class HomeViewModel(
     /** Branches on the value the control renders, so the icon and the tap cannot disagree. */
     fun togglePlayback(musicId: TrackId) {
         val current = state.value
-        if (current.playingMusicId == musicId && current.playIntent) {
+        if (current.requestedTrackId == musicId && current.playIntent) {
             playbackCoordinator.pause()
         } else {
             viewModelScope.launch { playbackCoordinator.play(musicId) }

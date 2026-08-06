@@ -21,7 +21,7 @@ class PlayerUseCasesTest {
     fun thePlayerScreenCombinesTrackFavoritesPlaybackAndSleepTimer() = runBlocking {
         val coordinator = FakePlaybackCoordinator()
         coordinator.publish(
-            PlaybackSummary(trackId = TrackId("gentle-rain"), playIntent = true, isPlaying = true),
+            PlaybackSummary(requestedTrackId = TrackId("gentle-rain"), playIntent = true, isPlaying = true),
         )
         coordinator.publishSleepTimer(90_000L)
         val useCase = ObservePlayerContentUseCase(

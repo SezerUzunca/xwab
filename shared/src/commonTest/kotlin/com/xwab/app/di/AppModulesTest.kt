@@ -20,6 +20,8 @@ import com.xwab.app.core.playbackengine.api.SleepTimerState
 import com.xwab.app.core.playbackengine.di.playbackModule
 import com.xwab.app.core.playbacksession.PlaybackCoordinator
 import com.xwab.app.core.playbacksession.di.playbackSessionModule
+import com.xwab.app.core.story.StoryCatalogRepository
+import com.xwab.app.core.storymanifest.di.storyManifestModule
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.home.navigation.HomeRoute
 import com.xwab.app.feature.player.navigation.PlayerRoute
@@ -56,6 +58,7 @@ class AppModulesTest {
         modules(
             catalogManifestModule,
             audioDeliveryModule,
+            storyManifestModule,
             favoritesModule,
             playbackSessionModule,
             platformBindings,
@@ -75,6 +78,7 @@ class AppModulesTest {
             audioDeliveryPlatformModule in shipped,
             "audioDeliveryPlatformModule is missing from appModules()",
         )
+        assertTrue(storyManifestModule in shipped, "storyManifestModule is missing from appModules()")
         assertTrue(favoritesModule in shipped, "favoritesModule is missing from appModules()")
         assertTrue(
             favoritesPlatformModule in shipped,
@@ -122,6 +126,9 @@ class AppModulesTest {
     @Test
     fun everyPortIsBoundToAnImplementation() {
         koin.get<MusicCatalogRepository>()
+        // Nothing reads this one yet. It is resolved here so that the story catalog is wired the
+        // day a screen asks for it, instead of failing on the device that first opens one.
+        koin.get<StoryCatalogRepository>()
         koin.get<FavoritesRepository>()
         koin.get<AudioContentResolver>()
         koin.get<PlaybackCoordinator>()

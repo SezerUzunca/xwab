@@ -85,7 +85,7 @@ internal fun CategoryScreen(
 
             Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingHuge))
             LazyColumn(verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingSmall)) {
-                items(state.musics, key = { it.id }) { music ->
+                items(state.musics, key = { it.id.value }) { music ->
                     MusicCard(
                         title = music.name,
                         subtitle = stringResource(UiRes.string.duration_public_domain, music.formattedDuration),
@@ -93,7 +93,7 @@ internal fun CategoryScreen(
                         trailingContent = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 PlayPauseButton(
-                                    isPlaying = state.playingMusicId == music.id && state.playIntent,
+                                    isPlaying = state.requestedTrackId == music.id && state.playIntent,
                                     onClick = { onPlaybackClick(music.id) },
                                 )
                                 FavoriteButton(
@@ -118,7 +118,7 @@ private fun CategoryScreenPreview() {
                 category = Category("rain", "Rain", "Gentle raindrops", "☂", 1),
                 musics = listOf(
                     Music(
-                        id = "gentle-rain",
+                        id = TrackId("gentle-rain"),
                         name = "Rain on the Window",
                         categoryId = "rain",
                         durationSeconds = 9,
