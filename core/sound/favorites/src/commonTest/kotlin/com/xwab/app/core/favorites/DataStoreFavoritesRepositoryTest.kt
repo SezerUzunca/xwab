@@ -3,6 +3,8 @@ package com.xwab.app.core.favorites
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.mutablePreferencesOf
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.xwab.app.core.catalog.TrackId
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -62,10 +64,32 @@ class DataStoreFavoritesRepositoryTest {
         assertEquals(setOf(TrackId("gentle-rain")), repository.favoriteIds.first())
     }
 
+    /**
+     * The store outlives the code that wrote it, so what comes out of it is not assumed to be
+     * well-formed. A blank id cannot name a track — `TrackId` refuses one — and turning it into an
+     * exception here would take the whole set, and the screen collecting it, down with it.
+     */
+    @Test
+    fun aStoredIdThatCannotNameATrackIsDroppedRatherThanThrown() = runBlocking {
+        val dataStore = FakePreferencesDataStore()
+        dataStore.store(setOf("gentle-rain", "", "   ", "calm-waves"))
+        val repository = DataStoreFavoritesRepository(dataStore)
+
+        assertEquals(
+            setOf(TrackId("gentle-rain"), TrackId("calm-waves")),
+            repository.favoriteIds.first(),
+        )
+    }
+
     private class FakePreferencesDataStore : DataStore<Preferences> {
-        private val stored = MutableStateFlow(emptyPreferences())
+        private val stored = MutableStateFlow<Preferences>(emptyPreferences())
         var failingReads: Int = 0
         var writeFailure: Throwable? = null
+
+        /** Puts ids straight into the store, including ones the repository would never write. */
+        fun store(ids: Set<String>) {
+            stored.value = mutablePreferencesOf(stringSetPreferencesKey("favorite_music_ids") to ids)
+        }
 
         override val data: Flow<Preferences> = flow {
             if (failingReads > 0) {

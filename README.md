@@ -1,8 +1,14 @@
 This is a Kotlin Multiplatform project targeting Android, iOS.
 
-Serenity is a free, account-free relaxation sound app. Its feature slices are `home`, `category`
-and `player`; shared catalog and platform primitives live under `core`. Favouriting is a
+Serenity is a free, account-free relaxation sound app. Its feature slices are `home`, `category`,
+`sounds` and `story`; shared catalog and platform primitives live under `core`. Favouriting is a
 shared data capability used from several screens rather than a screen of its own.
+
+`sounds` and `story` are separate slices because they share no data: one deals in `Music`,
+categories, favorites and a local cache, the other in `Story`, an author and a narrator, and a
+stream that is never written to disk. The one thing they do share — the playback session — is
+already content-independent, so joining the two screens would put back at the feature layer the
+coupling `PlaybackItemId` removed from the core.
 
 ## Included features
 
@@ -11,9 +17,12 @@ shared data capability used from several screens rather than a screen of its own
   immediately and is saved to app-owned storage, so later plays of it are local and offline.
 - Persistent favorites backed by Kotlin Multiplatform DataStore.
 - Browsing, track details, favorites, and active audio playback.
+- Five public-domain sleep stories, streamed rather than cached, played from the story list. No
+  position or seek yet: the playback engine does not publish one, so a story is played and paused
+  like a sound is.
 - A `core:playback:engine` KMP playback layer built with Media3 ExoPlayer on Android and
   AVFoundation AVPlayer on iOS, including platform media-session integration.
-- Public-domain/CC0 audio with a source and checksum manifest in
+- Public-domain/CC0 sound and story recordings with an auditable source and license register in
   [THIRD_PARTY_AUDIO.md](./THIRD_PARTY_AUDIO.md).
 
 Each core module owns one capability, contract and implementation together, and is named for the
@@ -22,6 +31,7 @@ serve, so a module's Gradle path says which half of the app it belongs to:
 
 ```
 core/
+├── network
 ├── sound/       catalog · manifest · delivery · favorites
 ├── story/       catalog · manifest
 ├── playback/    session · engine
@@ -41,12 +51,17 @@ container projects Gradle makes for them are never declared on. `core/sound/mani
 | `core:sound:delivery` | *where do this track's bytes come from now?* — resolution, download, cache |
 | `core:sound:favorites` | *what did the listener mark?* — persisted through DataStore |
 | `core:story:catalog` | *what can be listened to?* — `Story`, `StoryId`, `StoryCatalogRepository` |
-| `core:story:manifest` | *which stories exist, and where does each one stream from?* — the list and its port |
+| `core:story:manifest` | *which stories exist, and where does each one stream from?* — the list and its two ports |
 | `core:playback:session` | *how is the one session steered?* — `PlaybackCoordinator`, `PlaybackSummary` |
 | `core:playback:engine` | *how does this platform play audio?* — the reusable Media3/AVFoundation engine |
+| `core:network` | *how does shared code reach a server?* — one Ktor client for text and streamed bytes |
 
-Crosscutting modules — `core:designsystem`, `core:navigation`, `core:testing` — are tied to no
+Crosscutting modules — `core:network`, `core:designsystem`, `core:navigation`, `core:testing` — are tied to no
 content type, so they are grouped under none of them and stay directly under `core/`.
+
+They are not equally visible, though. `core:designsystem`, `core:navigation` and `core:testing` are
+things a screen uses; `core:network` is not, and rule 4 below refuses a feature that declares it. A
+screen reads content through a repository — it does not make requests.
 
 Kotlin packages did not move with the directories: `:core:sound:manifest` still declares
 `com.xwab.app.core.catalogmanifest`. Renaming a package touches every import in the build, which is
@@ -63,27 +78,86 @@ more appropriate persistence layer.
 
 ```
 androidApp ─┐
-            ├─► shared (composition root: Koin + NavDisplay)
+            ├─► shared (composition root: Koin + AppShell)
 iosApp ─────┘        │
-        ┌────────────┼────────────────┐
-        ▼            ▼                ▼
-  feature:home  feature:category  feature:player   (each with a :navigation API module)
-        │            │                │
-        └────────────┴───────┬────────┘
-                             ▼
-   core:sound:catalog      core:sound:favorites      core:playback:session
-        ▲                                        │
-        │                        ┌───────────────┴───────────────┐
-        │                        ▼                               ▼
-        │                core:sound:delivery            core:playback:engine
-        │                        │
-        │                        ▼
-        └──────────────  core:sound:manifest
+        ┌────────────┼────────────────┬────────────────┐
+        ▼            ▼                ▼                ▼
+  feature:home  feature:category  feature:sounds  feature:story
+        │            │                │                │        (each with a :navigation module)
+        │            │                │                └──► core:story:catalog
+        └────────────┴────────────────┴──► core:sound:catalog · core:sound:favorites
+                                      │
+                    all four ─────────┴──► core:playback:session
+                                                     │
+                          ┌──────────────────────────┼─────────────────────┐
+                          ▼                          ▼                     ▼
+                  core:sound:delivery        core:story:manifest   core:playback:engine
+                          │                          │
+                          ▼                          ▼
+                  core:sound:manifest         core:story:catalog
+                          │                   (streams; never cached)
+                          ▼
+                  core:sound:catalog
 
-  not on a screen yet:  core:story:catalog  ◄──  core:story:manifest
-
-  crosscutting: core:designsystem · core:navigation · core:testing
+  crosscutting: core:network · core:designsystem · core:navigation · core:testing
 ```
+
+`feature:story` reads two capabilities where a sound screen reads three: there is no favorites port
+for stories.
+
+## Navigation
+
+`AppShell` is a navigation bar over one back stack per tab, and it **names no feature and no route**
+— not even the start destination. A slice appears on screen by publishing a `TopLevelDestination`
+on its `FeatureEntry`:
+
+```kotlin
+val storyFeature = FeatureEntry(
+    koinModule = storyModule,
+    serializers = storyNavigationSerializers,
+    topLevel = TopLevelDestination(
+        route = StoriesRoute,
+        order = 1,
+        label = { stringResource(Res.string.tab_stories) },
+        icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
+    ),
+)
+```
+
+`label` and `icon` are slots rather than a `StringResource` and an `ImageVector`, so each feature
+fills them from its own Compose resources and `core:navigation` stays free of the design system.
+A feature that leaves `topLevel` null — `sounds`, `category` — is navigated *into* and is not a
+place to switch to.
+
+The bar is `features.mapNotNull { it.topLevel }.sortedBy { it.order }`. Adding a slice is one line
+in `AppFeatures`, and no line at all in the features that already exist. The alternative — a home
+screen with a card per slice — would have made `feature:home` depend on the `:navigation` module of
+every other feature and be edited every time one was added.
+
+The Now in Android version of this centralises `TopLevelDestination` as an enum in the app module.
+That is the part deliberately inverted here: an enum in `shared` would have to be edited for every
+new slice, which is the cost this shape exists to avoid.
+
+### One back stack per tab
+
+`NavigationState` holds a `Map<NavKey, MutableList<NavKey>>` and which tab is selected, following
+the multiple-back-stacks recipe in the Navigation 3 documentation. Handing `NavDisplay` a different
+back stack on each tab switch would not do: entries that leave the display have their
+`ViewModelStore` and saved state cleared by the decorators, so a tab would come back scrolled to the
+top with its ViewModels rebuilt. Each stack is decorated separately with
+`rememberDecoratedNavEntries` and the ones in use are flattened into the single list `NavDisplay`
+renders.
+
+The start tab is always in that list, so back from another tab's root lands on it rather than
+leaving the app. A tab's own root is never popped: an emptied stack has nothing to render, and the
+tab would vanish instead of resetting.
+
+`NavigationState` and `Navigator` hold no composition — only a `MutableState` — so `NavigatorTest`
+drives every one of those rules without a UI.
+
+One deviation from the documented recipe: the selected tab is persisted as an index rather than
+through `NavKeySerializer`, which `navigation3-runtime` 1.1.1 publishes for Android only and this
+build is Kotlin Multiplatform.
 
 A feature owns its screen, its state, its ViewModel, its use cases and its Koin bindings. It sees
 another feature only through that feature's `:navigation` module — a route, its serializers and a
@@ -100,13 +174,13 @@ model, or the URL behind a track.
 Four rules hold this in place, and `./gradlew checkArchitecture` fails the build when one breaks:
 a core module may not depend on a feature; a feature may depend only on another feature's
 `:navigation` module; a use case in a shared core module must serve more than one feature; and a
-feature may not declare `core:sound:delivery`, `core:playback:engine`, `core:sound:manifest` or
-`core:story:manifest`.
+feature may not declare `core:network`, `core:sound:delivery`, `core:playback:engine`,
+`core:sound:manifest` or `core:story:manifest`.
 
 That fourth rule reads what a screen can *reach*, not only what it names. An `api` dependency
 re-exports its own `api` dependencies onto every consumer's compile classpath, so one edge added to
 a module every feature already declares — `core:testing` would be enough — would have put delivery
-in front of three screens without anyone declaring it. The rule follows those edges and names the
+in front of every screen without anyone declaring it. The rule follows those edges and names the
 path it took.
 
 That fourth rule used to scan feature sources for the strings `AudioContentResolver` and

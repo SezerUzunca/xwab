@@ -8,7 +8,7 @@ import com.xwab.app.feature.home.HomeScreenRoute
 import com.xwab.app.feature.home.HomeViewModel
 import com.xwab.app.feature.home.domain.ObserveHomeContentUseCase
 import com.xwab.app.feature.home.navigation.HomeRoute
-import com.xwab.app.feature.player.navigation.navigateToPlayer
+import com.xwab.app.feature.sounds.navigation.navigateToPlayer
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module

@@ -1,9 +1,11 @@
 package com.xwab.app.di
 
 import com.xwab.app.core.navigation.FeatureEntry
+import com.xwab.app.core.navigation.TopLevelDestination
 import com.xwab.app.feature.category.categoryFeature
 import com.xwab.app.feature.home.homeFeature
-import com.xwab.app.feature.player.playerFeature
+import com.xwab.app.feature.sounds.soundsFeature
+import com.xwab.app.feature.story.storyFeature
 import kotlinx.serialization.modules.SerializersModule
 
 /**
@@ -16,8 +18,19 @@ import kotlinx.serialization.modules.SerializersModule
 internal val features: List<FeatureEntry> = listOf(
     homeFeature,
     categoryFeature,
-    playerFeature,
+    soundsFeature,
+    storyFeature,
 )
+
+/**
+ * The navigation bar, in the order the features asked for.
+ *
+ * The first one is the start destination: the tab back falls through to and the app exits from.
+ * `AppShell` reads this and nothing else — it names no feature, so a new slice reaches the bar by
+ * appearing in [features] above with a `topLevel` on its entry.
+ */
+internal val topLevelDestinations: List<TopLevelDestination> =
+    features.mapNotNull { it.topLevel }.sortedBy { it.order }
 
 /**
  * The polymorphic `NavKey` serializers of every feature, merged.

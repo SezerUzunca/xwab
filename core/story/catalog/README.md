@@ -1,42 +1,39 @@
 # Story catalog
 
-One capability: **what a listener can be told.** `Story`, `StoryId`, `StoryCatalogRepository`, and
-the port screens will read them through.
+One capability: **what a listener may know about a story.** This module declares `Story`,
+`StoryId`, and `StoryCatalogRepository`; it contains no catalog rows or physical sources.
 
-That is the whole module — three declarations and no data. It depends on nothing else in this
-build, exactly like [core:sound:catalog](../../sound/catalog/README.md), the sound half of the same
-idea.
+The data lives in [core:story:manifest](../manifest/README.md), which implements the repository.
+That mirrors [core:sound:catalog](../../sound/catalog/README.md): screens receive descriptive
+metadata through a read port, while the module that knows the audio address stays off their
+classpath.
 
-The stories themselves live next door in [core:story:manifest](../manifest/README.md), which
-implements `StoryCatalogRepository` and which no feature declares. The split is the one the sound
-side already has: a module that knows where a story's audio physically comes from cannot sit on
-every screen's classpath, or "a screen must not resolve a story itself" is a convention rather than
-a fact. `checkArchitecture` rule 4 names that module, so a feature declaring it fails the build.
-
-| Port | Answers | Declared by |
+| Port | Answers | Read by |
 |---|---|---|
-| `StoryCatalogRepository` (here) | *what is there to listen to?* | every feature that lists stories |
+| `StoryCatalogRepository` | Which stories exist, and their title, author, narrator, description, and duration | `feature:story` and playback metadata resolution |
 
-## What is not here, and why
+## What is not here
 
-- **No HTTP client, no DTOs, no JSON.** The list is a hand-written placeholder today and a feed
-  later; both are `core:story:manifest`'s business, and neither changes this module.
-- **No stream URL.** Story audio is online-only and never enters the sound cache in
-  `core:sound:delivery`, whose resolver starts a background download on a cache miss. Where a
-  story's bytes come from belongs beside the list, not beside the model.
-- **No progress or position.** Resuming a story needs `positionMs`, `durationMs` and a seek command
-  that `core:playback:engine` does not publish yet. Storing progress is `core:story:progress`'s
-  job once the engine can report it — a module that does not exist because nothing could fill it.
-- **No Koin module, no Compose, no ViewModel.** A port module binds nothing.
+- **No HTTP client, DTO, or JSON.** The shipped catalog is a local manifest.
+- **No stream URL.** Physical sources belong to `core:story:manifest` and are read only by the
+  playback session.
+- **No download or cache API.** Story playback is currently online-only. Sound caching remains in
+  `core:sound:delivery` and is not reused as a Story responsibility.
+- **No playback progress.** That needs position and seek support from the playback engine before a
+  progress store has useful data to persist.
+- **No DI or UI.** This module declares types and a port; composition and presentation live
+  elsewhere.
 
-`StoryId` refuses a blank value where `TrackId` does not. A track id comes from a hand-written list
-one module away; a story id will come from a feed, and a blank one there is a story that lists but
-never opens.
+## Invariants
+
+`StoryId` rejects blank ids. `Story` requires a title, author, description, positive duration, a
+non-blank narrator when present, and HTTPS artwork when present. Manifest-level tests add unique
+ids and unique playable sources.
 
 ## Status
 
-There is no `feature:story` yet. The session is ready for one: `core:playback:session` plays a
-`PlaybackItemId`, already knows `PlaybackKind.STORY`, and resolves each kind through an internal
-resolver of its own. A story request today fails as `ItemNotFound`, because nothing can yet say
-where a story streams from — that answer arrives with the feed, in
-[core:story:manifest](../manifest/README.md), and adding it is one resolver and one line of DI.
+The catalog contains five real English-language literary stories, and `feature:story` lists and
+plays every shipped row through `PlaybackCoordinator`. There is still no progress bar or resume:
+`core:playback:engine` publishes no position and accepts no seek, so a story is played and paused
+the way a sound is. Recording sources and their public-domain grants are listed in
+[THIRD_PARTY_AUDIO.md](../../../THIRD_PARTY_AUDIO.md).

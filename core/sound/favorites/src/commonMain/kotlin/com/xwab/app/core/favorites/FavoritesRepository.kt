@@ -42,7 +42,16 @@ internal class DataStoreFavoritesRepository(
         }
         // Stored as plain strings, because that is what a preferences file holds; the wrapper goes
         // back on at the boundary so nothing downstream handles a bare id again.
-        .map { preferences -> preferences[favoriteIdsKey].orEmpty().mapTo(mutableSetOf(), ::TrackId) }
+        // Blanks are dropped rather than turned into a `TrackId`, which refuses one. This store
+        // outlives the code that wrote it, so what comes out of it is read defensively: an id that
+        // cannot name a track is a favorite that cannot be shown, and throwing here would take the
+        // whole set — and the screen collecting it — down with it. `catch` above cannot help; it
+        // only covers what happens upstream of it.
+        .map { preferences ->
+            preferences[favoriteIdsKey].orEmpty()
+                .filter { it.isNotBlank() }
+                .mapTo(mutableSetOf(), ::TrackId)
+        }
 
     override suspend fun toggle(musicId: TrackId) {
         val storedId = musicId.value

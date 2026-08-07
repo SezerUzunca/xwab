@@ -26,6 +26,9 @@ internal object FeatureFirstRules {
      * the rule cannot quietly protect nothing after a rename.
      */
     val MODULES_OFF_LIMITS_TO_FEATURES = mapOf(
+        ":core:network" to
+            "HTTP is an adapter detail; a screen reads content through its repository instead " +
+                "of issuing requests itself",
         ":core:sound:delivery" to
             "resolving a track to a URI and caching its bytes are the session's business; a " +
                 "screen steers playback through PlaybackCoordinator",

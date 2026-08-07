@@ -44,8 +44,8 @@ internal class LocalFirstAudioContentResolver(
     }
 
     private suspend fun cachedOrStreamed(source: TrackSource): AudioSourceResolution {
-        val cachedUri = fileStore.find(source.cacheFileName)
-        if (cachedUri != null) return AudioSourceResolution.Resolved(cachedUri)
+        val cachedPath = fileStore.find(source.cacheFileName)
+        if (cachedPath != null) return AudioSourceResolution.Resolved(cachedPath)
 
         prefetcher.prefetch(source.cacheFileName, source.httpsUrl)
         return AudioSourceResolution.Resolved(source.httpsUrl)

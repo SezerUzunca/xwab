@@ -22,6 +22,16 @@ internal class ManifestMusicCatalogRepository(
     private val allTracks: Flow<List<Music>> = flowOf(tracks)
     private val allCategories: Flow<List<Category>> = flowOf(categories)
 
+    init {
+        // Two tracks under one id make `observeMusic` answer with whichever came first, which is a
+        // bug that looks like a content mistake. The same check `ManifestStoryCatalogRepository`
+        // makes: a copied row here can produce it, and so can a feed later.
+        val duplicates = tracks.groupBy { it.id }.filterValues { it.size > 1 }.keys
+        require(duplicates.isEmpty()) {
+            "Track ids must be unique: ${duplicates.joinToString { it.value }}"
+        }
+    }
+
     override fun observeCategories(): Flow<List<Category>> = allCategories
 
     override fun observeAllMusic(): Flow<List<Music>> = allTracks

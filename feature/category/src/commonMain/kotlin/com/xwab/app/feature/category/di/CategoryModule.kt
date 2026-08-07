@@ -7,7 +7,7 @@ import com.xwab.app.feature.category.CategoryScreenRoute
 import com.xwab.app.feature.category.CategoryViewModel
 import com.xwab.app.feature.category.domain.ObserveCategoryContentUseCase
 import com.xwab.app.feature.category.navigation.CategoryRoute
-import com.xwab.app.feature.player.navigation.navigateToPlayer
+import com.xwab.app.feature.sounds.navigation.navigateToPlayer
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.parameter.parametersOf

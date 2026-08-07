@@ -31,13 +31,13 @@ class LocalFirstAudioContentResolverTest {
     fun anAlreadyCachedTrackResolvesToTheLocalFileAndIsNotQueuedAgain() = runBlocking {
         val prefetcher = RecordingPrefetcher()
         val fileStore = FakeAudioFileStore(
-            cached = mapOf(CACHE_FILE_NAME to "file:///audio/$CACHE_FILE_NAME"),
+            cached = mapOf(CACHE_FILE_NAME to "/audio/$CACHE_FILE_NAME"),
         )
         val resolver = LocalFirstAudioContentResolver(fileStore, prefetcher, CATALOG)
 
         val resolution = assertIs<AudioSourceResolution.Resolved>(resolver.resolve(TRACK))
 
-        assertEquals("file:///audio/$CACHE_FILE_NAME", resolution.uri)
+        assertEquals("/audio/$CACHE_FILE_NAME", resolution.uri)
         assertTrue(prefetcher.requests.isEmpty())
     }
 

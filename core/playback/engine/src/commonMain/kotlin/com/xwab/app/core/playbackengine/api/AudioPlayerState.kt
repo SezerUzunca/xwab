@@ -1,5 +1,6 @@
 package com.xwab.app.core.playbackengine.api
 
+/** [uri] is an HTTPS URI or an absolute local path interpreted by the platform playback adapter. */
 data class AudioSource(
     val id: String,
     val uri: String,
@@ -8,7 +9,7 @@ data class AudioSource(
 ) {
     init {
         require(id.isNotBlank()) { "Audio source id cannot be blank." }
-        require(uri.isNotBlank()) { "Audio source URI cannot be blank." }
+        require(uri.isNotBlank()) { "Audio source reference cannot be blank." }
     }
 }
 

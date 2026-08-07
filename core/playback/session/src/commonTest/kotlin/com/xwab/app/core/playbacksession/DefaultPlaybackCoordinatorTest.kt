@@ -14,6 +14,11 @@ import com.xwab.app.core.playbackengine.api.PlaybackController
 import com.xwab.app.core.playbackengine.api.PlaybackPhase
 import com.xwab.app.core.playbackengine.api.PlaybackRequest
 import com.xwab.app.core.playbackengine.api.SleepTimerState
+import com.xwab.app.core.story.Story
+import com.xwab.app.core.story.StoryCatalogRepository
+import com.xwab.app.core.story.StoryId
+import com.xwab.app.core.storymanifest.StoryStreamCatalog
+import com.xwab.app.core.storymanifest.StoryStreamSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -565,10 +570,81 @@ class DefaultPlaybackCoordinatorTest {
         val player = FakePlaybackController()
         val coordinator = coordinator(player)
 
-        coordinator.play(PlaybackItemId.story("forest-lantern"))
+        coordinator.play(PlaybackItemId.story("night-came-slowly"))
 
         assertEquals(
-            PlaybackFailure.ItemNotFound(PlaybackItemId.story("forest-lantern")),
+            PlaybackFailure.ItemNotFound(PlaybackItemId.story("night-came-slowly")),
+            coordinator.playback.first().failure,
+        )
+        assertNull(player.lastLoadRequest)
+    }
+
+    /**
+     * A story is resolved the same way a sound is, minus the cache: catalog for the title, stream
+     * catalog for the address, straight to the engine. Nothing on this path can write to disk,
+     * which is the one difference between the two kinds that is meant to stay.
+     */
+    @Test
+    fun aStoryIsPlayedStraightFromItsStreamAddress() = runBlocking {
+        val player = FakePlaybackController()
+
+        storyCoordinator(player).play(PlaybackItemId.story("night-came-slowly"))
+
+        assertEquals("story:night-came-slowly", player.lastLoadRequest?.source?.id)
+        assertEquals("https://example.test/night.mp3", player.lastLoadRequest?.source?.uri)
+        assertEquals("The Night Came Slowly", player.lastLoadRequest?.source?.title)
+        assertEquals("Alan Davis Drake", player.lastLoadRequest?.source?.artist)
+    }
+
+    /** A sleep sound repeats until the timer stops it. A story that repeats has not ended. */
+    @Test
+    fun aStoryDoesNotLoopByDefaultWhereASoundDoes() = runBlocking {
+        val player = FakePlaybackController()
+
+        storyCoordinator(player).play(PlaybackItemId.story("night-came-slowly"))
+
+        assertEquals(LoopMode.Off, player.lastLoadRequest?.loopMode)
+    }
+
+    /** The listener meant it, whatever they switch to next. */
+    @Test
+    fun aLoopTheListenerTurnedOnSurvivesASwitchToAStory() = runBlocking {
+        val player = FakePlaybackController()
+        val coordinator = storyCoordinator(player)
+
+        coordinator.setLooping(true)
+        coordinator.play(PlaybackItemId.story("night-came-slowly"))
+
+        assertEquals(LoopMode.One, player.lastLoadRequest?.loopMode)
+    }
+
+    /**
+     * The shipped manifest has a source for every story. A mismatched catalog/source implementation
+     * still fails explicitly instead of sending an empty URI to the engine.
+     */
+    @Test
+    fun aCatalogAndSourceMismatchIsUnavailableRatherThanMissing() = runBlocking {
+        val player = FakePlaybackController()
+        val coordinator = storyCoordinator(player)
+
+        coordinator.play(PlaybackItemId.story("an-idle-fellow"))
+
+        assertEquals(
+            PlaybackFailure.SourceUnavailable(PlaybackItemId.story("an-idle-fellow")),
+            coordinator.playback.first().failure,
+        )
+        assertNull(player.lastLoadRequest)
+    }
+
+    @Test
+    fun aStoryTheCatalogDoesNotHoldIsPublishedAsAFailure() = runBlocking {
+        val player = FakePlaybackController()
+        val coordinator = storyCoordinator(player)
+
+        coordinator.play(PlaybackItemId.story("no-such-story"))
+
+        assertEquals(
+            PlaybackFailure.ItemNotFound(PlaybackItemId.story("no-such-story")),
             coordinator.playback.first().failure,
         )
         assertNull(player.lastLoadRequest)
@@ -594,6 +670,46 @@ class DefaultPlaybackCoordinatorTest {
         player: FakePlaybackController,
         resolver: AudioContentResolver = testContentResolver,
     ) = DefaultPlaybackCoordinator(player, listOf(SoundPlaybackResolver(FakeCatalog, resolver)))
+
+    /** The same session with both kinds wired, which is what the app ships. */
+    private fun storyCoordinator(player: FakePlaybackController) = DefaultPlaybackCoordinator(
+        player,
+        listOf(
+            SoundPlaybackResolver(FakeCatalog, testContentResolver),
+            StoryPlaybackResolver(FakeStoryCatalog, FakeStoryStreams),
+        ),
+    )
+
+    /** Two catalog rows, with one source deliberately omitted to exercise defensive handling. */
+    private object FakeStoryCatalog : StoryCatalogRepository {
+        private val stories = listOf(
+            story("night-came-slowly", "The Night Came Slowly"),
+            story("an-idle-fellow", "An Idle Fellow"),
+        )
+
+        override fun observeStories(): Flow<List<Story>> = flowOf(stories)
+        override fun observeStory(storyId: StoryId): Flow<Story?> =
+            flowOf(stories.find { it.id == storyId })
+
+        private fun story(id: String, title: String) = Story(
+            id = StoryId(id),
+            title = title,
+            author = "Kate Chopin",
+            description = "A literary short story.",
+            narrator = "Alan Davis Drake",
+            durationSeconds = 174,
+            artworkUrl = null,
+        )
+    }
+
+    private object FakeStoryStreams : StoryStreamCatalog {
+        override fun sourceFor(storyId: StoryId): StoryStreamSource? =
+            if (storyId == StoryId("night-came-slowly")) {
+                StoryStreamSource("https://example.test/night.mp3")
+            } else {
+                null
+            }
+    }
 
     /** The catalog the coordinator reads its metadata from; only `observeMusic` is ever asked. */
     private object FakeCatalog : MusicCatalogRepository {

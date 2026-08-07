@@ -11,7 +11,7 @@ import kotlin.test.assertNull
 class EngineItemIdTest {
     @Test
     fun anItemSurvivesTheTripThroughTheEngine() {
-        listOf(PlaybackItemId.sound("gentle-rain"), PlaybackItemId.story("forest-lantern"))
+        listOf(PlaybackItemId.sound("gentle-rain"), PlaybackItemId.story("night-came-slowly"))
             .forEach { item ->
                 assertEquals(item, playbackItemIdOf(item.toEngineId()))
             }

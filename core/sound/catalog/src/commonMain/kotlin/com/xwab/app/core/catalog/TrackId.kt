@@ -23,5 +23,12 @@ import kotlin.jvm.JvmInline
  */
 @JvmInline
 value class TrackId(val value: String) {
+    init {
+        // The same check the story catalog's id makes, for the same reason: an id that is blank
+        // names a track no lookup can ever match, so it is refused where it is built rather than
+        // where it fails.
+        require(value.isNotBlank()) { "A track id cannot be blank." }
+    }
+
     override fun toString(): String = value
 }

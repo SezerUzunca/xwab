@@ -54,6 +54,7 @@ include(":core:playback:session")
 include(":core:playback:engine")
 
 // Crosscutting: used by every slice, tied to no content type, so grouped under none of them.
+include(":core:network")
 include(":core:designsystem")
 include(":core:navigation")
 include(":core:testing")

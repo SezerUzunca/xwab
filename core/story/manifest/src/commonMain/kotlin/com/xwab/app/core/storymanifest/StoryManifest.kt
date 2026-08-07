@@ -6,67 +6,84 @@ import com.xwab.app.core.story.StoryId
 /**
  * The stories the app knows about, in one hand-written list.
  *
- * **These are placeholders.** Nothing here is recorded audio yet: the entries exist so that the
- * `StoryCatalogRepository` port has something to serve, and so that the modules around it —
- * DI, architecture rules, a future `feature:story` — can be built and tested before a story feed
- * exists. When it does, this list is what a feed-backed implementation replaces, and no module
- * outside this one changes shape.
+ * The shape mirrors `catalogEntries` on the sound side: metadata and source in one row, so adding a
+ * story is one edit in one file. The difference is the source itself. A sound row names a file to
+ * cache; a story row names an address to stream, because story audio must never enter the cache in
+ * `core:sound:delivery`, whose resolver starts a background download whenever it misses.
  *
- * There is no source URL here on purpose. Story audio is online-only and must never enter the sound
- * cache in `core:sound:delivery`, whose resolver starts a background download whenever it misses.
- * Where a story's bytes come from is decided with the feed contract — endpoint, whether URLs are
- * permanent or signed, and how long a signed one lives — and lands in this module, beside the list.
- *
- * The list never leaves the module. Screens see it through `StoryCatalogRepository`, whose
- * interface lives in `core:story:catalog`, and no feature declares this module.
+ * The list never leaves the module. Screens see it through `StoryCatalogRepository`, whose interface
+ * lives in `core:story:catalog`, and the session sees only the source half through
+ * [StoryStreamCatalog]; neither port can be used to reach the other's business. Recording sources
+ * and public-domain grants are audited in the repository's `THIRD_PARTY_AUDIO.md`.
  */
-internal val storyManifest: List<Story> = listOf(
-    Story(
-        id = StoryId("forest-lantern"),
-        title = "The Forest Lantern",
-        description = "A slow walk through a winter forest, one lantern at a time.",
-        narrator = "Mira",
-        durationSeconds = 900,
-        artworkUrl = null,
+internal val storyManifest: List<StoryEntry> = listOf(
+    StoryEntry(
+        story = Story(
+            id = StoryId("night-came-slowly"),
+            title = "The Night Came Slowly",
+            author = "Kate Chopin",
+            description = "A quiet meditation on dusk, stars, and the stillness of night.",
+            narrator = "Alan Davis Drake",
+            durationSeconds = 174,
+            artworkUrl = null,
+        ),
+        httpsUrl = "https://upload.wikimedia.org/wikipedia/commons/transcoded/2/26/" +
+            "The_Night_Came_Slowly_Chopin.ogg/The_Night_Came_Slowly_Chopin.ogg.mp3",
     ),
-    Story(
-        id = StoryId("harbour-night"),
-        title = "Harbour at Night",
-        description = "Rope, water and a sleeping fishing town.",
-        narrator = "Elias",
-        durationSeconds = 1200,
-        artworkUrl = null,
+    StoryEntry(
+        story = Story(
+            id = StoryId("an-idle-fellow"),
+            title = "An Idle Fellow",
+            author = "Kate Chopin",
+            description = "A brief character sketch about work, idleness, and how a life is judged.",
+            narrator = "Alan Davis Drake",
+            durationSeconds = 187,
+            artworkUrl = null,
+        ),
+        httpsUrl = "https://upload.wikimedia.org/wikipedia/commons/transcoded/b/bd/" +
+            "KateChopin_AnIdleFellow.ogg/KateChopin_AnIdleFellow.ogg.mp3",
     ),
-    Story(
-        id = StoryId("long-train"),
-        title = "The Long Train",
-        description = "A night train crossing an empty plain, carriage by carriage.",
-        narrator = "Mira",
-        durationSeconds = 1500,
-        artworkUrl = null,
+    StoryEntry(
+        story = Story(
+            id = StoryId("story-of-an-hour"),
+            title = "The Story of an Hour",
+            author = "Kate Chopin",
+            description = "A woman receives sudden news and discovers how much can change in one hour.",
+            narrator = "Alan Davis Drake",
+            durationSeconds = 479,
+            artworkUrl = null,
+        ),
+        httpsUrl = "https://upload.wikimedia.org/wikipedia/commons/transcoded/3/36/" +
+            "The_Story_of_an_Hour_Chopin.ogg/The_Story_of_an_Hour_Chopin.ogg.mp3",
     ),
-    Story(
-        id = StoryId("lighthouse-keeper"),
-        title = "The Lighthouse Keeper",
-        description = "One quiet shift, told from the top of the stairs.",
-        narrator = "Elias",
-        durationSeconds = 1080,
-        artworkUrl = null,
+    StoryEntry(
+        story = Story(
+            id = StoryId("doctor-chevaliers-lie"),
+            title = "Doctor Chevalier's Lie",
+            author = "Kate Chopin",
+            description = "A doctor offers one compassionate untruth after a lonely patient's final night.",
+            narrator = "Alan Davis Drake",
+            durationSeconds = 201,
+            artworkUrl = null,
+        ),
+        httpsUrl = "https://upload.wikimedia.org/wikipedia/commons/transcoded/9/90/" +
+            "KateChopin_DrChevaliersLie.ogg/KateChopin_DrChevaliersLie.ogg.mp3",
     ),
-    Story(
-        id = StoryId("garden-after-rain"),
-        title = "The Garden After Rain",
-        description = "Everything dripping, nothing in a hurry.",
-        narrator = null,
-        durationSeconds = 720,
-        artworkUrl = null,
-    ),
-    Story(
-        id = StoryId("paper-boats"),
-        title = "Paper Boats",
-        description = "A child sends folded boats downstream until the light goes.",
-        narrator = "Mira",
-        durationSeconds = 840,
-        artworkUrl = null,
+    StoryEntry(
+        story = Story(
+            id = StoryId("a-tent-in-agony"),
+            title = "A Tent in Agony",
+            author = "Stephen Crane",
+            description = "Three friends trade an unsettling tale during a fishing trip.",
+            narrator = "Alan Davis Drake",
+            durationSeconds = 462,
+            artworkUrl = null,
+        ),
+        httpsUrl = "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f9/" +
+            "ATentInAgony_Crane_add_Stephen_Crane.ogg/" +
+            "ATentInAgony_Crane_add_Stephen_Crane.ogg.mp3",
     ),
 )
+
+/** The stories themselves, which is all the repository serves. */
+internal val storyCatalog: List<Story> = storyManifest.map(StoryEntry::story)

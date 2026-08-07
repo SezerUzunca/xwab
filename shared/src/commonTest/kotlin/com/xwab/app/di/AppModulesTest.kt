@@ -13,6 +13,8 @@ import com.xwab.app.core.catalogmanifest.di.catalogManifestModule
 import com.xwab.app.core.favorites.FavoritesRepository
 import com.xwab.app.core.favorites.di.favoritesModule
 import com.xwab.app.core.favorites.di.favoritesPlatformModule
+import com.xwab.app.core.network.NetworkClient
+import com.xwab.app.core.network.di.networkModule
 import com.xwab.app.core.playbackengine.api.AudioPlayerState
 import com.xwab.app.core.playbackengine.api.PlaybackCommand
 import com.xwab.app.core.playbackengine.api.PlaybackController
@@ -24,9 +26,11 @@ import com.xwab.app.core.story.StoryCatalogRepository
 import com.xwab.app.core.storymanifest.di.storyManifestModule
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.home.navigation.HomeRoute
-import com.xwab.app.feature.player.navigation.PlayerRoute
+import com.xwab.app.feature.sounds.navigation.PlayerRoute
+import com.xwab.app.feature.story.navigation.StoriesRoute
 import kotlin.test.AfterTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.Flow
@@ -56,6 +60,7 @@ class AppModulesTest {
 
     private val koin = koinApplication {
         modules(
+            networkModule,
             catalogManifestModule,
             audioDeliveryModule,
             storyManifestModule,
@@ -72,6 +77,7 @@ class AppModulesTest {
     fun theApplicationShipsTheModulesUnderTest() {
         val shipped = appModules()
 
+        assertTrue(networkModule in shipped, "networkModule is missing from appModules()")
         assertTrue(catalogManifestModule in shipped, "catalogManifestModule is missing from appModules()")
         assertTrue(audioDeliveryModule in shipped, "audioDeliveryModule is missing from appModules()")
         assertTrue(
@@ -113,7 +119,8 @@ class AppModulesTest {
     @OptIn(ExperimentalSerializationApi::class)
     @Test
     fun everyFeatureContributesTheSerializersForItsOwnRoutes() {
-        val routes: List<NavKey> = listOf(HomeRoute, CategoryRoute("rain"), PlayerRoute("gentle-rain"))
+        val routes: List<NavKey> =
+            listOf(HomeRoute, CategoryRoute("rain"), PlayerRoute("gentle-rain"), StoriesRoute)
 
         routes.forEach { route ->
             assertNotNull(
@@ -123,11 +130,40 @@ class AppModulesTest {
         }
     }
 
+    /**
+     * `AppShell` builds the navigation bar from this list and starts on its first entry, so an
+     * empty one is a blank app and two features claiming the same route are two tabs sharing a
+     * single back stack — each tab's stack is keyed by its route.
+     */
+    @Test
+    fun theNavigationBarIsBuiltFromTheFeaturesWithoutADuplicateRoute() {
+        assertTrue(topLevelDestinations.isNotEmpty(), "no feature declares a TopLevelDestination")
+        assertEquals(
+            topLevelDestinations.size,
+            topLevelDestinations.map { it.route }.toSet().size,
+            "two features declare the same top-level route",
+        )
+    }
+
+    /**
+     * Derived from the bar rather than listed by hand, so a tab added later is covered the day it
+     * appears. A tab's root without a serializer is a crash on the second launch, not the first.
+     */
+    @OptIn(ExperimentalSerializationApi::class)
+    @Test
+    fun everyTabsRootRouteHasASerializer() {
+        topLevelDestinations.forEach { destination ->
+            assertNotNull(
+                featureSerializers.getPolymorphic(NavKey::class, destination.route),
+                "no NavKey serializer registered for the tab rooted at ${destination.route}",
+            )
+        }
+    }
+
     @Test
     fun everyPortIsBoundToAnImplementation() {
+        koin.get<NetworkClient>()
         koin.get<MusicCatalogRepository>()
-        // Nothing reads this one yet. It is resolved here so that the story catalog is wired the
-        // day a screen asks for it, instead of failing on the device that first opens one.
         koin.get<StoryCatalogRepository>()
         koin.get<FavoritesRepository>()
         koin.get<AudioContentResolver>()

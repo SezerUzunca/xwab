@@ -10,7 +10,12 @@ build, and every feature depends on it.
 free — while it stays in a typed position. It is unwrapped in exactly four places, each an edge
 where a string is genuinely the format: the cache file name a track downloads under, a serialized
 navigation route, a Compose lazy-list key (those go into a `Bundle`, which cannot hold a boxed value
-class), and `core:playback:engine`, a standalone library that knows nothing about this catalog.
+class), and the `PlaybackItemId` a screen hands the playback session, which pairs the raw value with
+a kind because a story may share it.
+
+`Music` and `TrackId` check their own invariants — a blank id, a blank name, a duration that is not
+positive — the same way `Story` and `StoryId` do. The two content types are held to one standard;
+[core:story:catalog](../../story/catalog/README.md) lists it.
 
 The shipped manifest, the HTTPS source behind each track, and the name it caches under live next
 door in [core:sound:manifest](../manifest/README.md), which implements

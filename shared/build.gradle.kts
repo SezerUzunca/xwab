@@ -56,14 +56,16 @@ kotlin {
             implementation(projects.core.sound.favorites)
             implementation(projects.core.playback.session)
             implementation(projects.core.playback.engine)
+            implementation(projects.core.network)
             implementation(projects.core.navigation)
             implementation(projects.core.designsystem)
             implementation(projects.feature.home)
             implementation(projects.feature.category)
-            implementation(projects.feature.player)
-            // The one route the composition root names itself: the start destination. Every
-            // other route reaches it through the feature's `FeatureEntry`.
-            implementation(projects.feature.home.navigation)
+            implementation(projects.feature.sounds)
+            implementation(projects.feature.story)
+            // No feature navigation module here. `AppShell` names no route at all — not even the
+            // start destination, which it reads off the first `TopLevelDestination` the features
+            // declare. Every route reaches it through a `FeatureEntry`.
             implementation(libs.compose.runtime)
             implementation(libs.compose.ui)
             // The composition root owns every Koin module the domain layer needs.
@@ -77,8 +79,10 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             // Test-only: proves each feature really contributes the serializers for its routes.
+            implementation(projects.feature.home.navigation)
             implementation(projects.feature.category.navigation)
-            implementation(projects.feature.player.navigation)
+            implementation(projects.feature.sounds.navigation)
+            implementation(projects.feature.story.navigation)
         }
     }
 }

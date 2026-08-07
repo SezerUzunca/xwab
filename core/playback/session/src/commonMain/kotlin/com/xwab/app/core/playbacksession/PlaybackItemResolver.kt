@@ -4,7 +4,7 @@ package com.xwab.app.core.playbacksession
  * How the session turns one kind of item into something the engine can open.
  *
  * `internal` on purpose, and the reason this seam is inside the session rather than in modules of
- * its own: a resolver hands back a URI, so a public one would let any screen resolve
+ * its own: a resolver hands back a playback source, so a public one would let any screen resolve
  * `PlaybackItemResolver` out of the container and read the address of a file the session is
  * supposed to be the only route to. Kept here, the only thing a screen can reach is
  * [PlaybackCoordinator].
@@ -30,7 +30,7 @@ internal data class PlaybackPolicy(val defaultLooping: Boolean)
 
 internal sealed interface ItemResolution {
     /**
-     * @param title what the platform media session should publish, read beside the URI rather than
+     * @param title what the platform media session should publish, read beside the source rather than
      *   handed in by a screen, so a stale title cannot be paired with a fresh source.
      */
     data class Resolved(

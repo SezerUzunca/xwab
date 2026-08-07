@@ -5,6 +5,7 @@ import com.xwab.app.core.catalog.Music
 import com.xwab.app.core.catalog.TrackId
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -43,6 +44,16 @@ class ManifestMusicCatalogRepositoryTest {
         assertNull(repository.observeMusic(TrackId("no-such-track")).first())
         assertNull(repository.observeCategory("no-such-category").first())
         assertEquals(emptyList<Music>(), repository.observeMusicForCategory("no-such-category").first())
+    }
+
+    @Test
+    fun twoTracksUnderOneIdAreRejected() {
+        assertFailsWith<IllegalArgumentException> {
+            ManifestMusicCatalogRepository(
+                tracks = listOf(rain, track("gentle-rain", "ocean")),
+                categories = emptyList(),
+            )
+        }
     }
 
     private fun track(id: String, categoryId: String) = Music(

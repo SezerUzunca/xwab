@@ -1,0 +1,11 @@
+<resources>
+    <string name="tab_stories">Stories</string>
+    <string name="stories_title">Sleep Stories</string>
+    <string name="stories_subtitle">Short readings to drift off to</string>
+    <string name="stories_empty">No stories yet</string>
+    <string name="story_by">%1$s • %2$s</string>
+    <string name="story_preparing">Loading…</string>
+    <string name="story_not_found">This story is no longer in the catalog</string>
+    <string name="story_unavailable">Could not reach this story. Tap to try again.</string>
+    <string name="story_could_not_open">Could not play this story</string>
+</resources>

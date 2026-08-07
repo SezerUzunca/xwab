@@ -1,9 +1,9 @@
 package com.xwab.app.core.audiodelivery.cache
 
 /**
- * Platform storage and transport boundary for remotely hosted audio.
+ * App-owned storage boundary for remotely hosted audio.
  *
- * Implementations must write to a temporary file and only expose a final local URI after the
+ * Implementations must write to a temporary file and only expose a final local path after the
  * download has completed successfully. A completed download also sweeps every file the catalog no
  * longer refers to, so the cache holds one version per track and nothing for a track that is gone.
  */

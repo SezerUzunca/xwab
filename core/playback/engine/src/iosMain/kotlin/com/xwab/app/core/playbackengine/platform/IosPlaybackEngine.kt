@@ -110,7 +110,11 @@ internal class IosPlaybackEngine(
         player.pause()
         clearQueue()
 
-        val url = NSURL.URLWithString(uri) ?: return false
+        val url = if (uri.startsWith('/')) {
+            NSURL.fileURLWithPath(uri)
+        } else {
+            NSURL.URLWithString(uri) ?: return false
+        }
         val item = AVPlayerItem(uRL = url)
         activeUrl = url
         activeAsset = item.asset

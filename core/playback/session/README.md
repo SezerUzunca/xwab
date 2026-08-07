@@ -15,12 +15,18 @@ core:playback:session
    │
    ├─ PlaybackCoordinator          the only thing a screen can reach
    ├─ DefaultPlaybackCoordinator   one item at a time; newest request wins
-   └─ SoundPlaybackResolver        internal
-        ├─► core:sound:catalog     what the track is called, for the media session to publish
-        └─► core:sound:delivery    the URI its bytes can be read from
-                                   (a story will bring a resolver of its own beside this one)
+   ├─ SoundPlaybackResolver        internal
+   │    ├─► core:sound:catalog     what the track is called, for the media session to publish
+   │    └─► core:sound:delivery    a local file if it is cached, HTTPS if it is not
+   └─ StoryPlaybackResolver        internal
+        ├─► core:story:catalog     the story's title and narrator
+        └─► core:story:manifest    the address it streams from — no cache, ever
    ────► core:playback:engine      the platform player that opens whatever was resolved
 ```
+
+The two resolvers are the same two steps: metadata, then a source. The sound one has a cache behind
+it and the story one does not, and that is the only difference between the kinds that is meant to
+last.
 
 `play` takes an id, and the metadata is read beside the URI by the resolver. A screen handing over
 a `Music` it happened to be holding could pair a stale title with a freshly resolved URI, and the

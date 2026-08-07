@@ -16,13 +16,18 @@ kotlin {
             // Where the bytes come from is the manifest's answer. `implementation` on purpose: no
             // manifest type appears in this module's API, so none of it reaches a consumer.
             implementation(projects.core.sound.manifest)
+            implementation(projects.core.network)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kermit)
+            implementation(libs.okio)
             // The DI entry points expose Koin's Module type.
             api(libs.koin.core)
         }
         androidMain.dependencies {
             implementation(libs.koin.android)
+        }
+        commonTest.dependencies {
+            implementation(libs.okio.fakefilesystem)
         }
     }
 }

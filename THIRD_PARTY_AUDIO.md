@@ -4,12 +4,12 @@ The app uses only recordings marked **Public domain** or **CC0** on their Wikime
 pages. Attribution is therefore not a condition of use, but the metadata remains here so every
 catalog change can be audited.
 
-No audio ships inside the app. The catalog stores permanent HTTPS MP3 transcode URLs from Wikimedia
-Commons; a track streams the first time it is played and is downloaded in the background to
-app-owned storage. A completed download is used through a local `file://` URI on later playback.
-Partial files are never selected.
+No audio ships inside the app. Sound tracks use permanent HTTPS MP3 transcodes from Wikimedia
+Commons, stream on first play, and download in the background to app-owned storage. Completed Sound
+downloads use local `file://` URIs later; partial files are never selected. Story recordings also
+use Commons MP3 transcodes but remain online-only and are never written to the Sound cache.
 
-## Catalog recordings
+## Sound catalog recordings
 
 | Catalog ID | Source recording | Creator | License |
 |---|---|---|---|
@@ -33,6 +33,25 @@ Partial files are never selected.
 | `nightingale-song` | [Common Nightingale's song 2.ogg](https://commons.wikimedia.org/wiki/File:Common_Nightingale%27s_song_2.ogg) | Digweed1 | CC0 1.0 |
 | `gray-noise` | [Gray noise.ogg](https://commons.wikimedia.org/wiki/File:Gray_noise.ogg) | Omegatron | Public domain |
 | `vierne-berceuse` | [Vierne Berceuse (Fernwerk und Hauptorgel).ogg](https://commons.wikimedia.org/wiki/File:Vierne_Berceuse_(Fernwerk_und_Hauptorgel).ogg) | Vox Mirabilis | CC0 1.0 |
+
+## Story catalog recordings
+
+All five recordings were uploaded by Cloudmountain (Alan Davis Drake). Each linked description
+page states that the copyright holder releases the recording into the public domain worldwide and,
+where that is not legally possible, grants anyone unconditional use for any purpose. The underlying
+stories are original English works by authors who died in 1904 or 1900, so no later translation is
+being used.
+
+| Catalog ID | Story and source recording | Text author | Narrator | Recording grant |
+|---|---|---|---|---|
+| `night-came-slowly` | [The Night Came Slowly](https://commons.wikimedia.org/wiki/File:The_Night_Came_Slowly_Chopin.ogg) | Kate Chopin | Alan Davis Drake | Public domain worldwide; unconditional fallback grant |
+| `an-idle-fellow` | [An Idle Fellow](https://commons.wikimedia.org/wiki/File:KateChopin_AnIdleFellow.ogg) | Kate Chopin | Alan Davis Drake | Public domain worldwide; unconditional fallback grant |
+| `story-of-an-hour` | [The Story of an Hour](https://commons.wikimedia.org/wiki/File:The_Story_of_an_Hour_Chopin.ogg) | Kate Chopin | Alan Davis Drake | Public domain worldwide; unconditional fallback grant |
+| `doctor-chevaliers-lie` | [Doctor Chevalier's Lie](https://commons.wikimedia.org/wiki/File:KateChopin_DrChevaliersLie.ogg) | Kate Chopin | Alan Davis Drake | Public domain worldwide; unconditional fallback grant |
+| `a-tent-in-agony` | [A Tent in Agony](https://commons.wikimedia.org/wiki/File:ATentInAgony_Crane_add_Stephen_Crane.ogg) | Stephen Crane | Alan Davis Drake | Public domain worldwide; unconditional fallback grant |
+
+Story source-page licenses, durations, and official Commons MP3 derivative metadata were checked
+on 2026-08-07. The API reported a completed `audio/mpeg` derivative for every recording.
 
 License status and direct MP3 availability for the original catalog were checked on 2026-07-28 for
 the ten streamed recordings, and on 2026-07-31 for the five that had been bundled. Every original
