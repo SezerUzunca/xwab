@@ -4,7 +4,6 @@ package com.xwab.app.feature.story
 
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.runtime.entry
 import com.xwab.app.core.navigation.Navigator
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import org.koin.compose.viewmodel.koinViewModel

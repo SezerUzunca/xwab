@@ -4,7 +4,6 @@ package com.xwab.app.feature.player
 
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.runtime.entry
 import com.xwab.app.core.catalog.TrackId
 import com.xwab.app.core.navigation.Navigator
 import com.xwab.app.feature.player.navigation.PlayerRoute

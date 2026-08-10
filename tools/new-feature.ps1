@@ -196,7 +196,6 @@ package com.xwab.app.feature.${pkg}
 
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.runtime.entry
 import com.xwab.app.core.navigation.Navigator
 import com.xwab.app.feature.${pkg}.navigation.${Pascal}Route
 import org.koin.compose.viewmodel.koinViewModel
