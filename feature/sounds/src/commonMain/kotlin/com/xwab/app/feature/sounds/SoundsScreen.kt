@@ -36,6 +36,10 @@ import com.xwab.app.core.ui.theme.SleepRelaxTheme
 import androidx.compose.ui.tooling.preview.Preview
 import org.jetbrains.compose.resources.stringResource
 import xwab.feature.sounds.generated.resources.*
+// The app's name and tagline belong to the app, not to whichever slice happens to draw them.
+import xwab.core.designsystem.generated.resources.Res as UiRes
+import xwab.core.designsystem.generated.resources.app_subtitle
+import xwab.core.designsystem.generated.resources.app_title
 
 import com.xwab.app.core.ui.components.MusicCard
 import com.xwab.app.core.ui.components.SleepRelaxBackground
@@ -83,13 +87,13 @@ internal fun SoundsScreen(
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Column {
                     Text(
-                        text = stringResource(Res.string.app_title),
+                        text = stringResource(UiRes.string.app_title),
                         style = SleepRelaxTheme.typography.headlineLarge,
                         color = SleepRelaxTheme.colors.textPrimary,
                     )
                     Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraSmall))
                     Text(
-                        text = stringResource(Res.string.app_subtitle),
+                        text = stringResource(UiRes.string.app_subtitle),
                         style = SleepRelaxTheme.typography.bodyLarge,
                         color = SleepRelaxTheme.colors.textSecondary,
                     )

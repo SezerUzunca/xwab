@@ -1,4 +1,13 @@
 <resources>
+    <!--
+      The app's own identity. Not a feature's to own: whichever slice happens to draw the header
+      today, the name and the tagline are the product's, and a rename of that slice must not move
+      them. Every module can see this one, which is the only reason they can live in a shared place
+      at all.
+    -->
+    <string name="app_title">XWAB</string>
+    <string name="app_subtitle">Relax • Breathe • Sleep</string>
+
     <string name="back">Back</string>
     <string name="play">Play</string>
     <string name="pause">Pause</string>

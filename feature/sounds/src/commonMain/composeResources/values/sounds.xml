@@ -1,6 +1,4 @@
 <resources>
-    <string name="app_title">XWAB</string>
-    <string name="app_subtitle">Relax • Breathe • Sleep</string>
     <string name="favorites_title">FAVORITES</string>
     <string name="favorites_hint">Tap the heart to see it here</string>
     <string name="categories_title">CATEGORIES</string>
