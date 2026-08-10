@@ -7,7 +7,7 @@ import androidx.navigation3.runtime.NavKey
  * A feature's claim to a place in the app's navigation bar.
  *
  * A feature that publishes one of these becomes a tab; a feature that leaves it null is reachable
- * only by navigating into it from somewhere else. `feature:sounds` and `feature:category` are the
+ * only by navigating into it from somewhere else. `feature:player` and `feature:category` are the
  * second kind — a listener drills into them, they are not places to switch to.
  *
  * [label] and [icon] are slots rather than a `StringResource` and an `ImageVector` on purpose. Each

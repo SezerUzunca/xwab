@@ -8,7 +8,7 @@ import androidx.navigation3.runtime.entry
 import com.xwab.app.core.navigation.Navigator
 import com.xwab.app.feature.category.navigation.navigateToCategory
 import com.xwab.app.feature.home.navigation.HomeRoute
-import com.xwab.app.feature.sounds.navigation.navigateToPlayer
+import com.xwab.app.feature.player.navigation.navigateToPlayer
 import org.koin.compose.viewmodel.koinViewModel
 
 /**

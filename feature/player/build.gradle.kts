@@ -3,7 +3,7 @@ plugins {
 }
 
 kotlin {
-    android { namespace = "com.xwab.app.feature.category" }
+    android { namespace = "com.xwab.app.feature.player" }
 
     sourceSets {
         commonMain.dependencies {
@@ -12,8 +12,6 @@ kotlin {
             implementation(projects.core.sound.favorites)
             implementation(projects.core.playback.session)
 
-            implementation(projects.feature.category.navigation)
-            // Screens this one routes to — their navigation API only, never their implementation.
             implementation(projects.feature.player.navigation)
         }
         commonTest.dependencies {

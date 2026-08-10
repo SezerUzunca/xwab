@@ -28,7 +28,7 @@ import com.xwab.app.core.story.StoryCatalogRepository
 import com.xwab.app.core.storymanifest.di.storyManifestModule
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.home.navigation.HomeRoute
-import com.xwab.app.feature.sounds.navigation.PlayerRoute
+import com.xwab.app.feature.player.navigation.PlayerRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import kotlin.test.AfterTest
 import kotlin.test.Test

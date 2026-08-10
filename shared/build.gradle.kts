@@ -61,7 +61,7 @@ kotlin {
             implementation(projects.core.designsystem)
             implementation(projects.feature.home)
             implementation(projects.feature.category)
-            implementation(projects.feature.sounds)
+            implementation(projects.feature.player)
             implementation(projects.feature.story)
             // No feature navigation module here. `AppShell` names no route at all — not even the
             // start destination, which it reads off the first `TopLevelDestination` the features
@@ -80,7 +80,7 @@ kotlin {
             // Test-only: proves each feature really contributes the serializers for its routes.
             implementation(projects.feature.home.navigation)
             implementation(projects.feature.category.navigation)
-            implementation(projects.feature.sounds.navigation)
+            implementation(projects.feature.player.navigation)
             implementation(projects.feature.story.navigation)
         }
     }
