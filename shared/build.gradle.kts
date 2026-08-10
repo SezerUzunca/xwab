@@ -59,7 +59,7 @@ kotlin {
             implementation(projects.core.network)
             implementation(projects.core.navigation)
             implementation(projects.core.designsystem)
-            implementation(projects.feature.home)
+            implementation(projects.feature.sounds)
             implementation(projects.feature.category)
             implementation(projects.feature.player)
             implementation(projects.feature.story)
@@ -78,7 +78,7 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             // Test-only: proves each feature really contributes the serializers for its routes.
-            implementation(projects.feature.home.navigation)
+            implementation(projects.feature.sounds.navigation)
             implementation(projects.feature.category.navigation)
             implementation(projects.feature.player.navigation)
             implementation(projects.feature.story.navigation)

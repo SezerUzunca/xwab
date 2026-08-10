@@ -27,8 +27,8 @@ import com.xwab.app.core.playbacksession.di.playbackSessionModule
 import com.xwab.app.core.story.StoryCatalogRepository
 import com.xwab.app.core.storymanifest.di.storyManifestModule
 import com.xwab.app.feature.category.navigation.CategoryRoute
-import com.xwab.app.feature.home.navigation.HomeRoute
 import com.xwab.app.feature.player.navigation.PlayerRoute
+import com.xwab.app.feature.sounds.navigation.SoundsRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -122,7 +122,7 @@ class AppModulesTest {
     @Test
     fun everyFeatureContributesTheSerializersForItsOwnRoutes() {
         val routes: List<NavKey> =
-            listOf(HomeRoute, CategoryRoute("rain"), PlayerRoute("gentle-rain"), StoriesRoute)
+            listOf(SoundsRoute, CategoryRoute("rain"), PlayerRoute("gentle-rain"), StoriesRoute)
 
         routes.forEach { route ->
             assertNotNull(
@@ -142,12 +142,12 @@ class AppModulesTest {
     @Test
     fun everyRouteResolvesToAnEntry() {
         val routes: List<NavKey> =
-            listOf(HomeRoute, CategoryRoute("rain"), PlayerRoute("gentle-rain"), StoriesRoute)
+            listOf(SoundsRoute, CategoryRoute("rain"), PlayerRoute("gentle-rain"), StoriesRoute)
         // Every route gets a stack of its own: this navigator is never driven, it is only what the
         // features are handed while they register.
         val navigator = Navigator(
             NavigationState(
-                startRoute = HomeRoute,
+                startRoute = SoundsRoute,
                 backStacks = routes.associateWith { mutableListOf(it) },
             ),
         )

@@ -20,7 +20,7 @@ class FeatureFirstRulesTest {
     @Test
     fun aCoreModuleDependingOnAFeatureIsAViolation() {
         val violations = FeatureFirstRules.dependencyViolations(
-            mapOf(":core:sound:catalog" to listOf(":feature:home")),
+            mapOf(":core:sound:catalog" to listOf(":feature:sounds")),
         )
 
         assertEquals(1, violations.size)
@@ -32,7 +32,7 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
-                mapOf(":feature:home" to listOf(":core:sound:catalog", ":core:sound:favorites")),
+                mapOf(":feature:sounds" to listOf(":core:sound:catalog", ":core:sound:favorites")),
             ),
         )
     }
@@ -42,7 +42,7 @@ class FeatureFirstRulesTest {
     @Test
     fun aFeatureReachingAnotherFeaturesImplementationIsAViolation() {
         val violations = FeatureFirstRules.dependencyViolations(
-            mapOf(":feature:home" to listOf(":feature:player")),
+            mapOf(":feature:sounds" to listOf(":feature:player")),
         )
 
         assertEquals(1, violations.size)
@@ -54,7 +54,7 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
-                mapOf(":feature:home" to listOf(":feature:player:navigation")),
+                mapOf(":feature:sounds" to listOf(":feature:player:navigation")),
             ),
         )
     }
@@ -65,7 +65,7 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
-                mapOf(":feature:home" to listOf(":feature:home:navigation")),
+                mapOf(":feature:sounds" to listOf(":feature:sounds:navigation")),
             ),
         )
     }
@@ -127,13 +127,13 @@ class FeatureFirstRulesTest {
     @Test
     fun aFeatureReachingAnOffLimitsModuleThroughAnApiEdgeIsAViolation() {
         val violations = FeatureFirstRules.dependencyViolations(
-            graph = mapOf(":feature:home" to listOf(":core:testing")),
+            graph = mapOf(":feature:sounds" to listOf(":core:testing")),
             apiEdges = mapOf(":core:testing" to listOf(":core:sound:delivery")),
         )
 
         assertEquals(1, violations.size)
         assertTrue(
-            violations.single().startsWith(":feature:home reaches :core:sound:delivery through :core:testing,"),
+            violations.single().startsWith(":feature:sounds reaches :core:sound:delivery through :core:testing,"),
             violations.single(),
         )
     }
@@ -145,7 +145,7 @@ class FeatureFirstRulesTest {
             emptyList(),
             FeatureFirstRules.dependencyViolations(
                 graph = mapOf(
-                    ":feature:home" to listOf(":core:playback:session"),
+                    ":feature:sounds" to listOf(":core:playback:session"),
                     ":core:playback:session" to listOf(":core:sound:delivery"),
                 ),
                 apiEdges = mapOf(":core:playback:session" to emptyList<String>()),
@@ -176,7 +176,7 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
-                graph = mapOf(":feature:home" to listOf(":core:sound:catalog")),
+                graph = mapOf(":feature:sounds" to listOf(":core:sound:catalog")),
                 apiEdges = mapOf(
                     ":core:sound:catalog" to listOf(":core:testing"),
                     ":core:testing" to listOf(":core:sound:catalog"),
@@ -189,12 +189,12 @@ class FeatureFirstRulesTest {
     @Test
     fun aModuleBothDeclaredAndReachedIsReportedOnce() {
         val violations = FeatureFirstRules.dependencyViolations(
-            graph = mapOf(":feature:home" to listOf(":core:sound:delivery", ":core:testing")),
+            graph = mapOf(":feature:sounds" to listOf(":core:sound:delivery", ":core:testing")),
             apiEdges = mapOf(":core:testing" to listOf(":core:sound:delivery")),
         )
 
         assertEquals(1, violations.size)
-        assertTrue(violations.single().startsWith(":feature:home depends on"), violations.single())
+        assertTrue(violations.single().startsWith(":feature:sounds depends on"), violations.single())
     }
 
     @Test
@@ -211,7 +211,7 @@ class FeatureFirstRulesTest {
 
     @Test
     fun aRuleNamingAModuleThisBuildDoesNotHaveIsItselfAViolation() {
-        val violations = FeatureFirstRules.staleRuleViolations(setOf(":core:sound:catalog", ":feature:home"))
+        val violations = FeatureFirstRules.staleRuleViolations(setOf(":core:sound:catalog", ":feature:sounds"))
 
         assertEquals(FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.size, violations.size)
         assertTrue(violations.first().contains("protects nothing"), violations.first())
@@ -230,15 +230,15 @@ class FeatureFirstRulesTest {
     @Test
     fun aCoreUseCaseOnlyOneFeatureUsesIsAViolation() {
         val violations = FeatureFirstRules.leakedUseCaseViolations(
-            useCases = listOf("ObserveHomeContentUseCase" to ":core:sound:catalog"),
+            useCases = listOf("ObserveSoundsContentUseCase" to ":core:sound:catalog"),
             sourcesByFeature = mapOf(
-                "home" to listOf("val x = ObserveHomeContentUseCase(get())"),
+                "sounds" to listOf("val x = ObserveSoundsContentUseCase(get())"),
                 "player" to listOf("nothing to see here"),
             ),
         )
 
         assertEquals(1, violations.size)
-        assertTrue(violations.single().contains("only feature:home uses it"), violations.single())
+        assertTrue(violations.single().contains("only feature:sounds uses it"), violations.single())
     }
 
     @Test
@@ -248,7 +248,7 @@ class FeatureFirstRulesTest {
             FeatureFirstRules.leakedUseCaseViolations(
                 useCases = listOf("ObserveTrackUseCase" to ":core:sound:catalog"),
                 sourcesByFeature = mapOf(
-                    "home" to listOf("ObserveTrackUseCase()"),
+                    "sounds" to listOf("ObserveTrackUseCase()"),
                     "player" to listOf("ObserveTrackUseCase()"),
                 ),
             ),
@@ -379,12 +379,12 @@ class FeatureFirstRulesTest {
                 listOf(":core:sound:catalog", ":core:sound:favorites", ":core:playback:session"),
             ":core:designsystem" to emptyList<String>(),
             ":core:navigation" to emptyList<String>(),
-            ":feature:home" to listOf(
+            ":feature:sounds" to listOf(
                 ":core:sound:catalog", ":core:sound:favorites", ":core:playback:session", ":core:testing",
                 ":core:designsystem", ":core:navigation",
-                ":feature:home:navigation", ":feature:category:navigation", ":feature:player:navigation",
+                ":feature:sounds:navigation", ":feature:category:navigation", ":feature:player:navigation",
             ),
-            ":feature:home:navigation" to listOf(":core:navigation"),
+            ":feature:sounds:navigation" to listOf(":core:navigation"),
             ":feature:category" to listOf(
                 ":core:sound:catalog", ":core:sound:favorites", ":core:playback:session", ":core:testing",
                 ":feature:category:navigation", ":feature:player:navigation",
@@ -407,7 +407,7 @@ class FeatureFirstRulesTest {
                 ":core:sound:catalog", ":core:sound:manifest", ":core:sound:delivery", ":core:sound:favorites",
                 ":core:story:catalog", ":core:story:manifest",
                 ":core:playback:session", ":core:playback:engine", ":core:network", ":core:navigation",
-                ":core:designsystem", ":feature:home", ":feature:category", ":feature:player",
+                ":core:designsystem", ":feature:sounds", ":feature:category", ":feature:player",
                 ":feature:story",
             ),
             ":androidApp" to listOf(":shared"),

@@ -7,7 +7,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // The capabilities this screen reads; see `feature/home/build.gradle.kts`.
+            // The capabilities this screen reads; see `feature/sounds/build.gradle.kts`.
             implementation(projects.core.sound.catalog)
             implementation(projects.core.sound.favorites)
             implementation(projects.core.playback.session)

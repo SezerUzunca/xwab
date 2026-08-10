@@ -164,7 +164,7 @@ internal object FeatureFirstRules {
             "second feature needs it."
     }.sorted()
 
-    /** `:feature:home` and `:feature:home:navigation` are both the `home` feature. */
+    /** `:feature:sounds` and `:feature:sounds:navigation` are both the `home` feature. */
     fun featureOf(modulePath: String): String =
         modulePath.removePrefix(FEATURE_PREFIX).substringBefore(':')
 

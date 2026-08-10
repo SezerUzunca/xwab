@@ -1,8 +1,12 @@
 This is a Kotlin Multiplatform project targeting Android, iOS.
 
-Serenity is a free, account-free relaxation sound app. Its feature slices are `home`, `category`,
-`sounds` and `story`; shared catalog and platform primitives live under `core`. Favouriting is a
+Serenity is a free, account-free relaxation sound app. Its feature slices are `sounds`, `category`,
+`player` and `story`; shared catalog and platform primitives live under `core`. Favouriting is a
 shared data capability used from several screens rather than a screen of its own.
+
+Slices are named for what they show, never for where they sit: `sounds` is the tab a listener
+lands on, and `player` is the one track it drills into. Neither is called `home`, because that
+would say something about position that stops being true the day another slice starts first.
 
 `sounds` and `story` are separate slices because they share no data: one deals in `Music`,
 categories, favorites and a local cache, the other in `Story`, an author and a narrator, and a
@@ -82,7 +86,7 @@ androidApp ─┐
 iosApp ─────┘        │
         ┌────────────┼────────────────┬────────────────┐
         ▼            ▼                ▼                ▼
-  feature:home  feature:category  feature:sounds  feature:story
+  feature:sounds  feature:category  feature:player  feature:story
         │            │                │                │        (each with a :navigation module)
         │            │                │                └──► core:story:catalog
         └────────────┴────────────────┴──► core:sound:catalog · core:sound:favorites
@@ -114,6 +118,7 @@ on its `FeatureEntry`:
 ```kotlin
 val storyFeature = FeatureEntry(
     koinModule = storyModule,
+    entries = { storiesEntry(it) },
     serializers = storyNavigationSerializers,
     topLevel = TopLevelDestination(
         route = StoriesRoute,
@@ -126,13 +131,35 @@ val storyFeature = FeatureEntry(
 
 `label` and `icon` are slots rather than a `StringResource` and an `ImageVector`, so each feature
 fills them from its own Compose resources and `core:navigation` stays free of the design system.
-A feature that leaves `topLevel` null — `sounds`, `category` — is navigated *into* and is not a
+A feature that leaves `topLevel` null — `player`, `category` — is navigated *into* and is not a
 place to switch to.
 
 The bar is `features.mapNotNull { it.topLevel }.sortedBy { it.order }`. Adding a slice is one line
-in `AppFeatures`, and no line at all in the features that already exist. The alternative — a home
-screen with a card per slice — would have made `feature:home` depend on the `:navigation` module of
-every other feature and be edited every time one was added.
+in `AppFeatures`, and no line at all in the features that already exist. The alternative — a landing
+screen with a card per slice — would have made `feature:sounds` depend on the `:navigation` module
+of every other feature and be edited every time one was added.
+
+Each feature also fills in `entries`, its own slice of the navigation graph, in an `XEntry.kt`
+beside its screen:
+
+```kotlin
+internal fun EntryProviderScope<NavKey>.soundsEntry(navigator: Navigator) {
+    entry<SoundsRoute> {
+        SoundsScreenRoute(
+            onCategoryClick = navigator::navigateToCategory,
+            onMusicClick = { trackId -> navigator.navigateToPlayer(trackId.value) },
+            viewModel = koinViewModel(),
+        )
+    }
+}
+```
+
+This is the shape Now in Android uses for `forYouEntry`, with the shell inverted: NIA's `NiaApp`
+lists every entry function by name, while `AppShell` calls `appEntryProvider(navigator)` and lets
+the feature list supply them. The navigator is an argument rather than a composition local, so a
+screen's callbacks are wired where the entry is declared and nothing depends on the shell having
+provided something. Registration used to sit in each feature's Koin module, which put the
+navigation graph inside the object graph.
 
 The Now in Android version of this centralises `TopLevelDestination` as an enum in the app module.
 That is the part deliberately inverted here: an enum in `shared` would have to be edited for every

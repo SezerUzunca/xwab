@@ -7,7 +7,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // The capabilities this screen reads; see `feature/home/build.gradle.kts`.
+            // The capabilities this screen reads; see `feature/sounds/build.gradle.kts`.
             //
             // Two, not three: there is no `core:story:favorites`, and `core:story:manifest` — which
             // holds the address each story streams from — is off limits to every feature, the same
