@@ -1,4 +1,4 @@
-package com.xwab.app.feature.sounds.domain
+package com.xwab.app.home.domain
 
 import com.xwab.app.core.catalog.TrackId
 import com.xwab.app.core.playbacksession.PlaybackItemId
@@ -19,7 +19,7 @@ import kotlinx.coroutines.runBlocking
  * into one screen model, so this is where a wrong join shows up. Every port here is a plain fake
  * — the use case owns no DI container, so no container is needed to drive it.
  */
-class ObserveSoundsContentUseCaseTest {
+class ObserveHomeContentUseCaseTest {
     private val rain = track("gentle-rain", categoryId = "rain")
     private val waves = track("calm-waves", categoryId = "ocean")
     private val birds = track("forest-birds", categoryId = "forest")
@@ -31,7 +31,7 @@ class ObserveSoundsContentUseCaseTest {
     @Test
     fun homeShowsOnlyFavoritedTracksAndKeepsTheCatalogOrder() = runBlocking {
         val favorites = FakeFavorites(setOf(TrackId("forest-birds"), TrackId("gentle-rain")))
-        val useCase = ObserveSoundsContentUseCase(catalog, favorites, FakePlaybackCoordinator())
+        val useCase = ObserveHomeContentUseCase(catalog, favorites, FakePlaybackCoordinator())
 
         val content = useCase().first()
 
@@ -41,7 +41,7 @@ class ObserveSoundsContentUseCaseTest {
 
     @Test
     fun homeShowsNoFavoritesWhenNothingIsFavorited() = runBlocking {
-        val useCase = ObserveSoundsContentUseCase(catalog, FakeFavorites(), FakePlaybackCoordinator())
+        val useCase = ObserveHomeContentUseCase(catalog, FakeFavorites(), FakePlaybackCoordinator())
 
         assertTrue(useCase().first().favoriteMusics.isEmpty())
     }
@@ -49,7 +49,7 @@ class ObserveSoundsContentUseCaseTest {
     @Test
     fun homeReflectsAFavoriteAddedAfterTheFirstRead() = runBlocking {
         val favorites = FakeFavorites()
-        val useCase = ObserveSoundsContentUseCase(catalog, favorites, FakePlaybackCoordinator())
+        val useCase = ObserveHomeContentUseCase(catalog, favorites, FakePlaybackCoordinator())
         assertTrue(useCase().first().favoriteMusics.isEmpty())
 
         favorites.toggle(TrackId("calm-waves"))
@@ -67,7 +67,7 @@ class ObserveSoundsContentUseCaseTest {
             volume = 0.4f,
         )
         coordinator.publish(playing)
-        val useCase = ObserveSoundsContentUseCase(catalog, FakeFavorites(), coordinator)
+        val useCase = ObserveHomeContentUseCase(catalog, FakeFavorites(), coordinator)
 
         assertEquals(playing, useCase().first().playback)
     }

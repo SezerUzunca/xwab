@@ -59,15 +59,22 @@ kotlin {
             implementation(projects.core.network)
             implementation(projects.core.navigation)
             implementation(projects.core.designsystem)
-            implementation(projects.feature.sounds)
             implementation(projects.feature.category)
             implementation(projects.feature.player)
             implementation(projects.feature.story)
-            // No feature navigation module here. `AppShell` names no route at all — not even the
-            // start destination, which it reads off the first `TopLevelDestination` the features
-            // declare. Every route reaches it through a `FeatureEntry`.
+            // The home screen lives here rather than in a slice of its own, so this module routes
+            // to two features and needs their navigation APIs — the only ones named here.
+            implementation(projects.feature.category.navigation)
+            implementation(projects.feature.player.navigation)
             implementation(libs.compose.runtime)
             implementation(libs.compose.ui)
+            // Hosting a screen means hosting the Compose surface `xwab.kmp.feature` hands a slice.
+            implementation(libs.compose.foundation)
+            implementation(libs.compose.material3)
+            implementation(libs.compose.components.resources)
+            implementation(libs.compose.uiToolingPreview)
+            implementation(libs.androidx.lifecycle.viewmodelCompose)
+            implementation(libs.koin.compose.viewmodel)
             // The composition root owns every Koin module the domain layer needs.
             implementation(libs.koin.core)
             implementation(libs.navigation3.ui)
@@ -77,11 +84,18 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            // The home screen's use case is tested here now, against the same port fakes a feature
+            // would have used.
+            implementation(projects.core.testing)
             // Test-only: proves each feature really contributes the serializers for its routes.
-            implementation(projects.feature.sounds.navigation)
-            implementation(projects.feature.category.navigation)
-            implementation(projects.feature.player.navigation)
+            // Category and player are already on the main classpath; story is only needed here.
             implementation(projects.feature.story.navigation)
         }
     }
+}
+
+// Home's strings live here now, so this module generates a `Res` class of its own. Spelled out
+// rather than left to the default, because the code imports the package by name.
+compose.resources {
+    packageOfResClass = "xwab.shared.generated.resources"
 }

@@ -1,4 +1,4 @@
-package com.xwab.app.feature.sounds
+package com.xwab.app.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,20 +7,20 @@ import com.xwab.app.core.playbacksession.PlaybackCoordinator
 import com.xwab.app.core.playbacksession.PlaybackItemId
 import com.xwab.app.core.playbacksession.PlaybackKind
 import com.xwab.app.core.playbacksession.requestedValueOf
-import com.xwab.app.feature.sounds.domain.ObserveSoundsContentUseCase
+import com.xwab.app.home.domain.ObserveHomeContentUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-internal class SoundsViewModel(
-    observeSoundsContentUseCase: ObserveSoundsContentUseCase,
+internal class HomeViewModel(
+    observeHomeContentUseCase: ObserveHomeContentUseCase,
     private val playbackCoordinator: PlaybackCoordinator,
 ) : ViewModel() {
-    val state: StateFlow<SoundsState> = observeSoundsContentUseCase()
+    val state: StateFlow<HomeState> = observeHomeContentUseCase()
         .map { content ->
-            SoundsState(
+            HomeState(
                 categories = content.categories,
                 favoriteMusics = content.favoriteMusics,
                 // This screen lists sounds, so the session being on a story is the same to it as
@@ -31,7 +31,7 @@ internal class SoundsViewModel(
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = SoundsState(),
+            initialValue = HomeState(),
         )
 
     /** Branches on the value the control renders, so the icon and the tap cannot disagree. */

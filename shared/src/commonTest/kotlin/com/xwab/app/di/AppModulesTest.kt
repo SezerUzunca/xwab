@@ -28,8 +28,9 @@ import com.xwab.app.core.story.StoryCatalogRepository
 import com.xwab.app.core.storymanifest.di.storyManifestModule
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.player.navigation.PlayerRoute
-import com.xwab.app.feature.sounds.navigation.SoundsRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
+import com.xwab.app.home.HomeRoute
+import com.xwab.app.home.di.homeModule
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -112,6 +113,15 @@ class AppModulesTest {
     }
 
     /**
+     * Home carries no `FeatureEntry`, so the loop above cannot vouch for it: its bindings are
+     * named by hand in `appModules()` and would go missing without a word.
+     */
+    @Test
+    fun homesOwnBindingsReachTheContainerToo() {
+        assertTrue(homeModule in appModules(), "homeModule is missing from appModules()")
+    }
+
+    /**
      * A route whose serializer is missing compiles fine and only fails when the back stack is
      * restored after process death — a crash on the second launch, not the first.
      *
@@ -122,7 +132,7 @@ class AppModulesTest {
     @Test
     fun everyFeatureContributesTheSerializersForItsOwnRoutes() {
         val routes: List<NavKey> =
-            listOf(SoundsRoute, CategoryRoute("rain"), PlayerRoute("gentle-rain"), StoriesRoute)
+            listOf(HomeRoute, CategoryRoute("rain"), PlayerRoute("gentle-rain"), StoriesRoute)
 
         routes.forEach { route ->
             assertNotNull(
@@ -142,12 +152,12 @@ class AppModulesTest {
     @Test
     fun everyRouteResolvesToAnEntry() {
         val routes: List<NavKey> =
-            listOf(SoundsRoute, CategoryRoute("rain"), PlayerRoute("gentle-rain"), StoriesRoute)
+            listOf(HomeRoute, CategoryRoute("rain"), PlayerRoute("gentle-rain"), StoriesRoute)
         // Every route gets a stack of its own: this navigator is never driven, it is only what the
         // features are handed while they register.
         val navigator = Navigator(
             NavigationState(
-                startRoute = SoundsRoute,
+                startRoute = HomeRoute,
                 backStacks = routes.associateWith { mutableListOf(it) },
             ),
         )

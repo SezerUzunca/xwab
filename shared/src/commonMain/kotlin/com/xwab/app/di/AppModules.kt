@@ -9,6 +9,7 @@ import com.xwab.app.core.network.di.networkModule
 import com.xwab.app.core.playbackengine.di.playbackModule
 import com.xwab.app.core.playbacksession.di.playbackSessionModule
 import com.xwab.app.core.storymanifest.di.storyManifestModule
+import com.xwab.app.home.di.homeModule
 import org.koin.core.module.Module
 
 /** The capability modules: one per adapter. */
@@ -24,4 +25,5 @@ internal val coreModules: List<Module> = listOf(
     playbackModule,
 )
 
-fun appModules(): List<Module> = coreModules + features.map { it.koinModule }
+/** Home's bindings are named here; every other screen's arrive on its `FeatureEntry`. */
+fun appModules(): List<Module> = coreModules + homeModule + features.map { it.koinModule }

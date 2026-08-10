@@ -1,4 +1,4 @@
-package com.xwab.app.feature.sounds
+package com.xwab.app.home
 
 import com.xwab.app.core.catalog.TrackId
 import androidx.compose.foundation.background
@@ -35,7 +35,7 @@ import com.xwab.app.core.catalog.Music
 import com.xwab.app.core.ui.theme.SleepRelaxTheme
 import androidx.compose.ui.tooling.preview.Preview
 import org.jetbrains.compose.resources.stringResource
-import xwab.feature.sounds.generated.resources.*
+import xwab.shared.generated.resources.*
 // The app's name and tagline belong to the app, not to whichever slice happens to draw them.
 import xwab.core.designsystem.generated.resources.Res as UiRes
 import xwab.core.designsystem.generated.resources.app_subtitle
@@ -46,14 +46,14 @@ import com.xwab.app.core.ui.components.SleepRelaxBackground
 import com.xwab.app.core.ui.components.PlayPauseButton
 
 @Composable
-internal fun SoundsScreenRoute(
+internal fun HomeScreenRoute(
     onCategoryClick: (categoryId: String) -> Unit,
     onMusicClick: (musicId: TrackId) -> Unit,
-    viewModel: SoundsViewModel,
+    viewModel: HomeViewModel,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    SoundsScreen(
+    HomeScreen(
         state = state,
         onCategoryClick = onCategoryClick,
         onMusicClick = onMusicClick,
@@ -62,8 +62,8 @@ internal fun SoundsScreenRoute(
 }
 
 @Composable
-internal fun SoundsScreen(
-    state: SoundsState,
+internal fun HomeScreen(
+    state: HomeState,
     onCategoryClick: (categoryId: String) -> Unit,
     onMusicClick: (musicId: TrackId) -> Unit,
     onPlaybackClick: (musicId: TrackId) -> Unit,
@@ -215,10 +215,10 @@ private fun CategoryCard(category: Category, onClick: () -> Unit) {
 
 @Preview
 @Composable
-private fun SoundsScreenPreview() {
+private fun HomeScreenPreview() {
     SleepRelaxTheme {
-        SoundsScreen(
-            state = SoundsState(
+        HomeScreen(
+            state = HomeState(
                 categories = listOf(
                     Category("rain", "Rain", "Gentle raindrops", "☂", 1),
                     Category("ocean", "Ocean", "Calming waves", "≈", 1),

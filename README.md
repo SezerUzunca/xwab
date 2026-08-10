@@ -1,14 +1,16 @@
 This is a Kotlin Multiplatform project targeting Android, iOS.
 
-Serenity is a free, account-free relaxation sound app. Its feature slices are `sounds`, `category`,
-`player` and `story`; shared catalog and platform primitives live under `core`. Favouriting is a
-shared data capability used from several screens rather than a screen of its own.
+Serenity is a free, account-free relaxation sound app. Its feature slices are `category`, `player`
+and `story`; shared catalog and platform primitives live under `core`. Favouriting is a shared data
+capability used from several screens rather than a screen of its own.
 
-Slices are named for what they show, never for where they sit: `sounds` is the tab a listener
-lands on, and `player` is the one track it drills into. Neither is called `home`, because that
-would say something about position that stops being true the day another slice starts first.
+**The home screen is not a slice.** It lives in `shared`, the composition root, under
+`com.xwab.app.home` — the arrangement Now in Android has, where the app module names `forYouEntry`
+and `ForYouNavKey` directly. The trade is stated plainly in [Architecture rules](#architecture)
+below and in `HomeEntry.kt`: the rules that stop every other screen from reaching the network, the
+player engine or the shipped manifest cannot see a screen that lives here.
 
-`sounds` and `story` are separate slices because they share no data: one deals in `Music`,
+`home` and `story` are separate because they share no data: one deals in `Music`,
 categories, favorites and a local cache, the other in `Story`, an author and a narrator, and a
 stream that is never written to disk. The one thing they do share — the playback session — is
 already content-independent, so joining the two screens would put back at the feature layer the
@@ -82,11 +84,11 @@ more appropriate persistence layer.
 
 ```
 androidApp ─┐
-            ├─► shared (composition root: Koin + AppShell)
+            ├─► shared (composition root: Koin + AppShell + the home screen)
 iosApp ─────┘        │
         ┌────────────┼────────────────┬────────────────┐
-        ▼            ▼                ▼                ▼
-  feature:sounds  feature:category  feature:player  feature:story
+        │            ▼                ▼                ▼
+        │      feature:category  feature:player  feature:story
         │            │                │                │        (each with a :navigation module)
         │            │                │                └──► core:story:catalog
         └────────────┴────────────────┴──► core:sound:catalog · core:sound:favorites
@@ -112,8 +114,8 @@ for stories.
 ## Navigation
 
 `AppShell` is a navigation bar over one back stack per tab, and it **names no feature and no route**
-— not even the start destination. A slice appears on screen by publishing a `TopLevelDestination`
-on its `FeatureEntry`:
+— not even the start destination, which it reads off the first `TopLevelDestination` in the list
+`AppFeatures` builds. A slice appears on screen by publishing one on its `FeatureEntry`:
 
 ```kotlin
 val storyFeature = FeatureEntry(
@@ -134,18 +136,18 @@ fills them from its own Compose resources and `core:navigation` stays free of th
 A feature that leaves `topLevel` null — `player`, `category` — is navigated *into* and is not a
 place to switch to.
 
-The bar is `features.mapNotNull { it.topLevel }.sortedBy { it.order }`. Adding a slice is one line
-in `AppFeatures`, and no line at all in the features that already exist. The alternative — a landing
-screen with a card per slice — would have made `feature:sounds` depend on the `:navigation` module
-of every other feature and be edited every time one was added.
+The bar is `(listOf(homeTopLevel) + features.mapNotNull { it.topLevel }).sortedBy { it.order }`.
+Adding a slice is one line in `AppFeatures`, and no line at all in the features that already exist.
+Home is the one hard-coded term: it carries no `FeatureEntry`, so `AppFeatures` names its
+destination, its entry, its serializers and its Koin module one by one.
 
 Each feature also fills in `entries`, its own slice of the navigation graph, in an `XEntry.kt`
-beside its screen:
+beside its screen — home does the same, in `shared`:
 
 ```kotlin
-internal fun EntryProviderScope<NavKey>.soundsEntry(navigator: Navigator) {
-    entry<SoundsRoute> {
-        SoundsScreenRoute(
+internal fun EntryProviderScope<NavKey>.homeEntry(navigator: Navigator) {
+    entry<HomeRoute> {
+        HomeScreenRoute(
             onCategoryClick = navigator::navigateToCategory,
             onMusicClick = { trackId -> navigator.navigateToPlayer(trackId.value) },
             viewModel = koinViewModel(),
@@ -154,16 +156,30 @@ internal fun EntryProviderScope<NavKey>.soundsEntry(navigator: Navigator) {
 }
 ```
 
-This is the shape Now in Android uses for `forYouEntry`, with the shell inverted: NIA's `NiaApp`
-lists every entry function by name, while `AppShell` calls `appEntryProvider(navigator)` and lets
-the feature list supply them. The navigator is an argument rather than a composition local, so a
-screen's callbacks are wired where the entry is declared and nothing depends on the shell having
-provided something. Registration used to sit in each feature's Koin module, which put the
-navigation graph inside the object graph.
+This is the shape Now in Android uses for `forYouEntry`. The navigator is an argument rather than a
+composition local, so a screen's callbacks are wired where the entry is declared and nothing depends
+on the shell having provided something. Registration used to sit in each feature's Koin module,
+which put the navigation graph inside the object graph.
 
-The Now in Android version of this centralises `TopLevelDestination` as an enum in the app module.
-That is the part deliberately inverted here: an enum in `shared` would have to be edited for every
-new slice, which is the cost this shape exists to avoid.
+For the three features the shell is still inverted relative to NIA: `NiaApp` lists every entry
+function by name, while `AppShell` calls `appEntryProvider(navigator)` and lets the feature list
+supply them. Home is the exception, and follows NIA exactly — it is named.
+
+### What hosting home in `shared` costs
+
+`checkArchitecture` reads Gradle paths. Rules 1–4 fire only on modules under `:core:` or
+`:feature:`, and `:shared` is neither. `:shared` also declares `core:network`,
+`core:sound:delivery`, `core:playback:engine` and `core:sound:manifest`, because binding them is
+what a composition root does.
+
+So the home screen **can** issue an HTTP call, resolve a track to a URI or drive the player
+directly, and the build will report success. Every other screen in this app is refused all four at
+compile time. This is not an oversight to be fixed by widening the rules: a rule cannot separate the
+screen's code from the root's when both live in the same module, and the source-scanning version of
+rule 4 that could have tried is the one this build deleted for rotting silently.
+
+`com.xwab.app.home` is therefore held to the boundary by review rather than by the build. It reads
+`MusicCatalogRepository`, `FavoritesRepository` and `PlaybackCoordinator`, and nothing else.
 
 ### One back stack per tab
 

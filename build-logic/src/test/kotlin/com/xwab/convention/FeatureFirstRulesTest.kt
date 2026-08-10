@@ -20,7 +20,7 @@ class FeatureFirstRulesTest {
     @Test
     fun aCoreModuleDependingOnAFeatureIsAViolation() {
         val violations = FeatureFirstRules.dependencyViolations(
-            mapOf(":core:sound:catalog" to listOf(":feature:sounds")),
+            mapOf(":core:sound:catalog" to listOf(":feature:category")),
         )
 
         assertEquals(1, violations.size)
@@ -32,7 +32,7 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
-                mapOf(":feature:sounds" to listOf(":core:sound:catalog", ":core:sound:favorites")),
+                mapOf(":feature:category" to listOf(":core:sound:catalog", ":core:sound:favorites")),
             ),
         )
     }
@@ -42,7 +42,7 @@ class FeatureFirstRulesTest {
     @Test
     fun aFeatureReachingAnotherFeaturesImplementationIsAViolation() {
         val violations = FeatureFirstRules.dependencyViolations(
-            mapOf(":feature:sounds" to listOf(":feature:player")),
+            mapOf(":feature:category" to listOf(":feature:player")),
         )
 
         assertEquals(1, violations.size)
@@ -54,7 +54,7 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
-                mapOf(":feature:sounds" to listOf(":feature:player:navigation")),
+                mapOf(":feature:category" to listOf(":feature:player:navigation")),
             ),
         )
     }
@@ -65,7 +65,7 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
-                mapOf(":feature:sounds" to listOf(":feature:sounds:navigation")),
+                mapOf(":feature:category" to listOf(":feature:category:navigation")),
             ),
         )
     }
@@ -127,13 +127,13 @@ class FeatureFirstRulesTest {
     @Test
     fun aFeatureReachingAnOffLimitsModuleThroughAnApiEdgeIsAViolation() {
         val violations = FeatureFirstRules.dependencyViolations(
-            graph = mapOf(":feature:sounds" to listOf(":core:testing")),
+            graph = mapOf(":feature:category" to listOf(":core:testing")),
             apiEdges = mapOf(":core:testing" to listOf(":core:sound:delivery")),
         )
 
         assertEquals(1, violations.size)
         assertTrue(
-            violations.single().startsWith(":feature:sounds reaches :core:sound:delivery through :core:testing,"),
+            violations.single().startsWith(":feature:category reaches :core:sound:delivery through :core:testing,"),
             violations.single(),
         )
     }
@@ -145,7 +145,7 @@ class FeatureFirstRulesTest {
             emptyList(),
             FeatureFirstRules.dependencyViolations(
                 graph = mapOf(
-                    ":feature:sounds" to listOf(":core:playback:session"),
+                    ":feature:category" to listOf(":core:playback:session"),
                     ":core:playback:session" to listOf(":core:sound:delivery"),
                 ),
                 apiEdges = mapOf(":core:playback:session" to emptyList<String>()),
@@ -176,7 +176,7 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
-                graph = mapOf(":feature:sounds" to listOf(":core:sound:catalog")),
+                graph = mapOf(":feature:category" to listOf(":core:sound:catalog")),
                 apiEdges = mapOf(
                     ":core:sound:catalog" to listOf(":core:testing"),
                     ":core:testing" to listOf(":core:sound:catalog"),
@@ -189,12 +189,12 @@ class FeatureFirstRulesTest {
     @Test
     fun aModuleBothDeclaredAndReachedIsReportedOnce() {
         val violations = FeatureFirstRules.dependencyViolations(
-            graph = mapOf(":feature:sounds" to listOf(":core:sound:delivery", ":core:testing")),
+            graph = mapOf(":feature:category" to listOf(":core:sound:delivery", ":core:testing")),
             apiEdges = mapOf(":core:testing" to listOf(":core:sound:delivery")),
         )
 
         assertEquals(1, violations.size)
-        assertTrue(violations.single().startsWith(":feature:sounds depends on"), violations.single())
+        assertTrue(violations.single().startsWith(":feature:category depends on"), violations.single())
     }
 
     @Test
@@ -211,7 +211,7 @@ class FeatureFirstRulesTest {
 
     @Test
     fun aRuleNamingAModuleThisBuildDoesNotHaveIsItselfAViolation() {
-        val violations = FeatureFirstRules.staleRuleViolations(setOf(":core:sound:catalog", ":feature:sounds"))
+        val violations = FeatureFirstRules.staleRuleViolations(setOf(":core:sound:catalog", ":feature:category"))
 
         assertEquals(FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.size, violations.size)
         assertTrue(violations.first().contains("protects nothing"), violations.first())
@@ -232,13 +232,13 @@ class FeatureFirstRulesTest {
         val violations = FeatureFirstRules.leakedUseCaseViolations(
             useCases = listOf("ObserveSoundsContentUseCase" to ":core:sound:catalog"),
             sourcesByFeature = mapOf(
-                "sounds" to listOf("val x = ObserveSoundsContentUseCase(get())"),
+                "category" to listOf("val x = ObserveSoundsContentUseCase(get())"),
                 "player" to listOf("nothing to see here"),
             ),
         )
 
         assertEquals(1, violations.size)
-        assertTrue(violations.single().contains("only feature:sounds uses it"), violations.single())
+        assertTrue(violations.single().contains("only feature:category uses it"), violations.single())
     }
 
     @Test
@@ -248,7 +248,7 @@ class FeatureFirstRulesTest {
             FeatureFirstRules.leakedUseCaseViolations(
                 useCases = listOf("ObserveTrackUseCase" to ":core:sound:catalog"),
                 sourcesByFeature = mapOf(
-                    "sounds" to listOf("ObserveTrackUseCase()"),
+                    "category" to listOf("ObserveTrackUseCase()"),
                     "player" to listOf("ObserveTrackUseCase()"),
                 ),
             ),
@@ -379,12 +379,6 @@ class FeatureFirstRulesTest {
                 listOf(":core:sound:catalog", ":core:sound:favorites", ":core:playback:session"),
             ":core:designsystem" to emptyList<String>(),
             ":core:navigation" to emptyList<String>(),
-            ":feature:sounds" to listOf(
-                ":core:sound:catalog", ":core:sound:favorites", ":core:playback:session", ":core:testing",
-                ":core:designsystem", ":core:navigation",
-                ":feature:sounds:navigation", ":feature:category:navigation", ":feature:player:navigation",
-            ),
-            ":feature:sounds:navigation" to listOf(":core:navigation"),
             ":feature:category" to listOf(
                 ":core:sound:catalog", ":core:sound:favorites", ":core:playback:session", ":core:testing",
                 ":feature:category:navigation", ":feature:player:navigation",
@@ -403,12 +397,17 @@ class FeatureFirstRulesTest {
                 ":feature:story:navigation",
             ),
             ":feature:story:navigation" to listOf(":core:navigation"),
+            // The composition root hosts the home screen, so it declares two features' navigation
+            // modules on top of binding every capability. None of that is rule-checked: the rules
+            // read `:core:` and `:feature:` paths, and this is neither.
             ":shared" to listOf(
                 ":core:sound:catalog", ":core:sound:manifest", ":core:sound:delivery", ":core:sound:favorites",
                 ":core:story:catalog", ":core:story:manifest",
                 ":core:playback:session", ":core:playback:engine", ":core:network", ":core:navigation",
-                ":core:designsystem", ":feature:sounds", ":feature:category", ":feature:player",
-                ":feature:story",
+                ":core:designsystem", ":core:testing",
+                ":feature:category", ":feature:category:navigation",
+                ":feature:player", ":feature:player:navigation",
+                ":feature:story", ":feature:story:navigation",
             ),
             ":androidApp" to listOf(":shared"),
         )

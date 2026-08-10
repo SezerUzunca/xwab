@@ -7,7 +7,10 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // The capabilities this screen reads; see `feature/sounds/build.gradle.kts`.
+            // The capabilities this screen reads. `xwab.kmp.feature` no longer hands every core
+            // module to every feature, so what a screen can reach is exactly what it asks for here.
+            // Delivery, the playback engine and the shipped manifest are not askable:
+            // `checkArchitecture` rule 4 fails the build on a feature that declares any of them.
             implementation(projects.core.sound.catalog)
             implementation(projects.core.sound.favorites)
             implementation(projects.core.playback.session)

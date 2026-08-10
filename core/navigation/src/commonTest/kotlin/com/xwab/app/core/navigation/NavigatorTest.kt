@@ -15,9 +15,9 @@ import kotlin.test.assertFailsWith
  */
 class NavigatorTest {
     private fun state(): NavigationState = NavigationState(
-        startRoute = SoundsRoute,
+        startRoute = HomeRoute,
         backStacks = mapOf(
-            SoundsRoute to mutableListOf<NavKey>(SoundsRoute),
+            HomeRoute to mutableListOf<NavKey>(HomeRoute),
             StoriesRoute to mutableListOf<NavKey>(StoriesRoute),
         ),
     )
@@ -28,8 +28,8 @@ class NavigatorTest {
 
         Navigator(state).navigate(DetailRoute)
 
-        assertEquals(SoundsRoute, state.topLevelRoute)
-        assertEquals(listOf<NavKey>(SoundsRoute, DetailRoute), state.backStacks.getValue(SoundsRoute))
+        assertEquals(HomeRoute, state.topLevelRoute)
+        assertEquals(listOf<NavKey>(HomeRoute, DetailRoute), state.backStacks.getValue(HomeRoute))
         assertEquals(listOf<NavKey>(StoriesRoute), state.backStacks.getValue(StoriesRoute))
     }
 
@@ -41,7 +41,7 @@ class NavigatorTest {
         Navigator(state).navigate(StoriesRoute)
 
         assertEquals(StoriesRoute, state.topLevelRoute)
-        assertEquals(listOf<NavKey>(SoundsRoute), state.backStacks.getValue(SoundsRoute))
+        assertEquals(listOf<NavKey>(HomeRoute), state.backStacks.getValue(HomeRoute))
         assertEquals(listOf<NavKey>(StoriesRoute), state.backStacks.getValue(StoriesRoute))
     }
 
@@ -52,10 +52,10 @@ class NavigatorTest {
 
         navigator.navigate(DetailRoute)
         navigator.navigate(StoriesRoute)
-        navigator.navigate(SoundsRoute)
+        navigator.navigate(HomeRoute)
 
-        assertEquals(SoundsRoute, state.topLevelRoute)
-        assertEquals(listOf<NavKey>(SoundsRoute, DetailRoute), state.currentBackStack)
+        assertEquals(HomeRoute, state.topLevelRoute)
+        assertEquals(listOf<NavKey>(HomeRoute, DetailRoute), state.currentBackStack)
     }
 
     @Test
@@ -66,7 +66,7 @@ class NavigatorTest {
 
         navigator.goBack()
 
-        assertEquals(listOf<NavKey>(SoundsRoute), state.currentBackStack)
+        assertEquals(listOf<NavKey>(HomeRoute), state.currentBackStack)
     }
 
     /** An emptied stack has nothing for `NavDisplay` to render: the tab would vanish, not reset. */
@@ -76,8 +76,8 @@ class NavigatorTest {
 
         Navigator(state).goBack()
 
-        assertEquals(SoundsRoute, state.topLevelRoute)
-        assertEquals(listOf<NavKey>(SoundsRoute), state.currentBackStack)
+        assertEquals(HomeRoute, state.topLevelRoute)
+        assertEquals(listOf<NavKey>(HomeRoute), state.currentBackStack)
     }
 
     @Test
@@ -88,7 +88,7 @@ class NavigatorTest {
 
         navigator.goBack()
 
-        assertEquals(SoundsRoute, state.topLevelRoute)
+        assertEquals(HomeRoute, state.topLevelRoute)
         assertEquals(listOf<NavKey>(StoriesRoute), state.backStacks.getValue(StoriesRoute))
     }
 
@@ -96,24 +96,24 @@ class NavigatorTest {
     @Test
     fun theStartTabStaysInUseWhileAnotherTabIsShowing() {
         val state = state()
-        assertEquals(listOf<NavKey>(SoundsRoute), state.routesInUse)
+        assertEquals(listOf<NavKey>(HomeRoute), state.routesInUse)
 
         Navigator(state).navigate(StoriesRoute)
 
-        assertEquals(listOf<NavKey>(SoundsRoute, StoriesRoute), state.routesInUse)
+        assertEquals(listOf<NavKey>(HomeRoute, StoriesRoute), state.routesInUse)
     }
 
     @Test
     fun aStartRouteWithNoBackStackIsRejectedRatherThanFailingOnTheFirstBackPress() {
         assertFailsWith<IllegalArgumentException> {
             NavigationState(
-                startRoute = SoundsRoute,
+                startRoute = HomeRoute,
                 backStacks = mapOf(StoriesRoute to mutableListOf<NavKey>(StoriesRoute)),
             )
         }
     }
 
-    private data object SoundsRoute : NavKey
+    private data object HomeRoute : NavKey
     private data object StoriesRoute : NavKey
     private data object DetailRoute : NavKey
 }
