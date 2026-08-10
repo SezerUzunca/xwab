@@ -7,7 +7,7 @@ import com.xwab.app.core.navigation.FeatureEntry
 import com.xwab.app.core.navigation.Navigator
 import com.xwab.app.core.navigation.TopLevelDestination
 import com.xwab.app.feature.category.categoryFeature
-import com.xwab.app.feature.player.playerFeature
+import com.xwab.app.feature.sounds.soundsFeature
 import com.xwab.app.feature.story.storyFeature
 import com.xwab.app.home.homeEntry
 import com.xwab.app.home.homeNavigationSerializers
@@ -29,7 +29,7 @@ import kotlinx.serialization.modules.SerializersModule
  */
 internal val features: List<FeatureEntry> = listOf(
     categoryFeature,
-    playerFeature,
+    soundsFeature,
     storyFeature,
 )
 

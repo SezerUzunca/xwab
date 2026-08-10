@@ -42,11 +42,11 @@ class FeatureFirstRulesTest {
     @Test
     fun aFeatureReachingAnotherFeaturesImplementationIsAViolation() {
         val violations = FeatureFirstRules.dependencyViolations(
-            mapOf(":feature:category" to listOf(":feature:player")),
+            mapOf(":feature:category" to listOf(":feature:sounds")),
         )
 
         assertEquals(1, violations.size)
-        assertTrue(violations.single().contains(":feature:player:navigation"), violations.single())
+        assertTrue(violations.single().contains(":feature:sounds:navigation"), violations.single())
     }
 
     @Test
@@ -54,7 +54,7 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
-                mapOf(":feature:category" to listOf(":feature:player:navigation")),
+                mapOf(":feature:category" to listOf(":feature:sounds:navigation")),
             ),
         )
     }
@@ -76,12 +76,12 @@ class FeatureFirstRulesTest {
     fun aFeatureDeclaringAnyOffLimitsModuleIsAViolation() {
         FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys.forEach { offLimits ->
             val violations = FeatureFirstRules.dependencyViolations(
-                mapOf(":feature:player" to listOf(offLimits)),
+                mapOf(":feature:sounds" to listOf(offLimits)),
             )
 
             assertEquals(1, violations.size, "expected exactly one violation for $offLimits")
             assertTrue(
-                violations.single().startsWith(":feature:player depends on $offLimits."),
+                violations.single().startsWith(":feature:sounds depends on $offLimits."),
                 violations.single(),
             )
         }
@@ -110,7 +110,7 @@ class FeatureFirstRulesTest {
     @Test
     fun aFeaturesNavigationModuleIsHeldToRuleFourToo() {
         val violations = FeatureFirstRules.dependencyViolations(
-            mapOf(":feature:player:navigation" to listOf(":core:sound:delivery")),
+            mapOf(":feature:sounds:navigation" to listOf(":core:sound:delivery")),
         )
 
         assertEquals(1, violations.size)
@@ -156,7 +156,7 @@ class FeatureFirstRulesTest {
     @Test
     fun anApiEdgeIsFollowedAsFarAsItGoes() {
         val violations = FeatureFirstRules.dependencyViolations(
-            graph = mapOf(":feature:player" to listOf(":core:testing")),
+            graph = mapOf(":feature:sounds" to listOf(":core:testing")),
             apiEdges = mapOf(
                 ":core:testing" to listOf(":core:playback:session"),
                 ":core:playback:session" to listOf(":core:playback:engine"),
@@ -381,14 +381,14 @@ class FeatureFirstRulesTest {
             ":core:navigation" to emptyList<String>(),
             ":feature:category" to listOf(
                 ":core:sound:catalog", ":core:sound:favorites", ":core:playback:session", ":core:testing",
-                ":feature:category:navigation", ":feature:player:navigation",
+                ":feature:category:navigation", ":feature:sounds:navigation",
             ),
             ":feature:category:navigation" to listOf(":core:navigation"),
-            ":feature:player" to listOf(
+            ":feature:sounds" to listOf(
                 ":core:sound:catalog", ":core:sound:favorites", ":core:playback:session", ":core:testing",
-                ":feature:player:navigation",
+                ":feature:sounds:navigation",
             ),
-            ":feature:player:navigation" to listOf(":core:navigation"),
+            ":feature:sounds:navigation" to listOf(":core:navigation"),
             // The story slice reads two capabilities where a sound screen reads three: there is no
             // favorites port for stories, and the manifest that knows where one streams from is off
             // limits to every feature.
@@ -406,7 +406,7 @@ class FeatureFirstRulesTest {
                 ":core:playback:session", ":core:playback:engine", ":core:network", ":core:navigation",
                 ":core:designsystem", ":core:testing",
                 ":feature:category", ":feature:category:navigation",
-                ":feature:player", ":feature:player:navigation",
+                ":feature:sounds", ":feature:sounds:navigation",
                 ":feature:story", ":feature:story:navigation",
             ),
             ":androidApp" to listOf(":shared"),

@@ -60,12 +60,12 @@ kotlin {
             implementation(projects.core.navigation)
             implementation(projects.core.designsystem)
             implementation(projects.feature.category)
-            implementation(projects.feature.player)
+            implementation(projects.feature.sounds)
             implementation(projects.feature.story)
             // The home screen lives here rather than in a slice of its own, so this module routes
             // to two features and needs their navigation APIs — the only ones named here.
             implementation(projects.feature.category.navigation)
-            implementation(projects.feature.player.navigation)
+            implementation(projects.feature.sounds.navigation)
             implementation(libs.compose.runtime)
             implementation(libs.compose.ui)
             // Hosting a screen means hosting the Compose surface `xwab.kmp.feature` hands a slice.

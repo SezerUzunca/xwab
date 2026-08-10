@@ -17,7 +17,7 @@ kotlin {
 
             implementation(projects.feature.category.navigation)
             // Screens this one routes to — their navigation API only, never their implementation.
-            implementation(projects.feature.player.navigation)
+            implementation(projects.feature.sounds.navigation)
         }
         commonTest.dependencies {
             implementation(projects.core.testing)

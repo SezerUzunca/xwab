@@ -27,7 +27,7 @@ import com.xwab.app.core.playbacksession.di.playbackSessionModule
 import com.xwab.app.core.story.StoryCatalogRepository
 import com.xwab.app.core.storymanifest.di.storyManifestModule
 import com.xwab.app.feature.category.navigation.CategoryRoute
-import com.xwab.app.feature.player.navigation.PlayerRoute
+import com.xwab.app.feature.sounds.navigation.PlayerRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import com.xwab.app.home.HomeRoute
 import com.xwab.app.home.di.homeModule

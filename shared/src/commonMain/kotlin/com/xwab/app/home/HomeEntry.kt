@@ -10,7 +10,7 @@ import androidx.navigation3.runtime.NavKey
 import com.xwab.app.core.navigation.Navigator
 import com.xwab.app.core.navigation.TopLevelDestination
 import com.xwab.app.feature.category.navigation.navigateToCategory
-import com.xwab.app.feature.player.navigation.navigateToPlayer
+import com.xwab.app.feature.sounds.navigation.navigateToPlayer
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import xwab.shared.generated.resources.Res

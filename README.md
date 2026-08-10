@@ -1,8 +1,9 @@
 This is a Kotlin Multiplatform project targeting Android, iOS.
 
-Serenity is a free, account-free relaxation sound app. Its feature slices are `category`, `player`
+Serenity is a free, account-free relaxation sound app. Its feature slices are `category`, `sounds`
 and `story`; shared catalog and platform primitives live under `core`. Favouriting is a shared data
-capability used from several screens rather than a screen of its own.
+capability used from several screens rather than a screen of its own. `sounds` is the player: one
+track, its transport, its sleep timer.
 
 **The home screen is not a slice.** It lives in `shared`, the composition root, under
 `com.xwab.app.home` — the arrangement Now in Android has, where the app module names `forYouEntry`
@@ -88,7 +89,7 @@ androidApp ─┐
 iosApp ─────┘        │
         ┌────────────┼────────────────┬────────────────┐
         │            ▼                ▼                ▼
-        │      feature:category  feature:player  feature:story
+        │      feature:category  feature:sounds  feature:story
         │            │                │                │        (each with a :navigation module)
         │            │                │                └──► core:story:catalog
         └────────────┴────────────────┴──► core:sound:catalog · core:sound:favorites
@@ -133,7 +134,7 @@ val storyFeature = FeatureEntry(
 
 `label` and `icon` are slots rather than a `StringResource` and an `ImageVector`, so each feature
 fills them from its own Compose resources and `core:navigation` stays free of the design system.
-A feature that leaves `topLevel` null — `player`, `category` — is navigated *into* and is not a
+A feature that leaves `topLevel` null — `sounds`, `category` — is navigated *into* and is not a
 place to switch to.
 
 The bar is `(listOf(homeTopLevel) + features.mapNotNull { it.topLevel }).sortedBy { it.order }`.
