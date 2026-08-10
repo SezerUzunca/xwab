@@ -13,6 +13,8 @@ import com.xwab.app.core.catalogmanifest.di.catalogManifestModule
 import com.xwab.app.core.favorites.FavoritesRepository
 import com.xwab.app.core.favorites.di.favoritesModule
 import com.xwab.app.core.favorites.di.favoritesPlatformModule
+import com.xwab.app.core.navigation.NavigationState
+import com.xwab.app.core.navigation.Navigator
 import com.xwab.app.core.network.NetworkClient
 import com.xwab.app.core.network.di.networkModule
 import com.xwab.app.core.playbackengine.api.AudioPlayerState
@@ -127,6 +129,33 @@ class AppModulesTest {
                 featureSerializers.getPolymorphic(NavKey::class, route),
                 "no NavKey serializer registered for ${route::class.simpleName}",
             )
+        }
+    }
+
+    /**
+     * A route no feature claims compiles fine and throws the first time something navigates to it.
+     *
+     * Registration moved out of the Koin container and into each feature's `entry<Route> { }`, so
+     * the container no longer even indirectly vouches for it. Nothing here is composed — building
+     * the provider and asking it for a key resolves the entry without running its content.
+     */
+    @Test
+    fun everyRouteResolvesToAnEntry() {
+        val routes: List<NavKey> =
+            listOf(HomeRoute, CategoryRoute("rain"), PlayerRoute("gentle-rain"), StoriesRoute)
+        // Every route gets a stack of its own: this navigator is never driven, it is only what the
+        // features are handed while they register.
+        val navigator = Navigator(
+            NavigationState(
+                startRoute = HomeRoute,
+                backStacks = routes.associateWith { mutableListOf(it) },
+            ),
+        )
+
+        val provider = appEntryProvider(navigator)
+
+        routes.forEach { route ->
+            assertNotNull(provider(route), "no entry registered for ${route::class.simpleName}")
         }
     }
 

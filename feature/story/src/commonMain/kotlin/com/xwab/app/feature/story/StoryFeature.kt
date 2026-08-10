@@ -15,6 +15,7 @@ import xwab.feature.story.generated.resources.tab_stories
 /** The whole of this feature, as the composition root sees it. */
 val storyFeature = FeatureEntry(
     koinModule = storyModule,
+    entries = { storiesEntry(it) },
     serializers = storyNavigationSerializers,
     topLevel = TopLevelDestination(
         route = StoriesRoute,

@@ -176,25 +176,39 @@ internal fun ${Pascal}Screen(
 "@
 
 Write-GeneratedFile (Join-Path $mainSrc "di\${Pascal}Module.kt") @"
-@file:OptIn(org.koin.core.annotation.KoinExperimentalAPI::class)
-
 package com.xwab.app.feature.${pkg}.di
 
-import com.xwab.app.core.navigation.LocalNavigator
-import com.xwab.app.feature.${pkg}.${Pascal}ScreenRoute
 import com.xwab.app.feature.${pkg}.${Pascal}ViewModel
-import com.xwab.app.feature.${pkg}.navigation.${Pascal}Route
-import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
-import org.koin.dsl.navigation3.navigation
 
+/** Objects only. What this feature shows is in ${Pascal}Entry.kt. */
 internal val ${camel}Module = module {
     // This screen's own use cases are bound here too, never in a shared core module.
     viewModel { ${Pascal}ViewModel() }
+}
+"@
 
-    navigation<${Pascal}Route> {
-        val navigator = LocalNavigator.current
+Write-GeneratedFile (Join-Path $mainSrc "${Pascal}Entry.kt") @"
+@file:OptIn(org.koin.core.annotation.KoinExperimentalAPI::class)
+
+package com.xwab.app.feature.${pkg}
+
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entry
+import com.xwab.app.core.navigation.Navigator
+import com.xwab.app.feature.${pkg}.navigation.${Pascal}Route
+import org.koin.compose.viewmodel.koinViewModel
+
+/**
+ * Where this feature's routes turn into screens.
+ *
+ * Route another feature by declaring its navigation module in this one's build file and calling
+ * the navigateToX extension it publishes — never by depending on its implementation.
+ */
+internal fun EntryProviderScope<NavKey>.${camel}Entry(navigator: Navigator) {
+    entry<${Pascal}Route> {
         ${Pascal}ScreenRoute(
             onBack = navigator::goBack,
             viewModel = koinViewModel(),
@@ -213,6 +227,7 @@ import com.xwab.app.feature.${pkg}.navigation.${camel}NavigationSerializers
 /** The whole of this feature, as the composition root sees it. */
 val ${camel}Feature = FeatureEntry(
     koinModule = ${camel}Module,
+    entries = { ${camel}Entry(it) },
     serializers = ${camel}NavigationSerializers,
 )
 "@

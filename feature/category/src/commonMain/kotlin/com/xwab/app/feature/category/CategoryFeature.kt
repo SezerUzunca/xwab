@@ -7,5 +7,6 @@ import com.xwab.app.feature.category.navigation.categoryNavigationSerializers
 /** The whole of this feature, as the composition root sees it. */
 val categoryFeature = FeatureEntry(
     koinModule = categoryModule,
+    entries = { categoryEntry(it) },
     serializers = categoryNavigationSerializers,
 )

@@ -33,7 +33,6 @@ class KmpFeatureConventionPlugin : Plugin<Project> {
                     implementation(libs.library("compose-uiToolingPreview"))
                     implementation(libs.library("androidx-lifecycle-viewmodelCompose"))
                     implementation(libs.library("koin-compose-viewmodel"))
-                    implementation(libs.library("koin-compose-navigation3"))
                 }
             }
 

@@ -2,7 +2,6 @@ package com.xwab.app.core.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.navigation3.runtime.NavKey
 
 /**
@@ -42,10 +41,6 @@ class Navigator(private val state: NavigationState) {
             state.topLevelRoute != state.startRoute -> state.topLevelRoute = state.startRoute
         }
     }
-}
-
-val LocalNavigator = staticCompositionLocalOf<Navigator> {
-    error("Navigator is not available")
 }
 
 @Composable

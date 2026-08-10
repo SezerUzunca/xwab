@@ -1,5 +1,3 @@
-@file:OptIn(org.koin.core.annotation.KoinExperimentalAPI::class)
-
 package com.xwab.app.navigation
 
 import androidx.compose.foundation.layout.padding
@@ -9,7 +7,6 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -25,14 +22,13 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
-import com.xwab.app.core.navigation.LocalNavigator
 import com.xwab.app.core.navigation.NavigationState
 import com.xwab.app.core.navigation.TopLevelDestination
 import com.xwab.app.core.navigation.rememberNavigator
 import com.xwab.app.core.ui.theme.SleepRelaxTheme
+import com.xwab.app.di.appEntryProvider
 import com.xwab.app.di.featureSerializers
 import com.xwab.app.di.topLevelDestinations
-import org.koin.compose.navigation3.koinEntryProvider
 
 /**
  * The app's frame: a navigation bar built from whatever the features declare, and one back stack
@@ -76,7 +72,10 @@ fun AppShell() {
     }
     val navigator = rememberNavigator(state)
 
-    val entryProvider = koinEntryProvider<NavKey>()
+    // Each feature contributes its own `entry<Route> { }` blocks and is handed the navigator to
+    // route with, so this file still names no route — only that features have entries at all.
+    // Rebuilt only when the navigator identity changes, which is never after the first composition.
+    val entryProvider = remember(navigator) { appEntryProvider(navigator) }
     val entriesByTab = backStacks.mapValues { (route, backStack) ->
         key(route) {
             rememberDecoratedNavEntries(
@@ -91,24 +90,22 @@ fun AppShell() {
     }
     val entries = state.routesInUse.flatMap { entriesByTab[it].orEmpty() }
 
-    CompositionLocalProvider(LocalNavigator provides navigator) {
-        Scaffold(
-            // The screens paint their own gradient; this is only what shows behind the bar.
-            containerColor = SleepRelaxTheme.colors.backgroundBottom,
-            bottomBar = {
-                AppNavigationBar(
-                    destinations = destinations,
-                    selectedRoute = state.topLevelRoute,
-                    onSelect = navigator::navigate,
-                )
-            },
-        ) { innerPadding ->
-            NavDisplay(
-                entries = entries,
-                onBack = navigator::goBack,
-                modifier = Modifier.padding(innerPadding),
+    Scaffold(
+        // The screens paint their own gradient; this is only what shows behind the bar.
+        containerColor = SleepRelaxTheme.colors.backgroundBottom,
+        bottomBar = {
+            AppNavigationBar(
+                destinations = destinations,
+                selectedRoute = state.topLevelRoute,
+                onSelect = navigator::navigate,
             )
-        }
+        },
+    ) { innerPadding ->
+        NavDisplay(
+            entries = entries,
+            onBack = navigator::goBack,
+            modifier = Modifier.padding(innerPadding),
+        )
     }
 }
 

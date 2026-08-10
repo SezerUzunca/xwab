@@ -15,6 +15,7 @@ import xwab.feature.home.generated.resources.tab_sounds
 /** The whole of this feature, as the composition root sees it. */
 val homeFeature = FeatureEntry(
     koinModule = homeModule,
+    entries = { homeEntry(it) },
     serializers = homeNavigationSerializers,
     // Order 0, so this is the start destination: the tab back falls through to, and the one a back
     // press leaves the app from.

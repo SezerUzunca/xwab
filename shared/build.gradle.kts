@@ -70,7 +70,6 @@ kotlin {
             implementation(libs.compose.ui)
             // The composition root owns every Koin module the domain layer needs.
             implementation(libs.koin.core)
-            implementation(libs.koin.compose.navigation3)
             implementation(libs.navigation3.ui)
             implementation(libs.androidx.lifecycle.viewmodelNavigation3)
             implementation(libs.kotlinx.serialization.core)
