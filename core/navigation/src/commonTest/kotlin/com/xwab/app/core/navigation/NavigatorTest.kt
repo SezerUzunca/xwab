@@ -29,8 +29,8 @@ class NavigatorTest {
         Navigator(state).navigate(DetailRoute)
 
         assertEquals(SoundsRoute, state.topLevelRoute)
-        assertEquals(listOf(SoundsRoute, DetailRoute), state.backStacks.getValue(SoundsRoute))
-        assertEquals(listOf(StoriesRoute), state.backStacks.getValue(StoriesRoute))
+        assertEquals(listOf<NavKey>(SoundsRoute, DetailRoute), state.backStacks.getValue(SoundsRoute))
+        assertEquals(listOf<NavKey>(StoriesRoute), state.backStacks.getValue(StoriesRoute))
     }
 
     /** A tab pushed onto another tab's history is how backing out lands mid-way through it. */
@@ -41,8 +41,8 @@ class NavigatorTest {
         Navigator(state).navigate(StoriesRoute)
 
         assertEquals(StoriesRoute, state.topLevelRoute)
-        assertEquals(listOf(SoundsRoute), state.backStacks.getValue(SoundsRoute))
-        assertEquals(listOf(StoriesRoute), state.backStacks.getValue(StoriesRoute))
+        assertEquals(listOf<NavKey>(SoundsRoute), state.backStacks.getValue(SoundsRoute))
+        assertEquals(listOf<NavKey>(StoriesRoute), state.backStacks.getValue(StoriesRoute))
     }
 
     @Test
@@ -55,7 +55,7 @@ class NavigatorTest {
         navigator.navigate(SoundsRoute)
 
         assertEquals(SoundsRoute, state.topLevelRoute)
-        assertEquals(listOf(SoundsRoute, DetailRoute), state.currentBackStack)
+        assertEquals(listOf<NavKey>(SoundsRoute, DetailRoute), state.currentBackStack)
     }
 
     @Test
@@ -66,7 +66,7 @@ class NavigatorTest {
 
         navigator.goBack()
 
-        assertEquals(listOf(SoundsRoute), state.currentBackStack)
+        assertEquals(listOf<NavKey>(SoundsRoute), state.currentBackStack)
     }
 
     /** An emptied stack has nothing for `NavDisplay` to render: the tab would vanish, not reset. */
@@ -77,7 +77,7 @@ class NavigatorTest {
         Navigator(state).goBack()
 
         assertEquals(SoundsRoute, state.topLevelRoute)
-        assertEquals(listOf(SoundsRoute), state.currentBackStack)
+        assertEquals(listOf<NavKey>(SoundsRoute), state.currentBackStack)
     }
 
     @Test
@@ -89,18 +89,18 @@ class NavigatorTest {
         navigator.goBack()
 
         assertEquals(SoundsRoute, state.topLevelRoute)
-        assertEquals(listOf(StoriesRoute), state.backStacks.getValue(StoriesRoute))
+        assertEquals(listOf<NavKey>(StoriesRoute), state.backStacks.getValue(StoriesRoute))
     }
 
     /** Back from a tab lands on the start tab, so the start tab is always on screen beneath it. */
     @Test
     fun theStartTabStaysInUseWhileAnotherTabIsShowing() {
         val state = state()
-        assertEquals(listOf(SoundsRoute), state.routesInUse)
+        assertEquals(listOf<NavKey>(SoundsRoute), state.routesInUse)
 
         Navigator(state).navigate(StoriesRoute)
 
-        assertEquals(listOf(SoundsRoute, StoriesRoute), state.routesInUse)
+        assertEquals(listOf<NavKey>(SoundsRoute, StoriesRoute), state.routesInUse)
     }
 
     @Test
