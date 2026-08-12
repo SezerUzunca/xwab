@@ -1,6 +1,7 @@
 package com.xwab.app.core.catalogmanifest
 
 import com.xwab.app.core.catalog.Category
+import com.xwab.app.core.catalog.CategoryId
 import com.xwab.app.core.catalog.Music
 import com.xwab.app.core.catalog.TrackId
 import kotlin.test.Test
@@ -21,13 +22,13 @@ class ManifestMusicCatalogRepositoryTest {
     @Test
     fun theWholeCatalogIsServedAsGiven() = runBlocking {
         assertEquals(listOf(rain, waves), repository.observeAllMusic().first())
-        assertEquals(listOf("rain", "ocean"), repository.observeCategories().first().map { it.id })
+        assertEquals(listOf(CategoryId("rain"), CategoryId("ocean")), repository.observeCategories().first().map { it.id })
     }
 
     @Test
     fun aCategoryIsServedWithOnlyItsOwnTracks() = runBlocking {
-        assertEquals("rain", repository.observeCategory("rain").first()?.id)
-        assertEquals(listOf(rain), repository.observeMusicForCategory("rain").first())
+        assertEquals(CategoryId("rain"), repository.observeCategory(CategoryId("rain")).first()?.id)
+        assertEquals(listOf(rain), repository.observeMusicForCategory(CategoryId("rain")).first())
     }
 
     @Test
@@ -42,8 +43,8 @@ class ManifestMusicCatalogRepositoryTest {
     @Test
     fun anUnknownIdEmitsNothingRatherThanNeverEmitting() = runBlocking {
         assertNull(repository.observeMusic(TrackId("no-such-track")).first())
-        assertNull(repository.observeCategory("no-such-category").first())
-        assertEquals(emptyList<Music>(), repository.observeMusicForCategory("no-such-category").first())
+        assertNull(repository.observeCategory(CategoryId("no-such-category")).first())
+        assertEquals(emptyList<Music>(), repository.observeMusicForCategory(CategoryId("no-such-category")).first())
     }
 
     @Test
@@ -59,12 +60,12 @@ class ManifestMusicCatalogRepositoryTest {
     private fun track(id: String, categoryId: String) = Music(
         id = TrackId(id),
         name = id,
-        categoryId = categoryId,
+        categoryId = CategoryId(categoryId),
         durationSeconds = 60,
     )
 
     private fun category(id: String, musicCount: Int) = Category(
-        id = id,
+        id = CategoryId(id),
         name = id,
         description = "",
         symbol = "*",

@@ -15,8 +15,8 @@ import org.gradle.api.tasks.TaskAction
  * down.
  *
  * 1. A core module may not depend on a feature. Dependencies point one way.
- * 2. A feature may depend on another feature's `:navigation` module and nothing else of it.
- *    That module is the whole contract: routes in, no implementation.
+ * 2. A feature may not depend on another feature module. Cross-feature navigation is application
+ *    policy: an entry provider exposes an intent callback and `:shared` connects it to a route API.
  * 3. A use case in a core module must serve more than one feature. A screen-specific one belongs
  *    to that screen's module, otherwise screen logic leaks into shared capabilities.
  * 4. A feature may not declare — or reach through an `api` dependency — a module in

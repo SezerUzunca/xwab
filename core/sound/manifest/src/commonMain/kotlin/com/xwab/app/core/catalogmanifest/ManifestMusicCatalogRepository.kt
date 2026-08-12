@@ -1,6 +1,7 @@
 package com.xwab.app.core.catalogmanifest
 
 import com.xwab.app.core.catalog.Category
+import com.xwab.app.core.catalog.CategoryId
 import com.xwab.app.core.catalog.Music
 import com.xwab.app.core.catalog.MusicCatalogRepository
 import com.xwab.app.core.catalog.TrackId
@@ -36,10 +37,10 @@ internal class ManifestMusicCatalogRepository(
 
     override fun observeAllMusic(): Flow<List<Music>> = allTracks
 
-    override fun observeCategory(categoryId: String): Flow<Category?> =
+    override fun observeCategory(categoryId: CategoryId): Flow<Category?> =
         allCategories.map { values -> values.find { it.id == categoryId } }
 
-    override fun observeMusicForCategory(categoryId: String): Flow<List<Music>> =
+    override fun observeMusicForCategory(categoryId: CategoryId): Flow<List<Music>> =
         allTracks.map { values -> values.filter { it.categoryId == categoryId } }
 
     override fun observeMusic(musicId: TrackId): Flow<Music?> =

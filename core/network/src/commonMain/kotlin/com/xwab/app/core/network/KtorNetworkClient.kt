@@ -12,6 +12,7 @@ import io.ktor.http.contentLength
 import io.ktor.http.contentType
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class KtorNetworkClient(
     private val client: HttpClient,
@@ -27,7 +28,7 @@ internal class KtorNetworkClient(
      */
     override suspend fun getText(httpsUrl: String, headers: Map<String, String>): String {
         requireHttps(httpsUrl)
-        return withTimeoutOrNull(textTimeoutMillis) {
+        return withTimeoutOrNull(textTimeoutMillis.milliseconds) {
             client.prepareGet(httpsUrl) {
                 headers.forEach { (name, value) -> header(name, value) }
             }.execute { response ->

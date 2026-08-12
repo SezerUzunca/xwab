@@ -60,15 +60,16 @@ include(":core:navigation")
 include(":core:testing")
 include(":shared")
 
-// Feature modules are discovered, not listed: `tools/new-feature.ps1` writes the directories and
-// they are part of the build on the next sync. A feature is a directory under `feature/` with a
-// build file, optionally holding a `navigation/` API module beside it.
+// Feature modules follow Now in Android's public-contract/implementation split. Every directory
+// under `feature/` owns an `api` module and an `impl` module; the parent is only a container.
 rootDir.resolve("feature").listFiles()
-    ?.filter { it.isDirectory && it.resolve("build.gradle.kts").exists() }
+    ?.filter {
+        it.isDirectory &&
+            it.resolve("api/build.gradle.kts").exists() &&
+            it.resolve("impl/build.gradle.kts").exists()
+    }
     ?.sortedBy { it.name }
     ?.forEach { featureDir ->
-        include(":feature:${featureDir.name}")
-        if (featureDir.resolve("navigation/build.gradle.kts").exists()) {
-            include(":feature:${featureDir.name}:navigation")
-        }
+        include(":feature:${featureDir.name}:api")
+        include(":feature:${featureDir.name}:impl")
     }

@@ -1,17 +1,15 @@
 <resources>
-    <!--
-      The app's own identity. Not a feature's to own: whichever slice happens to draw the header
-      today, the name and the tagline are the product's, and a rename of that slice must not move
-      them. Every module can see this one, which is the only reason they can live in a shared place
-      at all.
-    -->
-    <string name="app_title">XWAB</string>
-    <string name="app_subtitle">Relax • Breathe • Sleep</string>
-
     <string name="back">Back</string>
     <string name="play">Play</string>
     <string name="pause">Pause</string>
     <string name="add_favorite">Add to favorites</string>
     <string name="remove_favorite">Remove from favorites</string>
     <string name="duration_public_domain">%1$s • Public Domain</string>
+
+    <!--
+      Shown by every list that plays inline, while a row is wanted but not yet audible. Shared
+      because it says nothing about what is loading: the two features that had it declared it with
+      identical text under two different keys.
+    -->
+    <string name="preparing">Loading…</string>
 </resources>

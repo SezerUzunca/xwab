@@ -1,29 +1,38 @@
 package com.xwab.app.core.navigation
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.navigation3.runtime.NavKey
 
 /**
  * The one thing a screen may do to navigation: ask for a key, or ask to go back.
  *
- * Which of the two things [navigate] means is decided here rather than by the caller, because a
- * screen has no business knowing whether what it is routing to happens to be a tab. A feature's
- * `navigateToX` extension calls [navigate] either way, and the tab-versus-push distinction stays in
- * this module.
+ * Which of the three things [navigate] means — reselect, switch tab, or push — is decided here
+ * rather than by the caller, because nothing outside this module has to know whether a key happens
+ * to be a tab. Features never see this class at all: their entries take plain callbacks, and the
+ * composition root is the only caller.
  */
 class Navigator(private val state: NavigationState) {
     /**
-     * Switches tab when [key] is a top-level route, and pushes onto the current tab otherwise.
+     * Resets the current tab when it is reselected, switches to another top-level route, or moves
+     * a non-top-level route to the end of the current tab's stack.
      *
      * A tab is never pushed onto a stack. Doing that would put Stories on top of Sounds' history,
      * and backing out of it would land in the middle of the other tab.
      */
     fun navigate(key: NavKey) {
-        if (key in state.backStacks) {
-            state.topLevelRoute = key
-        } else {
-            state.currentBackStack.add(key)
+        when (key) {
+            state.topLevelRoute -> clearSubStack()
+            in state.backStacks -> state.topLevelRoute = key
+            else -> state.currentBackStack.apply {
+                remove(key)
+                add(key)
+            }
+        }
+    }
+
+    /** Clears every entry above the current tab's root. */
+    private fun clearSubStack() {
+        state.currentBackStack.run {
+            if (size > 1) subList(1, size).clear()
         }
     }
 
@@ -42,6 +51,3 @@ class Navigator(private val state: NavigationState) {
         }
     }
 }
-
-@Composable
-fun rememberNavigator(state: NavigationState): Navigator = remember(state) { Navigator(state) }

@@ -1,5 +1,6 @@
 package com.xwab.app.core.catalog
 
+import com.xwab.app.core.catalog.CategoryId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -16,8 +17,8 @@ class MusicTest {
 
         assertEquals(TrackId("gentle-rain"), track.id)
         assertEquals("Rain on the Window", track.name)
-        assertEquals("rain", track.categoryId)
-        assertEquals("0:09", track.formattedDuration)
+        assertEquals(CategoryId("rain"), track.categoryId)
+        assertEquals(9, track.durationSeconds)
     }
 
     /** The playback pair falls back to the track's own name and the app's own artist. */
@@ -62,7 +63,7 @@ class MusicTest {
     ) = Music(
         id = TrackId("gentle-rain"),
         name = name,
-        categoryId = categoryId,
+        categoryId = CategoryId(categoryId),
         durationSeconds = durationSeconds,
         playbackTitle = playbackTitle,
         playbackArtist = playbackArtist,

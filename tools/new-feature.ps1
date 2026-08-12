@@ -3,12 +3,13 @@
     Writes the skeleton of a new feature slice.
 
 .DESCRIPTION
-    Creates feature/<name> and feature/<name>/navigation with their build files, a route, a
-    screen, a ViewModel, a state, a Koin module and the FeatureEntry the composition root
-    registers. Gradle discovers the modules on its own (settings.gradle.kts scans feature/), so
-    nothing else needs editing to make them build.
+    Creates feature/<name>/api and feature/<name>/impl in the same shape as Now in Android. The
+    API owns public navigation contracts; the implementation owns UI, state, ViewModel, DI and
+    navigation entries. Gradle discovers both modules automatically.
 
-    Two lines in 'shared' then put the feature on screen; the script prints them when it is done.
+    The generated feature is intentionally not self-registering. The script prints the explicit
+    app composition steps and requires choosing either a top-level destination or an existing
+    feature intent that the composition root will connect to it.
 
 .PARAMETER Name
     Lower-case, dash-separated directory name, for example 'favorites' or 'sleep-timer'.
@@ -51,19 +52,19 @@ function Write-GeneratedFile {
     Write-Host "  created $($Path.Substring($repoRoot.Length + 1))"
 }
 
-$mainSrc = Join-Path $featureDir "src\commonMain\kotlin\com\xwab\app\feature\$pkg"
-$testSrc = Join-Path $featureDir "src\commonTest\kotlin\com\xwab\app\feature\$pkg"
-$navSrc = Join-Path $featureDir "navigation\src\commonMain\kotlin\com\xwab\app\feature\$pkg\navigation"
+$mainSrc = Join-Path $featureDir "impl\src\commonMain\kotlin\com\xwab\app\feature\$pkg\impl"
+$testSrc = Join-Path $featureDir "impl\src\commonTest\kotlin\com\xwab\app\feature\$pkg\impl"
+$navSrc = Join-Path $featureDir "api\src\commonMain\kotlin\com\xwab\app\feature\$pkg\api\navigation"
 
 Write-Host "Creating feature '$Name'..."
 
-Write-GeneratedFile (Join-Path $featureDir "build.gradle.kts") @"
+Write-GeneratedFile (Join-Path $featureDir "impl\build.gradle.kts") @"
 plugins {
     id("xwab.kmp.feature")
 }
 
 kotlin {
-    android { namespace = "com.xwab.app.feature.${pkg}" }
+    android { namespace = "com.xwab.app.feature.${pkg}.impl" }
 
     sourceSets {
         commonMain.dependencies {
@@ -76,8 +77,7 @@ kotlin {
             // Delivery, the playback engine and the shipped manifest are not on the menu —
             // `checkArchitecture` rule 4 refuses a feature that declares any of them.
 
-            implementation(projects.feature.${camel}.navigation)
-            // Screens this one routes to go here, their navigation module only.
+            implementation(projects.feature.${camel}.api)
         }
         commonTest.dependencies {
             implementation(projects.core.testing)
@@ -86,21 +86,20 @@ kotlin {
 }
 "@
 
-Write-GeneratedFile (Join-Path $featureDir "navigation\build.gradle.kts") @"
+Write-GeneratedFile (Join-Path $featureDir "api\build.gradle.kts") @"
 plugins {
-    id("xwab.kmp.feature.navigation")
+    id("xwab.kmp.feature.api")
 }
 
 kotlin {
-    android { namespace = "com.xwab.app.feature.${pkg}.navigation" }
+    android { namespace = "com.xwab.app.feature.${pkg}.api" }
 }
 "@
 
 Write-GeneratedFile (Join-Path $navSrc "${Pascal}Navigation.kt") @"
-package com.xwab.app.feature.${pkg}.navigation
+package com.xwab.app.feature.${pkg}.api.navigation
 
 import androidx.navigation3.runtime.NavKey
-import com.xwab.app.core.navigation.Navigator
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
@@ -115,13 +114,10 @@ val ${camel}NavigationSerializers = SerializersModule {
     }
 }
 
-fun Navigator.navigateTo${Pascal}() {
-    navigate(${Pascal}Route)
-}
 "@
 
 Write-GeneratedFile (Join-Path $mainSrc "${Pascal}State.kt") @"
-package com.xwab.app.feature.${pkg}
+package com.xwab.app.feature.${pkg}.impl
 
 internal data class ${Pascal}State(
     val title: String = "${Pascal}",
@@ -129,7 +125,7 @@ internal data class ${Pascal}State(
 "@
 
 Write-GeneratedFile (Join-Path $mainSrc "${Pascal}ViewModel.kt") @"
-package com.xwab.app.feature.${pkg}
+package com.xwab.app.feature.${pkg}.impl
 
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -142,7 +138,7 @@ internal class ${Pascal}ViewModel : ViewModel() {
 "@
 
 Write-GeneratedFile (Join-Path $mainSrc "${Pascal}Screen.kt") @"
-package com.xwab.app.feature.${pkg}
+package com.xwab.app.feature.${pkg}.impl
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -176,63 +172,48 @@ internal fun ${Pascal}Screen(
 "@
 
 Write-GeneratedFile (Join-Path $mainSrc "di\${Pascal}Module.kt") @"
-package com.xwab.app.feature.${pkg}.di
+package com.xwab.app.feature.${pkg}.impl.di
 
-import com.xwab.app.feature.${pkg}.${Pascal}ViewModel
+import com.xwab.app.feature.${pkg}.impl.${Pascal}ViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 /** Objects only. What this feature shows is in ${Pascal}Entry.kt. */
-internal val ${camel}Module = module {
+val ${camel}Module = module {
     // This screen's own use cases are bound here too, never in a shared core module.
     viewModel { ${Pascal}ViewModel() }
 }
 "@
 
-Write-GeneratedFile (Join-Path $mainSrc "${Pascal}Entry.kt") @"
+Write-GeneratedFile (Join-Path $mainSrc "navigation\${Pascal}Entry.kt") @"
 @file:OptIn(org.koin.core.annotation.KoinExperimentalAPI::class)
 
-package com.xwab.app.feature.${pkg}
+package com.xwab.app.feature.${pkg}.impl.navigation
 
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
-import com.xwab.app.core.navigation.Navigator
-import com.xwab.app.feature.${pkg}.navigation.${Pascal}Route
+import com.xwab.app.feature.${pkg}.api.navigation.${Pascal}Route
+import com.xwab.app.feature.${pkg}.impl.${Pascal}ScreenRoute
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Where this feature's routes turn into screens.
  *
- * Route another feature by declaring its navigation module in this one's build file and calling
- * the navigateToX extension it publishes — never by depending on its implementation.
+ * Outgoing navigation is exposed as an intent callback. The app composition root decides which
+ * destination route fulfils that intent, so this module never depends on another feature.
  */
-internal fun EntryProviderScope<NavKey>.${camel}Entry(navigator: Navigator) {
+fun EntryProviderScope<NavKey>.${camel}Entry(onBack: () -> Unit) {
     entry<${Pascal}Route> {
         ${Pascal}ScreenRoute(
-            onBack = navigator::goBack,
+            onBack = onBack,
             viewModel = koinViewModel(),
         )
     }
 }
 "@
 
-Write-GeneratedFile (Join-Path $mainSrc "${Pascal}Feature.kt") @"
-package com.xwab.app.feature.${pkg}
-
-import com.xwab.app.core.navigation.FeatureEntry
-import com.xwab.app.feature.${pkg}.di.${camel}Module
-import com.xwab.app.feature.${pkg}.navigation.${camel}NavigationSerializers
-
-/** The whole of this feature, as the composition root sees it. */
-val ${camel}Feature = FeatureEntry(
-    koinModule = ${camel}Module,
-    entries = { ${camel}Entry(it) },
-    serializers = ${camel}NavigationSerializers,
-)
-"@
-
 Write-GeneratedFile (Join-Path $testSrc "${Pascal}ViewModelTest.kt") @"
-package com.xwab.app.feature.${pkg}
+package com.xwab.app.feature.${pkg}.impl
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -250,10 +231,18 @@ class ${Pascal}ViewModelTest {
 "@
 
 Write-Host ""
-Write-Host "Done. Two lines left, both in shared:" -ForegroundColor Green
+Write-Host "Done. The app composition must now wire this feature explicitly:" -ForegroundColor Green
 Write-Host "  1. shared/build.gradle.kts, commonMain.dependencies:"
-Write-Host "         implementation(projects.feature.${camel})"
-Write-Host "  2. shared/src/commonMain/kotlin/com/xwab/app/di/AppFeatures.kt:"
-Write-Host "         add ${camel}Feature to the 'features' list (and import it)"
+Write-Host "         implementation(projects.feature.${camel}.api)"
+Write-Host "         implementation(projects.feature.${camel}.impl)"
+Write-Host "  2. shared/src/commonMain/kotlin/com/xwab/app/di/AppModules.kt:"
+Write-Host "         add ${camel}Module to featureModules (and import it)"
+Write-Host "  3. shared/src/commonMain/kotlin/com/xwab/app/navigation/AppNavigation.kt:"
+Write-Host "         call ${camel}Entry(onBack = navigator::goBack) inside appEntryProvider"
+Write-Host "         include ${camel}NavigationSerializers in FEATURE_SERIALIZERS"
+Write-Host "  4. Make the route reachable; choose exactly one:" -ForegroundColor Yellow
+Write-Host "         TOP LEVEL: add ${Pascal}Route to TOP_LEVEL_DESTINATIONS with its label and icon"
+Write-Host "         NESTED: connect a caller entry's intent callback to ${Pascal}Route in AppNavigation.kt"
+Write-Host "     Registration alone does not put a nested feature on screen."
 Write-Host ""
-Write-Host "Then: ./gradlew :feature:${Name}:compileCommonMainKotlinMetadata checkArchitecture"
+Write-Host "Then: ./gradlew :feature:${Name}:impl:compileCommonMainKotlinMetadata checkArchitecture"

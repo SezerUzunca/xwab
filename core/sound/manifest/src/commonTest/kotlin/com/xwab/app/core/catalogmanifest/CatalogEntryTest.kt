@@ -1,5 +1,6 @@
 package com.xwab.app.core.catalogmanifest
 
+import com.xwab.app.core.catalog.CategoryId
 import com.xwab.app.core.catalog.Music
 import com.xwab.app.core.catalog.TrackId
 import kotlin.test.Test
@@ -41,5 +42,5 @@ class CatalogEntryTest {
         id: String = "heavy-rain",
         version: Int = 1,
         httpsUrl: String = "https://example.test/heavy-rain.mp3",
-    ) = CatalogEntry(Music(TrackId(id), "Heavy Rain", "rain", 30), httpsUrl, version)
+    ) = CatalogEntry(Music(TrackId(id), "Heavy Rain", CategoryId("rain"), 30), httpsUrl, version)
 }

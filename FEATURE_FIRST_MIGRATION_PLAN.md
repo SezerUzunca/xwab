@@ -1,5 +1,12 @@
 # Feature-First Modular Architecture — Analiz ve Geçiş Raporu
 
+> Arşiv notu (2026-08-10): Bu belge ilk geçiş kararlarını tarihsel olarak kaydeder. Güncel yapı
+> Now in Android ile aynı `feature:<ad>:api` + `feature:<ad>:impl` ayrımını kullanır ve feature
+> izolasyonunu daha sıkı uygular: feature modülleri arasında doğrudan bağımlılık yoktur. Yaşayan mimari ve
+> yeni feature adımları için README esas alınmalıdır. Aşağıdaki eski `home`, `player`,
+> `:navigation` ve generic `FeatureEntry` önerileri bugünkü modül grafiğini tarif etmez; güncel
+> yapıda entry, serializer, top-level policy ve Koin modülleri app/shared katmanında açıkça bağlanır.
+
 Tarih: 2026-07-30 · Analiz raporu. **Beş fazın tamamı uygulandı — bkz. [§6 Uygulama durumu](#6-uygulama-durumu).**
 
 ## 1. Önemli tespit: Proje zaten feature-first
@@ -141,9 +148,8 @@ modül içinden `koinEntryProvider()` ile otomatik toplanıyor; bu mekanizma kor
   - Bir feature başka bir feature'ın yalnızca `:navigation` modülüne bağımlı olabilir.
   - `core:*` modülleri `feature:*` modüllerine bağımlı olamaz.
   - Ekrana özel use case'ler `core:domain`'e geri sızamaz.
-- Eksik dilim: README "feature slices: home, category, **favorites**, player" diyor ama
-  `feature:favorites` modülü yok (favoriler home içinde). Bilinçliyse README düzeltilmeli,
-  değilse Faz 4'teki iskeletle ilk aday feature olarak ayrıştırılabilir.
+- Tamamlandı: favoriler katalog girişinden ayrılarak `feature:favorites:{api,impl}` dilimine
+  taşındı; katalog girişi yalnız `MusicCatalogRepository` okuyan `feature:browse:{api,impl}` oldu.
 
 ## 4. Önerilen sıra ve beklenen kazanım
 

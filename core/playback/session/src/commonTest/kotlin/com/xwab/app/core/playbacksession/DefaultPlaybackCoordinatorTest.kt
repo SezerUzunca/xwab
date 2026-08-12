@@ -3,6 +3,7 @@ package com.xwab.app.core.playbacksession
 import com.xwab.app.core.audiodelivery.resolution.AudioContentResolver
 import com.xwab.app.core.audiodelivery.resolution.AudioSourceResolution
 import com.xwab.app.core.catalog.Category
+import com.xwab.app.core.catalog.CategoryId
 import com.xwab.app.core.catalog.Music
 import com.xwab.app.core.catalog.MusicCatalogRepository
 import com.xwab.app.core.catalog.TrackId
@@ -717,14 +718,14 @@ class DefaultPlaybackCoordinatorTest {
             Music(
                 id = TrackId("gentle-rain"),
                 name = "Rain on the Window",
-                categoryId = "rain",
+                categoryId = CategoryId("rain"),
                 durationSeconds = 9,
                 playbackTitle = "Gentle Rain",
             ),
             Music(
                 id = TrackId("calm-waves"),
                 name = "Ontario Waves",
-                categoryId = "ocean",
+                categoryId = CategoryId("ocean"),
                 durationSeconds = 286,
                 playbackTitle = "Calm Waves",
             ),
@@ -732,8 +733,8 @@ class DefaultPlaybackCoordinatorTest {
 
         override fun observeCategories(): Flow<List<Category>> = flowOf(emptyList())
         override fun observeAllMusic(): Flow<List<Music>> = flowOf(tracks)
-        override fun observeCategory(categoryId: String): Flow<Category?> = flowOf(null)
-        override fun observeMusicForCategory(categoryId: String): Flow<List<Music>> = flowOf(emptyList())
+        override fun observeCategory(categoryId: CategoryId): Flow<Category?> = flowOf(null)
+        override fun observeMusicForCategory(categoryId: CategoryId): Flow<List<Music>> = flowOf(emptyList())
         override fun observeMusic(musicId: TrackId): Flow<Music?> = flowOf(tracks.find { it.id == musicId })
     }
 

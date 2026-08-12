@@ -11,26 +11,16 @@ package com.xwab.app.core.catalog
 data class Music(
     val id: TrackId,
     val name: String,
-    val categoryId: String,
+    val categoryId: CategoryId,
     val durationSeconds: Int,
     val playbackTitle: String = name,
     val playbackArtist: String = "Sleep Sounds",
 ) {
     init {
         require(name.isNotBlank()) { "A track needs a name: ${id.value}" }
-        require(categoryId.isNotBlank()) { "A track needs a category: ${id.value}" }
+        // `CategoryId` already refuses a blank, so a track only has to hold one at all.
         require(durationSeconds > 0) { "A track needs a positive duration: ${id.value}" }
         require(playbackTitle.isNotBlank()) { "A track's playback title cannot be blank: ${id.value}" }
         require(playbackArtist.isNotBlank()) { "A track's playback artist cannot be blank: ${id.value}" }
     }
-
-    val formattedDuration: String
-        get() = formatDuration(durationSeconds)
-}
-
-fun formatDuration(totalSeconds: Int): String {
-    val safeSeconds = totalSeconds.coerceAtLeast(0)
-    val minutes = safeSeconds / 60
-    val seconds = safeSeconds % 60
-    return "$minutes:${seconds.toString().padStart(2, '0')}"
 }

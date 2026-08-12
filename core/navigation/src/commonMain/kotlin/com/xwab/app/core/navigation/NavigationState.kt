@@ -1,9 +1,7 @@
 package com.xwab.app.core.navigation
 
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.NavKey
 
 /**
@@ -27,16 +25,28 @@ import androidx.navigation3.runtime.NavKey
 class NavigationState(
     val startRoute: NavKey,
     val backStacks: Map<NavKey, MutableList<NavKey>>,
-    topLevelRoute: MutableState<NavKey> = mutableStateOf(startRoute),
+    initialTopLevelRoute: NavKey = startRoute,
+    private val onTopLevelRouteChanged: (NavKey) -> Unit = {},
 ) {
+    private val topLevelRouteState: MutableState<NavKey> = mutableStateOf(initialTopLevelRoute)
+
     init {
         require(startRoute in backStacks) {
             "The start route must have a back stack of its own: $startRoute"
         }
+        require(initialTopLevelRoute in backStacks) {
+            "The selected top-level route must have a back stack of its own: $initialTopLevelRoute"
+        }
     }
 
     /** The tab currently showing. Set by [Navigator]; read by the navigation bar. */
-    var topLevelRoute: NavKey by topLevelRoute
+    var topLevelRoute: NavKey
+        get() = topLevelRouteState.value
+        set(value) {
+            require(value in backStacks) { "A top-level route needs its own back stack: $value" }
+            topLevelRouteState.value = value
+            onTopLevelRouteChanged(value)
+        }
 
     val currentBackStack: MutableList<NavKey>
         get() = backStacks.getValue(topLevelRoute)
@@ -45,7 +55,7 @@ class NavigationState(
      * The stacks whose entries are on screen — the selected tab's, and the start tab's beneath it.
      *
      * The start tab stays in the list so that back from another tab's root lands on it rather than
-     * leaving the app. That is the "exit through home" behaviour the documented recipe describes,
+     * leaving the app. That is the documented start-tab fall-through behavior,
      * and it is why this is a list rather than a single stack.
      */
     val routesInUse: List<NavKey>

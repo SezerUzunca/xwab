@@ -8,11 +8,10 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(libs.navigation3.runtime)
+            // `toEntries` is a public `@Composable` returning `NavEntry`, so both are API surface.
             api(libs.compose.runtime)
-            // `FeatureEntry` hands the composition root a Koin module and a serializers module,
-            // so both are part of this module's API.
-            api(libs.koin.core)
-            api(libs.kotlinx.serialization.core)
+            // Used only inside `toEntries`, to decorate each tab's entries with a ViewModelStore.
+            implementation(libs.androidx.lifecycle.viewmodelNavigation3)
         }
     }
 }

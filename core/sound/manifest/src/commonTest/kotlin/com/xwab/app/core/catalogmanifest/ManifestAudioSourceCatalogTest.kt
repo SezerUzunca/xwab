@@ -1,5 +1,6 @@
 package com.xwab.app.core.catalogmanifest
 
+import com.xwab.app.core.catalog.CategoryId
 import com.xwab.app.core.catalog.Music
 import com.xwab.app.core.catalog.TrackId
 import kotlin.test.Test
@@ -18,11 +19,11 @@ class ManifestAudioSourceCatalogTest {
     private val catalog = ManifestAudioSourceCatalog(
         listOf(
             CatalogEntry(
-                Music(TrackId("heavy-rain"), "Heavy Rain", "rain", 30),
+                Music(TrackId("heavy-rain"), "Heavy Rain", CategoryId("rain"), 30),
                 "https://example.test/heavy-rain.mp3",
             ),
             CatalogEntry(
-                Music(TrackId("calm-waves"), "Calm Waves", "ocean", 40),
+                Music(TrackId("calm-waves"), "Calm Waves", CategoryId("ocean"), 40),
                 "https://example.test/calm-waves.mp3",
                 version = 2,
             ),

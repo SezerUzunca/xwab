@@ -14,8 +14,8 @@ import org.gradle.api.Project
  * This is also why `core:testing` is declared per feature: a slice that reads two capabilities has
  * no business compiling against fakes for a third.
  *
- * A feature must never depend on another feature's implementation module either — again rule-checked
- * rather than prevented, since nothing stops a build file from declaring one.
+ * A feature must never depend on another feature module either — again rule-checked rather than
+ * prevented, since nothing stops a build file from declaring one.
  */
 class KmpFeatureConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
@@ -25,7 +25,7 @@ class KmpFeatureConventionPlugin : Plugin<Project> {
             kotlinMultiplatform {
                 dependenciesOf("commonMain") {
                     implementation(project(":core:designsystem"))
-                    implementation(project(":core:navigation"))
+                    implementation(libs.library("navigation3-runtime"))
                     implementation(libs.library("compose-foundation"))
                     implementation(libs.library("compose-material3"))
                     implementation(libs.library("compose-ui"))

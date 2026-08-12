@@ -1,7 +1,0 @@
-<resources>
-    <string name="favorites_title">FAVORITES</string>
-    <string name="favorites_hint">Tap the heart to see it here</string>
-    <string name="categories_title">CATEGORIES</string>
-    <string name="track_count">%1$d track</string>
-    <string name="tab_sounds">Sounds</string>
-</resources>

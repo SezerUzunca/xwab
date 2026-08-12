@@ -14,7 +14,8 @@ package com.xwab.convention
 internal object FeatureFirstRules {
     const val CORE_PREFIX = ":core:"
     const val FEATURE_PREFIX = ":feature:"
-    const val NAVIGATION_SUFFIX = ":navigation"
+    const val API_SUFFIX = ":api"
+    const val IMPL_SUFFIX = ":impl"
 
     val USE_CASE_DECLARATION =
         Regex("""^\s*(?:internal\s+|public\s+)?class\s+(\w+UseCase)\b""", RegexOption.MULTILINE)
@@ -26,6 +27,9 @@ internal object FeatureFirstRules {
      * the rule cannot quietly protect nothing after a rename.
      */
     val MODULES_OFF_LIMITS_TO_FEATURES = mapOf(
+        ":core:navigation" to
+            "the app shell owns navigation state and destination policy; a feature exposes user " +
+                "intents as callbacks and uses Navigation 3 runtime only for its own route entry",
         ":core:network" to
             "HTTP is an adapter detail; a screen reads content through its repository instead " +
                 "of issuing requests itself",
@@ -83,10 +87,21 @@ internal object FeatureFirstRules {
                     dependency.startsWith(FEATURE_PREFIX) &&
                     featureOf(module) != featureOf(dependency)
 
-                if (isCrossFeature && !dependency.endsWith(NAVIGATION_SUFFIX)) {
-                    violations += "$module depends on $dependency. Depend on " +
-                        "$dependency$NAVIGATION_SUFFIX instead: a feature's navigation module is " +
-                        "the only part of it another feature may see."
+                val apiDependsOnImplementation = module.startsWith(FEATURE_PREFIX) &&
+                    module.endsWith(API_SUFFIX) &&
+                    dependency.startsWith(FEATURE_PREFIX) &&
+                    dependency.endsWith(IMPL_SUFFIX)
+
+                // Cross-feature is checked first because it is the stronger boundary: even a
+                // destination's API belongs at the composition root, not in the calling feature.
+                if (isCrossFeature) {
+                    violations += "$module depends on $dependency. Feature modules must not depend " +
+                        "on another feature. Expose an intent callback from the entry provider and " +
+                        "connect it to the destination API in :shared."
+                } else if (apiDependsOnImplementation) {
+                    violations += "$module depends on $dependency. A feature API must remain " +
+                        "implementation-free: the public contract must not point inward to its " +
+                        "implementation."
                 }
             }
 
@@ -164,7 +179,7 @@ internal object FeatureFirstRules {
             "second feature needs it."
     }.sorted()
 
-    /** `:feature:category` and `:feature:category:navigation` are both the `category` feature. */
+    /** `:feature:category:api` and `:feature:category:impl` are both the `category` feature. */
     fun featureOf(modulePath: String): String =
         modulePath.removePrefix(FEATURE_PREFIX).substringBefore(':')
 

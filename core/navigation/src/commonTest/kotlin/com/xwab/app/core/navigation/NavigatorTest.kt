@@ -46,6 +46,33 @@ class NavigatorTest {
     }
 
     @Test
+    fun reselectingTheCurrentTopLevelRouteClearsItsSubStack() {
+        val state = state()
+        val navigator = Navigator(state)
+        navigator.navigate(DetailRoute)
+
+        navigator.navigate(HomeRoute)
+
+        assertEquals(HomeRoute, state.topLevelRoute)
+        assertEquals(listOf<NavKey>(HomeRoute), state.currentBackStack)
+    }
+
+    @Test
+    fun navigatingToAnExistingNonTopLevelRouteMovesItToTheEndWithoutADuplicate() {
+        val state = state()
+        val navigator = Navigator(state)
+        navigator.navigate(DetailRoute)
+        navigator.navigate(AnotherDetailRoute)
+
+        navigator.navigate(DetailRoute)
+
+        assertEquals(
+            listOf<NavKey>(HomeRoute, AnotherDetailRoute, DetailRoute),
+            state.currentBackStack,
+        )
+    }
+
+    @Test
     fun eachTabKeepsItsOwnHistoryAcrossASwitch() {
         val state = state()
         val navigator = Navigator(state)
@@ -116,4 +143,5 @@ class NavigatorTest {
     private data object HomeRoute : NavKey
     private data object StoriesRoute : NavKey
     private data object DetailRoute : NavKey
+    private data object AnotherDetailRoute : NavKey
 }

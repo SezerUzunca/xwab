@@ -50,9 +50,9 @@ gradlePlugin {
             id = "xwab.kmp.feature"
             implementationClass = "com.xwab.convention.KmpFeatureConventionPlugin"
         }
-        register("kmpFeatureNavigation") {
-            id = "xwab.kmp.feature.navigation"
-            implementationClass = "com.xwab.convention.KmpFeatureNavigationConventionPlugin"
+        register("kmpFeatureApi") {
+            id = "xwab.kmp.feature.api"
+            implementationClass = "com.xwab.convention.KmpFeatureApiConventionPlugin"
         }
         register("architecture") {
             id = "xwab.architecture"
