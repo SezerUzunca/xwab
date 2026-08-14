@@ -5,13 +5,22 @@ import com.xwab.app.core.catalogmanifest.CACHE_FILE_NAME
 import com.xwab.app.core.network.NetworkClient
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import okio.FileSystem
 import okio.Path
 import okio.buffer
 
-/** The complete on-demand audio cache, shared by Android and iOS. */
+/**
+ * The complete on-demand audio cache, shared by Android and iOS.
+ *
+ * `Dispatchers.IO` is a member on JVM but only an `expect val Dispatchers.IO` extension on
+ * Kotlin/Native — a member always wins over an extension of the same name, so without the explicit
+ * `import kotlinx.coroutines.IO` above, Native falls through to the library's internal `IO` and
+ * fails to compile. An IDE's "optimize imports" does not know that and will remove it as
+ * apparently unused, since the JVM source set never needed it — do not let it.
+ */
 internal class CachingAudioFileStore(
     private val fileSystem: FileSystem,
     private val root: Path,
