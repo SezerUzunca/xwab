@@ -21,6 +21,9 @@ import okio.FileSystem
 import okio.Path.Companion.toPath
 import okio.buffer
 import okio.fakefilesystem.FakeFileSystem
+// `okio.use` (not the stdlib's) is required on Kotlin/Native — see the note on `writeDownload` in
+// CachingAudioFileStore.kt.
+import okio.use
 
 /** Cache behaviour against Okio's multiplatform in-memory file system. */
 class CachingAudioFileStoreTest {
