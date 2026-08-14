@@ -11,6 +11,7 @@ import kotlinx.coroutines.withContext
 import okio.FileSystem
 import okio.Path
 import okio.buffer
+import okio.use
 
 /**
  * The complete on-demand audio cache, shared by Android and iOS.
@@ -65,7 +66,7 @@ internal class CachingAudioFileStore(
                 removeUnreferencedFiles()
             }
         } finally {
-            // A cancelled transfer must not strand a `.part` file that the normal sweep ignores.
+            // A canceled transfer must not strand a `.part` file that the normal sweep ignores.
             withContext(NonCancellable + fileDispatcher) {
                 fileSystem.delete(partial, mustExist = false)
             }
@@ -75,8 +76,7 @@ internal class CachingAudioFileStore(
     /**
      * A [FileSystem.openReadWrite] handle is used instead of a plain sink so `FileHandle.flush()`
      * reaches the platform file handle before the staged file is promoted.
-     */
-    /**
+     *
      * The buffered sink is closed before the handle is flushed, so application buffers are gone
      * before the platform is asked to push anything.
      *
@@ -84,6 +84,14 @@ internal class CachingAudioFileStore(
      * the implementations differ: the JVM calls `fd.sync()`, the Unix/Apple one calls `fflush`. So
      * the bytes are on the device before the move on Android, and in the kernel's hands on iOS.
      * The README explains what that leaves open.
+     *
+     * The explicit `import okio.use` above is load-bearing. `okio.Closeable` is `actual typealias
+     * Closeable = java.io.Closeable` on the JVM, so `FileHandle.use { }` resolves through the JVM
+     * stdlib's own `kotlin.io.use` there without ever needing Okio's version. On Kotlin/Native,
+     * `okio.Closeable` is Okio's own bespoke interface — it extends neither `java.io.Closeable` nor
+     * `kotlin.AutoCloseable` — so the common `AutoCloseable.use` the compiler finds instead does not
+     * apply, and only `okio.use` resolves. Verified against Okio 3.17.0's own sources
+     * (`okio/-JvmPlatform.kt` vs. `okio/NonJvmPlatform.kt`).
      */
     private suspend fun writeDownload(partial: Path, remoteHttpsUrl: String) {
         fileSystem.openReadWrite(partial, mustCreate = true, mustExist = false).use { handle ->
