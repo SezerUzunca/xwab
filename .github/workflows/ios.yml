@@ -43,6 +43,26 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
+      # Kotlin/Native keeps its compiler distribution and per-target klib cache in ~/.konan,
+      # outside Gradle User Home entirely — `setup-java`'s `cache: gradle` above never touches it,
+      # and it is what Kotlin's own docs name as the thing to preserve between CI builds. A cold
+      # run pays for it twice, once per native target this job builds (iosSimulatorArm64Test,
+      # then the arm64 framework link): a 2026-08-14 run compiled every module cleanly and still
+      # hit the 45-minute job timeout during linking, the one target the simulator test run had
+      # not already warmed .konan for.
+      #
+      # Keyed on the Kotlin version pinned in the version catalog, since that is what actually
+      # determines the compiler distribution and the shape of the klib cache; restore-keys falls
+      # back to the most recent same-OS cache on a miss so a version bump still starts from
+      # something instead of nothing, and the exact key is written fresh at the end of this run.
+      - name: Cache the Kotlin/Native toolchain
+        uses: actions/cache@v6
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            konan-${{ runner.os }}-
+
       # Covers every module that has iOS tests, so a new one is picked up without touching this
       # file: core:sound:catalog, core:sound:manifest, core:sound:delivery, core:sound:favorites,
       # core:story:catalog, core:story:manifest, core:playback:session, core:playback:engine, shared.
