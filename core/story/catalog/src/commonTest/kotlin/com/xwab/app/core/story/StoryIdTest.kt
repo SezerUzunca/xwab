@@ -7,8 +7,8 @@ import kotlin.test.assertFailsWith
 class StoryIdTest {
     @Test
     fun theIdIsTheStringItWasGiven() {
-        assertEquals("forest-lantern", StoryId("forest-lantern").value)
-        assertEquals("forest-lantern", StoryId("forest-lantern").toString())
+        assertEquals("night-came-slowly", StoryId("night-came-slowly").value)
+        assertEquals("night-came-slowly", StoryId("night-came-slowly").toString())
     }
 
     /**

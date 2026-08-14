@@ -8,6 +8,10 @@ The shipped catalog data, and the two ports that read it.
   `MusicCatalogRepository` (declared in `core:sound:catalog`);
 - `AudioSourceCatalog` / `TrackSource`, the physical half, read by `core:sound:delivery`.
 
+The catalog is intentionally local. Sound networking is limited to downloading the selected
+track's bytes in `core:sound:delivery`; this module has no HTTP client, feed DTOs, refresh lifecycle
+or retry policy.
+
 ## Why this is not part of `core:sound:catalog`
 
 Because every feature depends on `core:sound:catalog`, and a public `AudioSourceCatalog` there would have

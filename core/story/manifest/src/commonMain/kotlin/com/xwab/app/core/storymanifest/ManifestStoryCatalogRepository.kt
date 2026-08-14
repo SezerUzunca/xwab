@@ -8,21 +8,20 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 /**
- * Serves the placeholder manifest to the screens as plain `Story` values.
+ * Serves the shipped manifest to screens as plain `Story` values, with sources left behind.
  *
  * It only queries a list, so it has no lifecycle — nothing to start, close or cancel. The
- * constructor takes the list so a test can query a small fixture instead of the real manifest, and
- * so the feed-backed implementation that replaces this one has an obvious seam to grow from.
+ * constructor takes the list so a test can query a small fixture instead of the real manifest.
  */
 internal class ManifestStoryCatalogRepository(
-    stories: List<Story> = storyManifest,
+    stories: List<Story> = storyCatalog,
 ) : StoryCatalogRepository {
     private val allStories: Flow<List<Story>> = flowOf(stories)
 
     init {
         val duplicates = stories.groupBy { it.id }.filterValues { it.size > 1 }.keys
         // Two stories under one id make `observeStory` answer with whichever came first, which is
-        // a bug that looks like a content mistake. A feed can produce it; so can a copied row here.
+        // a bug that looks like a content mistake. A copied manifest row can produce it.
         require(duplicates.isEmpty()) {
             "Story ids must be unique: ${duplicates.joinToString { it.value }}"
         }

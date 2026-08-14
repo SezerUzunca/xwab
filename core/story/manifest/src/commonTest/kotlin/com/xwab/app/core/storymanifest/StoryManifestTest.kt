@@ -5,8 +5,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The manifest is hand-written today and parsed from a feed later. These are the properties that
- * have to hold either way, checked here so a copied row fails a build rather than a screen.
+ * These are the properties of the shipped hand-written manifest. A copied or incomplete row fails
+ * the build rather than a listener's tap.
  */
 class StoryManifestTest {
     @Test
@@ -16,7 +16,7 @@ class StoryManifestTest {
 
     @Test
     fun everyStoryHasItsOwnId() {
-        val ids = storyManifest.map { it.id }
+        val ids = storyManifest.map { it.story.id }
 
         assertEquals(ids.size, ids.toSet().size, "two stories share an id: $ids")
     }
@@ -28,10 +28,20 @@ class StoryManifestTest {
      */
     @Test
     fun everyStoryIsListable() {
-        storyManifest.forEach { story ->
+        storyManifest.map(StoryEntry::story).forEach { story ->
             assertTrue(story.title.isNotBlank(), "${story.id} has no title")
+            assertTrue(story.author.isNotBlank(), "${story.id} has no author")
             assertTrue(story.description.isNotBlank(), "${story.id} has no description")
+            assertTrue(!story.narrator.isNullOrBlank(), "${story.id} has no narrator")
             assertTrue(story.durationSeconds > 0, "${story.id} has no duration")
         }
+    }
+
+    @Test
+    fun everyStoryHasItsOwnSource() {
+        val sources = storyManifest.map(StoryEntry::httpsUrl)
+
+        assertEquals(sources.size, sources.toSet().size, "two stories share an audio source")
+        assertTrue(sources.all { it.startsWith("https://") }, "a story source is not HTTPS")
     }
 }

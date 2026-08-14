@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_title">XWAB</string>
+    <string name="app_subtitle">Relax • Breathe • Sleep</string>
+    <string name="categories_title">CATEGORIES</string>
+    <plurals name="track_count">
+        <item quantity="one">%1$d track</item>
+        <item quantity="other">%1$d tracks</item>
+    </plurals>
+</resources>

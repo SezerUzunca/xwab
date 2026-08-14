@@ -17,6 +17,8 @@ datastore = "1.2.1"
 media3 = "1.10.1"
 kermit = "2.0.8"
 androidx-test = "1.7.0"
+ktor = "3.5.1"
+okio = "3.17.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -36,9 +38,16 @@ compose-material-icons-extended = { module = "org.jetbrains.compose.material:mat
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin-bom" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin-bom" }
 koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin-bom" }
-koin-compose-navigation3 = { module = "io.insert-koin:koin-compose-navigation3", version.ref = "koin-bom" }
+koin-test = { module = "io.insert-koin:koin-test", version.ref = "koin-bom" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinxSerialization" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
+okio-fakefilesystem = { module = "com.squareup.okio:okio-fakefilesystem", version.ref = "okio" }
 # JetBrains Navigation 3 — tam KMP desteği (Android, iOS, Desktop, Web)
 navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "navigation3" }
 navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "navigation3" }

@@ -1,44 +1,52 @@
 # Story manifest
 
-One capability: **which stories exist, and where each one's audio comes from.**
+One capability: **which stories exist, and where each story streams from.**
 
-Today only the first half is answered, and by a hand-written placeholder list —
-`storyManifest` in [StoryManifest.kt](src/commonMain/kotlin/com/xwab/app/core/storymanifest/StoryManifest.kt).
-The entries are not recorded audio; they exist so the `StoryCatalogRepository` port in
-[core:story:catalog](../catalog/README.md) has something to serve and the wiring around it can be
-built and tested before a story feed exists.
+It mirrors the catalog/source split in
+[core:sound:manifest](../../sound/manifest/README.md):
 
-`ManifestStoryCatalogRepository` implements that port. When a feed arrives, it is this module's
-internals that change — a client, DTOs, a mapping — and the port, the DI entry point and every
-caller stay as they are.
+| Port | Answers | Read by | Declared in |
+|---|---|---|---|
+| `StoryCatalogRepository` | What can be listened to? | screens and playback metadata resolution | `core:story:catalog` |
+| `StoryStreamCatalog` | Which HTTPS source plays this story? | `core:playback:session` | this module |
 
-## No feature declares this module
+Both ports are derived from one local `storyManifest` row, so metadata and audio cannot be added
+in unrelated edits. Every shipped row has a required HTTPS MP3 source; an unknown id is the only
+normal reason `StoryStreamCatalog.sourceFor` returns `null`.
 
-`checkArchitecture` rule 4 fails the build on one that does, for the reason it names
-`core:sound:manifest` on the sound side: this is where the physical source behind a story will
-live, and a port that hands out a URL cannot sit on every screen's classpath. A screen lists
-stories through `StoryCatalogRepository`; what is behind them is not its business.
+## Boundary
 
-## Story audio never enters the sound cache
+No feature declares this module. `checkArchitecture` rule 4 rejects such a dependency because a
+screen should list stories through `StoryCatalogRepository`, not retrieve physical media URLs.
+The composition root and playback session are the intended consumers.
 
-`core:sound:delivery` resolves a `TrackId` to a URI and, on a cache miss, starts a background
-download of the file. Stories are online-only: they stream and are not kept. So a story's source is
-resolved here — not there — and the resolution port for it lands in this module beside the list,
-once the feed contract settles the questions it depends on:
+This module contains no Ktor client, feed DTO, JSON parser, refresh job, retry policy, logger, or
+database. Its common code owns only manifest data, validation, repository mapping, and source
+mapping. There are no Android/iOS source sets because none of those jobs is platform-specific.
 
-- the endpoint and the JSON shape
-- whether stream URLs are permanent or signed, and how long a signed one lives
-- whether story metadata may be shown offline from a cached snapshot
-- timeout, retry and the error model
+## Direct Story streaming
 
-Until those are answered, a stream URL here would be a guess with tests written against it.
+Sound and Story share the same metadata/source separation but have different delivery behavior:
 
-## What is deliberately absent
+```text
+sound: catalog -> manifest -> delivery -> cached file or HTTPS
+story: catalog -> manifest -------------> HTTPS stream
+```
 
-- **No HTTP client and no serialization dependency.** Adding either commits the build to a feed
-  shape that does not exist yet.
-- **No progress storage.** Resuming needs position, duration and seek from `core:playback:engine`,
-  none of which it publishes; `core:story:progress` follows that, not this.
-- **No playback wiring.** `core:playback:session` still speaks in `TrackId`. Playing a story means
-  a generic item id and a resolver per content kind inside that module — a migration through all
-  three existing features, and a separate piece of work from adding these two modules.
+Story audio is handed to the platform player and is not written to the Sound cache. Therefore this
+module has no cache file name, Okio file store, or `core:network` dependency. HTTPS is validated in
+both `StoryEntry` and `StoryStreamSource`, the two values on the direct-player path.
+
+## Content and licensing
+
+The manifest currently contains five original-English works by Kate Chopin and Stephen Crane,
+read by Alan Davis Drake. The recording pages explicitly release the recordings worldwide and
+include an unrestricted fallback grant where public-domain dedication is not legally available.
+Sources and verification notes live in
+[THIRD_PARTY_AUDIO.md](../../../THIRD_PARTY_AUDIO.md).
+
+## Deliberately absent
+
+- **No database:** the manifest is immutable application data and Story has no offline cache.
+- **No remote catalog:** there is no server contract or endpoint to refresh.
+- **No progress store:** the engine does not yet expose the position/seek contract it would need.

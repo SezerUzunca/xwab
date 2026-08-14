@@ -1,0 +1,7 @@
+<resources>
+    <string name="favorites_title">FAVORITES</string>
+    <string name="favorites_empty">Tap the heart on a sound to save it here</string>
+    <string name="sound_not_found">This sound is no longer in the catalog</string>
+    <string name="sound_unavailable">Could not reach this sound. Tap to try again.</string>
+    <string name="sound_could_not_open">Could not play this sound</string>
+</resources>

@@ -10,23 +10,23 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
 class ManifestStoryCatalogRepositoryTest {
-    private val lantern = story("forest-lantern")
-    private val harbour = story("harbour-night")
-    private val repository = ManifestStoryCatalogRepository(stories = listOf(lantern, harbour))
+    private val night = story("night-came-slowly")
+    private val idleFellow = story("an-idle-fellow")
+    private val repository = ManifestStoryCatalogRepository(stories = listOf(night, idleFellow))
 
     @Test
     fun theWholeManifestIsServedAsGiven() = runBlocking {
-        assertEquals(listOf(lantern, harbour), repository.observeStories().first())
+        assertEquals(listOf(night, idleFellow), repository.observeStories().first())
     }
 
     @Test
     fun oneStoryIsServedById() = runBlocking {
-        assertEquals(harbour, repository.observeStory(StoryId("harbour-night")).first())
+        assertEquals(idleFellow, repository.observeStory(StoryId("an-idle-fellow")).first())
     }
 
     /**
-     * A screen opened on a story the feed has since dropped — a restored back stack, a stale deep
-     * link — has to see an empty result rather than a flow that never emits.
+     * A restored back stack or stale deep link has to see an empty result rather than a flow that
+     * never emits.
      */
     @Test
     fun anUnknownIdEmitsNothingRatherThanNeverEmitting() = runBlocking {
@@ -37,7 +37,7 @@ class ManifestStoryCatalogRepositoryTest {
     fun twoStoriesUnderOneIdAreRejected() {
         assertFailsWith<IllegalArgumentException> {
             ManifestStoryCatalogRepository(
-                stories = listOf(lantern, story("forest-lantern", title = "A Second Lantern")),
+                stories = listOf(night, story("night-came-slowly", title = "Another Version")),
             )
         }
     }
@@ -47,18 +47,19 @@ class ManifestStoryCatalogRepositoryTest {
     fun theShippedManifestIsServed() = runBlocking {
         val repository = ManifestStoryCatalogRepository()
 
-        assertEquals(storyManifest, repository.observeStories().first())
+        assertEquals(storyCatalog, repository.observeStories().first())
         assertEquals(
-            storyManifest.first(),
-            repository.observeStory(storyManifest.first().id).first(),
+            storyCatalog.first(),
+            repository.observeStory(storyCatalog.first().id).first(),
         )
     }
 
     private fun story(id: String, title: String = id) = Story(
         id = StoryId(id),
         title = title,
-        description = "A placeholder story.",
-        narrator = "Mira",
+        author = "Kate Chopin",
+        description = "A literary short story.",
+        narrator = "Alan Davis Drake",
         durationSeconds = 600,
         artworkUrl = null,
     )

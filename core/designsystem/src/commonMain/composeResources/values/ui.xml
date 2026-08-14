@@ -5,4 +5,11 @@
     <string name="add_favorite">Add to favorites</string>
     <string name="remove_favorite">Remove from favorites</string>
     <string name="duration_public_domain">%1$s • Public Domain</string>
+
+    <!--
+      Shown by every list that plays inline, while a row is wanted but not yet audible. Shared
+      because it says nothing about what is loading: the two features that had it declared it with
+      identical text under two different keys.
+    -->
+    <string name="preparing">Loading…</string>
 </resources>

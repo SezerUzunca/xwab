@@ -20,7 +20,7 @@ class FeatureFirstRulesTest {
     @Test
     fun aCoreModuleDependingOnAFeatureIsAViolation() {
         val violations = FeatureFirstRules.dependencyViolations(
-            mapOf(":core:sound:catalog" to listOf(":feature:home")),
+            mapOf(":core:sound:catalog" to listOf(":feature:category:impl")),
         )
 
         assertEquals(1, violations.size)
@@ -32,42 +32,79 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
-                mapOf(":feature:home" to listOf(":core:sound:catalog", ":core:sound:favorites")),
+                mapOf(":feature:category:impl" to listOf(":core:sound:catalog", ":core:sound:favorites")),
             ),
         )
     }
 
-    // Rule 2 — a feature sees only another feature's navigation module.
+    // Rule 2 — feature modules have no cross-feature dependency edges.
 
     @Test
     fun aFeatureReachingAnotherFeaturesImplementationIsAViolation() {
         val violations = FeatureFirstRules.dependencyViolations(
-            mapOf(":feature:home" to listOf(":feature:player")),
+            mapOf(":feature:category:impl" to listOf(":feature:sounds:impl")),
         )
 
         assertEquals(1, violations.size)
-        assertTrue(violations.single().contains(":feature:player:navigation"), violations.single())
+        assertTrue(violations.single().contains("must not depend"), violations.single())
     }
 
     @Test
-    fun aFeatureReachingAnotherFeaturesNavigationModuleIsFine() {
-        assertEquals(
-            emptyList(),
-            FeatureFirstRules.dependencyViolations(
-                mapOf(":feature:home" to listOf(":feature:player:navigation")),
-            ),
+    fun aFeatureReachingAnotherFeaturesApiModuleIsAViolation() {
+        val violations = FeatureFirstRules.dependencyViolations(
+            mapOf(":feature:category:impl" to listOf(":feature:sounds:api")),
         )
+
+        assertEquals(1, violations.size)
+        assertTrue(violations.single().contains("intent callback"), violations.single())
     }
 
-    /** A feature's own navigation module is part of the same slice, not a cross-feature edge. */
+    /** A feature's own API module is part of the same slice, not a cross-feature edge. */
     @Test
     fun aFeatureDependingOnItsOwnSubmodulesIsFine() {
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
-                mapOf(":feature:home" to listOf(":feature:home:navigation")),
+                mapOf(":feature:category:impl" to listOf(":feature:category:api")),
             ),
         )
+    }
+
+    @Test
+    fun theCompositionRootMayConnectFeatureApisAndImplementations() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.dependencyViolations(
+                mapOf(
+                    ":shared" to listOf(
+                        ":feature:browse:impl",
+                        ":feature:category:api",
+                        ":feature:sounds:api",
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun aFeatureApiDependingOnItsOwnImplementationIsAViolation() {
+        val violations = FeatureFirstRules.dependencyViolations(
+            mapOf(":feature:category:api" to listOf(":feature:category:impl")),
+        )
+
+        assertEquals(1, violations.size)
+        assertTrue(violations.single().contains("must remain implementation-free"), violations.single())
+    }
+
+    /** A cross-feature edge is reported as isolation, even when it also breaks API purity. */
+    @Test
+    fun aFeatureApiReachingAnotherFeaturesImplementationIsReportedAsCrossFeature() {
+        val violations = FeatureFirstRules.dependencyViolations(
+            mapOf(":feature:category:api" to listOf(":feature:sounds:impl")),
+        )
+
+        assertEquals(1, violations.size)
+        assertTrue(violations.single().contains("must not depend"), violations.single())
     }
 
     // Rule 4 — what a screen may not declare.
@@ -76,12 +113,12 @@ class FeatureFirstRulesTest {
     fun aFeatureDeclaringAnyOffLimitsModuleIsAViolation() {
         FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys.forEach { offLimits ->
             val violations = FeatureFirstRules.dependencyViolations(
-                mapOf(":feature:player" to listOf(offLimits)),
+                mapOf(":feature:sounds:impl" to listOf(offLimits)),
             )
 
             assertEquals(1, violations.size, "expected exactly one violation for $offLimits")
             assertTrue(
-                violations.single().startsWith(":feature:player depends on $offLimits."),
+                violations.single().startsWith(":feature:sounds:impl depends on $offLimits."),
                 violations.single(),
             )
         }
@@ -108,19 +145,110 @@ class FeatureFirstRulesTest {
     }
 
     @Test
-    fun aFeaturesNavigationModuleIsHeldToRuleFourToo() {
+    fun aFeaturesApiModuleIsHeldToRuleFourToo() {
         val violations = FeatureFirstRules.dependencyViolations(
-            mapOf(":feature:player:navigation" to listOf(":core:sound:delivery")),
+            mapOf(":feature:sounds:api" to listOf(":core:sound:delivery")),
         )
 
         assertEquals(1, violations.size)
+    }
+
+    // Rule 4 — what a screen can reach, not only what it names.
+
+    /**
+     * The hole this closes. `:core:testing` is a module every feature declares, so one `api` edge
+     * added to it — a fake resolver would be reason enough — puts delivery on three screens'
+     * compile classpaths. Nobody declared anything forbidden, and before the rule followed api
+     * edges it reported success.
+     */
+    @Test
+    fun aFeatureReachingAnOffLimitsModuleThroughAnApiEdgeIsAViolation() {
+        val violations = FeatureFirstRules.dependencyViolations(
+            graph = mapOf(":feature:category:impl" to listOf(":core:testing")),
+            apiEdges = mapOf(":core:testing" to listOf(":core:sound:delivery")),
+        )
+
+        assertEquals(1, violations.size)
+        assertTrue(
+            violations.single().startsWith(":feature:category:impl reaches :core:sound:delivery through :core:testing,"),
+            violations.single(),
+        )
+    }
+
+    /** The shape the build actually has: session declares delivery, and keeps it to itself. */
+    @Test
+    fun aModuleThatKeepsAnOffLimitsDependencyToItselfIsFine() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.dependencyViolations(
+                graph = mapOf(
+                    ":feature:category:impl" to listOf(":core:playback:session"),
+                    ":core:playback:session" to listOf(":core:sound:delivery"),
+                ),
+                apiEdges = mapOf(":core:playback:session" to emptyList<String>()),
+            ),
+        )
+    }
+
+    @Test
+    fun anApiEdgeIsFollowedAsFarAsItGoes() {
+        val violations = FeatureFirstRules.dependencyViolations(
+            graph = mapOf(":feature:sounds:impl" to listOf(":core:testing")),
+            apiEdges = mapOf(
+                ":core:testing" to listOf(":core:playback:session"),
+                ":core:playback:session" to listOf(":core:playback:engine"),
+            ),
+        )
+
+        assertEquals(1, violations.size)
+        assertTrue(
+            violations.single().contains(":core:testing -> :core:playback:session"),
+            violations.single(),
+        )
+    }
+
+    /** A cycle in api edges must not hang the check. */
+    @Test
+    fun apiEdgesThatLoopAreWalkedOnce() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.dependencyViolations(
+                graph = mapOf(":feature:category:impl" to listOf(":core:sound:catalog")),
+                apiEdges = mapOf(
+                    ":core:sound:catalog" to listOf(":core:testing"),
+                    ":core:testing" to listOf(":core:sound:catalog"),
+                ),
+            ),
+        )
+    }
+
+    /** Declared *and* reachable reports the declaration: that is the line to delete. */
+    @Test
+    fun aModuleBothDeclaredAndReachedIsReportedOnce() {
+        val violations = FeatureFirstRules.dependencyViolations(
+            graph = mapOf(":feature:category:impl" to listOf(":core:sound:delivery", ":core:testing")),
+            apiEdges = mapOf(":core:testing" to listOf(":core:sound:delivery")),
+        )
+
+        assertEquals(1, violations.size)
+        assertTrue(violations.single().startsWith(":feature:category:impl depends on"), violations.single())
+    }
+
+    @Test
+    fun onlyConfigurationsThatReExportDependenciesCount() {
+        listOf("api", "commonMainApi", "androidMainApi", "iosMainApi", "commonTestApi").forEach {
+            assertTrue(FeatureFirstRules.isApiConfiguration(it), "$it re-exports its dependencies")
+        }
+        listOf("implementation", "commonMainImplementation", "apiElements", "compileOnly").forEach {
+            assertEquals(false, FeatureFirstRules.isApiConfiguration(it), "$it does not")
+        }
     }
 
     // Rule 4's own upkeep.
 
     @Test
     fun aRuleNamingAModuleThisBuildDoesNotHaveIsItselfAViolation() {
-        val violations = FeatureFirstRules.staleRuleViolations(setOf(":core:sound:catalog", ":feature:home"))
+        val violations = FeatureFirstRules.staleRuleViolations(setOf(":core:sound:catalog", ":feature:category:impl"))
 
         assertEquals(FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.size, violations.size)
         assertTrue(violations.first().contains("protects nothing"), violations.first())
@@ -139,15 +267,15 @@ class FeatureFirstRulesTest {
     @Test
     fun aCoreUseCaseOnlyOneFeatureUsesIsAViolation() {
         val violations = FeatureFirstRules.leakedUseCaseViolations(
-            useCases = listOf("ObserveHomeContentUseCase" to ":core:sound:catalog"),
+            useCases = listOf("ObserveSoundsContentUseCase" to ":core:sound:catalog"),
             sourcesByFeature = mapOf(
-                "home" to listOf("val x = ObserveHomeContentUseCase(get())"),
+                "category" to listOf("val x = ObserveSoundsContentUseCase(get())"),
                 "player" to listOf("nothing to see here"),
             ),
         )
 
         assertEquals(1, violations.size)
-        assertTrue(violations.single().contains("only feature:home uses it"), violations.single())
+        assertTrue(violations.single().contains("only feature:category uses it"), violations.single())
     }
 
     @Test
@@ -157,7 +285,7 @@ class FeatureFirstRulesTest {
             FeatureFirstRules.leakedUseCaseViolations(
                 useCases = listOf("ObserveTrackUseCase" to ":core:sound:catalog"),
                 sourcesByFeature = mapOf(
-                    "home" to listOf("ObserveTrackUseCase()"),
+                    "category" to listOf("ObserveTrackUseCase()"),
                     "player" to listOf("ObserveTrackUseCase()"),
                 ),
             ),
@@ -171,7 +299,7 @@ class FeatureFirstRulesTest {
             emptyList(),
             FeatureFirstRules.leakedUseCaseViolations(
                 useCases = listOf("ObserveNothingUseCase" to ":core:sound:catalog"),
-                sourcesByFeature = mapOf("home" to listOf("unrelated")),
+                sourcesByFeature = mapOf("browse" to listOf("unrelated")),
             ),
         )
     }
@@ -271,45 +399,80 @@ class FeatureFirstRulesTest {
             ":core:sound" to emptyList<String>(),
             ":core:story" to emptyList<String>(),
             ":core:playback" to emptyList<String>(),
+            ":core:network" to emptyList<String>(),
             ":core:sound:catalog" to emptyList<String>(),
             ":core:sound:manifest" to listOf(":core:sound:catalog"),
-            ":core:sound:delivery" to listOf(":core:sound:manifest"),
+            ":core:sound:delivery" to listOf(":core:sound:manifest", ":core:network"),
             ":core:story:catalog" to emptyList<String>(),
             ":core:story:manifest" to listOf(":core:story:catalog"),
             ":core:sound:favorites" to emptyList<String>(),
             ":core:playback:engine" to emptyList<String>(),
-            ":core:playback:session" to
-                listOf(":core:sound:catalog", ":core:sound:delivery", ":core:playback:engine"),
+            ":core:playback:session" to listOf(
+                ":core:sound:catalog", ":core:sound:delivery",
+                ":core:story:catalog", ":core:story:manifest",
+                ":core:playback:engine",
+            ),
             ":core:testing" to
                 listOf(":core:sound:catalog", ":core:sound:favorites", ":core:playback:session"),
             ":core:designsystem" to emptyList<String>(),
             ":core:navigation" to emptyList<String>(),
-            ":feature:home" to listOf(
-                ":core:sound:catalog", ":core:sound:favorites", ":core:playback:session", ":core:testing",
-                ":core:designsystem", ":core:navigation",
-                ":feature:home:navigation", ":feature:category:navigation", ":feature:player:navigation",
+            ":feature:browse:impl" to listOf(
+                ":core:sound:catalog", ":core:testing",
+                ":feature:browse:api",
             ),
-            ":feature:home:navigation" to listOf(":core:navigation"),
-            ":feature:category" to listOf(
+            ":feature:browse:api" to emptyList<String>(),
+            ":feature:favorites:impl" to listOf(
                 ":core:sound:catalog", ":core:sound:favorites", ":core:playback:session", ":core:testing",
-                ":feature:category:navigation", ":feature:player:navigation",
+                ":feature:favorites:api",
             ),
-            ":feature:category:navigation" to listOf(":core:navigation"),
-            ":feature:player" to listOf(
+            ":feature:favorites:api" to emptyList<String>(),
+            ":feature:category:impl" to listOf(
                 ":core:sound:catalog", ":core:sound:favorites", ":core:playback:session", ":core:testing",
-                ":feature:player:navigation",
+                ":feature:category:api",
             ),
-            ":feature:player:navigation" to listOf(":core:navigation"),
+            ":feature:category:api" to emptyList<String>(),
+            ":feature:sounds:impl" to listOf(
+                ":core:sound:catalog", ":core:sound:favorites", ":core:playback:session", ":core:testing",
+                ":feature:sounds:api",
+            ),
+            ":feature:sounds:api" to emptyList<String>(),
+            // The story slice reads two capabilities where a sound screen reads three: there is no
+            // favorites port for stories, and the manifest that knows where one streams from is off
+            // limits to every feature.
+            ":feature:story:impl" to listOf(
+                ":core:story:catalog", ":core:playback:session", ":core:testing",
+                ":feature:story:api",
+            ),
+            ":feature:story:api" to emptyList<String>(),
+            // The composition root binds every capability and assembles feature implementations.
+            // It also sees the feature APIs in test source sets so it can prove route restore.
             ":shared" to listOf(
                 ":core:sound:catalog", ":core:sound:manifest", ":core:sound:delivery", ":core:sound:favorites",
                 ":core:story:catalog", ":core:story:manifest",
-                ":core:playback:session", ":core:playback:engine", ":core:navigation",
-                ":core:designsystem", ":feature:home", ":feature:category", ":feature:player",
+                ":core:playback:session", ":core:playback:engine", ":core:network", ":core:navigation",
+                ":core:designsystem", ":core:testing",
+                ":feature:browse:impl", ":feature:browse:api",
+                ":feature:favorites:impl", ":feature:favorites:api",
+                ":feature:category:impl", ":feature:category:api",
+                ":feature:sounds:impl", ":feature:sounds:api",
+                ":feature:story:impl", ":feature:story:api",
             ),
             ":androidApp" to listOf(":shared"),
         )
 
+        // What each module re-exports. `:core:playback:session` declares delivery and the engine
+        // and re-exports neither, which is the only reason three screens can depend on it.
+        val apiEdges = mapOf(
+            ":core:sound:manifest" to listOf(":core:sound:catalog"),
+            ":core:sound:delivery" to listOf(":core:sound:catalog"),
+            ":core:sound:favorites" to listOf(":core:sound:catalog"),
+            ":core:story:manifest" to listOf(":core:story:catalog"),
+            ":core:playback:session" to emptyList(),
+            ":core:testing" to
+                listOf(":core:sound:catalog", ":core:sound:favorites", ":core:playback:session"),
+        )
+
         assertEquals(emptyList(), FeatureFirstRules.staleRuleViolations(graph.keys))
-        assertEquals(emptyList(), FeatureFirstRules.dependencyViolations(graph))
+        assertEquals(emptyList(), FeatureFirstRules.dependencyViolations(graph, apiEdges))
     }
 }

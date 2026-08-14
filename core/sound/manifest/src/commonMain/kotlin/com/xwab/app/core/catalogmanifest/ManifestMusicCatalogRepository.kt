@@ -1,6 +1,7 @@
 package com.xwab.app.core.catalogmanifest
 
 import com.xwab.app.core.catalog.Category
+import com.xwab.app.core.catalog.CategoryId
 import com.xwab.app.core.catalog.Music
 import com.xwab.app.core.catalog.MusicCatalogRepository
 import com.xwab.app.core.catalog.TrackId
@@ -22,14 +23,24 @@ internal class ManifestMusicCatalogRepository(
     private val allTracks: Flow<List<Music>> = flowOf(tracks)
     private val allCategories: Flow<List<Category>> = flowOf(categories)
 
+    init {
+        // Two tracks under one id make `observeMusic` answer with whichever came first, which is a
+        // bug that looks like a content mistake. The same check `ManifestStoryCatalogRepository`
+        // makes: a copied row here can produce it, and so can a feed later.
+        val duplicates = tracks.groupBy { it.id }.filterValues { it.size > 1 }.keys
+        require(duplicates.isEmpty()) {
+            "Track ids must be unique: ${duplicates.joinToString { it.value }}"
+        }
+    }
+
     override fun observeCategories(): Flow<List<Category>> = allCategories
 
     override fun observeAllMusic(): Flow<List<Music>> = allTracks
 
-    override fun observeCategory(categoryId: String): Flow<Category?> =
+    override fun observeCategory(categoryId: CategoryId): Flow<Category?> =
         allCategories.map { values -> values.find { it.id == categoryId } }
 
-    override fun observeMusicForCategory(categoryId: String): Flow<List<Music>> =
+    override fun observeMusicForCategory(categoryId: CategoryId): Flow<List<Music>> =
         allTracks.map { values -> values.filter { it.categoryId == categoryId } }
 
     override fun observeMusic(musicId: TrackId): Flow<Music?> =

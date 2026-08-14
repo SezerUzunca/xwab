@@ -1,11 +1,13 @@
 package com.xwab.app.core.testing
 
 import com.xwab.app.core.catalog.Category
+import com.xwab.app.core.catalog.CategoryId
 import com.xwab.app.core.catalog.Music
 import com.xwab.app.core.catalog.MusicCatalogRepository
 import com.xwab.app.core.catalog.TrackId
 import com.xwab.app.core.favorites.FavoritesRepository
 import com.xwab.app.core.playbacksession.PlaybackCoordinator
+import com.xwab.app.core.playbacksession.PlaybackItemId
 import com.xwab.app.core.playbacksession.PlaybackSummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,9 +17,8 @@ import kotlinx.coroutines.flow.flowOf
  * In-memory stand-ins for the three domain ports, plus the two builders that make a test's setup
  * one line.
  *
- * Every feature owns a use case that joins catalog, favorites and playback into one screen model,
- * so every feature needs the same three fakes. They live here rather than being copied into each
- * feature's test source set — a new feature gets them from `xwab.kmp.feature` without asking.
+ * Features that combine catalog, favorites and playback reuse these fakes instead of copying them
+ * into each feature's test source set. Simpler features can use only the port fake they need.
  *
  * This module is only ever on a test compile classpath; nothing in `commonMain` of the app
  * depends on it.
@@ -25,12 +26,12 @@ import kotlinx.coroutines.flow.flowOf
 fun track(id: String, categoryId: String = "rain") = Music(
     id = TrackId(id),
     name = id,
-    categoryId = categoryId,
+    categoryId = CategoryId(categoryId),
     durationSeconds = 60,
 )
 
 fun category(id: String, musicCount: Int = 0) = Category(
-    id = id,
+    id = CategoryId(id),
     name = id,
     description = "",
     symbol = "*",
@@ -43,10 +44,10 @@ class FakeMusicCatalog(
 ) : MusicCatalogRepository {
     override fun observeCategories(): Flow<List<Category>> = flowOf(categories)
     override fun observeAllMusic(): Flow<List<Music>> = flowOf(tracks)
-    override fun observeCategory(categoryId: String): Flow<Category?> =
+    override fun observeCategory(categoryId: CategoryId): Flow<Category?> =
         flowOf(categories.find { it.id == categoryId })
 
-    override fun observeMusicForCategory(categoryId: String): Flow<List<Music>> =
+    override fun observeMusicForCategory(categoryId: CategoryId): Flow<List<Music>> =
         flowOf(tracks.filter { it.categoryId == categoryId })
 
     override fun observeMusic(musicId: TrackId): Flow<Music?> = flowOf(tracks.find { it.id == musicId })
@@ -71,7 +72,7 @@ class FakePlaybackCoordinator : PlaybackCoordinator {
     override val playback: Flow<PlaybackSummary> = summary
     override val sleepTimerRemainingMs: Flow<Long?> = remainingMs
 
-    var playedTrackId: TrackId? = null
+    var playedItemId: PlaybackItemId? = null
     var pauses = 0
     var looping: Boolean? = null
     var volume: Float? = null
@@ -86,8 +87,8 @@ class FakePlaybackCoordinator : PlaybackCoordinator {
         remainingMs.value = remaining
     }
 
-    override suspend fun play(trackId: TrackId) {
-        playedTrackId = trackId
+    override suspend fun play(itemId: PlaybackItemId) {
+        playedItemId = itemId
     }
 
     override fun pause() {

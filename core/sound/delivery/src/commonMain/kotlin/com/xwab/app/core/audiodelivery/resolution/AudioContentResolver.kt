@@ -5,17 +5,17 @@ import com.xwab.app.core.catalog.TrackId
 /**
  * What resolving a track produced.
  *
- * A named outcome rather than a nullable URI, because the two ways resolution can come back empty
+ * A named outcome rather than a nullable source, because the two ways resolution can come back empty
  * mean different things to a listener: a track the catalog no longer holds is a dead end, while a
  * source that could not be reached is worth another tap. Both used to arrive as `null`, and the
  * session dropped it without anything reaching the screen.
  */
 sealed interface AudioSourceResolution {
     /**
-     * A platform-neutral, non-blank URI the playback adapter can hand to the audio engine.
+     * A platform-neutral, non-blank source the playback adapter can hand to the audio engine.
      *
-     * It may address an app-owned local file or a remote HTTPS stream: platform URI types and
-     * storage paths deliberately stay behind this boundary.
+     * It is either an absolute path to an app-owned file or a remote HTTPS URI. Native playback
+     * adapters turn that value into their platform URL type.
      */
     data class Resolved(val uri: String) : AudioSourceResolution
 

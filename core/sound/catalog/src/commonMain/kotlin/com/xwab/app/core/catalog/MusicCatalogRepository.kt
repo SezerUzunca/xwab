@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 interface MusicCatalogRepository {
     fun observeCategories(): Flow<List<Category>>
     fun observeAllMusic(): Flow<List<Music>>
-    fun observeCategory(categoryId: String): Flow<Category?>
-    fun observeMusicForCategory(categoryId: String): Flow<List<Music>>
+    fun observeCategory(categoryId: CategoryId): Flow<Category?>
+    fun observeMusicForCategory(categoryId: CategoryId): Flow<List<Music>>
     fun observeMusic(musicId: TrackId): Flow<Music?>
 }

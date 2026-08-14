@@ -9,9 +9,8 @@ import kotlinx.coroutines.flow.Flow
  * each story's audio live in `core:story:manifest`, which no feature declares — so nothing
  * reachable from here leads to a URL.
  *
- * A `Flow` rather than a `suspend fun` because the list is not permanent the way the shipped sound
- * manifest is: the placeholder list is served once today, and a feed-backed implementation will
- * emit again when it refreshes, without the port changing shape.
+ * A `Flow` keeps this read port consistent with the sound catalog and lets consumers observe it
+ * without knowing how the manifest stores its rows.
  */
 interface StoryCatalogRepository {
     fun observeStories(): Flow<List<Story>>

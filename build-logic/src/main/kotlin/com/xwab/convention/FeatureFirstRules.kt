@@ -14,7 +14,8 @@ package com.xwab.convention
 internal object FeatureFirstRules {
     const val CORE_PREFIX = ":core:"
     const val FEATURE_PREFIX = ":feature:"
-    const val NAVIGATION_SUFFIX = ":navigation"
+    const val API_SUFFIX = ":api"
+    const val IMPL_SUFFIX = ":impl"
 
     val USE_CASE_DECLARATION =
         Regex("""^\s*(?:internal\s+|public\s+)?class\s+(\w+UseCase)\b""", RegexOption.MULTILINE)
@@ -26,6 +27,12 @@ internal object FeatureFirstRules {
      * the rule cannot quietly protect nothing after a rename.
      */
     val MODULES_OFF_LIMITS_TO_FEATURES = mapOf(
+        ":core:navigation" to
+            "the app shell owns navigation state and destination policy; a feature exposes user " +
+                "intents as callbacks and uses Navigation 3 runtime only for its own route entry",
+        ":core:network" to
+            "HTTP is an adapter detail; a screen reads content through its repository instead " +
+                "of issuing requests itself",
         ":core:sound:delivery" to
             "resolving a track to a URI and caching its bytes are the session's business; a " +
                 "screen steers playback through PlaybackCoordinator",
@@ -52,8 +59,22 @@ internal object FeatureFirstRules {
                 "FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES, or the rule protects nothing."
         }
 
-    /** Rules 1, 2 and 4, all of which are readable straight off the dependency graph. */
-    fun dependencyViolations(graph: Map<String, List<String>>): List<String> {
+    /**
+     * Rules 1, 2 and 4, all of which are readable straight off the dependency graph.
+     *
+     * Rules 1 and 2 are about what a module *declares*, so they read the direct edges. Rule 4 is
+     * about what a screen can *reach*, which is not the same thing: an `api` dependency puts its
+     * own `api` dependencies on every consumer's compile classpath. A feature that declares nothing
+     * forbidden can still end up compiling against a forbidden module, and until [apiEdges] existed
+     * this rule would have reported success while that happened.
+     *
+     * @param apiEdges the project dependencies each module declares in an `api` configuration —
+     *   the ones that travel. Left empty, rule 4 sees direct declarations only.
+     */
+    fun dependencyViolations(
+        graph: Map<String, List<String>>,
+        apiEdges: Map<String, List<String>> = emptyMap(),
+    ): List<String> {
         val violations = mutableListOf<String>()
 
         graph.forEach { (module, dependencies) ->
@@ -66,22 +87,78 @@ internal object FeatureFirstRules {
                     dependency.startsWith(FEATURE_PREFIX) &&
                     featureOf(module) != featureOf(dependency)
 
-                if (isCrossFeature && !dependency.endsWith(NAVIGATION_SUFFIX)) {
-                    violations += "$module depends on $dependency. Depend on " +
-                        "$dependency$NAVIGATION_SUFFIX instead: a feature's navigation module is " +
-                        "the only part of it another feature may see."
-                }
+                val apiDependsOnImplementation = module.startsWith(FEATURE_PREFIX) &&
+                    module.endsWith(API_SUFFIX) &&
+                    dependency.startsWith(FEATURE_PREFIX) &&
+                    dependency.endsWith(IMPL_SUFFIX)
 
-                MODULES_OFF_LIMITS_TO_FEATURES[dependency]?.let { reason ->
-                    if (module.startsWith(FEATURE_PREFIX)) {
-                        violations += "$module depends on $dependency. A feature may not: $reason."
-                    }
+                // Cross-feature is checked first because it is the stronger boundary: even a
+                // destination's API belongs at the composition root, not in the calling feature.
+                if (isCrossFeature) {
+                    violations += "$module depends on $dependency. Feature modules must not depend " +
+                        "on another feature. Expose an intent callback from the entry provider and " +
+                        "connect it to the destination API in :shared."
+                } else if (apiDependsOnImplementation) {
+                    violations += "$module depends on $dependency. A feature API must remain " +
+                        "implementation-free: the public contract must not point inward to its " +
+                        "implementation."
                 }
+            }
+
+            if (module.startsWith(FEATURE_PREFIX)) {
+                violations += offLimitsReachableFrom(module, dependencies, apiEdges)
             }
         }
 
         return violations.distinct().sorted()
     }
+
+    /**
+     * Rule 4, over everything [feature] compiles against rather than everything it names.
+     *
+     * Breadth-first, so the path reported is the shortest one — and so a module that is both
+     * declared and reachable is reported as declared, which is the more actionable of the two.
+     */
+    private fun offLimitsReachableFrom(
+        feature: String,
+        directDependencies: List<String>,
+        apiEdges: Map<String, List<String>>,
+    ): List<String> {
+        val violations = mutableListOf<String>()
+        val visited = mutableSetOf<String>()
+        val paths = ArrayDeque(directDependencies.map { listOf(it) })
+
+        while (paths.isNotEmpty()) {
+            val path = paths.removeFirst()
+            val reached = path.last()
+            if (!visited.add(reached)) continue
+
+            MODULES_OFF_LIMITS_TO_FEATURES[reached]?.let { reason ->
+                violations += if (path.size == 1) {
+                    "$feature depends on $reached. A feature may not: $reason."
+                } else {
+                    "$feature reaches $reached through ${path.dropLast(1).joinToString(" -> ")}, " +
+                        "whose api dependencies travel onto this feature's compile classpath. " +
+                        "A feature may not: $reason."
+                }
+            }
+
+            apiEdges[reached].orEmpty().forEach { paths.addLast(path + it) }
+        }
+
+        return violations
+    }
+
+    /**
+     * Whether a Gradle configuration is one whose project dependencies reach a consumer's compile
+     * classpath — `api`, and the per-source-set `commonMainApi`, `androidMainApi` and the rest.
+     *
+     * Everything else, `implementation` above all, stops at the module that declares it. Gradle's
+     * own outgoing variants (`apiElements`) are deliberately not matched: they carry the same
+     * dependencies again under a name this does not accept.
+     */
+    fun isApiConfiguration(configurationName: String): Boolean =
+        configurationName == "api" || configurationName.endsWith("Api")
 
     /**
      * Rule 3, over sources the task has already read.
@@ -102,7 +179,7 @@ internal object FeatureFirstRules {
             "second feature needs it."
     }.sorted()
 
-    /** `:feature:home` and `:feature:home:navigation` are both the `home` feature. */
+    /** `:feature:category:api` and `:feature:category:impl` are both the `category` feature. */
     fun featureOf(modulePath: String): String =
         modulePath.removePrefix(FEATURE_PREFIX).substringBefore(':')
 

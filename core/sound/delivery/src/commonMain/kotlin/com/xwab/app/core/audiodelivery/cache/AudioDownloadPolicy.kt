@@ -1,5 +1,7 @@
 package com.xwab.app.core.audiodelivery.cache
 
+import com.xwab.app.core.network.NetworkClient
+
 /**
  * The ceiling a cached track may not cross. Generous for a sleep sound and small enough that a
  * source answering with something other than audio cannot fill a phone before it is refused.
@@ -44,5 +46,40 @@ internal fun requireUsableContentType(rawContentType: String?) {
 internal fun requireWithinSizeLimit(bytes: Long) {
     if (bytes > MAX_DOWNLOAD_BYTES) {
         throw UnusableAudioSourceException("Audio download is too large: $bytes bytes.")
+    }
+}
+
+/**
+ * Applies the one audio-response policy around the shared network stream.
+ *
+ * The Okio sink provides only [writeChunk]; HTTP headers, response checks and byte accounting are
+ * identical on Android and iOS and therefore belong in this common Sound adapter.
+ */
+internal suspend fun NetworkClient.downloadAudio(
+    remoteHttpsUrl: String,
+    writeChunk: (bytes: ByteArray, count: Int) -> Unit,
+) {
+    var declaredLength: Long? = null
+    var received = 0L
+    download(
+        httpsUrl = remoteHttpsUrl,
+        headers = mapOf(
+            "Accept" to AUDIO_ACCEPT_HEADER,
+            "User-Agent" to AUDIO_USER_AGENT,
+        ),
+        onResponse = { response ->
+            requireUsableStatus(response.statusCode)
+            requireUsableContentType(response.contentType)
+            declaredLength = response.contentLength
+            response.contentLength?.let(::requireWithinSizeLimit)
+        },
+        onChunk = { bytes, count ->
+            received += count
+            requireWithinSizeLimit(received)
+            writeChunk(bytes, count)
+        },
+    )
+    check(declaredLength == null || received == declaredLength) {
+        "Downloaded audio is incomplete."
     }
 }
