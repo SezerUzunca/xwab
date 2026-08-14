@@ -1,4 +1,4 @@
-package com.xwab.app.core.navigation
+package com.xwab.app.navigation
 
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
@@ -21,21 +21,21 @@ import androidx.navigation3.runtime.NavKey
  *
  * @param startRoute the tab back falls through to, and the one the app exits from.
  * @param backStacks one stack per top-level route, each already holding that route as its root.
+ * @param topLevelRouteState the selected tab, as the single source of truth: the caller owns how
+ *   it is persisted (or doesn't) and reads the same state back rather than mirroring it through a
+ *   callback.
  */
-class NavigationState(
+internal class NavigationState(
     val startRoute: NavKey,
     val backStacks: Map<NavKey, MutableList<NavKey>>,
-    initialTopLevelRoute: NavKey = startRoute,
-    private val onTopLevelRouteChanged: (NavKey) -> Unit = {},
+    private val topLevelRouteState: MutableState<NavKey> = mutableStateOf(startRoute),
 ) {
-    private val topLevelRouteState: MutableState<NavKey> = mutableStateOf(initialTopLevelRoute)
-
     init {
         require(startRoute in backStacks) {
             "The start route must have a back stack of its own: $startRoute"
         }
-        require(initialTopLevelRoute in backStacks) {
-            "The selected top-level route must have a back stack of its own: $initialTopLevelRoute"
+        require(topLevelRouteState.value in backStacks) {
+            "The selected top-level route must have a back stack of its own: ${topLevelRouteState.value}"
         }
     }
 
@@ -45,7 +45,6 @@ class NavigationState(
         set(value) {
             require(value in backStacks) { "A top-level route needs its own back stack: $value" }
             topLevelRouteState.value = value
-            onTopLevelRouteChanged(value)
         }
 
     val currentBackStack: MutableList<NavKey>

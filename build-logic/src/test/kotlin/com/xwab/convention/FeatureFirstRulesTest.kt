@@ -244,6 +244,36 @@ class FeatureFirstRulesTest {
         }
     }
 
+    // Rule 5 — navigation may know feature contracts, not feature implementations.
+
+    @Test
+    fun navigationImportingAFeatureImplementationIsAViolation() {
+        val violations = FeatureFirstRules.navigationImplementationImportViolations(
+            mapOf(
+                "shared/src/commonMain/kotlin/com/xwab/app/navigation/AppNavigation.kt" to
+                    "import com.xwab.app.feature.browse.impl.navigation.browseEntry",
+            ),
+        )
+
+        assertEquals(1, violations.size)
+        assertTrue(violations.single().contains("composition root"), violations.single())
+    }
+
+    @Test
+    fun navigationImportingFeatureApisAndNavigationLibrariesIsFine() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.navigationImplementationImportViolations(
+                mapOf(
+                    "shared/src/commonMain/kotlin/com/xwab/app/navigation/AppNavigation.kt" to """
+                        import androidx.navigation3.runtime.NavKey
+                        import com.xwab.app.feature.browse.api.navigation.BrowseRoute
+                    """.trimIndent(),
+                ),
+            ),
+        )
+    }
+
     // Rule 4's own upkeep.
 
     @Test
@@ -415,7 +445,6 @@ class FeatureFirstRulesTest {
             ":core:testing" to
                 listOf(":core:sound:catalog", ":core:sound:favorites", ":core:playback:session"),
             ":core:designsystem" to emptyList<String>(),
-            ":core:navigation" to emptyList<String>(),
             ":feature:browse:impl" to listOf(
                 ":core:sound:catalog", ":core:testing",
                 ":feature:browse:api",
@@ -449,7 +478,7 @@ class FeatureFirstRulesTest {
             ":shared" to listOf(
                 ":core:sound:catalog", ":core:sound:manifest", ":core:sound:delivery", ":core:sound:favorites",
                 ":core:story:catalog", ":core:story:manifest",
-                ":core:playback:session", ":core:playback:engine", ":core:network", ":core:navigation",
+                ":core:playback:session", ":core:playback:engine", ":core:network",
                 ":core:designsystem", ":core:testing",
                 ":feature:browse:impl", ":feature:browse:api",
                 ":feature:favorites:impl", ":feature:favorites:api",

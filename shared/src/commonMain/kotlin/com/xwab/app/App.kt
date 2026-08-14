@@ -1,19 +1,49 @@
 package com.xwab.app
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.navigation3.ui.NavDisplay
+import com.xwab.app.composition.appEntryProvider
 import com.xwab.app.core.ui.theme.SleepRelaxTheme
-import com.xwab.app.ui.XwabApp
+import com.xwab.app.navigation.rememberAppNavigationState
+import com.xwab.app.ui.AppNavigationBar
 
 /**
- * Platform entry points call this thin, shared application root.
+ * Shared application root used by the platform entry points.
  *
- * The theme is applied here rather than inside `XwabApp`, the way Now in Android applies `NiaTheme`
- * in `MainActivity` and leaves `NiaApp` free of it. That keeps the shell renderable under a
- * different theme in a preview or a screenshot test, and it is the only reason this hop exists.
+ * It applies the app theme and renders the application scaffold from the remembered navigation
+ * state.
  */
 @Composable
 fun App() {
     SleepRelaxTheme {
-        XwabApp()
+        val navigationState = rememberAppNavigationState()
+        val entryProvider = remember(navigationState) {
+            appEntryProvider(
+                onNavigate = navigationState::navigate,
+                onBack = navigationState::goBack,
+            )
+        }
+
+        Scaffold(
+            // Feature screens paint their own gradient; this is only what shows behind the bar.
+            containerColor = SleepRelaxTheme.colors.backgroundBottom,
+            bottomBar = {
+                AppNavigationBar(
+                    destinations = navigationState.destinations,
+                    selectedRoute = navigationState.selectedRoute,
+                    onSelect = navigationState::navigate,
+                )
+            },
+        ) { innerPadding ->
+            NavDisplay(
+                entries = navigationState.entries(entryProvider),
+                onBack = navigationState::goBack,
+                modifier = Modifier.padding(innerPadding),
+            )
+        }
     }
 }

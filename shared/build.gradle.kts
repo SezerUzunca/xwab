@@ -60,7 +60,6 @@ kotlin {
             implementation(projects.core.playback.session)
             implementation(projects.core.playback.engine)
             implementation(projects.core.network)
-            implementation(projects.core.navigation)
             implementation(projects.core.designsystem)
 
             implementation(projects.feature.browse.api)
@@ -80,7 +79,9 @@ kotlin {
             implementation(libs.compose.material3)
             implementation(libs.compose.components.resources)
             implementation(libs.koin.core)
+            implementation(libs.navigation3.runtime)
             implementation(libs.navigation3.ui)
+            implementation(libs.androidx.lifecycle.viewmodelNavigation3)
             implementation(libs.kotlinx.serialization.core)
         }
         commonTest.dependencies {

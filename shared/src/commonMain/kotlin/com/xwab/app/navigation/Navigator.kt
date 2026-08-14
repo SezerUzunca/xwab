@@ -1,4 +1,4 @@
-package com.xwab.app.core.navigation
+package com.xwab.app.navigation
 
 import androidx.navigation3.runtime.NavKey
 
@@ -10,7 +10,7 @@ import androidx.navigation3.runtime.NavKey
  * to be a tab. Features never see this class at all: their entries take plain callbacks, and the
  * composition root is the only caller.
  */
-class Navigator(private val state: NavigationState) {
+internal class Navigator(private val state: NavigationState) {
     /**
      * Resets the current tab when it is reselected, switches to another top-level route, or moves
      * a non-top-level route to the end of the current tab's stack.

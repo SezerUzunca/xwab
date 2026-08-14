@@ -15,8 +15,8 @@ class ArchitectureConventionPlugin : Plugin<Project> {
                 tasks.register("checkArchitecture", CheckArchitectureTask::class.java) { task ->
                     task.group = "verification"
                     task.description =
-                        "Fails when a module dependency or a shared core use case breaks the " +
-                            "feature-first rules."
+                        "Fails when a dependency, package import or shared core use case breaks " +
+                            "the feature-first rules."
                     task.repositoryRoot.set(layout.projectDirectory)
                 }
 

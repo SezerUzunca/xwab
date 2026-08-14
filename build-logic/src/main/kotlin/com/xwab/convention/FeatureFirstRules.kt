@@ -8,8 +8,8 @@ package com.xwab.convention
  * anything, and that is exactly how the source-scanning version of rule 4 could have rotted
  * unnoticed. [FeatureFirstRulesTest] drives every rule from both sides.
  *
- * The task keeps what genuinely needs the file system — walking sources for rule 3 — and hands the
- * results here.
+ * The task keeps what genuinely needs the file system — walking sources for rules 3 and 5 — and
+ * hands the results here.
  */
 internal object FeatureFirstRules {
     const val CORE_PREFIX = ":core:"
@@ -20,6 +20,11 @@ internal object FeatureFirstRules {
     val USE_CASE_DECLARATION =
         Regex("""^\s*(?:internal\s+|public\s+)?class\s+(\w+UseCase)\b""", RegexOption.MULTILINE)
 
+    val FEATURE_IMPLEMENTATION_IMPORT = Regex(
+        """^\s*import\s+(com\.xwab\.app\.feature\.[A-Za-z0-9_]+\.impl(?:\.[A-Za-z0-9_*]+)*)(?:\s+as\s+\w+)?\s*$""",
+        RegexOption.MULTILINE,
+    )
+
     /**
      * Modules a feature may not declare, and the reason each is off limits.
      *
@@ -27,9 +32,9 @@ internal object FeatureFirstRules {
      * the rule cannot quietly protect nothing after a rename.
      */
     val MODULES_OFF_LIMITS_TO_FEATURES = mapOf(
-        ":core:navigation" to
-            "the app shell owns navigation state and destination policy; a feature exposes user " +
-                "intents as callbacks and uses Navigation 3 runtime only for its own route entry",
+        ":shared" to
+            "the app shell is the composition root and owns navigation state and destination " +
+                "policy; a feature exposes user intents as callbacks and never depends on the root",
         ":core:network" to
             "HTTP is an adapter detail; a screen reads content through its repository instead " +
                 "of issuing requests itself",
@@ -159,6 +164,22 @@ internal object FeatureFirstRules {
      */
     fun isApiConfiguration(configurationName: String): Boolean =
         configurationName == "api" || configurationName.endsWith("Api")
+
+    /**
+     * Rule 5: app navigation owns route policy, not feature implementation assembly.
+     *
+     * `:shared` must depend on feature implementations because it is the composition root, so the
+     * module graph cannot distinguish a legitimate import in `composition/` from a leak into
+     * `navigation/`. The task therefore passes only navigation sources to this rule.
+     */
+    fun navigationImplementationImportViolations(sources: Map<String, String>): List<String> =
+        sources.flatMap { (path, source) ->
+            FEATURE_IMPLEMENTATION_IMPORT.findAll(source).map { match ->
+                "$path imports ${match.groupValues[1]}. The navigation package may depend only " +
+                    "on feature APIs; assemble feature implementations in the application " +
+                    "composition root."
+            }
+        }.sorted()
 
     /**
      * Rule 3, over sources the task has already read.

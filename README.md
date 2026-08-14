@@ -39,7 +39,6 @@ core/
 ├── story/       catalog · manifest
 ├── playback/    session · engine
 ├── designsystem
-├── navigation
 └── testing
 ```
 
@@ -59,13 +58,13 @@ container projects Gradle makes for them are never declared on. `core/sound/mani
 | `core:playback:engine` | *how does this platform play audio?* — the reusable Media3/AVFoundation engine |
 | `core:network` | *how does shared code reach a server?* — one Ktor client for text and streamed bytes |
 
-Crosscutting modules — `core:network`, `core:designsystem`, `core:navigation`, `core:testing` — are tied to no
+Crosscutting modules — `core:network`, `core:designsystem` and `core:testing` — are tied to no
 content type, so they are grouped under none of them and stay directly under `core/`.
 
 They are not equally visible, though. Screens use `core:designsystem`, feature tests use
-`core:testing`, and only the app shell uses `core:navigation`. `core:network` is also hidden from
-features, and rule 4 below refuses one that declares it. A screen reads content through a repository
-— it does not make requests.
+`core:testing`, and `core:network` is hidden from features. Rule 4 below refuses a feature that
+declares it. Navigation state and destination policy live with their only consumer, the app shell,
+under `shared/navigation`. A screen reads content through a repository — it does not make requests.
 
 Kotlin packages did not move with the directories: `:core:sound:manifest` still declares
 `com.xwab.app.core.catalogmanifest`. Renaming a package touches every import in the build, which is
@@ -82,7 +81,7 @@ more appropriate persistence layer.
 
 ```
 androidApp ─┐
-            ├─► shared (App entry + Koin composition root + XwabApp shell)
+            ├─► shared (App entry + application shell + Koin composition root)
 iosApp ─────┘        │
                      ├─► feature:browse:{api,impl}    (catalog)
                      ├─► feature:favorites:{api,impl} (catalog + favorites + playback session)
@@ -102,12 +101,14 @@ for stories.
 
 ## Navigation
 
-`shared/.../App.kt` is the thin multiplatform entry used by Android and iOS. It delegates to
-`XwabApp` under `shared/.../ui`, the app-level UI equivalent of Now in Android's `NiaApp`.
-`XwabApp` owns the scaffold and one back stack per tab; `AppNavigationBar` owns the navigation
-chrome. As in NiA, application policy is explicit in
+`shared/.../App.kt` is the multiplatform entry used by Android and iOS and owns the application
+theme and scaffold. `AppNavigationState` owns one back stack per tab, while `AppNavigationBar`
+owns the navigation chrome. As in NiA, application policy is explicit in
 `shared/.../navigation/AppNavigation.kt`: the app chooses its start route and top-level items,
-calls every implementation entry provider, and includes every API serializer.
+and includes every API serializer. Feature implementations are assembled separately in
+`shared/.../composition/AppEntryProvider.kt`, so the navigation package sees feature contracts but
+never their implementations. `Navigator`, `NavigationState` and the Navigation 3 entry decorators
+remain under `shared/.../navigation`.
 
 ```kotlin
 val TOP_LEVEL_DESTINATIONS = listOf(
@@ -123,14 +124,14 @@ val TOP_LEVEL_DESTINATIONS = listOf(
     ),
 )
 
-fun appEntryProvider(navigator: Navigator) = entryProvider {
-    browseEntry(onCategoryClick = { navigator.navigate(CategoryRoute(it)) })
-    favoritesEntry(onMusicClick = { navigator.navigate(PlayerRoute(it.value)) })
+fun appEntryProvider(onNavigate: (NavKey) -> Unit, onBack: () -> Unit) = entryProvider {
+    browseEntry(onCategoryClick = { onNavigate(CategoryRoute(it.value)) })
+    favoritesEntry(onMusicClick = { onNavigate(PlayerRoute(it.value)) })
     categoryEntry(
-        onMusicClick = { navigator.navigate(PlayerRoute(it.value)) },
-        onBack = navigator::goBack,
+        onMusicClick = { onNavigate(PlayerRoute(it.value)) },
+        onBack = onBack,
     )
-    playerEntry(onBack = navigator::goBack)
+    playerEntry(onBack = onBack)
     storiesEntry()
 }
 ```
@@ -138,7 +139,7 @@ fun appEntryProvider(navigator: Navigator) = entryProvider {
 The first item is deliberately the start route. `sounds` and `category` are absent from that list:
 they are navigated *into*, not places to switch to. Their entry providers and serializers are still
 registered explicitly. Koin modules are assembled separately in `AppModules.kt`; no DI type leaks
-through `core:navigation` or a feature API.
+through the navigation contracts or a feature API.
 
 The local equivalent of Now in Android's `feature:foryou:api` and `feature:foryou:impl` split is:
 
@@ -147,7 +148,7 @@ feature:browse:api      api/navigation/BrowseNavigation.kt (public contract)
 feature:browse:impl     impl/navigation/BrowseEntry.kt + UI + state + ViewModel + use case + DI
 feature:favorites:api   api/navigation/FavoritesNavigation.kt (public contract)
 feature:favorites:impl  impl/navigation/FavoritesEntry.kt + UI + state + ViewModel + use case + DI
-shared                  App entry, XwabApp shell, top-level UI and application composition root
+shared                  App entry, navigation state/policy, top-level UI and composition root
 ```
 
 `BrowseEntry`, `FavoritesEntry` and `CategoryEntry` publish only intent callbacks. `shared` decides
@@ -184,16 +185,18 @@ its screen. A screen action that already has the model it needs injects the capa
 a use case has to earn its name by holding a decision.
 
 A feature also declares the capabilities it reads, in its own build file. `xwab.kmp.feature` hands
-out the design system, navigation and the Compose/Koin surface and nothing else. Delivery, the
+out the design system, Navigation 3 runtime and the Compose/Koin surface and nothing else. Delivery, the
 engine and the shipped manifest are declared by the modules that assemble a session and by the
 composition root, and nowhere else — so no screen can name a delivery type, the engine's own state
 model, or the URL behind a track.
 
-Four rules hold this in place, and `./gradlew checkArchitecture` fails the build when one breaks:
+Five rules hold this in place, and `./gradlew checkArchitecture` fails the build when one breaks:
 a core module may not depend on a feature; feature modules may not depend on other features; a use
 case in a shared core module must serve more than one feature; and a feature may not declare
-`core:navigation`, `core:network`, `core:sound:delivery`, `core:playback:engine`,
-`core:sound:manifest` or `core:story:manifest`.
+`shared`, `core:network`, `core:sound:delivery`, `core:playback:engine`,
+`core:sound:manifest` or `core:story:manifest`. Finally, the app navigation package may import
+feature APIs but not feature implementations; implementation entry wiring belongs to the
+composition root.
 
 That fourth rule reads what a screen can *reach*, not only what it names. An `api` dependency
 re-exports its own `api` dependencies onto every consumer's compile classpath, so one edge added to

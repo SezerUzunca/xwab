@@ -10,7 +10,7 @@ import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
 
 /**
- * Runs the four rules that keep feature slices independent. All of them are easy to break by
+ * Runs the five rules that keep feature slices independent. All of them are easy to break by
  * accident and none of them fail to compile, which is why they are checked rather than written
  * down.
  *
@@ -23,9 +23,12 @@ import org.gradle.api.tasks.TaskAction
  *    [FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES].
  *    Fetching audio, driving a platform player and reading the shipped manifest are things done on
  *    a screen's behalf; a screen reaching any of them directly bypasses the port that exists for it.
+ * 5. The app navigation package may depend on feature APIs, but feature implementation entry
+ *    assembly belongs to the application composition root.
  *
  * The rules themselves live in [FeatureFirstRules], where they are unit-tested from both sides.
- * This task is only their plumbing: it collects the dependency graph and the sources rule 3 reads.
+ * This task is only their plumbing: it collects the dependency graph and the sources rules 3 and 5
+ * read.
  *
  * Rule 4 replaces one that scanned feature sources for the strings `AudioContentResolver` and
  * `AudioFileStore`. That version existed because the catalog and delivery shared a module, so
@@ -57,7 +60,8 @@ abstract class CheckArchitectureTask : DefaultTask() {
         val graph = moduleDependencies.get()
         val violations = FeatureFirstRules.staleRuleViolations(graph.keys) +
             FeatureFirstRules.dependencyViolations(graph, moduleApiDependencies.get()) +
-            leakedUseCaseViolations(repositoryRoot.get().asFile, graph.keys)
+            leakedUseCaseViolations(repositoryRoot.get().asFile, graph.keys) +
+            navigationImplementationImportViolations(repositoryRoot.get().asFile)
 
         if (violations.isNotEmpty()) {
             throw GradleException(
@@ -102,6 +106,18 @@ abstract class CheckArchitectureTask : DefaultTask() {
         }
 
         return FeatureFirstRules.leakedUseCaseViolations(useCases, sourcesByFeature)
+    }
+
+    /** Reads app-navigation sources because their package boundary is invisible to Gradle's graph. */
+    private fun navigationImplementationImportViolations(root: File): List<String> {
+        val navigationRoot =
+            root.resolve("shared/src/commonMain/kotlin/com/xwab/app/navigation")
+        if (!navigationRoot.isDirectory) return emptyList()
+
+        val sources = kotlinSourcesIn(navigationRoot).associate { file ->
+            file.relativeTo(root).invariantSeparatorsPath to file.readText()
+        }
+        return FeatureFirstRules.navigationImplementationImportViolations(sources)
     }
 
     /** Kotlin sources under [dir], skipping Gradle output so generated code is never read. */

@@ -1,4 +1,4 @@
-package com.xwab.app.core.navigation
+package com.xwab.app.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
@@ -27,7 +27,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
  *   a new lambda on each recomposition defeats [rememberDecoratedNavEntries]' own caching.
  */
 @Composable
-fun NavigationState.toEntries(
+internal fun NavigationState.toEntries(
     entryProvider: (NavKey) -> NavEntry<NavKey>,
 ): List<NavEntry<NavKey>> {
     val entriesByTab = backStacks.mapValues { (route, backStack) ->

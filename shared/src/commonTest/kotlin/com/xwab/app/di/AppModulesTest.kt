@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.navigation3.runtime.NavKey
+import com.xwab.app.composition.appEntryProvider
 import com.xwab.app.core.audiodelivery.cache.AudioFileStore
 import com.xwab.app.core.audiodelivery.di.audioDeliveryModule
 import com.xwab.app.core.audiodelivery.di.audioDeliveryPlatformModule
@@ -13,8 +14,6 @@ import com.xwab.app.core.catalogmanifest.di.catalogManifestModule
 import com.xwab.app.core.favorites.FavoritesRepository
 import com.xwab.app.core.favorites.di.favoritesModule
 import com.xwab.app.core.favorites.di.favoritesPlatformModule
-import com.xwab.app.core.navigation.NavigationState
-import com.xwab.app.core.navigation.Navigator
 import com.xwab.app.core.network.NetworkClient
 import com.xwab.app.core.network.di.networkModule
 import com.xwab.app.core.playbackengine.api.AudioPlayerState
@@ -37,8 +36,9 @@ import com.xwab.app.feature.sounds.impl.di.soundsModule
 import com.xwab.app.feature.story.api.navigation.StoriesRoute
 import com.xwab.app.feature.story.impl.di.storyModule
 import com.xwab.app.navigation.FEATURE_SERIALIZERS
+import com.xwab.app.navigation.NavigationState
+import com.xwab.app.navigation.Navigator
 import com.xwab.app.navigation.TOP_LEVEL_DESTINATIONS
-import com.xwab.app.navigation.appEntryProvider
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -184,7 +184,7 @@ class AppModulesTest {
             ),
         )
 
-        val provider = appEntryProvider(navigator)
+        val provider = appEntryProvider(navigator::navigate, navigator::goBack)
 
         routes.forEach { route ->
             assertNotNull(provider(route), "no entry registered for ${route::class.simpleName}")
@@ -192,7 +192,7 @@ class AppModulesTest {
     }
 
     /**
-     * `XwabApp` builds the navigation bar from this list and starts on its first entry, so an
+     * The app shell builds the navigation bar from this list and starts on its first entry, so an
      * empty one is a blank app and two features claiming the same route are two tabs sharing a
      * single back stack — each tab's stack is keyed by its route.
      */

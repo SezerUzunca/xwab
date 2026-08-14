@@ -1,4 +1,4 @@
-package com.xwab.app.core.navigation
+package com.xwab.app.navigation
 
 import androidx.navigation3.runtime.NavKey
 import kotlin.test.Test
