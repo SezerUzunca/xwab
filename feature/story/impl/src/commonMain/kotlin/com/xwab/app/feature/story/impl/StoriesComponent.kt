@@ -16,12 +16,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-internal interface StoriesComponent {
+interface StoriesComponent {
     val state: StateFlow<Loadable<StoriesState>>
     fun togglePlayback(storyId: StoryId)
 }
 
-internal class DefaultStoriesComponent(
+class DefaultStoriesComponent(
     componentContext: ComponentContext,
     observeStoriesContentUseCase: ObserveStoriesContentUseCase,
     private val playbackCoordinator: PlaybackCoordinator,

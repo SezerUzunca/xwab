@@ -3,45 +3,39 @@ package com.xwab.app
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.navigation3.ui.NavDisplay
-import com.xwab.app.composition.appEntryProvider
+import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import com.xwab.app.composition.AppComponent
+import com.xwab.app.composition.AppContent
 import com.xwab.app.core.ui.theme.SleepRelaxTheme
-import com.xwab.app.navigation.rememberAppNavigationState
 import com.xwab.app.ui.AppNavigationBar
 
 /**
  * Shared application root used by the platform entry points.
  *
- * It applies the app theme and renders the application scaffold from the remembered navigation
- * state.
+ * It applies the app theme and renders the application scaffold from [root]. The platform entry
+ * point (`MainActivity`/`MainViewController`) builds [root] once, outside the composition, so it
+ * survives configuration changes rather than being rebuilt on every recomposition.
  */
 @Composable
-fun App() {
+fun App(root: AppComponent) {
     SleepRelaxTheme {
-        val navigationState = rememberAppNavigationState()
-        val entryProvider = remember(navigationState) {
-            appEntryProvider(
-                onNavigate = navigationState::navigate,
-                onBack = navigationState::goBack,
-            )
-        }
+        val selectedTab by root.selectedTab.subscribeAsState()
 
         Scaffold(
             // Feature screens paint their own gradient; this is only what shows behind the bar.
             containerColor = SleepRelaxTheme.colors.backgroundBottom,
             bottomBar = {
                 AppNavigationBar(
-                    destinations = navigationState.destinations,
-                    selectedRoute = navigationState.selectedRoute,
-                    onSelect = navigationState::navigate,
+                    selectedTab = selectedTab,
+                    onSelect = root::selectTab,
                 )
             },
         ) { innerPadding ->
-            NavDisplay(
-                entries = navigationState.entries(entryProvider),
-                onBack = navigationState::goBack,
+            AppContent(
+                component = root,
+                selectedTab = selectedTab,
                 modifier = Modifier.padding(innerPadding),
             )
         }

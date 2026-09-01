@@ -16,13 +16,13 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-internal interface FavoritesComponent {
+interface FavoritesComponent {
     val state: StateFlow<Loadable<FavoritesState>>
     val onMusicClick: (TrackId) -> Unit
     fun togglePlayback(musicId: TrackId)
 }
 
-internal class DefaultFavoritesComponent(
+class DefaultFavoritesComponent(
     componentContext: ComponentContext,
     observeFavoritesContentUseCase: ObserveFavoritesContentUseCase,
     private val playbackCoordinator: PlaybackCoordinator,

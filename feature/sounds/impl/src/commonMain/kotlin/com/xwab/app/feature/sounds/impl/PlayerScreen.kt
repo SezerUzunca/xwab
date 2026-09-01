@@ -65,7 +65,7 @@ import xwab.feature.sounds.impl.generated.resources.volume_percentage
 private const val MINUTE_MS = 60_000L
 
 @Composable
-internal fun PlayerScreenRoute(component: PlayerComponent) {
+fun PlayerScreenRoute(component: PlayerComponent) {
     val state by component.state.collectAsStateWithLifecycle()
 
     when (val content = state) {

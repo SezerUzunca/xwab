@@ -10,12 +10,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
-internal interface BrowseComponent {
+interface BrowseComponent {
     val state: StateFlow<Loadable<BrowseState>>
     val onCategoryClick: (CategoryId) -> Unit
 }
 
-internal class DefaultBrowseComponent(
+class DefaultBrowseComponent(
     componentContext: ComponentContext,
     musicCatalog: MusicCatalogRepository,
     override val onCategoryClick: (CategoryId) -> Unit,

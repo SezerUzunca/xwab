@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-internal interface PlayerComponent {
+interface PlayerComponent {
     val state: StateFlow<Loadable<PlayerState>>
     val onBack: () -> Unit
     fun toggleFavorite()
@@ -27,7 +27,7 @@ internal interface PlayerComponent {
     fun cancelSleepTimer()
 }
 
-internal class DefaultPlayerComponent(
+class DefaultPlayerComponent(
     componentContext: ComponentContext,
     private val trackId: TrackId,
     observePlayerContentUseCase: ObservePlayerContentUseCase,

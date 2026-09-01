@@ -79,9 +79,8 @@ kotlin {
             implementation(libs.compose.material3)
             implementation(libs.compose.components.resources)
             implementation(libs.koin.core)
-            implementation(libs.navigation3.runtime)
-            implementation(libs.navigation3.ui)
-            implementation(libs.androidx.lifecycle.viewmodelNavigation3)
+            implementation(libs.decompose)
+            implementation(libs.decompose.extensions.compose)
             implementation(libs.kotlinx.serialization.core)
         }
         commonTest.dependencies {

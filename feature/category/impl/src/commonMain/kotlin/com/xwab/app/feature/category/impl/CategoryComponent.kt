@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-internal interface CategoryComponent {
+interface CategoryComponent {
     val state: StateFlow<Loadable<CategoryState>>
     val onMusicClick: (TrackId) -> Unit
     val onBack: () -> Unit
@@ -26,7 +26,7 @@ internal interface CategoryComponent {
     fun togglePlayback(musicId: TrackId)
 }
 
-internal class DefaultCategoryComponent(
+class DefaultCategoryComponent(
     componentContext: ComponentContext,
     categoryId: CategoryId,
     observeCategoryContentUseCase: ObserveCategoryContentUseCase,

@@ -37,7 +37,7 @@ import xwab.feature.story.`impl`.generated.resources.story_not_found
 import xwab.feature.story.`impl`.generated.resources.story_unavailable
 
 @Composable
-internal fun StoriesScreenRoute(component: StoriesComponent) {
+fun StoriesScreenRoute(component: StoriesComponent) {
     val state by component.state.collectAsStateWithLifecycle()
 
     when (val content = state) {

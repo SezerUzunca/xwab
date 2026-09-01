@@ -38,7 +38,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.widthIn
 
 @Composable
-internal fun CategoryScreenRoute(component: CategoryComponent) {
+fun CategoryScreenRoute(component: CategoryComponent) {
     val state by component.state.collectAsStateWithLifecycle()
 
     when (val content = state) {

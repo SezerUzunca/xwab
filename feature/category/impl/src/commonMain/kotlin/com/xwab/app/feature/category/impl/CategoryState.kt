@@ -5,7 +5,7 @@ import com.xwab.app.core.catalog.Music
 import com.xwab.app.core.catalog.TrackId
 
 /** Content available after the outer [com.xwab.app.core.ui.state.Loadable] becomes ready. */
-internal data class CategoryState(
+data class CategoryState(
     val category: Category? = null,
     val musics: List<Music> = emptyList(),
     val favoriteIds: Set<TrackId> = emptySet(),
