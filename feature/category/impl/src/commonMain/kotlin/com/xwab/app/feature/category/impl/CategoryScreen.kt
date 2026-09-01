@@ -38,21 +38,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.widthIn
 
 @Composable
-internal fun CategoryScreenRoute(
-    onMusicClick: (musicId: TrackId) -> Unit,
-    onBack: () -> Unit,
-    viewModel: CategoryViewModel,
-) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+internal fun CategoryScreenRoute(component: CategoryComponent) {
+    val state by component.state.collectAsStateWithLifecycle()
 
     when (val content = state) {
         Loadable.Loading -> LoadingContent()
         is Loadable.Ready -> CategoryScreen(
             state = content.value,
-            onMusicClick = onMusicClick,
-            onFavoriteClick = viewModel::toggleFavorite,
-            onPlaybackClick = viewModel::togglePlayback,
-            onBack = onBack,
+            onMusicClick = component.onMusicClick,
+            onFavoriteClick = component::toggleFavorite,
+            onPlaybackClick = component::togglePlayback,
+            onBack = component.onBack,
         )
     }
 }
