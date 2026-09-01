@@ -1,5 +1,7 @@
 package com.xwab.app.feature.browse.impl
 
+import com.arkivanov.decompose.DefaultComponentContext
+import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.xwab.app.core.testing.FakeMusicCatalog
 import com.xwab.app.core.testing.category
 import com.xwab.app.core.ui.state.Loadable
@@ -22,7 +24,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class BrowseViewModelTest {
+class BrowseComponentTest {
     private lateinit var mainDispatcher: TestDispatcher
 
     @BeforeTest
@@ -37,15 +39,19 @@ class BrowseViewModelTest {
     @Test
     fun mapsCatalogCategoriesToReadyState() = runTest(mainDispatcher) {
         val categories = listOf(category("rain"), category("ocean"))
-        val viewModel = BrowseViewModel(FakeMusicCatalog(categories = categories))
-        collectState(viewModel)
+        val component = DefaultBrowseComponent(
+            componentContext = DefaultComponentContext(LifecycleRegistry()),
+            musicCatalog = FakeMusicCatalog(categories = categories),
+            onCategoryClick = {},
+        )
+        collectState(component)
         advanceUntilIdle()
 
-        val state = assertIs<Loadable.Ready<BrowseState>>(viewModel.state.value).value
+        val state = assertIs<Loadable.Ready<BrowseState>>(component.state.value).value
         assertEquals(categories, state.categories)
     }
 
-    private fun TestScope.collectState(viewModel: BrowseViewModel) {
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
+    private fun TestScope.collectState(component: BrowseComponent) {
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { component.state.collect() }
     }
 }
