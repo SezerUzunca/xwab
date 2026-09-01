@@ -37,14 +37,14 @@ import xwab.feature.story.`impl`.generated.resources.story_not_found
 import xwab.feature.story.`impl`.generated.resources.story_unavailable
 
 @Composable
-internal fun StoriesScreenRoute(viewModel: StoriesViewModel) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+internal fun StoriesScreenRoute(component: StoriesComponent) {
+    val state by component.state.collectAsStateWithLifecycle()
 
     when (val content = state) {
         Loadable.Loading -> LoadingContent()
         is Loadable.Ready -> StoriesScreen(
             state = content.value,
-            onPlaybackClick = viewModel::togglePlayback,
+            onPlaybackClick = component::togglePlayback,
         )
     }
 }
