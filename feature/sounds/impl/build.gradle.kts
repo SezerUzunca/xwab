@@ -11,8 +11,6 @@ kotlin {
             implementation(projects.core.sound.catalog)
             implementation(projects.core.sound.favorites)
             implementation(projects.core.playback.session)
-
-            implementation(projects.feature.sounds.api)
         }
         commonTest.dependencies {
             implementation(projects.core.testing)
