@@ -1,8 +1,8 @@
 package com.xwab.app.feature.favorites.impl
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import com.arkivanov.decompose.ComponentContext
 import com.xwab.app.core.catalog.TrackId
+import com.xwab.app.core.navigation.componentScope
 import com.xwab.app.core.playbacksession.PlaybackCoordinator
 import com.xwab.app.core.playbacksession.PlaybackItemId
 import com.xwab.app.core.playbacksession.PlaybackKind
@@ -16,11 +16,21 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-internal class FavoritesViewModel(
+internal interface FavoritesComponent {
+    val state: StateFlow<Loadable<FavoritesState>>
+    val onMusicClick: (TrackId) -> Unit
+    fun togglePlayback(musicId: TrackId)
+}
+
+internal class DefaultFavoritesComponent(
+    componentContext: ComponentContext,
     observeFavoritesContentUseCase: ObserveFavoritesContentUseCase,
     private val playbackCoordinator: PlaybackCoordinator,
-) : ViewModel() {
-    val state: StateFlow<Loadable<FavoritesState>> = observeFavoritesContentUseCase()
+    override val onMusicClick: (TrackId) -> Unit,
+) : FavoritesComponent, ComponentContext by componentContext {
+    private val scope = componentScope()
+
+    override val state: StateFlow<Loadable<FavoritesState>> = observeFavoritesContentUseCase()
         .map<FavoritesContent, Loadable<FavoritesState>> { content ->
             val playback = content.playback
             val requestedTrackId = playback.requestedValueOf(PlaybackKind.SOUND)?.let(::TrackId)
@@ -36,17 +46,17 @@ internal class FavoritesViewModel(
             )
         }
         .stateIn(
-            scope = viewModelScope,
+            scope = scope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = Loadable.Loading,
         )
 
-    fun togglePlayback(musicId: TrackId) {
+    override fun togglePlayback(musicId: TrackId) {
         val current = (state.value as? Loadable.Ready)?.value ?: return
         if (current.requestedTrackId == musicId && current.playIntent) {
             playbackCoordinator.pause()
         } else {
-            viewModelScope.launch { playbackCoordinator.play(PlaybackItemId.sound(musicId.value)) }
+            scope.launch { playbackCoordinator.play(PlaybackItemId.sound(musicId.value)) }
         }
     }
 }

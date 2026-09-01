@@ -1,5 +1,7 @@
 package com.xwab.app.feature.favorites.impl
 
+import com.arkivanov.decompose.DefaultComponentContext
+import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.xwab.app.core.catalog.TrackId
 import com.xwab.app.core.playbacksession.PlaybackFailure
 import com.xwab.app.core.playbacksession.PlaybackItemId
@@ -32,7 +34,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class FavoritesViewModelTest {
+class FavoritesComponentTest {
     private lateinit var mainDispatcher: TestDispatcher
 
     @BeforeTest
@@ -55,11 +57,11 @@ class FavoritesViewModelTest {
                 ),
             )
         }
-        val viewModel = createViewModel(coordinator)
-        collectState(viewModel)
+        val component = createComponent(coordinator)
+        collectState(component)
         advanceUntilIdle()
 
-        val state = assertIs<Loadable.Ready<FavoritesState>>(viewModel.state.value).value
+        val state = assertIs<Loadable.Ready<FavoritesState>>(component.state.value).value
         assertEquals(listOf(TrackId("rain")), state.musics.map { it.id })
         assertNull(state.requestedTrackId)
         assertFalse(state.playIntent)
@@ -72,11 +74,11 @@ class FavoritesViewModelTest {
         val coordinator = FakePlaybackCoordinator().apply {
             publish(PlaybackSummary(failure = PlaybackFailure.SourceUnavailable(itemId)))
         }
-        val viewModel = createViewModel(coordinator)
-        collectState(viewModel)
+        val component = createComponent(coordinator)
+        collectState(component)
         advanceUntilIdle()
 
-        val state = assertIs<Loadable.Ready<FavoritesState>>(viewModel.state.value).value
+        val state = assertIs<Loadable.Ready<FavoritesState>>(component.state.value).value
         assertEquals(PlaybackFailure.SourceUnavailable(itemId), state.playbackFailure)
     }
 
@@ -90,11 +92,11 @@ class FavoritesViewModelTest {
                 ),
             )
         }
-        val viewModel = createViewModel(coordinator)
-        collectState(viewModel)
+        val component = createComponent(coordinator)
+        collectState(component)
         advanceUntilIdle()
 
-        viewModel.togglePlayback(TrackId("rain"))
+        component.togglePlayback(TrackId("rain"))
 
         assertEquals(1, coordinator.pauses)
         assertNull(coordinator.playedItemId)
@@ -103,27 +105,32 @@ class FavoritesViewModelTest {
     @Test
     fun tappingIdleSoundRequestsPlayback() = runTest(mainDispatcher) {
         val coordinator = FakePlaybackCoordinator()
-        val viewModel = createViewModel(coordinator)
-        collectState(viewModel)
+        val component = createComponent(coordinator)
+        collectState(component)
         advanceUntilIdle()
 
-        viewModel.togglePlayback(TrackId("rain"))
+        component.togglePlayback(TrackId("rain"))
         advanceUntilIdle()
 
         assertEquals(PlaybackItemId.sound("rain"), coordinator.playedItemId)
         assertTrue(coordinator.pauses == 0)
     }
 
-    private fun createViewModel(coordinator: FakePlaybackCoordinator): FavoritesViewModel {
+    private fun createComponent(coordinator: FakePlaybackCoordinator): DefaultFavoritesComponent {
         val useCase = ObserveFavoritesContentUseCase(
             musicCatalog = FakeMusicCatalog(tracks = listOf(track("rain"))),
             favoritesRepository = FakeFavorites(setOf(TrackId("rain"))),
             playbackCoordinator = coordinator,
         )
-        return FavoritesViewModel(useCase, coordinator)
+        return DefaultFavoritesComponent(
+            componentContext = DefaultComponentContext(LifecycleRegistry()),
+            observeFavoritesContentUseCase = useCase,
+            playbackCoordinator = coordinator,
+            onMusicClick = {},
+        )
     }
 
-    private fun TestScope.collectState(viewModel: FavoritesViewModel) {
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
+    private fun TestScope.collectState(component: FavoritesComponent) {
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { component.state.collect() }
     }
 }
