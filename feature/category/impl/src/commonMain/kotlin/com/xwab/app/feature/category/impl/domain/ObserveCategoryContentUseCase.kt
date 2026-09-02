@@ -11,7 +11,7 @@ import com.xwab.app.core.playbacksession.PlaybackSummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
-internal data class CategoryContent(
+data class CategoryContent(
     val category: Category?,
     val musics: List<Music>,
     val favoriteIds: Set<TrackId>,
@@ -22,7 +22,7 @@ internal data class CategoryContent(
  * Joins the three domain ports into the one thing a category screen shows. Feature-owned for the
  * same reason as the other screen-owned use cases: only the ports it reads are shared.
  */
-internal class ObserveCategoryContentUseCase(
+class ObserveCategoryContentUseCase(
     private val musicCatalog: MusicCatalogRepository,
     private val favoritesRepository: FavoritesRepository,
     private val playbackCoordinator: PlaybackCoordinator,

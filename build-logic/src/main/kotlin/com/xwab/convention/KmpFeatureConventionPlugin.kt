@@ -5,7 +5,7 @@ import org.gradle.api.Project
 
 /**
  * `xwab.kmp.feature` — what every screen in this app is built out of regardless of what it shows:
- * [KmpComposeConventionPlugin], the design system, Navigation 3 runtime, and the Compose/Koin surface.
+ * [KmpComposeConventionPlugin], the design system, Decompose, and the Compose/Koin surface.
  *
  * Capability modules are deliberately **not** here. A feature declares the ones it reads in its own
  * build file, which is what lets `checkArchitecture` state rule 4 as a dependency edge — a feature
@@ -25,14 +25,18 @@ class KmpFeatureConventionPlugin : Plugin<Project> {
             kotlinMultiplatform {
                 dependenciesOf("commonMain") {
                     implementation(project(":core:designsystem"))
-                    implementation(libs.library("navigation3-runtime"))
+                    implementation(project(":core:navigation"))
+                    implementation(libs.library("decompose"))
                     implementation(libs.library("compose-foundation"))
                     implementation(libs.library("compose-material3"))
                     implementation(libs.library("compose-ui"))
                     implementation(libs.library("compose-components-resources"))
                     implementation(libs.library("compose-uiToolingPreview"))
                     implementation(libs.library("androidx-lifecycle-viewmodelCompose"))
-                    implementation(libs.library("koin-compose-viewmodel"))
+                    // `org.koin.dsl.module`/`factory {}` for each feature's own DI module — no
+                    // Compose-Koin integration is needed since components are never resolved
+                    // through Compose.
+                    implementation(libs.library("koin-core"))
                 }
             }
 

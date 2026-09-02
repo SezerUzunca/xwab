@@ -3,13 +3,19 @@ package com.xwab.app.di
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
-import androidx.navigation3.runtime.NavKey
-import com.xwab.app.composition.appEntryProvider
+import com.arkivanov.decompose.DefaultComponentContext
+import com.arkivanov.essenty.lifecycle.LifecycleRegistry
+import com.xwab.app.composition.BrowseTabChild
+import com.xwab.app.composition.DefaultAppComponent
+import com.xwab.app.composition.FavoritesTabChild
+import com.xwab.app.composition.StoriesTabChild
 import com.xwab.app.core.audiodelivery.cache.AudioFileStore
 import com.xwab.app.core.audiodelivery.di.audioDeliveryModule
 import com.xwab.app.core.audiodelivery.di.audioDeliveryPlatformModule
 import com.xwab.app.core.audiodelivery.resolution.AudioContentResolver
+import com.xwab.app.core.catalog.CategoryId
 import com.xwab.app.core.catalog.MusicCatalogRepository
+import com.xwab.app.core.catalog.TrackId
 import com.xwab.app.core.catalogmanifest.di.catalogManifestModule
 import com.xwab.app.core.favorites.FavoritesRepository
 import com.xwab.app.core.favorites.di.favoritesModule
@@ -25,30 +31,32 @@ import com.xwab.app.core.playbacksession.PlaybackCoordinator
 import com.xwab.app.core.playbacksession.di.playbackSessionModule
 import com.xwab.app.core.story.StoryCatalogRepository
 import com.xwab.app.core.storymanifest.di.storyManifestModule
-import com.xwab.app.feature.browse.api.navigation.BrowseRoute
-import com.xwab.app.feature.browse.impl.di.browseModule
-import com.xwab.app.feature.category.api.navigation.CategoryRoute
+import com.xwab.app.feature.category.api.navigation.CategoryConfig
 import com.xwab.app.feature.category.impl.di.categoryModule
-import com.xwab.app.feature.favorites.api.navigation.FavoritesRoute
 import com.xwab.app.feature.favorites.impl.di.favoritesFeatureModule
-import com.xwab.app.feature.sounds.api.navigation.PlayerRoute
+import com.xwab.app.feature.sounds.api.navigation.PlayerConfig
 import com.xwab.app.feature.sounds.impl.di.soundsModule
-import com.xwab.app.feature.story.api.navigation.StoriesRoute
 import com.xwab.app.feature.story.impl.di.storyModule
-import com.xwab.app.navigation.FEATURE_SERIALIZERS
-import com.xwab.app.navigation.NavigationState
-import com.xwab.app.navigation.Navigator
-import com.xwab.app.navigation.TOP_LEVEL_DESTINATIONS
+import com.xwab.app.navigation.AppTab
+import com.xwab.app.navigation.BrowseTabConfig
+import com.xwab.app.navigation.FavoritesTabConfig
+import com.xwab.app.navigation.StoriesTabConfig
 import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import kotlinx.serialization.json.Json
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 
@@ -60,6 +68,7 @@ import org.koin.dsl.module
  * Runtime feature definitions are verified separately as a complete graph; these tests exercise
  * the app composition contract and the real core adapter bindings.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class AppModulesTest {
     /** Stands in for the bindings the platform DI modules contribute. */
     private val platformBindings = module {
@@ -76,12 +85,23 @@ class AppModulesTest {
             storyManifestModule,
             favoritesModule,
             playbackSessionModule,
+            favoritesFeatureModule,
+            categoryModule,
+            soundsModule,
+            storyModule,
             platformBindings,
         )
     }.koin
 
+    // Components built below call `componentScope()`, which resolves `Dispatchers.Main` eagerly.
+    @BeforeTest
+    fun setUp() = Dispatchers.setMain(StandardTestDispatcher())
+
     @AfterTest
-    fun tearDown() = koin.close()
+    fun tearDown() {
+        koin.close()
+        Dispatchers.resetMain()
+    }
 
     @Test
     fun theApplicationShipsTheModulesUnderTest() {
@@ -109,7 +129,7 @@ class AppModulesTest {
     @Test
     fun everyFeatureImplementationReachesTheContainer() {
         val shipped = appModules()
-        val expected = listOf(browseModule, favoritesFeatureModule, categoryModule, soundsModule, storyModule)
+        val expected = listOf(favoritesFeatureModule, categoryModule, soundsModule, storyModule)
 
         assertEquals(expected, featureModules, "the app's explicit feature module list changed")
         expected.forEach { featureModule ->
@@ -118,108 +138,64 @@ class AppModulesTest {
     }
 
     /**
-     * A route whose serializer is missing compiles fine and only fails when the back stack is
-     * restored after process death — a crash on the second launch, not the first.
-     *
-     * `getPolymorphic` is the only way to ask a `SerializersModule` what it holds, and it carries
-     * an opt-in; the alternative is not asking, which is what this test exists to stop.
+     * Every case in every tab's `Config` round-trips through the format the real back stack is
+     * persisted in. A case that doesn't only fails when the back stack is restored after process
+     * death — a crash on the second launch, not the first.
      */
-    @OptIn(ExperimentalSerializationApi::class)
     @Test
-    fun everyFeatureContributesTheSerializersForItsOwnRoutes() {
-        val routes: List<NavKey> =
-            listOf(BrowseRoute, FavoritesRoute, CategoryRoute("rain"), PlayerRoute("gentle-rain"), StoriesRoute)
+    fun everyTabConfigRoundTripsThroughSerialization() {
+        val browseConfigs: List<BrowseTabConfig> = listOf(
+            BrowseTabConfig.Root,
+            BrowseTabConfig.Category(CategoryConfig("rain")),
+            BrowseTabConfig.Player(PlayerConfig("gentle-rain")),
+        )
+        val favoritesConfigs: List<FavoritesTabConfig> = listOf(
+            FavoritesTabConfig.Root,
+            FavoritesTabConfig.Player(PlayerConfig("gentle-rain")),
+        )
+        val storiesConfigs: List<StoriesTabConfig> = listOf(StoriesTabConfig.Root)
 
-        routes.forEach { route ->
-            assertNotNull(
-                FEATURE_SERIALIZERS.getPolymorphic(NavKey::class, route),
-                "no NavKey serializer registered for ${route::class.simpleName}",
-            )
+        browseConfigs.forEach { config ->
+            val json = Json.encodeToString(BrowseTabConfig.serializer(), config)
+            assertEquals(config, Json.decodeFromString(BrowseTabConfig.serializer(), json))
+        }
+        favoritesConfigs.forEach { config ->
+            val json = Json.encodeToString(FavoritesTabConfig.serializer(), config)
+            assertEquals(config, Json.decodeFromString(FavoritesTabConfig.serializer(), json))
+        }
+        storiesConfigs.forEach { config ->
+            val json = Json.encodeToString(StoriesTabConfig.serializer(), config)
+            assertEquals(config, Json.decodeFromString(StoriesTabConfig.serializer(), json))
         }
     }
 
     /**
-     * Migrated routes keep their old wire names so an installed app can restore its back stack.
-     *
-     * `rememberNavBackStack` writes each entry's serial name as a polymorphic type discriminator,
-     * so these strings are a storage format, not an implementation detail. Each one below is the
-     * name that reached `main` — not an intermediate package from a branch, which no installed app
-     * ever wrote.
+     * A config no feature claims compiles fine and throws the first time something navigates to
+     * it — the `when` in `DefaultAppComponent`'s child factories is exhaustive, so a missing case
+     * is now a compile error instead, but a factory that resolves the *wrong* component, or fails
+     * to actually wire a push, would not be. This drives real navigation through the real
+     * component tree and checks what each tab shows before and after.
      */
-    @OptIn(ExperimentalSerializationApi::class)
     @Test
-    fun migratedRoutesRestoreTheirLegacyNames() {
-        val legacyRouteNames = listOf(
-            "com.xwab.app.feature.home.navigation.HomeRoute",
-            "com.xwab.app.feature.category.navigation.CategoryRoute",
-            "com.xwab.app.feature.sounds.navigation.PlayerRoute",
-            "com.xwab.app.feature.story.navigation.StoriesRoute",
+    fun everyTabsRootAndPushedConfigsResolveToTheRightComponent() {
+        val root = DefaultAppComponent(
+            componentContext = DefaultComponentContext(LifecycleRegistry()),
+            koin = koin,
         )
 
-        legacyRouteNames.forEach { serialName ->
-            assertNotNull(
-                FEATURE_SERIALIZERS.getPolymorphic(NavKey::class, serialName),
-                "$serialName must remain restorable after the API/impl migration",
-            )
-        }
-    }
+        assertEquals(AppTab.BROWSE, root.selectedTab.value, "Browse must remain the start tab")
 
-    /**
-     * A route no feature claims compiles fine and throws the first time something navigates to it.
-     *
-     * Registration moved out of the Koin container and into each feature's `entry<Route> { }`, so
-     * the container no longer even indirectly vouches for it. Nothing here is composed — building
-     * the provider and asking it for a key resolves the entry without running its content.
-     */
-    @Test
-    fun everyRouteResolvesToAnEntry() {
-        val routes: List<NavKey> =
-            listOf(BrowseRoute, FavoritesRoute, CategoryRoute("rain"), PlayerRoute("gentle-rain"), StoriesRoute)
-        // Every route gets a stack of its own: this navigator is never driven, it is only what the
-        // features are handed while they register.
-        val navigator = Navigator(
-            NavigationState(
-                startRoute = BrowseRoute,
-                backStacks = routes.associateWith { mutableListOf(it) },
-            ),
-        )
+        val browseRoot = assertIs<BrowseTabChild.Root>(root.browseStack.value.active.instance)
+        browseRoot.component.onCategoryClick(CategoryId("rain"))
+        val browseCategory = assertIs<BrowseTabChild.Category>(root.browseStack.value.active.instance)
+        browseCategory.component.onMusicClick(TrackId("gentle-rain"))
+        assertIs<BrowseTabChild.Player>(root.browseStack.value.active.instance)
 
-        val provider = appEntryProvider(navigator::navigate, navigator::goBack)
+        val favoritesRoot = assertIs<FavoritesTabChild.Root>(root.favoritesStack.value.active.instance)
+        favoritesRoot.component.onMusicClick(TrackId("gentle-rain"))
+        assertIs<FavoritesTabChild.Player>(root.favoritesStack.value.active.instance)
 
-        routes.forEach { route ->
-            assertNotNull(provider(route), "no entry registered for ${route::class.simpleName}")
-        }
-    }
-
-    /**
-     * The app shell builds the navigation bar from this list and starts on its first entry, so an
-     * empty one is a blank app and two features claiming the same route are two tabs sharing a
-     * single back stack — each tab's stack is keyed by its route.
-     */
-    @Test
-    fun theNavigationBarIsBuiltFromTheFeaturesWithoutADuplicateRoute() {
-        assertTrue(TOP_LEVEL_DESTINATIONS.isNotEmpty(), "the app declares no top-level destination")
-        assertEquals(
-            TOP_LEVEL_DESTINATIONS.size,
-            TOP_LEVEL_DESTINATIONS.map { it.route }.toSet().size,
-            "the app declares the same top-level route twice",
-        )
-        assertEquals(BrowseRoute, TOP_LEVEL_DESTINATIONS.first().route, "Browse must remain the start route")
-    }
-
-    /**
-     * Derived from the bar rather than listed by hand, so a tab added later is covered the day it
-     * appears. A tab's root without a serializer is a crash on the second launch, not the first.
-     */
-    @OptIn(ExperimentalSerializationApi::class)
-    @Test
-    fun everyTabsRootRouteHasASerializer() {
-        TOP_LEVEL_DESTINATIONS.forEach { destination ->
-            assertNotNull(
-                FEATURE_SERIALIZERS.getPolymorphic(NavKey::class, destination.route),
-                "no NavKey serializer registered for the tab rooted at ${destination.route}",
-            )
-        }
+        assertIs<StoriesTabChild.Root>(root.storiesStack.value.active.instance)
     }
 
     @Test

@@ -40,14 +40,11 @@ import xwab.feature.browse.`impl`.generated.resources.categories_title
 import xwab.feature.browse.`impl`.generated.resources.track_count
 
 @Composable
-internal fun BrowseScreenRoute(
-    onCategoryClick: (CategoryId) -> Unit,
-    viewModel: BrowseViewModel,
-) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+fun BrowseScreenRoute(component: BrowseComponent) {
+    val state by component.state.collectAsStateWithLifecycle()
     when (val content = state) {
         Loadable.Loading -> LoadingContent()
-        is Loadable.Ready -> BrowseScreen(content.value, onCategoryClick)
+        is Loadable.Ready -> BrowseScreen(content.value, component.onCategoryClick)
     }
 }
 

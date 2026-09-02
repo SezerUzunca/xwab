@@ -8,7 +8,6 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(projects.core.sound.catalog)
-            implementation(projects.feature.browse.api)
         }
         commonTest.dependencies {
             implementation(projects.core.testing)

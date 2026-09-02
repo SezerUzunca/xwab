@@ -9,7 +9,7 @@ import com.xwab.app.core.playbacksession.PlaybackSummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
-internal data class PlayerContent(
+data class PlayerContent(
     val music: Music?,
     val favoriteIds: Set<TrackId>,
     val playback: PlaybackSummary,
@@ -21,7 +21,7 @@ internal data class PlayerContent(
  * Feature-owned for the same reason as the other screen-owned use cases: only the ports it reads
  * are shared.
  */
-internal class ObservePlayerContentUseCase(
+class ObservePlayerContentUseCase(
     private val musicCatalog: MusicCatalogRepository,
     private val favoritesRepository: FavoritesRepository,
     private val playbackCoordinator: PlaybackCoordinator,

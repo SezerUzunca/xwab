@@ -5,7 +5,7 @@ import com.xwab.app.core.story.Story
 import com.xwab.app.core.story.StoryId
 
 /** Content available after the outer [com.xwab.app.core.ui.state.Loadable] becomes ready. */
-internal data class StoriesState(
+data class StoriesState(
     val stories: List<Story> = emptyList(),
     /** The story the session was last asked for, or null when it is on a sound or on nothing. */
     val requestedStoryId: StoryId? = null,
