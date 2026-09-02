@@ -8,13 +8,13 @@ import com.xwab.app.core.playbacksession.PlaybackSummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
-internal data class FavoritesContent(
+data class FavoritesContent(
     val musics: List<Music>,
     val playback: PlaybackSummary,
 )
 
 /** Joins only the ports required by the user's saved-sounds capability. */
-internal class ObserveFavoritesContentUseCase(
+class ObserveFavoritesContentUseCase(
     private val musicCatalog: MusicCatalogRepository,
     private val favoritesRepository: FavoritesRepository,
     private val playbackCoordinator: PlaybackCoordinator,
