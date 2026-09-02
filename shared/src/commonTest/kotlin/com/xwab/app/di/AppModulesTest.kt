@@ -31,7 +31,6 @@ import com.xwab.app.core.playbacksession.PlaybackCoordinator
 import com.xwab.app.core.playbacksession.di.playbackSessionModule
 import com.xwab.app.core.story.StoryCatalogRepository
 import com.xwab.app.core.storymanifest.di.storyManifestModule
-import com.xwab.app.feature.browse.impl.di.browseModule
 import com.xwab.app.feature.category.api.navigation.CategoryConfig
 import com.xwab.app.feature.category.impl.di.categoryModule
 import com.xwab.app.feature.favorites.impl.di.favoritesFeatureModule
@@ -86,7 +85,6 @@ class AppModulesTest {
             storyManifestModule,
             favoritesModule,
             playbackSessionModule,
-            browseModule,
             favoritesFeatureModule,
             categoryModule,
             soundsModule,
@@ -131,7 +129,7 @@ class AppModulesTest {
     @Test
     fun everyFeatureImplementationReachesTheContainer() {
         val shipped = appModules()
-        val expected = listOf(browseModule, favoritesFeatureModule, categoryModule, soundsModule, storyModule)
+        val expected = listOf(favoritesFeatureModule, categoryModule, soundsModule, storyModule)
 
         assertEquals(expected, featureModules, "the app's explicit feature module list changed")
         expected.forEach { featureModule ->
