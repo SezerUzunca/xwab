@@ -89,6 +89,8 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(projects.core.testing)
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.kotlinx.serialization.json)
             // The root's navigation contract tests deliberately assert that every published
             // Config round-trips through serialization and resolves to the right component.
             implementation(projects.feature.category.api)
