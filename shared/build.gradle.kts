@@ -12,6 +12,10 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    // Generates `.serializer()` for the *TabConfig sealed interfaces declared here directly.
+    // Every feature api module applies this via `xwab.kmp.feature.api`; :shared configures its
+    // own targets instead of the shared convention plugins, so it needs it applied explicitly.
+    alias(libs.plugins.kotlinxSerialization)
 }
 
 compose.resources {
