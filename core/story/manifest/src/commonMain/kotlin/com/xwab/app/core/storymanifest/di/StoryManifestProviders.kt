@@ -4,7 +4,10 @@ import com.xwab.app.core.story.StoryCatalogRepository
 import com.xwab.app.core.storymanifest.ManifestStoryCatalogRepository
 import com.xwab.app.core.storymanifest.ManifestStoryStreamCatalog
 import com.xwab.app.core.storymanifest.StoryStreamCatalog
-import org.koin.dsl.module
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesTo
+import dev.zacsweers.metro.Provides
+import dev.zacsweers.metro.SingleIn
 
 /**
  * Binds the two ports the story manifest answers: the repository screens read, whose interface lives
@@ -14,7 +17,14 @@ import org.koin.dsl.module
  * The shipped implementation has no lifecycle: it reads one local manifest and binds no network
  * client, refresh job, or persistence layer.
  */
-val storyManifestModule = module {
-    single<StoryCatalogRepository> { ManifestStoryCatalogRepository() }
-    single<StoryStreamCatalog> { ManifestStoryStreamCatalog() }
+@ContributesTo(AppScope::class)
+interface StoryManifestProviders {
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideStoryCatalogRepository(): StoryCatalogRepository = ManifestStoryCatalogRepository()
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideStoryStreamCatalog(): StoryStreamCatalog = ManifestStoryStreamCatalog()
 }

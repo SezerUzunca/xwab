@@ -2,15 +2,22 @@
 
 package com.xwab.app.core.audiodelivery.di
 
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesTo
+import dev.zacsweers.metro.Provides
+import dev.zacsweers.metro.SingleIn
 import okio.Path.Companion.toPath
-import org.koin.core.module.Module
-import org.koin.dsl.module
 import platform.Foundation.NSCachesDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSUserDomainMask
 
-actual val audioDeliveryPlatformModule: Module = module {
-    single {
+/** The iOS caches directory this app is allowed to fill. */
+@ContributesTo(AppScope::class)
+interface AudioDeliveryIosProviders {
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideAudioCacheRoot(): AudioCacheRoot {
         val cachesDirectory = requireNotNull(
             NSFileManager.defaultManager.URLForDirectory(
                 directory = NSCachesDirectory,
@@ -20,6 +27,6 @@ actual val audioDeliveryPlatformModule: Module = module {
                 error = null,
             )?.path,
         )
-        AudioCacheRoot("$cachesDirectory/audio-content".toPath())
+        return AudioCacheRoot("$cachesDirectory/audio-content".toPath())
     }
 }

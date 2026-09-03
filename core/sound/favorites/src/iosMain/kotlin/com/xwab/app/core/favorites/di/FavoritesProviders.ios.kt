@@ -6,16 +6,23 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.xwab.app.core.favorites.DATA_STORE_FILE_NAME
 import com.xwab.app.core.favorites.createDataStore
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesTo
+import dev.zacsweers.metro.Provides
+import dev.zacsweers.metro.SingleIn
 import okio.Path.Companion.toPath
-import org.koin.core.module.Module
-import org.koin.dsl.module
 import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSURL
 import platform.Foundation.NSUserDomainMask
 
-actual val favoritesPlatformModule: Module = module {
-    single<DataStore<Preferences>> {
+/** Where this device keeps the marked sounds. */
+@ContributesTo(AppScope::class)
+interface FavoritesIosProviders {
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideFavoritesDataStore(): DataStore<Preferences> =
         createDataStore(
             producePath = {
                 val documentDirectory: NSURL? = NSFileManager.defaultManager.URLForDirectory(
@@ -28,5 +35,4 @@ actual val favoritesPlatformModule: Module = module {
                 (requireNotNull(documentDirectory).path + "/$DATA_STORE_FILE_NAME").toPath()
             },
         )
-    }
 }
