@@ -10,8 +10,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
+        val appGraph = (application as MainApplication).appGraph
+
         setContent {
-            App()
+            App(appGraph)
         }
     }
 }

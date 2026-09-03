@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation3.ui.NavDisplay
 import com.xwab.app.composition.appEntryProvider
 import com.xwab.app.core.ui.theme.SleepRelaxTheme
+import com.xwab.app.di.AppGraph
 import com.xwab.app.navigation.rememberAppNavigationState
 import com.xwab.app.ui.AppNavigationBar
 
@@ -15,14 +16,16 @@ import com.xwab.app.ui.AppNavigationBar
  * Shared application root used by the platform entry points.
  *
  * It applies the app theme and renders the application scaffold from the remembered navigation
- * state.
+ * state. The [graph] is built once by the platform entry point and handed down: nothing here looks
+ * a dependency up.
  */
 @Composable
-fun App() {
+fun App(graph: AppGraph) {
     SleepRelaxTheme {
         val navigationState = rememberAppNavigationState()
-        val entryProvider = remember(navigationState) {
+        val entryProvider = remember(navigationState, graph) {
             appEntryProvider(
+                graph = graph,
                 onNavigate = navigationState::navigate,
                 onBack = navigationState::goBack,
             )
