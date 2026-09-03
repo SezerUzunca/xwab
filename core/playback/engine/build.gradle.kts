@@ -13,14 +13,12 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(libs.kotlinx.coroutines.core)
-            api(libs.koin.core)
             implementation(libs.kermit)
         }
         androidMain.dependencies {
             implementation(libs.androidx.core.ktx)
             implementation(libs.androidx.media3.exoplayer)
             implementation(libs.androidx.media3.session)
-            implementation(libs.koin.android)
         }
         getByName("androidDeviceTest").dependencies {
             implementation(libs.kotlin.test)

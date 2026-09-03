@@ -50,7 +50,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             // The composition root binds every core adapter. Features cannot reach the delivery
-            // layer, engine, manifests or network directly; the root can wire their Koin modules.
+            // layer, engine, manifests or network directly; the root declares the graph that does.
             implementation(projects.core.sound.catalog)
             implementation(projects.core.sound.manifest)
             implementation(projects.core.sound.delivery)
@@ -78,7 +78,6 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
             implementation(libs.compose.components.resources)
-            implementation(libs.koin.core)
             implementation(libs.navigation3.runtime)
             implementation(libs.navigation3.ui)
             implementation(libs.androidx.lifecycle.viewmodelNavigation3)
@@ -94,9 +93,6 @@ kotlin {
             implementation(projects.feature.category.api)
             implementation(projects.feature.sounds.api)
             implementation(projects.feature.story.api)
-        }
-        getByName("androidHostTest").dependencies {
-            implementation(libs.koin.test)
         }
     }
 }

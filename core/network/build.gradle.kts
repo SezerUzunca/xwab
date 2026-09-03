@@ -10,7 +10,6 @@ kotlin {
             implementation(libs.ktor.client.core)
             implementation(libs.kotlinx.coroutines.core)
             // The DI entry point exposes Koin's Module type.
-            api(libs.koin.core)
         }
         androidMain.dependencies {
             // Ktor selects the only engine present on this target when HttpClient() is created.

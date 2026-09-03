@@ -7,7 +7,7 @@ androidx-activity = "1.13.0"
 androidx-core = "1.19.0"
 androidx-lifecycle = "2.11.0"
 composeMultiplatform = "1.11.1"
-koin-bom = "4.2.2"
+metro = "1.4.0"
 kotlin = "2.4.10"
 kotlinxCoroutines = "1.11.0"
 kotlinxSerialization = "1.11.0"
@@ -35,10 +35,6 @@ compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-previ
 # material-icons-extended CMP 1.8+ ile dondurulmuş; 1.7.3 son uyumlu versiyon
 compose-material-icons-extended = { module = "org.jetbrains.compose.material:material-icons-extended", version = "1.7.3" }
 
-koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin-bom" }
-koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin-bom" }
-koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin-bom" }
-koin-test = { module = "io.insert-koin:koin-test", version.ref = "koin-bom" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinxSerialization" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
@@ -69,3 +65,5 @@ kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref =
 # Compiles `build-logic`; not applied to any module.
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlinxSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+# Compile-time DI. The compiler plugin is pinned to a Kotlin version: 1.4.0 builds against 2.4.10.
+metro = { id = "dev.zacsweers.metro", version.ref = "metro" }

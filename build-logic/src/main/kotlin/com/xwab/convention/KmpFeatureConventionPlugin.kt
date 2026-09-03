@@ -5,7 +5,7 @@ import org.gradle.api.Project
 
 /**
  * `xwab.kmp.feature` — what every screen in this app is built out of regardless of what it shows:
- * [KmpComposeConventionPlugin], the design system, Navigation 3 runtime, and the Compose/Koin surface.
+ * [KmpComposeConventionPlugin], the design system, Navigation 3 runtime and the Compose surface.
  *
  * Capability modules are deliberately **not** here. A feature declares the ones it reads in its own
  * build file, which is what lets `checkArchitecture` state rule 4 as a dependency edge — a feature
@@ -32,7 +32,6 @@ class KmpFeatureConventionPlugin : Plugin<Project> {
                     implementation(libs.library("compose-components-resources"))
                     implementation(libs.library("compose-uiToolingPreview"))
                     implementation(libs.library("androidx-lifecycle-viewmodelCompose"))
-                    implementation(libs.library("koin-compose-viewmodel"))
                 }
             }
 
