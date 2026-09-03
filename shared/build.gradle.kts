@@ -12,10 +12,6 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
-    // Generates `.serializer()` for the *TabConfig sealed interfaces declared here directly.
-    // Every feature api module applies this via `xwab.kmp.feature.api`; :shared configures its
-    // own targets instead of the shared convention plugins, so it needs it applied explicitly.
-    alias(libs.plugins.kotlinxSerialization)
 }
 
 compose.resources {
@@ -66,14 +62,15 @@ kotlin {
             implementation(projects.core.network)
             implementation(projects.core.designsystem)
 
-            // Browse, Favorites and Story publish no api Config of their own — AppTab and each
-            // *TabConfig.Root already say everything those screens need as navigation input.
+            implementation(projects.feature.browse.api)
             implementation(projects.feature.browse.impl)
+            implementation(projects.feature.favorites.api)
             implementation(projects.feature.favorites.impl)
             implementation(projects.feature.category.api)
             implementation(projects.feature.category.impl)
             implementation(projects.feature.sounds.api)
             implementation(projects.feature.sounds.impl)
+            implementation(projects.feature.story.api)
             implementation(projects.feature.story.impl)
 
             implementation(libs.compose.runtime)
@@ -82,19 +79,21 @@ kotlin {
             implementation(libs.compose.material3)
             implementation(libs.compose.components.resources)
             implementation(libs.koin.core)
-            implementation(libs.decompose)
-            implementation(libs.decompose.extensions.compose)
+            implementation(libs.navigation3.runtime)
+            implementation(libs.navigation3.ui)
+            implementation(libs.androidx.lifecycle.viewmodelNavigation3)
             implementation(libs.kotlinx.serialization.core)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(projects.core.testing)
-            implementation(libs.kotlinx.coroutines.test)
-            implementation(libs.kotlinx.serialization.json)
-            // The root's navigation contract tests deliberately assert that every published
-            // Config round-trips through serialization and resolves to the right component.
+            // The root's navigation contract tests deliberately assert that every public API
+            // route can be restored and rendered.
+            implementation(projects.feature.browse.api)
+            implementation(projects.feature.favorites.api)
             implementation(projects.feature.category.api)
             implementation(projects.feature.sounds.api)
+            implementation(projects.feature.story.api)
         }
         getByName("androidHostTest").dependencies {
             implementation(libs.koin.test)

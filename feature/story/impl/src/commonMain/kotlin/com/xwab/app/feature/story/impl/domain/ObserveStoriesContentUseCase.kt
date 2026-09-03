@@ -7,7 +7,7 @@ import com.xwab.app.core.story.StoryCatalogRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
-data class StoriesContent(
+internal data class StoriesContent(
     val stories: List<Story>,
     val playback: PlaybackSummary,
 )
@@ -19,7 +19,7 @@ data class StoriesContent(
  * nothing else is combined here. Feature-owned for the same reason as the others — only the ports
  * are shared, never the question a screen asks of them.
  */
-class ObserveStoriesContentUseCase(
+internal class ObserveStoriesContentUseCase(
     private val storyCatalog: StoryCatalogRepository,
     private val playbackCoordinator: PlaybackCoordinator,
 ) {

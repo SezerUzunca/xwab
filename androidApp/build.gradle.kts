@@ -16,8 +16,6 @@ dependencies {
 
     implementation(libs.androidx.activity.compose)
     implementation(libs.koin.android)
-    // MainActivity builds the retained root component directly with `retainedComponent`.
-    implementation(libs.decompose)
 
     debugImplementation(libs.compose.uiTooling)
 }

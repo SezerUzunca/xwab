@@ -4,9 +4,8 @@
 
 .DESCRIPTION
     Creates feature/<name>/api and feature/<name>/impl in the same shape as Now in Android. The
-    API owns the serializable Config the composition root places in the navigation tree; the
-    implementation owns UI, state, the Decompose component and DI. Gradle discovers both modules
-    automatically.
+    API owns public navigation contracts; the implementation owns UI, state, ViewModel, DI and
+    navigation entries. Gradle discovers both modules automatically.
 
     The generated feature is intentionally not self-registering. The script prints the explicit
     app composition steps and requires choosing either a top-level destination or an existing
@@ -97,43 +96,44 @@ kotlin {
 }
 "@
 
-Write-GeneratedFile (Join-Path $navSrc "${Pascal}Config.kt") @"
+Write-GeneratedFile (Join-Path $navSrc "${Pascal}Navigation.kt") @"
 package com.xwab.app.feature.${pkg}.api.navigation
 
+import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
 
-/** What this screen needs to show. Add fields for whatever it takes as input. */
 @Serializable
-data object ${Pascal}Config
+data object ${Pascal}Route : NavKey
+
+val ${camel}NavigationSerializers = SerializersModule {
+    polymorphic(NavKey::class) {
+        subclass(${Pascal}Route.serializer())
+    }
+}
+
 "@
 
 Write-GeneratedFile (Join-Path $mainSrc "${Pascal}State.kt") @"
 package com.xwab.app.feature.${pkg}.impl
 
-data class ${Pascal}State(
+internal data class ${Pascal}State(
     val title: String = "${Pascal}",
 )
 "@
 
-Write-GeneratedFile (Join-Path $mainSrc "${Pascal}Component.kt") @"
+Write-GeneratedFile (Join-Path $mainSrc "${Pascal}ViewModel.kt") @"
 package com.xwab.app.feature.${pkg}.impl
 
-import com.arkivanov.decompose.ComponentContext
+import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-interface ${Pascal}Component {
-    val state: StateFlow<${Pascal}State>
-    val onBack: () -> Unit
-}
-
-class Default${Pascal}Component(
-    componentContext: ComponentContext,
-    override val onBack: () -> Unit,
-) : ${Pascal}Component, ComponentContext by componentContext {
-    // Use componentScope() (from :core:navigation) instead of viewModelScope for anything hot.
-    override val state: StateFlow<${Pascal}State> = MutableStateFlow(${Pascal}State()).asStateFlow()
+internal class ${Pascal}ViewModel : ViewModel() {
+    val state: StateFlow<${Pascal}State> = MutableStateFlow(${Pascal}State()).asStateFlow()
 }
 "@
 
@@ -150,10 +150,13 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
-fun ${Pascal}ScreenRoute(component: ${Pascal}Component) {
-    val state by component.state.collectAsStateWithLifecycle()
+internal fun ${Pascal}ScreenRoute(
+    onBack: () -> Unit,
+    viewModel: ${Pascal}ViewModel,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
-    ${Pascal}Screen(state = state, onBack = component.onBack)
+    ${Pascal}Screen(state = state, onBack = onBack)
 }
 
 @Composable
@@ -171,23 +174,47 @@ internal fun ${Pascal}Screen(
 Write-GeneratedFile (Join-Path $mainSrc "di\${Pascal}Module.kt") @"
 package com.xwab.app.feature.${pkg}.impl.di
 
+import com.xwab.app.feature.${pkg}.impl.${Pascal}ViewModel
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
-/**
- * Objects only — the component is never Koin-managed. It is constructed directly by whichever
- * ``composition/*.kt`` factory in :shared places this feature in the navigation tree.
- */
+/** Objects only. What this feature shows is in ${Pascal}Entry.kt. */
 val ${camel}Module = module {
-    // This screen's own use cases are bound here too, never in a shared core module:
-    //     factory { Observe${Pascal}ContentUseCase(get(), get()) }
+    // This screen's own use cases are bound here too, never in a shared core module.
+    viewModel { ${Pascal}ViewModel() }
 }
 "@
 
-Write-GeneratedFile (Join-Path $testSrc "${Pascal}ComponentTest.kt") @"
+Write-GeneratedFile (Join-Path $mainSrc "navigation\${Pascal}Entry.kt") @"
+@file:OptIn(org.koin.core.annotation.KoinExperimentalAPI::class)
+
+package com.xwab.app.feature.${pkg}.impl.navigation
+
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
+import com.xwab.app.feature.${pkg}.api.navigation.${Pascal}Route
+import com.xwab.app.feature.${pkg}.impl.${Pascal}ScreenRoute
+import org.koin.compose.viewmodel.koinViewModel
+
+/**
+ * Where this feature's routes turn into screens.
+ *
+ * Outgoing navigation is exposed as an intent callback. The app composition root decides which
+ * destination route fulfils that intent, so this module never depends on another feature.
+ */
+fun EntryProviderScope<NavKey>.${camel}Entry(onBack: () -> Unit) {
+    entry<${Pascal}Route> {
+        ${Pascal}ScreenRoute(
+            onBack = onBack,
+            viewModel = koinViewModel(),
+        )
+    }
+}
+"@
+
+Write-GeneratedFile (Join-Path $testSrc "${Pascal}ViewModelTest.kt") @"
 package com.xwab.app.feature.${pkg}.impl
 
-import com.arkivanov.decompose.DefaultComponentContext
-import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -195,15 +222,10 @@ import kotlin.test.assertEquals
  * The port fakes from core:testing are on this module's test classpath — the generated build file
  * declares it. Add the capability modules this screen reads beside it in commonMain.
  */
-class ${Pascal}ComponentTest {
+class ${Pascal}ViewModelTest {
     @Test
     fun theScreenStartsFromItsInitialState() {
-        val component = Default${Pascal}Component(
-            componentContext = DefaultComponentContext(LifecycleRegistry()),
-            onBack = {},
-        )
-
-        assertEquals(${Pascal}State(), component.state.value)
+        assertEquals(${Pascal}State(), ${Pascal}ViewModel().state.value)
     }
 }
 "@
@@ -215,13 +237,12 @@ Write-Host "         implementation(projects.feature.${camel}.api)"
 Write-Host "         implementation(projects.feature.${camel}.impl)"
 Write-Host "  2. shared/src/commonMain/kotlin/com/xwab/app/di/AppModules.kt:"
 Write-Host "         add ${camel}Module to featureModules (and import it)"
-Write-Host "  3. Make the screen reachable; choose exactly one:" -ForegroundColor Yellow
-Write-Host "         TOP LEVEL: give it its own tab — a new *TabConfig.kt in :shared/navigation,"
-Write-Host "             an AppTab entry, and a childStack in DefaultAppComponent"
-Write-Host "         NESTED: add ${Pascal}Config as a case in the pushing tab's *TabConfig.kt in"
-Write-Host "             :shared/navigation, then a matching branch in that tab's child factory in"
-Write-Host "             :shared/composition/AppComponent.kt that builds Default${Pascal}Component"
-Write-Host "             (via koin.get() for its dependencies) and wraps it in a *TabChild case"
+Write-Host "  3. shared/src/commonMain/kotlin/com/xwab/app/navigation/AppNavigation.kt:"
+Write-Host "         call ${camel}Entry(onBack = navigator::goBack) inside appEntryProvider"
+Write-Host "         include ${camel}NavigationSerializers in FEATURE_SERIALIZERS"
+Write-Host "  4. Make the route reachable; choose exactly one:" -ForegroundColor Yellow
+Write-Host "         TOP LEVEL: add ${Pascal}Route to TOP_LEVEL_DESTINATIONS with its label and icon"
+Write-Host "         NESTED: connect a caller entry's intent callback to ${Pascal}Route in AppNavigation.kt"
 Write-Host "     Registration alone does not put a nested feature on screen."
 Write-Host ""
 Write-Host "Then: ./gradlew :feature:${Name}:impl:compileCommonMainKotlinMetadata checkArchitecture"

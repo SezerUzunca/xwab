@@ -34,11 +34,14 @@ import xwab.feature.favorites.`impl`.generated.resources.sound_not_found
 import xwab.feature.favorites.`impl`.generated.resources.sound_unavailable
 
 @Composable
-fun FavoritesScreenRoute(component: FavoritesComponent) {
-    val state by component.state.collectAsStateWithLifecycle()
+internal fun FavoritesScreenRoute(
+    onMusicClick: (TrackId) -> Unit,
+    viewModel: FavoritesViewModel,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
     when (val content = state) {
         Loadable.Loading -> LoadingContent()
-        is Loadable.Ready -> FavoritesScreen(content.value, component.onMusicClick, component::togglePlayback)
+        is Loadable.Ready -> FavoritesScreen(content.value, onMusicClick, viewModel::togglePlayback)
     }
 }
 

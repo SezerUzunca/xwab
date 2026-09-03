@@ -14,6 +14,8 @@ kotlin {
             // way the sound manifest is. `checkArchitecture` rule 4 fails the build on either.
             implementation(projects.core.story.catalog)
             implementation(projects.core.playback.session)
+
+            implementation(projects.feature.story.api)
         }
         commonTest.dependencies {
             implementation(projects.core.testing)

@@ -1,0 +1,66 @@
+package com.xwab.app.navigation
+
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
+import androidx.navigation3.runtime.NavKey
+
+/**
+ * One back stack per tab, and which tab is showing.
+ *
+ * A single back stack cannot do this: switching from Stories back to Sounds has to find Sounds
+ * exactly where it was left, three screens deep if that is where the listener stopped. So each
+ * top-level destination keeps its own history and the shell renders the one that is selected.
+ *
+ * Deliberately free of Compose *composition* — it holds a [MutableState] so the shell recomposes,
+ * but nothing here is `@Composable`. [NavigatorTest] drives the whole thing without a UI, which is
+ * the only way the tab rules below are checked from both sides.
+ *
+ * Follows the multiple-back-stacks recipe in the Navigation 3 documentation, with one deviation:
+ * the selected tab is persisted by the shell as an index rather than through a `NavKey` serializer,
+ * because `navigation3-runtime` 1.1.1 publishes no such serializer for Kotlin Multiplatform.
+ *
+ * @param startRoute the tab back falls through to, and the one the app exits from.
+ * @param backStacks one stack per top-level route, each already holding that route as its root.
+ * @param topLevelRouteState the selected tab, as the single source of truth: the caller owns how
+ *   it is persisted (or doesn't) and reads the same state back rather than mirroring it through a
+ *   callback.
+ */
+internal class NavigationState(
+    val startRoute: NavKey,
+    val backStacks: Map<NavKey, MutableList<NavKey>>,
+    private val topLevelRouteState: MutableState<NavKey> = mutableStateOf(startRoute),
+) {
+    init {
+        require(startRoute in backStacks) {
+            "The start route must have a back stack of its own: $startRoute"
+        }
+        require(topLevelRouteState.value in backStacks) {
+            "The selected top-level route must have a back stack of its own: ${topLevelRouteState.value}"
+        }
+    }
+
+    /** The tab currently showing. Set by [Navigator]; read by the navigation bar. */
+    var topLevelRoute: NavKey
+        get() = topLevelRouteState.value
+        set(value) {
+            require(value in backStacks) { "A top-level route needs its own back stack: $value" }
+            topLevelRouteState.value = value
+        }
+
+    val currentBackStack: MutableList<NavKey>
+        get() = backStacks.getValue(topLevelRoute)
+
+    /**
+     * The stacks whose entries are on screen — the selected tab's, and the start tab's beneath it.
+     *
+     * The start tab stays in the list so that back from another tab's root lands on it rather than
+     * leaving the app. That is the documented start-tab fall-through behavior,
+     * and it is why this is a list rather than a single stack.
+     */
+    val routesInUse: List<NavKey>
+        get() = if (topLevelRoute == startRoute) {
+            listOf(startRoute)
+        } else {
+            listOf(startRoute, topLevelRoute)
+        }
+}

@@ -9,6 +9,7 @@ import com.xwab.app.core.network.di.networkModule
 import com.xwab.app.core.playbackengine.di.playbackModule
 import com.xwab.app.core.playbacksession.di.playbackSessionModule
 import com.xwab.app.core.storymanifest.di.storyManifestModule
+import com.xwab.app.feature.browse.impl.di.browseModule
 import com.xwab.app.feature.category.impl.di.categoryModule
 import com.xwab.app.feature.favorites.impl.di.favoritesFeatureModule
 import com.xwab.app.feature.sounds.impl.di.soundsModule
@@ -28,13 +29,9 @@ internal val coreModules: List<Module> = listOf(
     playbackModule,
 )
 
-/**
- * Feature implementations assembled explicitly by the application composition root.
- *
- * Browse has no module of its own: `DefaultBrowseComponent` reads only `MusicCatalogRepository`,
- * a core port bound in [coreModules], so there is no feature-owned binding to list here.
- */
+/** Feature implementations assembled explicitly by the application composition root. */
 internal val featureModules: List<Module> = listOf(
+    browseModule,
     favoritesFeatureModule,
     categoryModule,
     soundsModule,
