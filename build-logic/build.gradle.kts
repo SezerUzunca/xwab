@@ -6,13 +6,18 @@ plugins {
     alias(libs.plugins.kotlinJvm)
 }
 
+/**
+ * Java 21, not 17: Metro's Gradle plugin is published for Java 21, and this project's classes only
+ * ever run inside the Gradle daemon, which `gradle/gradle-daemon-jvm.properties` already pins to
+ * 21. The modules themselves are unaffected — they still target JVM 11 for Android.
+ */
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 kotlin {
-    compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
+    compilerOptions { jvmTarget.set(JvmTarget.JVM_21) }
 }
 
 /**
@@ -30,6 +35,7 @@ dependencies {
     implementation(pluginMarker(libs.plugins.composeMultiplatform))
     implementation(pluginMarker(libs.plugins.composeCompiler))
     implementation(pluginMarker(libs.plugins.kotlinxSerialization))
+    implementation(pluginMarker(libs.plugins.metro))
 
     // `FeatureFirstRules` is plain Kotlin over a dependency map, so its tests need nothing from
     // Gradle. Left on the default JUnit 4 runner `kotlin-test` picks for the JVM.

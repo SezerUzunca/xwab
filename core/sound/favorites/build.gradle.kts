@@ -11,13 +11,11 @@ kotlin {
             api(projects.core.sound.catalog)
             api(libs.androidx.datastore)
             api(libs.androidx.datastore.preferences)
-            api(libs.koin.core)
             // The favorites repository publishes Flow.
             api(libs.kotlinx.coroutines.core)
             implementation(libs.kermit)
         }
         androidMain.dependencies {
-            implementation(libs.koin.android)
         }
     }
 }

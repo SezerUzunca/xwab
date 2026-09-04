@@ -250,8 +250,8 @@ class FeatureFirstRulesTest {
     fun navigationImportingAFeatureImplementationIsAViolation() {
         val violations = FeatureFirstRules.navigationImplementationImportViolations(
             mapOf(
-                "shared/src/commonMain/kotlin/com/xwab/app/navigation/AppTab.kt" to
-                    "import com.xwab.app.feature.browse.impl.BrowseComponent",
+                "shared/src/commonMain/kotlin/com/xwab/app/navigation/AppNavigation.kt" to
+                    "import com.xwab.app.feature.browse.impl.navigation.browseEntry",
             ),
         )
 
@@ -265,9 +265,9 @@ class FeatureFirstRulesTest {
             emptyList(),
             FeatureFirstRules.navigationImplementationImportViolations(
                 mapOf(
-                    "shared/src/commonMain/kotlin/com/xwab/app/navigation/BrowseTabConfig.kt" to """
-                        import com.arkivanov.decompose.router.stack.StackNavigation
-                        import com.xwab.app.feature.category.api.navigation.CategoryConfig
+                    "shared/src/commonMain/kotlin/com/xwab/app/navigation/AppNavigation.kt" to """
+                        import androidx.navigation3.runtime.NavKey
+                        import com.xwab.app.feature.browse.api.navigation.BrowseRoute
                     """.trimIndent(),
                 ),
             ),

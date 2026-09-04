@@ -3,14 +3,14 @@ package com.xwab.app.feature.sounds.impl
 import com.xwab.app.core.catalog.Music
 import com.xwab.app.core.playbacksession.DEFAULT_LOOPING
 
-enum class PlayerError {
+internal enum class PlayerError {
     AudioNotFound,
     AudioCouldNotOpen,
     AudioUnavailable,
 }
 
 /** Content available after the outer [com.xwab.app.core.ui.state.Loadable] becomes ready. */
-data class PlayerState(
+internal data class PlayerState(
     val music: Music? = null,
     val isFavorite: Boolean = false,
     /**

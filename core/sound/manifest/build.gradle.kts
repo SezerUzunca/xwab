@@ -10,8 +10,6 @@ kotlin {
             // The types the manifest is written in, and the repository interface it implements.
             api(projects.core.sound.catalog)
             api(libs.kotlinx.coroutines.core)
-            // The DI entry point exposes Koin's Module type.
-            api(libs.koin.core)
         }
     }
 }

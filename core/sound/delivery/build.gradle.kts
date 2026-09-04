@@ -20,11 +20,8 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kermit)
             implementation(libs.okio)
-            // The DI entry points expose Koin's Module type.
-            api(libs.koin.core)
         }
         androidMain.dependencies {
-            implementation(libs.koin.android)
         }
         commonTest.dependencies {
             implementation(libs.okio.fakefilesystem)

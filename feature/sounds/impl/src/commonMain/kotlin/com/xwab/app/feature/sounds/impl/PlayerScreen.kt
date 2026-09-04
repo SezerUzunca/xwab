@@ -65,20 +65,23 @@ import xwab.feature.sounds.impl.generated.resources.volume_percentage
 private const val MINUTE_MS = 60_000L
 
 @Composable
-fun PlayerScreenRoute(component: PlayerComponent) {
-    val state by component.state.collectAsStateWithLifecycle()
+internal fun PlayerScreenRoute(
+    onBack: () -> Unit,
+    viewModel: PlayerViewModel,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
     when (val content = state) {
         Loadable.Loading -> LoadingContent()
         is Loadable.Ready -> PlayerScreen(
             state = content.value,
-            onBack = component.onBack,
-            onFavoriteClick = component::toggleFavorite,
-            onPlaybackClick = component::togglePlayback,
-            onLoopingChange = component::setLooping,
-            onVolumeChange = component::setVolume,
-            onTimerStart = component::startSleepTimer,
-            onTimerCancel = component::cancelSleepTimer,
+            onBack = onBack,
+            onFavoriteClick = viewModel::toggleFavorite,
+            onPlaybackClick = viewModel::togglePlayback,
+            onLoopingChange = viewModel::setLooping,
+            onVolumeChange = viewModel::setVolume,
+            onTimerStart = viewModel::startSleepTimer,
+            onTimerCancel = viewModel::cancelSleepTimer,
         )
     }
 }

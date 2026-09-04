@@ -15,6 +15,9 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
         with(target) {
             pluginManager.apply("org.jetbrains.kotlin.multiplatform")
             pluginManager.apply("com.android.kotlin.multiplatform.library")
+            // Compile-time DI for every module. Metro is inert without its annotations, and
+            // applying it here means no module has to remember to.
+            pluginManager.apply("dev.zacsweers.metro")
 
             kotlinMultiplatform {
                 if (iosEnabled) {

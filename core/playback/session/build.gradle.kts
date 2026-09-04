@@ -19,8 +19,6 @@ kotlin {
             implementation(projects.core.sound.catalog)
             implementation(projects.core.story.catalog)
             api(libs.kotlinx.coroutines.core)
-            // The DI entry point exposes Koin's Module type.
-            api(libs.koin.core)
         }
     }
 }

@@ -1,21 +1,9 @@
 package com.xwab.app
 
 import androidx.compose.ui.window.ComposeUIViewController
-import com.arkivanov.decompose.DefaultComponentContext
-import com.arkivanov.essenty.lifecycle.ApplicationLifecycle
-import com.xwab.app.composition.DefaultAppComponent
-import org.koin.mp.KoinPlatformTools
-import platform.UIKit.UIViewController
+import com.xwab.app.di.createAppGraph
 
-/**
- * Called once for the process, so the root component is built here directly rather than
- * remembered inside the composition — there is no configuration-change cycle to retain it across
- * on iOS. [ApplicationLifecycle] tracks the real `UIApplication` foreground/background state.
- */
-fun MainViewController(): UIViewController {
-    val root = DefaultAppComponent(
-        componentContext = DefaultComponentContext(lifecycle = ApplicationLifecycle()),
-        koin = KoinPlatformTools.defaultContext().get(),
-    )
-    return ComposeUIViewController { App(root) }
-}
+/** Built once for the process: the graph outlives every view controller made from it. */
+private val appGraph by lazy { createAppGraph() }
+
+fun MainViewController() = ComposeUIViewController { App(appGraph) }
