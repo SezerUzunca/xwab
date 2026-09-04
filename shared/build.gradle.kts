@@ -12,6 +12,9 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    // Declared here rather than inherited: this module skips `xwab.kmp.library`, which is what
+    // applies Metro everywhere else, and the application graph is generated in this module.
+    alias(libs.plugins.metro)
 }
 
 compose.resources {
