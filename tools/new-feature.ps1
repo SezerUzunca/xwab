@@ -171,30 +171,36 @@ internal fun ${Pascal}Screen(
 }
 "@
 
-Write-GeneratedFile (Join-Path $mainSrc "di\${Pascal}Module.kt") @"
+Write-GeneratedFile (Join-Path $mainSrc "di\${Pascal}Dependencies.kt") @"
 package com.xwab.app.feature.${pkg}.impl.di
 
-import com.xwab.app.feature.${pkg}.impl.${Pascal}ViewModel
-import org.koin.core.module.dsl.viewModel
-import org.koin.dsl.module
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 
-/** Objects only. What this feature shows is in ${Pascal}Entry.kt. */
-val ${camel}Module = module {
-    // This screen's own use cases are bound here too, never in a shared core module.
-    viewModel { ${Pascal}ViewModel() }
-}
+/**
+ * What this screen reads, as one value the graph builds and the app hands to the entry.
+ *
+ * Add the ports this feature needs as constructor parameters — ``internal val`` , so they stay
+ * this module's business — and declare their capability modules in this module's build file. The
+ * ViewModel and any use cases stay internal: a compile-time graph can only expose what the module
+ * it is generated in can name, so what crosses the boundary is this bag rather than the screen.
+ */
+@SingleIn(AppScope::class)
+@Inject
+class ${Pascal}Dependencies
 "@
 
 Write-GeneratedFile (Join-Path $mainSrc "navigation\${Pascal}Entry.kt") @"
-@file:OptIn(org.koin.core.annotation.KoinExperimentalAPI::class)
-
 package com.xwab.app.feature.${pkg}.impl.navigation
 
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.xwab.app.feature.${pkg}.api.navigation.${Pascal}Route
 import com.xwab.app.feature.${pkg}.impl.${Pascal}ScreenRoute
-import org.koin.compose.viewmodel.koinViewModel
+import com.xwab.app.feature.${pkg}.impl.${Pascal}ViewModel
+import com.xwab.app.feature.${pkg}.impl.di.${Pascal}Dependencies
 
 /**
  * Where this feature's routes turn into screens.
@@ -202,11 +208,16 @@ import org.koin.compose.viewmodel.koinViewModel
  * Outgoing navigation is exposed as an intent callback. The app composition root decides which
  * destination route fulfils that intent, so this module never depends on another feature.
  */
-fun EntryProviderScope<NavKey>.${camel}Entry(onBack: () -> Unit) {
+fun EntryProviderScope<NavKey>.${camel}Entry(
+    dependencies: ${Pascal}Dependencies,
+    onBack: () -> Unit,
+) {
     entry<${Pascal}Route> {
         ${Pascal}ScreenRoute(
             onBack = onBack,
-            viewModel = koinViewModel(),
+            // Built here rather than pulled from the graph: the ViewModel is internal to this
+            // module, and ``viewModel`` scopes it to this entry's own store.
+            viewModel = viewModel { ${Pascal}ViewModel() },
         )
     }
 }
@@ -235,10 +246,11 @@ Write-Host "Done. The app composition must now wire this feature explicitly:" -F
 Write-Host "  1. shared/build.gradle.kts, commonMain.dependencies:"
 Write-Host "         implementation(projects.feature.${camel}.api)"
 Write-Host "         implementation(projects.feature.${camel}.impl)"
-Write-Host "  2. shared/src/commonMain/kotlin/com/xwab/app/di/AppModules.kt:"
-Write-Host "         add ${camel}Module to featureModules (and import it)"
+Write-Host "  2. shared/src/commonMain/kotlin/com/xwab/app/di/AppGraph.kt:"
+Write-Host "         add 'val ${camel}Dependencies: ${Pascal}Dependencies' (and import it)"
+Write-Host "         Nothing else: Metro merges every contribution to AppScope on its own."
 Write-Host "  3. shared/src/commonMain/kotlin/com/xwab/app/navigation/AppNavigation.kt:"
-Write-Host "         call ${camel}Entry(onBack = navigator::goBack) inside appEntryProvider"
+Write-Host "         call ${camel}Entry(graph.${camel}Dependencies, onBack = navigator::goBack) inside appEntryProvider"
 Write-Host "         include ${camel}NavigationSerializers in FEATURE_SERIALIZERS"
 Write-Host "  4. Make the route reachable; choose exactly one:" -ForegroundColor Yellow
 Write-Host "         TOP LEVEL: add ${Pascal}Route to TOP_LEVEL_DESTINATIONS with its label and icon"

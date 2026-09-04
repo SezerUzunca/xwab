@@ -81,7 +81,7 @@ more appropriate persistence layer.
 
 ```
 androidApp ─┐
-            ├─► shared (App entry + application shell + Koin composition root)
+            ├─► shared (App entry + application shell + the Metro graph)
 iosApp ─────┘        │
                      ├─► feature:browse:{api,impl}    (catalog)
                      ├─► feature:favorites:{api,impl} (catalog + favorites + playback session)
@@ -90,8 +90,8 @@ iosApp ─────┘        │
                      └─► feature:story:{api,impl}     (story catalog + playback session)
 
 Every feature follows Now in Android's two-module layout. `:api` publishes only its navigation
-contract and serializers; Compose and Koin do not travel onto its consumers' classpaths. `:impl`
-owns UI, state, ViewModel, use cases, DI, resources and entry wiring. Feature modules have no
+contract and serializers; Compose does not travel onto its consumers' classpaths. `:impl`
+owns UI, state, ViewModel, use cases, the ports it reads, resources and entry wiring. Feature modules have no
 dependencies on other features. `shared` binds intent callbacks to destination APIs and assembles
 the implementations and core adapters; it never hosts a feature screen.
 ```
@@ -138,8 +138,10 @@ fun appEntryProvider(onNavigate: (NavKey) -> Unit, onBack: () -> Unit) = entryPr
 
 The first item is deliberately the start route. `sounds` and `category` are absent from that list:
 they are navigated *into*, not places to switch to. Their entry providers and serializers are still
-registered explicitly. Koin modules are assembled separately in `AppModules.kt`; no DI type leaks
-through the navigation contracts or a feature API.
+registered explicitly. Dependencies come from a [Metro](https://zacsweers.github.io/metro/) graph
+instead: every capability module contributes its own `@Provides` to `AppScope`, the platform graphs
+in `shared/.../di/` merge them at compile time, and each feature is handed one `@Inject` bag of the
+ports its screen reads. No DI type leaks through the navigation contracts or a feature API.
 
 The local equivalent of Now in Android's `feature:foryou:api` and `feature:foryou:impl` split is:
 
@@ -178,14 +180,14 @@ One deviation from the documented recipe: the selected tab is persisted as an in
 through `NavKeySerializer`, which `navigation3-runtime` 1.1.1 publishes for Android only and this
 build is Kotlin Multiplatform.
 
-A feature owns its screen, its state, its ViewModel, its use cases and its Koin bindings. It exposes
+A feature owns its screen, its state, its ViewModel, its use cases and the bag of ports it reads. It exposes
 outgoing user intents as callbacks and knows no destination feature. The composition root consumes
 the target feature's route API and connects the callback. Screen-specific orchestration lives with
 its screen. A screen action that already has the model it needs injects the capability directly —
 a use case has to earn its name by holding a decision.
 
 A feature also declares the capabilities it reads, in its own build file. `xwab.kmp.feature` hands
-out the design system, Navigation 3 runtime and the Compose/Koin surface and nothing else. Delivery, the
+out the design system, Navigation 3 runtime and the Compose surface and nothing else. Delivery, the
 engine and the shipped manifest are declared by the modules that assemble a session and by the
 composition root, and nowhere else — so no screen can name a delivery type, the engine's own state
 model, or the URL behind a track.
@@ -252,7 +254,7 @@ and the shared dependency sets:
 |---|---|
 | `xwab.kmp.library` | every KMP library module |
 | `xwab.kmp.compose` | the above plus Compose Multiplatform |
-| `xwab.kmp.feature` | the above plus the design system, navigation and the Compose/Koin surface every screen uses — capability modules are declared per feature |
+| `xwab.kmp.feature` | the above plus the design system, navigation and the Compose surface every screen uses — capability modules are declared per feature |
 | `xwab.kmp.feature.api` | a Compose-free feature API containing public routes and serializers |
 
 `shared` is the exception and configures itself: it is the only module producing an iOS framework.
@@ -268,7 +270,7 @@ plugins.gradle.org. This build resolves everything from Google's Maven and Maven
 ./tools/new-feature.ps1 sleep-timer
 ```
 
-That writes `api` and `impl`, their build files and a route/screen/ViewModel/Koin skeleton. Gradle
+That writes `api` and `impl`, their build files and a route/screen/ViewModel/dependencies skeleton. Gradle
 finds both modules on its own because `settings.gradle.kts` scans `feature/`. The script prints the
 remaining explicit app-composition steps:
 
@@ -309,8 +311,9 @@ Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
 - iOS tests: `./gradlew :shared:iosSimulatorArm64Test`
 - Architecture rules: `./gradlew checkArchitecture`
 
-The Android host suite runs Koin's `verify()` over every feature definition, including route
-parameters, so a missing use-case or ViewModel dependency fails before a screen is opened.
+There is no DI graph test any more, and no need for one: Metro resolves and validates every binding
+while compiling, so a missing or mistyped dependency is a compile error rather than something a
+runtime `verify()` had to catch before a screen was opened.
 
 ---
 
