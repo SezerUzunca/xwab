@@ -12,7 +12,7 @@ import dev.zacsweers.metro.SingleIn
  */
 @SingleIn(AppScope::class)
 @Inject
-class StoryDependencies(
+class StoriesDependencies(
     internal val storyCatalogPort: StoryCatalogPort,
     internal val playbackPort: PlaybackPort,
 )

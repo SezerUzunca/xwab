@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
-class PlayerUseCasesTest {
+class ObservePlayerContentUseCaseTest {
     private val rain = track("gentle-rain", categoryId = "rain")
     private val catalog = FakeMusicCatalog(tracks = listOf(rain))
 

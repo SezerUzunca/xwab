@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,6 +43,7 @@ import com.xwab.app.designsystem.components.PlayPauseButton
 import com.xwab.app.designsystem.components.SleepRelaxBackground
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import com.xwab.app.designsystem.state.Loadable
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res as UiRes
 import xwab.designsystem.generated.resources.duration_public_domain
@@ -63,6 +65,14 @@ import xwab.feature.sounds.generated.resources.volume
 import xwab.feature.sounds.generated.resources.volume_percentage
 
 private const val MINUTE_MS = 60_000L
+
+/** The presets the timer row offers, in the order they are shown. */
+private val SLEEP_TIMER_PRESETS: List<Pair<Long, StringResource>> = listOf(
+    15L * MINUTE_MS to Res.string.timer_15_minutes,
+    30L * MINUTE_MS to Res.string.timer_30_minutes,
+    45L * MINUTE_MS to Res.string.timer_45_minutes,
+    60L * MINUTE_MS to Res.string.timer_60_minutes,
+)
 
 @Composable
 internal fun PlayerScreenRoute(
@@ -130,34 +140,7 @@ internal fun PlayerScreen(
                 } else {
                     Spacer(Modifier.weight(1f))
                 }
-                Box(
-                    modifier = Modifier
-                        .size(SleepRelaxTheme.dimens.albumArtSize)
-                        .clip(SleepRelaxTheme.shapes.full)
-                        .background(
-                            Brush.radialGradient(
-                                listOf(
-                                    SleepRelaxTheme.colors.primary.copy(alpha = 0.55f),
-                                    SleepRelaxTheme.colors.backgroundBottom,
-                                ),
-                            ),
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(SleepRelaxTheme.dimens.albumArtInnerSize)
-                            .clip(SleepRelaxTheme.shapes.full)
-                            .background(SleepRelaxTheme.colors.surface.copy(alpha = 0.85f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = "\u266A",
-                            color = SleepRelaxTheme.colors.accent.copy(alpha = 0.7f),
-                            style = SleepRelaxTheme.typography.headlineLarge,
-                        )
-                    }
-                }
+                AlbumArt()
 
                 Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingHuge))
                 Text(
@@ -217,6 +200,43 @@ internal fun PlayerScreen(
     }
 }
 
+/** Decoration only: the screen has no artwork to show, so the disc is drawn rather than loaded. */
+@Composable
+private fun AlbumArt() {
+    Box(
+        modifier = Modifier
+            .size(SleepRelaxTheme.dimens.albumArtSize)
+            .clip(SleepRelaxTheme.shapes.full)
+            .background(
+                Brush.radialGradient(
+                    listOf(
+                        SleepRelaxTheme.colors.primary.copy(alpha = 0.55f),
+                        SleepRelaxTheme.colors.backgroundBottom,
+                    ),
+                ),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(SleepRelaxTheme.dimens.albumArtInnerSize)
+                .clip(SleepRelaxTheme.shapes.full)
+                .background(SleepRelaxTheme.colors.surface.copy(alpha = 0.85f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "\u266A",
+                color = SleepRelaxTheme.colors.accent.copy(alpha = 0.7f),
+                style = SleepRelaxTheme.typography.headlineLarge,
+            )
+        }
+    }
+}
+
+/**
+ * The glass panel under the play button. It only lays the three controls out; each one takes just
+ * the part of the state it renders.
+ */
 @Composable
 private fun PlaybackControls(
     state: PlayerState,
@@ -225,13 +245,8 @@ private fun PlaybackControls(
     onTimerStart: (Long) -> Unit,
     onTimerCancel: () -> Unit,
 ) {
+    // Nothing to act on until a track is loaded, and the same answer holds for every control.
     val controlsEnabled = state.music != null
-    val timerStatus = state.sleepTimerRemainingMs?.let { remainingMs ->
-        stringResource(
-            Res.string.sleep_timer_stops_in,
-            formatSleepTimer(remainingMs),
-        )
-    } ?: stringResource(Res.string.sleep_timer_off)
 
     Column(
         modifier = Modifier
@@ -240,115 +255,141 @@ private fun PlaybackControls(
             .background(SleepRelaxTheme.colors.glassWhite)
             .padding(SleepRelaxTheme.dimens.spacingLarge),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(Res.string.volume),
-                color = SleepRelaxTheme.colors.textPrimary,
-                style = SleepRelaxTheme.typography.titleSmall,
-            )
-            Text(
-                text = stringResource(
-                    Res.string.volume_percentage,
-                    (state.volume.coerceIn(0.0f, 1.0f) * 100).toInt(),
-                ),
-                color = SleepRelaxTheme.colors.textSecondary,
-                style = SleepRelaxTheme.typography.labelMedium,
-            )
-        }
-        Slider(
-            value = state.volume.coerceIn(0.0f, 1.0f),
-            onValueChange = onVolumeChange,
-            modifier = Modifier.fillMaxWidth(),
+        VolumeControl(
+            volume = state.volume,
             enabled = controlsEnabled,
-            colors = SliderDefaults.colors(
-                thumbColor = SleepRelaxTheme.colors.accent,
-                activeTrackColor = SleepRelaxTheme.colors.primary,
-                inactiveTrackColor = SleepRelaxTheme.colors.glassWhiteOverlay,
-            ),
+            onVolumeChange = onVolumeChange,
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(Res.string.loop_sound),
-                color = SleepRelaxTheme.colors.textPrimary,
-                style = SleepRelaxTheme.typography.titleSmall,
-            )
-            Switch(
-                checked = state.isLooping,
-                onCheckedChange = onLoopingChange,
-                enabled = controlsEnabled,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = SleepRelaxTheme.colors.onSurface,
-                    checkedTrackColor = SleepRelaxTheme.colors.primary,
-                    uncheckedThumbColor = SleepRelaxTheme.colors.textSecondary,
-                    uncheckedTrackColor = SleepRelaxTheme.colors.glassWhiteOverlay,
-                    uncheckedBorderColor = SleepRelaxTheme.colors.glassWhite,
-                ),
-            )
-        }
+        LoopingControl(
+            isLooping = state.isLooping,
+            enabled = controlsEnabled,
+            onLoopingChange = onLoopingChange,
+        )
 
-        Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingSmall))
+        SleepTimerControl(
+            remainingMs = state.sleepTimerRemainingMs,
+            enabled = controlsEnabled,
+            onTimerStart = onTimerStart,
+            onTimerCancel = onTimerCancel,
+        )
+    }
+}
+
+/** The volume arrives from the state already inside its range, so the slider renders it as it is. */
+@Composable
+private fun VolumeControl(
+    volume: Float,
+    enabled: Boolean,
+    onVolumeChange: (Float) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(
-            text = stringResource(Res.string.sleep_timer),
+            text = stringResource(Res.string.volume),
             color = SleepRelaxTheme.colors.textPrimary,
             style = SleepRelaxTheme.typography.titleSmall,
         )
         Text(
-            text = timerStatus,
+            text = stringResource(Res.string.volume_percentage, (volume * 100).toInt()),
             color = SleepRelaxTheme.colors.textSecondary,
             style = SleepRelaxTheme.typography.labelMedium,
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingExtraSmall),
-        ) {
+    }
+    Slider(
+        value = volume,
+        onValueChange = onVolumeChange,
+        modifier = Modifier.fillMaxWidth(),
+        enabled = enabled,
+        colors = SliderDefaults.colors(
+            thumbColor = SleepRelaxTheme.colors.accent,
+            activeTrackColor = SleepRelaxTheme.colors.primary,
+            inactiveTrackColor = SleepRelaxTheme.colors.glassWhiteOverlay,
+        ),
+    )
+}
+
+@Composable
+private fun LoopingControl(
+    isLooping: Boolean,
+    enabled: Boolean,
+    onLoopingChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(Res.string.loop_sound),
+            color = SleepRelaxTheme.colors.textPrimary,
+            style = SleepRelaxTheme.typography.titleSmall,
+        )
+        Switch(
+            checked = isLooping,
+            onCheckedChange = onLoopingChange,
+            enabled = enabled,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = SleepRelaxTheme.colors.onSurface,
+                checkedTrackColor = SleepRelaxTheme.colors.primary,
+                uncheckedThumbColor = SleepRelaxTheme.colors.textSecondary,
+                uncheckedTrackColor = SleepRelaxTheme.colors.glassWhiteOverlay,
+                uncheckedBorderColor = SleepRelaxTheme.colors.glassWhite,
+            ),
+        )
+    }
+}
+
+/**
+ * Scoped to the column it sits in: the cancel button aligns itself to the panel's end, which only
+ * that column can decide.
+ */
+@Composable
+private fun ColumnScope.SleepTimerControl(
+    remainingMs: Long?,
+    enabled: Boolean,
+    onTimerStart: (Long) -> Unit,
+    onTimerCancel: () -> Unit,
+) {
+    Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingSmall))
+    Text(
+        text = stringResource(Res.string.sleep_timer),
+        color = SleepRelaxTheme.colors.textPrimary,
+        style = SleepRelaxTheme.typography.titleSmall,
+    )
+    Text(
+        text = remainingMs
+            ?.let { stringResource(Res.string.sleep_timer_stops_in, formatSleepTimer(it)) }
+            ?: stringResource(Res.string.sleep_timer_off),
+        color = SleepRelaxTheme.colors.textSecondary,
+        style = SleepRelaxTheme.typography.labelMedium,
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingExtraSmall),
+    ) {
+        SLEEP_TIMER_PRESETS.forEach { (durationMs, label) ->
             TimerPresetButton(
-                text = stringResource(Res.string.timer_15_minutes),
-                durationMs = 15L * MINUTE_MS,
-                enabled = controlsEnabled,
-                onTimerStart = onTimerStart,
-                modifier = Modifier.weight(1f),
-            )
-            TimerPresetButton(
-                text = stringResource(Res.string.timer_30_minutes),
-                durationMs = 30L * MINUTE_MS,
-                enabled = controlsEnabled,
-                onTimerStart = onTimerStart,
-                modifier = Modifier.weight(1f),
-            )
-            TimerPresetButton(
-                text = stringResource(Res.string.timer_45_minutes),
-                durationMs = 45L * MINUTE_MS,
-                enabled = controlsEnabled,
-                onTimerStart = onTimerStart,
-                modifier = Modifier.weight(1f),
-            )
-            TimerPresetButton(
-                text = stringResource(Res.string.timer_60_minutes),
-                durationMs = 60L * MINUTE_MS,
-                enabled = controlsEnabled,
+                text = stringResource(label),
+                durationMs = durationMs,
+                enabled = enabled,
                 onTimerStart = onTimerStart,
                 modifier = Modifier.weight(1f),
             )
         }
-        if (state.sleepTimerRemainingMs != null) {
-            TextButton(
-                onClick = onTimerCancel,
-                modifier = Modifier.align(Alignment.End),
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = SleepRelaxTheme.colors.accent,
-                ),
-            ) {
-                Text(stringResource(Res.string.cancel_timer))
-            }
+    }
+    if (remainingMs != null) {
+        TextButton(
+            onClick = onTimerCancel,
+            modifier = Modifier.align(Alignment.End),
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = SleepRelaxTheme.colors.accent,
+            ),
+        ) {
+            Text(stringResource(Res.string.cancel_timer))
         }
     }
 }

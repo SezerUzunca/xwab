@@ -40,7 +40,9 @@ internal class PlayerViewModel(
             // Straight from the session, including before anything is loaded: the product default
             // lives there, so this screen has no second opinion to disagree with it.
             isLooping = playback.isLooping,
-            volume = playback.volume,
+            // Clamped here so the control that renders it can trust the range instead of
+            // defending against it at every use.
+            volume = playback.volume.coerceIn(0.0f, 1.0f),
             sleepTimerRemainingMs = content.sleepTimerRemainingMs,
             error = when {
                 content.music == null -> PlayerError.AudioNotFound

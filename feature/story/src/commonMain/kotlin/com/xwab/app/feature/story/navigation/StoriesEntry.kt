@@ -6,11 +6,11 @@ import androidx.navigation3.runtime.NavKey
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import com.xwab.app.feature.story.StoriesScreenRoute
 import com.xwab.app.feature.story.StoriesViewModel
-import com.xwab.app.feature.story.di.StoryDependencies
+import com.xwab.app.feature.story.di.StoriesDependencies
 import com.xwab.app.feature.story.domain.ObserveStoriesContentUseCase
 
 /** Where this feature's routes turn into screens. */
-fun EntryProviderScope<NavKey>.storiesEntry(dependencies: StoryDependencies) {
+fun EntryProviderScope<NavKey>.storiesEntry(dependencies: StoriesDependencies) {
     entry<StoriesRoute> {
         StoriesScreenRoute(
             viewModel = viewModel {

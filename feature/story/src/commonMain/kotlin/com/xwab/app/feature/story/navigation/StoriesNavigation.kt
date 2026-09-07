@@ -17,7 +17,7 @@ import kotlinx.serialization.modules.subclass
 @SerialName("com.xwab.app.feature.story.navigation.StoriesRoute")
 data object StoriesRoute : NavKey
 
-val storyNavigationSerializers = SerializersModule {
+val storiesNavigationSerializers = SerializersModule {
     polymorphic(NavKey::class) {
         subclass(StoriesRoute.serializer())
     }

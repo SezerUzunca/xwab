@@ -11,7 +11,7 @@ import kotlinx.serialization.modules.subclass
 @SerialName("com.xwab.app.feature.sounds.navigation.PlayerRoute")
 data class PlayerRoute(val musicId: String) : NavKey
 
-val soundsNavigationSerializers = SerializersModule {
+val playerNavigationSerializers = SerializersModule {
     polymorphic(NavKey::class) {
         subclass(PlayerRoute.serializer())
     }
