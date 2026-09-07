@@ -25,14 +25,16 @@ import org.gradle.api.tasks.TaskAction
  *    [FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES].
  *    Fetching audio, driving a platform player and reading the shipped manifest are things done on
  *    a screen's behalf; a screen reaching any of them directly bypasses the port that exists for it.
- * 6. The app navigation package may depend on feature route contracts, but feature entry assembly
- *    belongs to the application composition root.
+ * 6. All shared production source sets may reference features only at the navigation/composition
+ *    boundary (navigation contracts) or DI boundary (Dependencies classes).
  * 7. A core capability exposes declarations only from an explicit `port` package; everything else
  *    is internal or private.
  * 8. References crossing between core modules target only `port` packages.
  * 9. Core declares no repository/provider abstractions; a feature may own one if it truly needs it.
  * 10. Koin and physical `api` / `impl` source layouts may not return; Metro and cohesive modules
  *     are project-wide decisions.
+ * 11. Features expose only navigation contracts and DI Dependencies classes; implementation
+ *     declarations stay internal or private.
  *
  * The rules themselves live in [FeatureFirstRules], where they are unit-tested from both sides.
  * This task is only their plumbing: it collects the dependency graph and source/configuration files.
@@ -69,7 +71,8 @@ abstract class CheckArchitectureTask : DefaultTask() {
             FeatureFirstRules.koinUsageViolations(architectureTextSources(root)) +
             FeatureFirstRules.dependencyViolations(graph, moduleApiDependencies.get()) +
             leakedUseCaseViolations(root, graph.keys) +
-            navigationImplementationImportViolations(root) +
+            FeatureFirstRules.sharedFeatureReferenceViolations(productionSources(root, "shared")) +
+            FeatureFirstRules.featureVisibilityViolations(productionSources(root, "feature")) +
             FeatureFirstRules.coreVisibilityViolations(coreSources) +
             FeatureFirstRules.coreImportViolations(coreSources) +
             FeatureFirstRules.legacyCoreAbstractionViolations(coreSources)
@@ -139,17 +142,18 @@ abstract class CheckArchitectureTask : DefaultTask() {
         return FeatureFirstRules.leakedUseCaseViolations(useCases, sourcesByFeature)
     }
 
-    /** Reads app-navigation sources because their package boundary is invisible to Gradle's graph. */
-    private fun navigationImplementationImportViolations(root: File): List<String> {
-        val navigationRoot =
-            root.resolve("shared/src/commonMain/kotlin/com/xwab/app/navigation")
-        if (!navigationRoot.isDirectory) return emptyList()
-
-        val sources = kotlinSourcesIn(navigationRoot).associate { file ->
-            file.relativeTo(root).invariantSeparatorsPath to file.readText()
-        }
-        return FeatureFirstRules.navigationImplementationImportViolations(sources)
-    }
+    /** Includes commonMain and every platform Main source set, excluding test fixtures. */
+    private fun productionSources(root: File, directory: String): Map<String, String> =
+        kotlinSourcesIn(root.resolve(directory))
+            .filter { file ->
+                file.relativeTo(root).invariantSeparatorsPath
+                    .substringAfter("/src/", missingDelimiterValue = "")
+                    .substringBefore('/')
+                    .endsWith("Main")
+            }
+            .associate { file ->
+                file.relativeTo(root).invariantSeparatorsPath to file.readText()
+            }
 
     private fun legacySplitDirectories(root: File): List<String> =
         listOf(root.resolve("core"), root.resolve("feature")).flatMap { sourceRoot ->

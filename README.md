@@ -35,7 +35,7 @@ application capability ports.
 ## Core boundary
 
 Every type crossing a core-module boundary lives in a `.port` package and is explicitly `public`.
-Production declarations outside `.port` packages are `internal` or `private`. Core modules may
+Hand-written production declarations outside `.port` packages are `internal` or `private`. Core modules may
 import another core module only through that module's `.port` package.
 
 There is no shared repository abstraction. A feature consumes the narrow capability it needs:
@@ -56,6 +56,10 @@ Implementations such as manifest, DataStore, Ktor, cache and platform playback a
 internal. Metro discovers them through `@ContributesBinding(AppScope::class)`; `@Inject` constructs
 them and `@SingleIn(AppScope::class)` owns their lifetime. Android and iOS graphs are generated at
 compile time, so missing or ambiguous bindings fail compilation.
+
+Metro's generated public contribution providers return ports, keeping the concrete adapter types
+hidden. Feature `*Dependencies` classes are public DI contracts containing ports with internal
+properties; `shared.di` exposes these bags so the composition root can pass them to feature entries.
 
 ```text
 core/
@@ -117,12 +121,13 @@ internal Metro contributions behind `PlaybackEnginePort`.
 2. A feature is not exactly one `:feature:<name>` module, or an `api`/`impl` directory appears under `core` or `feature`.
 3. A feature reaches an adapter-only core module, directly or through an exported dependency.
 4. A feature-specific use case leaks into `core`.
-5. Feature navigation packages are imported outside the app navigation composition boundary.
+5. Any shared production source set references a feature outside the allowed boundaries: navigation/composition may use feature navigation contracts, and DI may use feature dependency bags.
 6. A production core declaration outside an exact capability `.port` package is public.
 7. A port declaration or member is not explicitly `public`, or a public contract interface does not end in `Port`.
 8. A cross-core import, wildcard import, or fully qualified reference bypasses an exact `.port` package.
 9. A `Repository` or DI-style `Provider` abstraction appears in `core`.
 10. A Koin import or dependency is reintroduced anywhere in the project.
+11. A feature exposes a declaration outside its navigation package or a DI `*Dependencies` class.
 
 The Metro convention additionally treats non-public contribution problems as errors and generates
 providers that allow internal contributed adapters to remain hidden across modules.
@@ -144,7 +149,11 @@ an existing feature intent.
 ./gradlew compileAndroidHostTest
 ./gradlew testAndroidHostTest
 ./gradlew checkArchitecture
+./gradlew :check
 ```
+
+`:check` runs the architecture check and the build-logic regression tests. Android CI runs it
+alongside the Android host tests before assembling the APK.
 
 Open `iosApp` in Xcode to run the iOS application.
 

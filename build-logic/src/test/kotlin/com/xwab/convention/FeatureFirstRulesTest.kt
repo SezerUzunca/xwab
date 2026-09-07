@@ -120,18 +120,147 @@ class FeatureFirstRulesTest {
     }
 
     @Test
-    fun navigationImportsOnlyFeatureNavigationContracts() {
+    fun sharedUsesFeatureContractsOnlyAtTheirApplicationBoundaries() {
         assertEquals(
             emptyList(),
-            FeatureFirstRules.navigationImplementationImportViolations(
-                mapOf("AppNavigation.kt" to "import com.xwab.app.feature.browse.navigation.BrowseRoute"),
+            FeatureFirstRules.sharedFeatureReferenceViolations(
+                mapOf(
+                    "shared/src/commonMain/kotlin/AppNavigation.kt" to sharedSource(
+                        "navigation",
+                        "import com.xwab.app.feature.browse.navigation.BrowseRoute",
+                    ),
+                    "shared/src/commonMain/kotlin/AppEntryProvider.kt" to sharedSource(
+                        "composition",
+                        "import com.xwab.app.feature.browse.navigation.browseEntry as entry",
+                    ),
+                    "shared/src/androidMain/kotlin/AndroidAppGraph.kt" to sharedSource(
+                        "di",
+                        "import com.xwab.app.feature.browse.di.BrowseDependencies",
+                    ),
+                    "shared/src/iosMain/kotlin/IosAppGraph.kt" to sharedSource(
+                        "di",
+                        "internal val dependencies: com.xwab.app.feature.story.di.StoriesDependencies? = null",
+                    ),
+                ),
             ),
         )
+    }
 
-        val violations = FeatureFirstRules.navigationImplementationImportViolations(
-            mapOf("AppNavigation.kt" to "import com.xwab.app.feature.browse.BrowseScreen"),
+    @Test
+    fun sharedImplementationReferencesFailInEveryPackageAndPlatform() {
+        val violations = FeatureFirstRules.sharedFeatureReferenceViolations(
+            mapOf(
+                "shared/src/commonMain/kotlin/Navigation.kt" to sharedSource(
+                    "navigation",
+                    "import com.xwab.app.feature.browse.BrowseScreen",
+                ),
+                "shared/src/commonMain/kotlin/Composition.kt" to sharedSource(
+                    "composition",
+                    "import com.xwab.app.feature.browse.di.BrowseDependencies",
+                ),
+                "shared/src/commonMain/kotlin/Ui.kt" to sharedSource(
+                    "ui",
+                    "import com.xwab.app.feature.browse.navigation.BrowseRoute",
+                ),
+                "shared/src/androidMain/kotlin/Platform.kt" to sharedSource(
+                    "ui",
+                    "internal val screen = com.xwab.app.feature.browse.BrowseScreen()",
+                ),
+                "shared/src/iosMain/kotlin/Graph.kt" to sharedSource(
+                    "di",
+                    "import com.xwab.app.feature.browse.BrowseViewModel as ScreenModel",
+                ),
+                "shared/src/commonMain/kotlin/DiWildcard.kt" to sharedSource(
+                    "di",
+                    "import com.xwab.app.feature.browse.di.*",
+                ),
+                "shared/src/commonMain/kotlin/RootWildcard.kt" to sharedSource(
+                    "navigation",
+                    "import com.xwab.app.feature.browse.*",
+                ),
+            ),
         )
-        assertEquals(1, violations.size)
+        assertEquals(7, violations.size)
+        assertTrue(violations.any { it.contains("androidMain") })
+        assertTrue(violations.any { it.contains("iosMain") })
+        assertTrue(violations.all { it.contains("Other shared packages may not reference features") })
+    }
+
+    @Test
+    fun sharedReferenceChecksIgnoreCommentsAndStringsButKeepTrailingCommentImports() {
+        val allowed = sharedSource(
+            "ui",
+            "// import com.xwab.app.feature.browse.BrowseScreen\n" +
+                "/*\nimport com.xwab.app.feature.browse.BrowseViewModel\n*/\n" +
+                "internal val docs = \"com.xwab.app.feature.browse.BrowseScreen\"\n" +
+                "internal val example = \"\"\"\n" +
+                "import com.xwab.app.feature.browse.BrowseScreen\n\"\"\"",
+        )
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.sharedFeatureReferenceViolations(mapOf("Ui.kt" to allowed)),
+        )
+
+        val forbidden = sharedSource(
+            "ui",
+            "import com.xwab.app.feature.browse.BrowseScreen // implementation leak",
+        )
+        assertEquals(
+            1,
+            FeatureFirstRules.sharedFeatureReferenceViolations(mapOf("Ui.kt" to forbidden)).size,
+        )
+    }
+
+    @Test
+    fun featurePublicSurfaceIsLimitedToNavigationAndDependencyBags() {
+        val sources = mapOf(
+            "feature/browse/src/commonMain/kotlin/Navigation.kt" to featureSource(
+                ".navigation",
+                """
+                    data object BrowseRoute : NavKey
+                    val browseNavigationSerializers = SerializersModule {}
+                    fun EntryProviderScope<NavKey>.browseEntry(dependencies: BrowseDependencies) {}
+                """.trimIndent(),
+            ),
+            "feature/browse/src/commonMain/kotlin/Dependencies.kt" to featureSource(
+                ".di",
+                """
+                    @Inject
+                    class BrowseDependencies(
+                        internal val catalog: SoundCatalogPort,
+                    )
+                    internal class Helper {
+                        fun localMember() = Unit
+                    }
+                """.trimIndent(),
+            ),
+            "feature/browse/src/commonMain/kotlin/Screen.kt" to featureSource(
+                "",
+                """
+                    internal class BrowseViewModel
+                    internal data class BrowseState(val loading: Boolean)
+                    internal fun BrowseScreen() = Unit
+                    private fun Preview() = Unit
+                """.trimIndent(),
+            ),
+        )
+        assertEquals(emptyList(), FeatureFirstRules.featureVisibilityViolations(sources))
+
+        val leaks = mapOf(
+            "feature/browse/src/commonMain/kotlin/ViewModel.kt" to
+                featureSource("", "public class BrowseViewModel"),
+            "feature/browse/src/androidMain/kotlin/Screen.kt" to
+                featureSource("", "@Composable fun BrowseScreen() = Unit"),
+            "feature/browse/src/commonMain/kotlin/State.kt" to
+                featureSource("", "data class BrowseState(val loading: Boolean)"),
+            "feature/browse/src/commonMain/kotlin/UseCase.kt" to
+                featureSource(".domain", "class BrowseUseCase"),
+            "feature/browse/src/commonMain/kotlin/Factory.kt" to
+                featureSource(".di", "class BrowseViewModelFactory"),
+            "feature/browse/src/commonMain/kotlin/NavigationHelper.kt" to
+                featureSource(".navigation.internal", "class NavigationHelper"),
+        )
+        assertEquals(6, FeatureFirstRules.featureVisibilityViolations(leaks).size)
     }
 
     @Test
@@ -551,4 +680,10 @@ class FeatureFirstRulesTest {
             packageName = "com.xwab.app.core.sample$packageSuffix",
             source = "package com.xwab.app.core.sample$packageSuffix\n$declaration",
         )
+
+    private fun sharedSource(packageSuffix: String, declarations: String): String =
+        "package com.xwab.app.$packageSuffix\n$declarations"
+
+    private fun featureSource(packageSuffix: String, declarations: String): String =
+        "package com.xwab.app.feature.browse$packageSuffix\n$declarations"
 }

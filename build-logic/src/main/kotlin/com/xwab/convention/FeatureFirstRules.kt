@@ -8,8 +8,8 @@ internal object FeatureFirstRules {
     val USE_CASE_DECLARATION =
         Regex("""^\s*(?:internal\s+|public\s+)?class\s+(\w+UseCase)\b""", RegexOption.MULTILINE)
 
-    private val FEATURE_IMPORT = Regex(
-        """^\s*import\s+(com\.xwab\.app\.feature\.[A-Za-z0-9_]+\.([A-Za-z0-9_]+)(?:\.[A-Za-z0-9_*]+)*)(?:\s+as\s+\w+)?\s*$""",
+    private val PACKAGE = Regex(
+        """^\s*package\s+([A-Za-z0-9_.]+)\s*$""",
         RegexOption.MULTILINE,
     )
 
@@ -20,6 +20,15 @@ internal object FeatureFirstRules {
 
     private val QUALIFIED_CORE_REFERENCE =
         Regex("""\bcom\.xwab\.app\.core(?:\.[A-Za-z_][A-Za-z0-9_]*)+""")
+
+    private val QUALIFIED_FEATURE_REFERENCE =
+        Regex("""\bcom\.xwab\.app\.feature(?:\.[A-Za-z_][A-Za-z0-9_]*)*""")
+
+    private val FEATURE_NAVIGATION_PACKAGE =
+        Regex("""com\.xwab\.app\.feature\.[A-Za-z0-9_]+\.navigation""")
+
+    private val FEATURE_DI_PACKAGE =
+        Regex("""com\.xwab\.app\.feature\.[A-Za-z0-9_]+\.di""")
 
     private val CORE_PORT_PACKAGE =
         Regex("""com\.xwab\.app\.core\.[a-z][A-Za-z0-9]*\.port""")
@@ -155,14 +164,56 @@ internal object FeatureFirstRules {
     fun isApiConfiguration(configurationName: String): Boolean =
         configurationName == "api" || configurationName.endsWith("Api")
 
-    /** App navigation may import a feature's route contract, never its screen implementation. */
-    fun navigationImplementationImportViolations(sources: Map<String, String>): List<String> =
+    /** Every shared source set observes the same composition, navigation and DI boundaries. */
+    fun sharedFeatureReferenceViolations(sources: Map<String, String>): List<String> =
         sources.flatMap { (path, source) ->
-            FEATURE_IMPORT.findAll(source).mapNotNull { match ->
-                val importedPackage = match.groupValues[2]
-                if (importedPackage == "navigation") return@mapNotNull null
-                "$path imports ${match.groupValues[1]}. The navigation package may import only " +
-                    "feature navigation contracts; assemble screens in the composition package."
+            val code = codeOnly(source)
+            val packageName = PACKAGE.find(code)?.groupValues?.get(1).orEmpty()
+            val boundary = when {
+                packageName.isWithin("com.xwab.app.navigation") ||
+                    packageName.isWithin("com.xwab.app.composition") -> "navigation"
+                packageName.isWithin("com.xwab.app.di") -> "di"
+                else -> null
+            }
+
+            references(code, QUALIFIED_FEATURE_REFERENCE).mapNotNull { reference ->
+                if (!reference.isWithin("com.xwab.app.feature")) return@mapNotNull null
+
+                val target = reference.removePrefix("com.xwab.app.feature.").split('.')
+                val allowed = when (boundary) {
+                    "navigation" -> target.size >= 3 && target[1] == "navigation"
+                    "di" -> target.size == 3 && target[1] == "di" &&
+                        target[2].endsWith("Dependencies")
+                    else -> false
+                }
+                if (allowed) return@mapNotNull null
+
+                "$path references $reference. Shared navigation/composition may reference only " +
+                    "feature navigation contracts; shared DI may reference only feature DI " +
+                    "Dependencies classes. Other shared packages may not reference features."
+            }.toList()
+        }.sorted()
+
+    /** Feature screens, state, ViewModels and use cases stay inside their own module. */
+    fun featureVisibilityViolations(sources: Map<String, String>): List<String> =
+        sources.flatMap { (path, source) ->
+            val packageName = PACKAGE.find(codeOnly(source))?.groupValues?.get(1).orEmpty()
+            val isNavigationPackage = FEATURE_NAVIGATION_PACKAGE.matches(packageName)
+            val isDiPackage = FEATURE_DI_PACKAGE.matches(packageName)
+
+            declarations(source, includeNested = false).mapNotNull { parsed ->
+                val declaration = parsed.match
+                val modifiers = declaration.groupValues[1].trim().split(Regex("""\s+"""))
+                if (modifiers.any { it == "internal" || it == "private" }) return@mapNotNull null
+
+                val kind = declaration.groupValues[2]
+                val name = declaration.groupValues[3].removeSurrounding("`").substringAfterLast('.')
+                if (isNavigationPackage || isDiPackage && kind == "class" && name.endsWith("Dependencies")) {
+                    return@mapNotNull null
+                }
+
+                "$path:${parsed.lineNumber} exposes $name outside feature navigation contracts " +
+                    "or a DI Dependencies class. Feature implementations must be internal or private."
             }
         }.sorted()
 
@@ -290,15 +341,7 @@ internal object FeatureFirstRules {
 
         return sources.flatMap { source ->
             val code = codeOnly(source.source)
-            val imports = IMPORT.findAll(code).map { it.groupValues[1] }
-            val qualifiedReferences = code.lineSequence()
-                .filterNot { line ->
-                    val trimmed = line.trimStart()
-                    trimmed.startsWith("package ") || trimmed.startsWith("import ")
-                }
-                .flatMap { line -> QUALIFIED_CORE_REFERENCE.findAll(line).map { it.value } }
-
-            (imports + qualifiedReferences).distinct().mapNotNull { reference ->
+            references(code, QUALIFIED_CORE_REFERENCE).mapNotNull { reference ->
                 if (!reference.startsWith("com.xwab.app.core.")) return@mapNotNull null
 
                 val target = ownerOf(reference)
@@ -311,6 +354,20 @@ internal object FeatureFirstRules {
                     "Core modules may communicate only through port packages."
             }
         }.sorted()
+    }
+
+    private fun String.isWithin(packageName: String): Boolean =
+        this == packageName || startsWith("$packageName.")
+
+    private fun references(code: String, qualifiedReference: Regex): Sequence<String> {
+        val imports = IMPORT.findAll(code).map { it.groupValues[1] }
+        val qualifiedReferences = code.lineSequence()
+            .filterNot { line ->
+                val trimmed = line.trimStart()
+                trimmed.startsWith("package ") || trimmed.startsWith("import ")
+            }
+            .flatMap { line -> qualifiedReference.findAll(line).map { it.value } }
+        return (imports + qualifiedReferences).distinct()
     }
 
     /**

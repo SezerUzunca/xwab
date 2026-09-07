@@ -36,8 +36,8 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
-      - name: Check architecture and run Android host tests
-        run: ./gradlew checkArchitecture testAndroidHostTest --stacktrace
+      - name: Check architecture, test its rules, and run Android host tests
+        run: ./gradlew :check testAndroidHostTest --stacktrace
 
       - name: Assemble debug APK
         run: ./gradlew :androidApp:assembleDebug --stacktrace
