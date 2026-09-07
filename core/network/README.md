@@ -37,6 +37,13 @@ propagated unchanged because response policy and destination writes belong to th
 URLs rejected by the URL parser or using a non-HTTPS scheme produce `IllegalArgumentException`
 without invoking the engine.
 
+A redirect from HTTPS to plain HTTP is refused twice over. Ktor declines to follow it — the client
+leaves `HttpRedirect.allowHttpsDowngrade` at its default `false` — so the redirect arrives as its
+own response rather than as a downgraded body. Both operations then check the URL that was
+actually requested, which is the guard that holds if anything ever allows the downgrade; it runs
+inside the request, so it surfaces as `NetworkTransportException` rather than the argument failure
+an unusable initial URL produces. Both halves are tested.
+
 This module contains no catalog refresh, fallback, JSON mapping, or content policy. The current
 Sound and Story manifests are local application data. Sound delivery decides acceptable media
 types and sizes and writes downloaded bytes through Okio; Story streams go directly from their
