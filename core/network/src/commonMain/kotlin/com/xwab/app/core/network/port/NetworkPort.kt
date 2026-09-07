@@ -1,18 +1,18 @@
 package com.xwab.app.core.network.port
 
 /** Metadata available before a streamed response body is consumed. */
-data class NetworkResponse(
-    val statusCode: Int,
-    val contentType: String?,
-    val contentLength: Long?,
+public data class NetworkResponse(
+    public val statusCode: Int,
+    public val contentType: String?,
+    public val contentLength: Long?,
 )
 
 /** A non-success response returned by an operation that expects a complete text document. */
-class NetworkHttpException(val statusCode: Int) :
+public class NetworkHttpException(public val statusCode: Int) :
     IllegalStateException("Network request failed with HTTP $statusCode.")
 
 /** A request that did not finish inside the time allowed for it. */
-class NetworkTimeoutException(val timeoutMillis: Long) :
+public class NetworkTimeoutException(public val timeoutMillis: Long) :
     IllegalStateException("Network request did not complete within $timeoutMillis ms.")
 
 /**
@@ -22,7 +22,7 @@ class NetworkTimeoutException(val timeoutMillis: Long) :
  * engine-specific exception types. The separate [NetworkTimeoutException] describes the port's
  * total text-request limit.
  */
-class NetworkTransportException(cause: Throwable) :
+public class NetworkTransportException(cause: Throwable) :
     IllegalStateException("Network connection or response transfer failed.", cause)
 
 /**
@@ -35,9 +35,9 @@ class NetworkTransportException(cause: Throwable) :
  * unchanged. Initial URLs rejected by the URL parser or using a non-HTTPS scheme fail with
  * [IllegalArgumentException].
  */
-interface NetworkPort {
+public interface NetworkPort {
     /** Fetches a small UTF-8 document. */
-    suspend fun getText(
+    public suspend fun getText(
         httpsUrl: String,
         headers: Map<String, String> = emptyMap(),
     ): String
@@ -50,7 +50,7 @@ interface NetworkPort {
      * Exceptions thrown by either callback are propagated unchanged, not classified as network
      * failures: the callback owns response policy and destination writes.
      */
-    suspend fun download(
+    public suspend fun download(
         httpsUrl: String,
         headers: Map<String, String> = emptyMap(),
         onResponse: (NetworkResponse) -> Unit,
