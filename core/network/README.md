@@ -15,7 +15,8 @@ The client deliberately has two operations:
 Only `download` has a caller today — `core:sound:delivery`, filling the audio cache. Both catalogs
 ship with the build, so `getText` is the half of this port that a content feed would use, kept with
 its tests rather than deleted and re-added unchanged. If a feed is ruled out, `getText`,
-`NetworkHttpException` and `NetworkTimeoutException` go with it.
+`NetworkHttpException` and `NetworkTimeoutException` go with it; `NetworkTransportException` also
+serves downloads.
 
 They are timed differently:
 
@@ -29,11 +30,19 @@ timeout instead stops a connection that has stopped making progress. `getText` c
 own 15-second limit to `NetworkTimeoutException`; cancellation imposed by its caller remains
 cancellation.
 
+Connection and response-stream failures, including engine connection/socket timeouts, surface as
+`NetworkTransportException` from either operation. Its cause is retained for diagnostics; callers
+handle the port exception instead of matching Ktor types. Exceptions from `download` callbacks are
+propagated unchanged because response policy and destination writes belong to the caller. Initial
+URLs rejected by the URL parser or using a non-HTTPS scheme produce `IllegalArgumentException`
+without invoking the engine.
+
 This module contains no catalog refresh, fallback, JSON mapping, or content policy. The current
 Sound and Story manifests are local application data. Sound delivery decides acceptable media
 types and sizes and writes downloaded bytes through Okio; Story streams go directly from their
 manifest source to the platform player and do not use this client.
 
 Metro contributes the internal adapter as `NetworkPort` in `AppScope`, so there is one Ktor client
-and one connection pool for the application lifetime. No provider container or implementation type
-is public. Screens do not declare this module; they read content through capability ports.
+and one connection pool for the application lifetime. The implementation stays internal; Metro's
+generated public contribution provider returns only `NetworkPort`. Screens do not declare this
+module; they read content through capability ports.

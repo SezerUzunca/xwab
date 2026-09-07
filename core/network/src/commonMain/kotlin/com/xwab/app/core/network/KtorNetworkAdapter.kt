@@ -4,6 +4,7 @@ import com.xwab.app.core.network.port.NetworkHttpException
 import com.xwab.app.core.network.port.NetworkPort
 import com.xwab.app.core.network.port.NetworkResponse
 import com.xwab.app.core.network.port.NetworkTimeoutException
+import com.xwab.app.core.network.port.NetworkTransportException
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -20,6 +21,9 @@ import io.ktor.http.contentLength
 import io.ktor.http.contentType
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
 
 @ContributesBinding(AppScope::class)
@@ -52,17 +56,19 @@ internal class KtorNetworkAdapter : NetworkPort {
      */
     override suspend fun getText(httpsUrl: String, headers: Map<String, String>): String {
         requireHttps(httpsUrl)
-        return withTimeoutOrNull(textTimeoutMillis.milliseconds) {
-            client.prepareGet(httpsUrl) {
-                headers.forEach { (name, value) -> header(name, value) }
-            }.execute { response ->
-                requireHttps(response.call.request.url.toString())
-                if (response.status.value !in 200..299) {
-                    throw NetworkHttpException(response.status.value)
+        return networkOperation {
+            withTimeoutOrNull(textTimeoutMillis.milliseconds) {
+                client.prepareGet(httpsUrl) {
+                    headers.forEach { (name, value) -> header(name, value) }
+                }.execute { response ->
+                    requireHttps(response.call.request.url.toString())
+                    if (response.status.value !in 200..299) {
+                        throw NetworkHttpException(response.status.value)
+                    }
+                    response.bodyAsText()
                 }
-                response.bodyAsText()
-            }
-        } ?: throw NetworkTimeoutException(textTimeoutMillis)
+            } ?: throw NetworkTimeoutException(textTimeoutMillis)
+        }
     }
 
     override suspend fun download(
@@ -72,28 +78,56 @@ internal class KtorNetworkAdapter : NetworkPort {
         onChunk: (bytes: ByteArray, count: Int) -> Unit,
     ) {
         requireHttps(httpsUrl)
-        client.prepareGet(httpsUrl) {
-            headers.forEach { (name, value) -> header(name, value) }
-        }.execute { response ->
-            requireHttps(response.call.request.url.toString())
-            onResponse(
-                NetworkResponse(
+        networkOperation {
+            client.prepareGet(httpsUrl) {
+                headers.forEach { (name, value) -> header(name, value) }
+            }.execute { response ->
+                requireHttps(response.call.request.url.toString())
+                val metadata = NetworkResponse(
                     statusCode = response.status.value,
                     contentType = response.contentType()?.toString(),
                     contentLength = response.contentLength(),
-                ),
-            )
+                )
+                downloadCallback { onResponse(metadata) }
 
-            val channel = response.bodyAsChannel()
-            val buffer = ByteArray(STREAM_BUFFER_BYTES)
-            while (true) {
-                val count = channel.readAvailable(buffer)
-                if (count < 0) break
-                if (count > 0) onChunk(buffer, count)
+                val channel = response.bodyAsChannel()
+                val buffer = ByteArray(STREAM_BUFFER_BYTES)
+                while (true) {
+                    val count = channel.readAvailable(buffer)
+                    if (count < 0) break
+                    if (count > 0) downloadCallback { onChunk(buffer, count) }
+                }
             }
         }
     }
 }
+
+private suspend inline fun <T> networkOperation(block: () -> T): T = try {
+    block()
+} catch (callback: DownloadCallbackFailure) {
+    throw callback.original
+} catch (cancellation: CancellationException) {
+    throw cancellation
+} catch (failure: NetworkHttpException) {
+    throw failure
+} catch (failure: NetworkTimeoutException) {
+    throw failure
+} catch (failure: Exception) {
+    // Ktor may unwrap a canceled request's cause. An inactive caller still owns cancellation.
+    currentCoroutineContext().ensureActive()
+    throw NetworkTransportException(failure)
+}
+
+/** Keep callback failures separate even when Ktor unwraps cancellation causes around execute. */
+private inline fun downloadCallback(block: () -> Unit) {
+    try {
+        block()
+    } catch (failure: Throwable) {
+        throw DownloadCallbackFailure(failure)
+    }
+}
+
+private class DownloadCallbackFailure(val original: Throwable) : RuntimeException()
 
 /**
  * One client for every caller, with the two timeouts that mean the same thing to all of them:
@@ -114,7 +148,12 @@ private fun createNetworkHttpClient(): HttpClient = HttpClient {
 }
 
 private fun requireHttps(rawUrl: String) {
-    require(Url(rawUrl).protocol == URLProtocol.HTTPS) { "Only HTTPS network requests are allowed." }
+    val isHttps = try {
+        Url(rawUrl).protocol == URLProtocol.HTTPS
+    } catch (_: Exception) {
+        false
+    }
+    require(isHttps) { "Only valid HTTPS network requests are allowed." }
 }
 
 private const val STREAM_BUFFER_BYTES = 16 * 1024
