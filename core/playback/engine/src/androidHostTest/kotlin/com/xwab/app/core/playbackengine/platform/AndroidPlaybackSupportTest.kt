@@ -1,7 +1,7 @@
 package com.xwab.app.core.playbackengine.platform
 
 import androidx.media3.common.Player
-import com.xwab.app.core.playbackengine.api.PlaybackPhase
+import com.xwab.app.core.playbackengine.port.PlaybackPhase
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

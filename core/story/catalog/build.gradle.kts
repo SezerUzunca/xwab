@@ -3,12 +3,12 @@ plugins {
 }
 
 kotlin {
-    android { namespace = "com.xwab.app.core.story" }
+    android { namespace = "com.xwab.app.core.story.catalog" }
 
     sourceSets {
         commonMain.dependencies {
-            // The story repository publishes Flow. No providers here: this module declares a port and
-            // binds nothing — `core:story:manifest` owns the implementation and its DI module.
+            // StoryCatalogPort publishes Flow. This module declares the public contract only;
+            // `core:story:manifest` contributes its internal adapter.
             api(libs.kotlinx.coroutines.core)
         }
     }

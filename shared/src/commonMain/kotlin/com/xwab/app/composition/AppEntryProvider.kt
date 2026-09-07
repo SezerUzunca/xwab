@@ -4,16 +4,16 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import com.xwab.app.di.AppGraph
-import com.xwab.app.feature.browse.impl.navigation.browseEntry
-import com.xwab.app.feature.category.api.navigation.CategoryRoute
-import com.xwab.app.feature.category.impl.navigation.categoryEntry
-import com.xwab.app.feature.favorites.impl.navigation.favoritesEntry
-import com.xwab.app.feature.sounds.api.navigation.PlayerRoute
-import com.xwab.app.feature.sounds.impl.navigation.playerEntry
-import com.xwab.app.feature.story.impl.navigation.storiesEntry
+import com.xwab.app.feature.browse.navigation.browseEntry
+import com.xwab.app.feature.category.navigation.CategoryRoute
+import com.xwab.app.feature.category.navigation.categoryEntry
+import com.xwab.app.feature.favorites.navigation.favoritesEntry
+import com.xwab.app.feature.sounds.navigation.PlayerRoute
+import com.xwab.app.feature.sounds.navigation.playerEntry
+import com.xwab.app.feature.story.navigation.storiesEntry
 
 /**
- * Connects feature implementations to the navigation actions owned by the application root.
+ * Connects feature entry providers to the navigation actions owned by the application root.
  *
  * Each feature is handed exactly two things: the ports it reads, resolved by [graph], and where its
  * intents go, which stays this module's decision.

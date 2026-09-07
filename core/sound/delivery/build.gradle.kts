@@ -5,11 +5,11 @@ plugins {
 }
 
 kotlin {
-    android { namespace = "com.xwab.app.core.audiodelivery" }
+    android { namespace = "com.xwab.app.core.sounddelivery" }
 
     sourceSets {
         commonMain.dependencies {
-            // `AudioContentResolver.resolve` takes a `TrackId`, so this module's public API is
+            // `SoundContentPort.resolve` takes a `TrackId`, so this module's public API is
             // partly the catalog's — `api`, or a consumer would have to declare catalog itself to
             // call it. Today the one consumer happens to; a second would not have been so lucky.
             api(projects.core.sound.catalog)

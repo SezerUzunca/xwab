@@ -7,7 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation3.ui.NavDisplay
 import com.xwab.app.composition.appEntryProvider
-import com.xwab.app.core.ui.theme.SleepRelaxTheme
+import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import com.xwab.app.di.AppGraph
 import com.xwab.app.navigation.rememberAppNavigationState
 import com.xwab.app.ui.AppNavigationBar

@@ -1,16 +1,17 @@
 # Story catalog
 
 One capability: **what a listener may know about a story.** This module declares `Story`,
-`StoryId`, and `StoryCatalogRepository`; it contains no catalog rows or physical sources.
+`StoryId`, and `StoryCatalogPort`; it contains no catalog rows or physical sources.
 
-The data lives in [core:story:manifest](../manifest/README.md), which implements the repository.
+The data lives in [core:story:manifest](../manifest/README.md), whose internal adapter implements
+`StoryCatalogPort`.
 That mirrors [core:sound:catalog](../../sound/catalog/README.md): screens receive descriptive
 metadata through a read port, while the module that knows the audio address stays off their
 classpath.
 
 | Port | Answers | Read by |
 |---|---|---|
-| `StoryCatalogRepository` | Which stories exist, and their title, author, narrator, description, and duration | `feature:story` and playback metadata resolution |
+| `StoryCatalogPort` | Which stories exist, and their title, author, narrator, description, and duration | `feature:story` and playback metadata resolution |
 
 ## What is not here
 
@@ -33,7 +34,7 @@ ids and unique playable sources.
 ## Status
 
 The catalog contains five real English-language literary stories, and `feature:story` lists and
-plays every shipped row through `PlaybackCoordinator`. There is still no progress bar or resume:
+plays every shipped row through `PlaybackPort`. There is still no progress bar or resume:
 `core:playback:engine` publishes no position and accepts no seek, so a story is played and paused
 the way a sound is. Recording sources and their public-domain grants are listed in
 [THIRD_PARTY_AUDIO.md](../../../THIRD_PARTY_AUDIO.md).

@@ -3,10 +3,6 @@ import Shared // Ensure Kotlin shared module is imported, name depends on Xcode 
 
 @main
 struct iOSApp: App {
-    init() {
-        KoinInitIosKt.initKoinIos()
-    }
-
     var body: some Scene {
         WindowGroup {
             ContentView()

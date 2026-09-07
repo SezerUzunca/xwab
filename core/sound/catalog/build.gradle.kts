@@ -3,12 +3,12 @@ plugins {
 }
 
 kotlin {
-    android { namespace = "com.xwab.app.core.catalog" }
+    android { namespace = "com.xwab.app.core.sound.catalog" }
 
     sourceSets {
         commonMain.dependencies {
-            // The catalog repository publishes Flow. No providers here: this module declares a port and
-            // binds nothing — `core:sound:manifest` owns the implementation and its DI module.
+            // SoundCatalogPort publishes Flow. This module declares the public contract only;
+            // `core:sound:manifest` contributes its internal adapter.
             api(libs.kotlinx.coroutines.core)
         }
     }

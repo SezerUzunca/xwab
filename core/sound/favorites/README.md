@@ -2,7 +2,7 @@
 
 One capability: **the tracks the listener marked**, kept across launches.
 
-- `FavoritesRepository` and its DataStore-backed implementation;
+- `FavoritesPort` and its DataStore-backed implementation;
 - the `DataStore<Preferences>` itself, created at the platform's own path — `filesDir` on Android,
   the documents directory on iOS.
 

@@ -1,81 +1,97 @@
 package com.xwab.convention
 
-/**
- * The feature-first rules, as pure functions over what the build already knows.
- *
- * Separated from [CheckArchitectureTask] so they can be tested without a Gradle build: a rule that
- * only ever runs against a repository which satisfies it has never been shown to *reject*
- * anything, and that is exactly how the source-scanning version of rule 4 could have rotted
- * unnoticed. [FeatureFirstRulesTest] drives every rule from both sides.
- *
- * The task keeps what genuinely needs the file system — walking sources for rules 3 and 5 — and
- * hands the results here.
- */
+/** Pure architecture rules, separated from Gradle plumbing so every rule is unit-testable. */
 internal object FeatureFirstRules {
     const val CORE_PREFIX = ":core:"
     const val FEATURE_PREFIX = ":feature:"
-    const val API_SUFFIX = ":api"
-    const val IMPL_SUFFIX = ":impl"
 
     val USE_CASE_DECLARATION =
         Regex("""^\s*(?:internal\s+|public\s+)?class\s+(\w+UseCase)\b""", RegexOption.MULTILINE)
 
-    val FEATURE_IMPLEMENTATION_IMPORT = Regex(
-        """^\s*import\s+(com\.xwab\.app\.feature\.[A-Za-z0-9_]+\.impl(?:\.[A-Za-z0-9_*]+)*)(?:\s+as\s+\w+)?\s*$""",
+    private val FEATURE_IMPORT = Regex(
+        """^\s*import\s+(com\.xwab\.app\.feature\.[A-Za-z0-9_]+\.([A-Za-z0-9_]+)(?:\.[A-Za-z0-9_*]+)*)(?:\s+as\s+\w+)?\s*$""",
         RegexOption.MULTILINE,
     )
 
-    /**
-     * Modules a feature may not declare, and the reason each is off limits.
-     *
-     * [staleRuleViolations] fails the build if any of these names stops matching a real module, so
-     * the rule cannot quietly protect nothing after a rename.
-     */
-    val MODULES_OFF_LIMITS_TO_FEATURES = mapOf(
-        ":shared" to
-            "the app shell is the composition root and owns navigation state and destination " +
-                "policy; a feature exposes user intents as callbacks and never depends on the root",
-        ":core:network" to
-            "HTTP is an adapter detail; a screen reads content through its repository instead " +
-                "of issuing requests itself",
-        ":core:sound:delivery" to
-            "resolving a track to a URI and caching its bytes are the session's business; a " +
-                "screen steers playback through PlaybackCoordinator",
-        ":core:playback:engine" to
-            "the engine's own state model is not a screen's to read; PlaybackSummary is",
-        ":core:sound:manifest" to
-            "a screen reads the catalog through MusicCatalogRepository in :core:sound:catalog; " +
-                "the shipped manifest and the physical source behind each track are not its " +
-                "business",
-        ":core:story:manifest" to
-            "a screen reads stories through StoryCatalogRepository in :core:story:catalog; the " +
-                "story list and the source each story streams from are not its business",
+    private val IMPORT = Regex(
+        """^\s*import\s+([A-Za-z0-9_.*]+)(?:\s+as\s+\w+)?\s*$""",
+        RegexOption.MULTILINE,
     )
 
-    /**
-     * The one way rule 4 could rot: [MODULES_OFF_LIMITS_TO_FEATURES] names modules, and a renamed
-     * module would leave the rule quietly matching nothing at all — which is exactly how the
-     * source-scanning version it replaced would have failed. So the names are checked against the
-     * graph, and a rule that has stopped applying is itself a violation.
-     */
+    private val QUALIFIED_CORE_REFERENCE =
+        Regex("""\bcom\.xwab\.app\.core(?:\.[A-Za-z_][A-Za-z0-9_]*)+""")
+
+    private val CORE_PORT_PACKAGE =
+        Regex("""com\.xwab\.app\.core\.[a-z][A-Za-z0-9]*\.port""")
+
+    private val KOIN_CODE_REFERENCE = Regex(
+        """^\s*import\s+org\.koin\.|libs(?:\.plugins)?\.koin\b""",
+        RegexOption.MULTILINE,
+    )
+
+    private val KOIN_COORDINATE = Regex("""io\.insert-koin""")
+
+    private val DECLARATION = Regex(
+        """^\s*(?:(?:@[A-Za-z_][A-Za-z0-9_.:]*(?:\([^()\r\n]*\))?)\s+)*((?:(?:public|internal|private|protected|expect|actual|open|abstract|final|override|inner|companion|suspend|inline|tailrec|operator|infix|external|lateinit|const|data|sealed|enum|value|annotation|fun)\s+)*)(class|interface|object|fun|const\s+val|val|var|typealias)(?:\s+(?:<[^>]+>\s+)?(`[^`\r\n]+`|[A-Za-z_][A-Za-z0-9_.]*))?""",
+    )
+
+    private data class SourceDeclaration(
+        val lineNumber: Int,
+        val match: MatchResult,
+    )
+
+    val MODULES_OFF_LIMITS_TO_FEATURES = mapOf(
+        ":shared" to
+            "the app shell owns navigation state and destination policy",
+        ":core:network" to
+            "HTTP is an adapter detail; screens read content through public ports",
+        ":core:sound:delivery" to
+            "source resolution and caching belong behind PlaybackPort",
+        ":core:playback:engine" to
+            "the platform engine is hidden behind PlaybackPort",
+        ":core:sound:manifest" to
+            "physical sound sources are adapter details hidden from screens",
+        ":core:story:manifest" to
+            "physical story sources are adapter details hidden from screens",
+    )
+
     fun staleRuleViolations(modules: Set<String>): List<String> =
         (MODULES_OFF_LIMITS_TO_FEATURES.keys - modules).sorted().map { missing ->
-            "Rule 4 names $missing, which is not a module in this build. Update " +
-                "FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES, or the rule protects nothing."
+            "The adapter-boundary rule names $missing, which is not a module in this build. Update " +
+                "MODULES_OFF_LIMITS_TO_FEATURES, or the rule protects nothing."
         }
 
-    /**
-     * Rules 1, 2 and 4, all of which are readable straight off the dependency graph.
-     *
-     * Rules 1 and 2 are about what a module *declares*, so they read the direct edges. Rule 4 is
-     * about what a screen can *reach*, which is not the same thing: an `api` dependency puts its
-     * own `api` dependencies on every consumer's compile classpath. A feature that declares nothing
-     * forbidden can still end up compiling against a forbidden module, and until [apiEdges] existed
-     * this rule would have reported success while that happened.
-     *
-     * @param apiEdges the project dependencies each module declares in an `api` configuration —
-     *   the ones that travel. Left empty, rule 4 sees direct declarations only.
-     */
+    /** A feature is one Gradle module; nested `api` / `impl` projects are not part of the model. */
+    fun featureModuleShapeViolations(modules: Set<String>): List<String> =
+        modules.filter { module ->
+            module.startsWith(FEATURE_PREFIX) &&
+                module.removePrefix(FEATURE_PREFIX).contains(':')
+        }.sorted().map { module ->
+            "$module is a nested feature project. Each feature must be exactly one " +
+                ":feature:<name> module; keep Navigation 3 contracts and implementation together."
+        }
+
+    /** Neither modules nor source/package directories may recreate the old `api` / `impl` split. */
+    fun legacySplitDirectoryViolations(paths: List<String>): List<String> =
+        paths.map { it.replace('\\', '/') }
+            .filter { path -> path.split('/').any { it == "api" || it == "impl" } }
+            .distinct()
+            .sorted()
+            .map { path ->
+                "$path recreates an api/impl split. Keep each feature cohesive and expose core " +
+                    "contracts from its port package."
+            }
+
+    /** Metro is the only DI runtime in this project. */
+    fun koinUsageViolations(sources: Map<String, String>): List<String> =
+        sources.filter { (path, source) ->
+            KOIN_CODE_REFERENCE.containsMatchIn(codeOnly(source)) ||
+                (path.endsWith(".kts") || path.endsWith(".toml")) &&
+                KOIN_COORDINATE.containsMatchIn(commentsRemoved(source))
+        }.keys.sorted().map { path ->
+            "$path references Koin. Use Metro contributions and the platform application graph."
+        }
+
     fun dependencyViolations(
         graph: Map<String, List<String>>,
         apiEdges: Map<String, List<String>> = emptyMap(),
@@ -88,25 +104,13 @@ internal object FeatureFirstRules {
                     violations += "$module depends on $dependency. A core module may not depend on a feature."
                 }
 
-                val isCrossFeature = module.startsWith(FEATURE_PREFIX) &&
+                if (
+                    module.startsWith(FEATURE_PREFIX) &&
                     dependency.startsWith(FEATURE_PREFIX) &&
                     featureOf(module) != featureOf(dependency)
-
-                val apiDependsOnImplementation = module.startsWith(FEATURE_PREFIX) &&
-                    module.endsWith(API_SUFFIX) &&
-                    dependency.startsWith(FEATURE_PREFIX) &&
-                    dependency.endsWith(IMPL_SUFFIX)
-
-                // Cross-feature is checked first because it is the stronger boundary: even a
-                // destination's API belongs at the composition root, not in the calling feature.
-                if (isCrossFeature) {
+                ) {
                     violations += "$module depends on $dependency. Feature modules must not depend " +
-                        "on another feature. Expose an intent callback from the entry provider and " +
-                        "connect it to the destination API in :shared."
-                } else if (apiDependsOnImplementation) {
-                    violations += "$module depends on $dependency. A feature API must remain " +
-                        "implementation-free: the public contract must not point inward to its " +
-                        "implementation."
+                        "on another feature; connect destination intents in :shared."
                 }
             }
 
@@ -118,12 +122,6 @@ internal object FeatureFirstRules {
         return violations.distinct().sorted()
     }
 
-    /**
-     * Rule 4, over everything [feature] compiles against rather than everything it names.
-     *
-     * Breadth-first, so the path reported is the shortest one — and so a module that is both
-     * declared and reachable is reported as declared, which is the more actionable of the two.
-     */
     private fun offLimitsReachableFrom(
         feature: String,
         directDependencies: List<String>,
@@ -131,7 +129,7 @@ internal object FeatureFirstRules {
     ): List<String> {
         val violations = mutableListOf<String>()
         val visited = mutableSetOf<String>()
-        val paths = ArrayDeque(directDependencies.map { listOf(it) })
+        val paths = ArrayDeque(directDependencies.map(::listOf))
 
         while (paths.isNotEmpty()) {
             val path = paths.removeFirst()
@@ -154,40 +152,20 @@ internal object FeatureFirstRules {
         return violations
     }
 
-    /**
-     * Whether a Gradle configuration is one whose project dependencies reach a consumer's compile
-     * classpath — `api`, and the per-source-set `commonMainApi`, `androidMainApi` and the rest.
-     *
-     * Everything else, `implementation` above all, stops at the module that declares it. Gradle's
-     * own outgoing variants (`apiElements`) are deliberately not matched: they carry the same
-     * dependencies again under a name this does not accept.
-     */
     fun isApiConfiguration(configurationName: String): Boolean =
         configurationName == "api" || configurationName.endsWith("Api")
 
-    /**
-     * Rule 5: app navigation owns route policy, not feature implementation assembly.
-     *
-     * `:shared` must depend on feature implementations because it is the composition root, so the
-     * module graph cannot distinguish a legitimate import in `composition/` from a leak into
-     * `navigation/`. The task therefore passes only navigation sources to this rule.
-     */
+    /** App navigation may import a feature's route contract, never its screen implementation. */
     fun navigationImplementationImportViolations(sources: Map<String, String>): List<String> =
         sources.flatMap { (path, source) ->
-            FEATURE_IMPLEMENTATION_IMPORT.findAll(source).map { match ->
-                "$path imports ${match.groupValues[1]}. The navigation package may depend only " +
-                    "on feature APIs; assemble feature implementations in the application " +
-                    "composition root."
+            FEATURE_IMPORT.findAll(source).mapNotNull { match ->
+                val importedPackage = match.groupValues[2]
+                if (importedPackage == "navigation") return@mapNotNull null
+                "$path imports ${match.groupValues[1]}. The navigation package may import only " +
+                    "feature navigation contracts; assemble screens in the composition package."
             }
         }.sorted()
 
-    /**
-     * Rule 3, over sources the task has already read.
-     *
-     * @param useCases every `*UseCase` class declared under `core/`, paired with the module that
-     *   declares it.
-     * @param sourcesByFeature feature directory name to the text of every Kotlin source under it.
-     */
     fun leakedUseCaseViolations(
         useCases: List<Pair<String, String>>,
         sourcesByFeature: Map<String, List<String>>,
@@ -196,37 +174,312 @@ internal object FeatureFirstRules {
         if (users.size != 1) return@mapNotNull null
 
         "$module declares $useCase, but only feature:${users.single()} uses it. " +
-            "Move it into that feature's own `domain` package, or leave it here once a " +
-            "second feature needs it."
+            "Move it into that feature's domain package, or leave it here once a second feature needs it."
     }.sorted()
 
-    /** `:feature:category:api` and `:feature:category:impl` are both the `category` feature. */
+    /** A production source from a logical core module. */
+    data class CoreSource(
+        val path: String,
+        val module: String,
+        val packageName: String,
+        val source: String,
+    )
+
+    /**
+     * Keeps the public ABI of every core capability to explicit port contracts and their data.
+     * Implementations, Metro contributors and helpers must be internal or private.
+     */
+    fun coreVisibilityViolations(sources: List<CoreSource>): List<String> =
+        sources.flatMap { source ->
+            val isPortPackage = CORE_PORT_PACKAGE.matches(source.packageName)
+            declarations(source.source, includeNested = isPortPackage).mapNotNull { parsed ->
+                val declaration = parsed.match
+                val modifiers = declaration.groupValues[1]
+                    .trim()
+                    .split(Regex("""\s+"""))
+                    .filter(String::isNotBlank)
+                val visibility = modifiers
+                    .firstOrNull { it in setOf("public", "internal", "private", "protected") }
+                val kind = declaration.groupValues[2]
+                val name = declaration.groupValues[3]
+                    .removeSurrounding("`")
+                    .substringAfterLast('.')
+                    .ifBlank { "<anonymous $kind>" }
+
+                when {
+                    isPortPackage && visibility == null ->
+                        "${source.path}:${parsed.lineNumber} declares $name with implicit visibility. " +
+                            "Port contracts must say public explicitly."
+
+                    isPortPackage && visibility != "public" ->
+                        "${source.path}:${parsed.lineNumber} declares $name as $visibility. " +
+                            "Every declaration in a port package must be public."
+
+                    isPortPackage && visibility == "public" &&
+                        kind == "interface" && "sealed" !in modifiers && !name.endsWith("Port") ->
+                        "${source.path}:${parsed.lineNumber} exposes interface $name. " +
+                            "Public port interfaces must end in Port."
+
+                    !isPortPackage && visibility !in setOf("internal", "private") ->
+                        "${source.path}:${parsed.lineNumber} exposes $name outside a port package. " +
+                            "Core implementations must be internal or private."
+
+                    else -> null
+                }
+            }.toList()
+        }.sorted()
+
+    /** Core uses capability ports and concrete adapters, never repository/provider seams. */
+    fun legacyCoreAbstractionViolations(sources: List<CoreSource>): List<String> =
+        sources.flatMap { source ->
+            declarations(source.source, includeNested = true).mapNotNull { parsed ->
+                val declaration = parsed.match
+                val kind = declaration.groupValues[2]
+                val name = declaration.groupValues[3].removeSurrounding("`").substringAfterLast('.')
+                if (
+                    kind !in setOf("class", "interface", "object", "typealias") ||
+                    ("Repository" !in name && "Provider" !in name)
+                ) {
+                    return@mapNotNull null
+                }
+
+                "${source.path}:${parsed.lineNumber} declares $name. Core contracts must be ports and " +
+                    "implementations must be adapters; repositories/providers may only be feature-local."
+            }
+        }.sorted()
+
+    /** Every dependency crossing from one core module to another must target a port package. */
+    fun coreImportViolations(sources: List<CoreSource>): List<String> {
+        data class CoreOwner(val module: String, val packageName: String)
+
+        val declarationOwners = buildMap<String, CoreOwner> {
+            sources.forEach { source ->
+                declarations(source.source, includeNested = false).forEach { parsed ->
+                    val declaration = parsed.match
+                    val name = declaration.groupValues[3].removeSurrounding("`").substringAfterLast('.')
+                    if (name.isBlank()) return@forEach
+                    put("${source.packageName}.$name", CoreOwner(source.module, source.packageName))
+                }
+            }
+        }
+
+        fun ownerOf(reference: String): CoreOwner? {
+            val normalized = reference.removeSuffix(".*")
+            declarationOwners.entries
+                .filter { (declaration, _) ->
+                    normalized == declaration || normalized.startsWith("$declaration.")
+                }
+                .maxByOrNull { it.key.length }
+                ?.value?.let { return it }
+
+            val candidates = sources.asSequence()
+                .filter { candidate ->
+                    if (reference.endsWith(".*")) {
+                        normalized == candidate.packageName
+                    } else {
+                        normalized == candidate.packageName ||
+                            normalized.startsWith("${candidate.packageName}.")
+                    }
+                }
+                .map { CoreOwner(it.module, it.packageName) }
+                .distinct()
+                .toList()
+            val longestPackage = candidates.maxOfOrNull { it.packageName.length } ?: return null
+            return candidates.filter { it.packageName.length == longestPackage }.singleOrNull()
+        }
+
+        return sources.flatMap { source ->
+            val code = codeOnly(source.source)
+            val imports = IMPORT.findAll(code).map { it.groupValues[1] }
+            val qualifiedReferences = code.lineSequence()
+                .filterNot { line ->
+                    val trimmed = line.trimStart()
+                    trimmed.startsWith("package ") || trimmed.startsWith("import ")
+                }
+                .flatMap { line -> QUALIFIED_CORE_REFERENCE.findAll(line).map { it.value } }
+
+            (imports + qualifiedReferences).distinct().mapNotNull { reference ->
+                if (!reference.startsWith("com.xwab.app.core.")) return@mapNotNull null
+
+                val target = ownerOf(reference)
+                if (target?.module == source.module || target?.packageName?.let(CORE_PORT_PACKAGE::matches) == true) {
+                    return@mapNotNull null
+                }
+
+                val owner = target?.module ?: "an unresolved core package"
+                "${source.path} references $reference from $owner. " +
+                    "Core modules may communicate only through port packages."
+            }
+        }.sorted()
+    }
+
+    /**
+     * Finds declarations in actual code, independent of indentation. Non-port checks keep only
+     * lexical top-level declarations; port checks include members and nested contract types too.
+     */
+    private fun declarations(source: String, includeNested: Boolean): List<SourceDeclaration> {
+        var braceDepth = 0
+        var parenthesisDepth = 0
+        return codeOnly(source).lineSequence().mapIndexedNotNull { index, line ->
+            val atTopLevel = braceDepth == 0 && parenthesisDepth == 0
+            val declaration = if (includeNested || atTopLevel) DECLARATION.find(line) else null
+
+            braceDepth += line.count { it == '{' } - line.count { it == '}' }
+            parenthesisDepth += line.count { it == '(' } - line.count { it == ')' }
+
+            declaration?.let { SourceDeclaration(lineNumber = index + 1, match = it) }
+        }.toList()
+    }
+
+    /**
+     * Keeps source positions while blanking comments and literals. This prevents URI/action strings
+     * and documentation examples from looking like fully-qualified Kotlin symbol references.
+     */
+    private fun codeOnly(source: String): String = sanitize(source, blankLiterals = true)
+
+    private fun commentsRemoved(source: String): String = sanitize(source, blankLiterals = false)
+
+    private fun sanitize(source: String, blankLiterals: Boolean): String = buildString(source.length) {
+        var index = 0
+        var blockCommentDepth = 0
+        var mode = LexicalMode.CODE
+
+        fun blank(character: Char) {
+            append(if (character == '\n' || character == '\r') character else ' ')
+        }
+
+        fun literal(character: Char) {
+            if (blankLiterals) blank(character) else append(character)
+        }
+
+        fun literal(value: String) {
+            if (blankLiterals) append(" ".repeat(value.length)) else append(value)
+        }
+
+        while (index < source.length) {
+            val current = source[index]
+            val next = source.getOrNull(index + 1)
+            val tripleQuote = source.startsWith("\"\"\"", index)
+
+            when (mode) {
+                LexicalMode.CODE -> when {
+                    current == '/' && next == '/' -> {
+                        append("  ")
+                        index += 2
+                        mode = LexicalMode.LINE_COMMENT
+                    }
+
+                    current == '/' && next == '*' -> {
+                        append("  ")
+                        index += 2
+                        blockCommentDepth = 1
+                        mode = LexicalMode.BLOCK_COMMENT
+                    }
+
+                    tripleQuote -> {
+                        literal("\"\"\"")
+                        index += 3
+                        mode = LexicalMode.RAW_STRING
+                    }
+
+                    current == '"' -> {
+                        literal(current)
+                        index++
+                        mode = LexicalMode.STRING
+                    }
+
+                    current == '\'' -> {
+                        literal(current)
+                        index++
+                        mode = LexicalMode.CHAR
+                    }
+
+                    else -> {
+                        append(current)
+                        index++
+                    }
+                }
+
+                LexicalMode.LINE_COMMENT -> {
+                    blank(current)
+                    index++
+                    if (current == '\n' || current == '\r') mode = LexicalMode.CODE
+                }
+
+                LexicalMode.BLOCK_COMMENT -> when {
+                    current == '/' && next == '*' -> {
+                        append("  ")
+                        index += 2
+                        blockCommentDepth++
+                    }
+
+                    current == '*' && next == '/' -> {
+                        append("  ")
+                        index += 2
+                        blockCommentDepth--
+                        if (blockCommentDepth == 0) mode = LexicalMode.CODE
+                    }
+
+                    else -> {
+                        blank(current)
+                        index++
+                    }
+                }
+
+                LexicalMode.STRING, LexicalMode.CHAR -> when {
+                    current == '\\' && next != null -> {
+                        literal(current)
+                        literal(next)
+                        index += 2
+                    }
+
+                    mode == LexicalMode.STRING && current == '"' -> {
+                        literal(current)
+                        index++
+                        mode = LexicalMode.CODE
+                    }
+
+                    mode == LexicalMode.CHAR && current == '\'' -> {
+                        literal(current)
+                        index++
+                        mode = LexicalMode.CODE
+                    }
+
+                    else -> {
+                        literal(current)
+                        index++
+                    }
+                }
+
+                LexicalMode.RAW_STRING -> if (tripleQuote) {
+                    literal("\"\"\"")
+                    index += 3
+                    mode = LexicalMode.CODE
+                } else {
+                    literal(current)
+                    index++
+                }
+            }
+        }
+    }
+
+    private enum class LexicalMode {
+        CODE,
+        LINE_COMMENT,
+        BLOCK_COMMENT,
+        STRING,
+        RAW_STRING,
+        CHAR,
+    }
+
     fun featureOf(modulePath: String): String =
         modulePath.removePrefix(FEATURE_PREFIX).substringBefore(':')
 
-    /**
-     * Which module a source file belongs to, given every module path in the build.
-     *
-     * Rule 3 used to read this off the first directory under `core/`, which was right only while
-     * every core module sat directly there. Core modules are grouped now — `core/sound/catalog` is
-     * `:core:sound:catalog` — and that shortcut would have attributed every use case in the group
-     * to `:core:sound`, a container project that declares nothing. It would not have *failed*: the
-     * rule would have kept reporting success while naming a module that cannot be depended on.
-     *
-     * So the owner is the longest module path that the file actually sits inside, and a file under
-     * no module at all belongs to none. A file lying directly in a group directory answers with
-     * the container project, which is what it is in; rule 3 never sees one, because Kotlin sources
-     * live in the modules below a group and never in the group itself.
-     *
-     * @param relativeSourcePath a source file's path from the repository root, `/`-separated.
-     * @param modulePaths the Gradle paths of every module in the build.
-     */
     fun owningModule(relativeSourcePath: String, modulePaths: Collection<String>): String? =
         modulePaths
             .filter { relativeSourcePath.startsWith("${directoryOf(it)}/") }
             .maxByOrNull { it.length }
 
-    /** `:core:sound:catalog` lives in `core/sound/catalog`: a Gradle path is a directory path. */
     private fun directoryOf(modulePath: String): String =
         modulePath.removePrefix(":").replace(':', '/')
 }

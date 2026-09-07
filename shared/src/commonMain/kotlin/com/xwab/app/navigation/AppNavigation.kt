@@ -7,14 +7,14 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.navigation3.runtime.NavKey
-import com.xwab.app.feature.browse.api.navigation.BrowseRoute
-import com.xwab.app.feature.browse.api.navigation.browseNavigationSerializers
-import com.xwab.app.feature.category.api.navigation.categoryNavigationSerializers
-import com.xwab.app.feature.favorites.api.navigation.FavoritesRoute
-import com.xwab.app.feature.favorites.api.navigation.favoritesNavigationSerializers
-import com.xwab.app.feature.sounds.api.navigation.soundsNavigationSerializers
-import com.xwab.app.feature.story.api.navigation.StoriesRoute
-import com.xwab.app.feature.story.api.navigation.storyNavigationSerializers
+import com.xwab.app.feature.browse.navigation.BrowseRoute
+import com.xwab.app.feature.browse.navigation.browseNavigationSerializers
+import com.xwab.app.feature.category.navigation.categoryNavigationSerializers
+import com.xwab.app.feature.favorites.navigation.FavoritesRoute
+import com.xwab.app.feature.favorites.navigation.favoritesNavigationSerializers
+import com.xwab.app.feature.sounds.navigation.soundsNavigationSerializers
+import com.xwab.app.feature.story.navigation.StoriesRoute
+import com.xwab.app.feature.story.navigation.storyNavigationSerializers
 import kotlinx.serialization.modules.SerializersModule
 import org.jetbrains.compose.resources.stringResource
 import xwab.shared.generated.resources.Res
@@ -53,7 +53,7 @@ internal val TOP_LEVEL_DESTINATIONS: List<TopLevelDestination> = listOf(
     ),
 )
 
-/** The app explicitly assembles the route serializers exported by feature APIs. */
+/** The app explicitly assembles the route serializers exported by feature navigation packages. */
 internal val FEATURE_SERIALIZERS: SerializersModule = SerializersModule {
     include(browseNavigationSerializers)
     include(favoritesNavigationSerializers)

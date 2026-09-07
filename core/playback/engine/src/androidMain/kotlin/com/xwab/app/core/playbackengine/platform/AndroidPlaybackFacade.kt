@@ -10,15 +10,15 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
-import com.xwab.app.core.playbackengine.api.AudioPlayerState
-import com.xwab.app.core.playbackengine.api.AudioSource
-import com.xwab.app.core.playbackengine.api.PlaybackCommand
-import com.xwab.app.core.playbackengine.api.PlaybackController
-import com.xwab.app.core.playbackengine.api.PlaybackError
-import com.xwab.app.core.playbackengine.api.PlaybackErrorCode
-import com.xwab.app.core.playbackengine.api.PlaybackPhase
-import com.xwab.app.core.playbackengine.api.PlaybackRequest
-import com.xwab.app.core.playbackengine.api.SleepTimerState
+import com.xwab.app.core.playbackengine.port.AudioPlayerState
+import com.xwab.app.core.playbackengine.port.AudioSource
+import com.xwab.app.core.playbackengine.port.PlaybackCommand
+import com.xwab.app.core.playbackengine.port.PlaybackEnginePort
+import com.xwab.app.core.playbackengine.port.PlaybackError
+import com.xwab.app.core.playbackengine.port.PlaybackErrorCode
+import com.xwab.app.core.playbackengine.port.PlaybackPhase
+import com.xwab.app.core.playbackengine.port.PlaybackRequest
+import com.xwab.app.core.playbackengine.port.SleepTimerState
 import com.xwab.app.core.playbackengine.projection.projectPlaybackState
 import com.xwab.app.core.playbackengine.store.PLAYBACK_READINESS_TIMEOUT_MS
 import com.xwab.app.core.playbackengine.store.PlaybackMessage
@@ -29,21 +29,28 @@ import com.xwab.app.core.playbackengine.store.remainingDurationUntil
 import com.xwab.app.core.playbackengine.store.sleepTimerDeadline
 import com.xwab.app.core.playbackengine.store.toMessage
 import com.xwab.app.core.playbackengine.timer.SleepTimerTicker
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import dev.zacsweers.metro.binding
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-fun createAndroidPlaybackController(context: Context): PlaybackController {
-    check(Looper.myLooper() == Looper.getMainLooper()) {
-        "createAndroidPlaybackController must be called from the main thread."
-    }
-    return AndroidPlaybackFacade(context)
-}
+@ContributesBinding(AppScope::class, binding = binding<PlaybackEnginePort>())
+@SingleIn(AppScope::class)
+@Inject
+internal class AndroidPlaybackFacade(
+    context: Context,
+) : PlaybackEnginePort, Player.Listener {
 
-private class AndroidPlaybackFacade(
-    context: Context
-) : PlaybackController, Player.Listener {
+    init {
+        check(Looper.myLooper() == Looper.getMainLooper()) {
+            "AndroidPlaybackFacade must be created on the main thread."
+        }
+    }
 
     private val _state = MutableStateFlow(AudioPlayerState())
     override val state: StateFlow<AudioPlayerState> = _state.asStateFlow()

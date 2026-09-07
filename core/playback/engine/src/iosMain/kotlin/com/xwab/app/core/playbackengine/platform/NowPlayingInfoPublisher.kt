@@ -2,8 +2,8 @@
 
 package com.xwab.app.core.playbackengine.platform
 
-import com.xwab.app.core.playbackengine.api.AudioSource
-import com.xwab.app.core.playbackengine.api.PlaybackPhase
+import com.xwab.app.core.playbackengine.port.AudioSource
+import com.xwab.app.core.playbackengine.port.PlaybackPhase
 import com.xwab.app.core.playbackengine.projection.NowPlayingPublicationKey
 import com.xwab.app.core.playbackengine.projection.NowPlayingUpdateAction
 import com.xwab.app.core.playbackengine.projection.decideNowPlayingUpdate

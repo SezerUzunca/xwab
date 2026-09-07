@@ -53,22 +53,20 @@ include(":core:story:manifest")
 include(":core:playback:session")
 include(":core:playback:engine")
 
-// Crosscutting: used by every slice, tied to no content type, so grouped under none of them.
+// Crosscutting transport capability, tied to no content type.
 include(":core:network")
-include(":core:designsystem")
-include(":core:testing")
+// UI and test support are outside core because they are not application capability ports.
+include(":designsystem")
+include(":testing")
 include(":shared")
 
-// Feature modules follow Now in Android's public-contract/implementation split. Every directory
-// under `feature/` owns an `api` module and an `impl` module; the parent is only a container.
+// A feature is one cohesive module. Its Navigation 3 route is the only public contract; screen,
+// state and presentation logic remain internal in the same module.
 rootDir.resolve("feature").listFiles()
     ?.filter {
-        it.isDirectory &&
-            it.resolve("api/build.gradle.kts").exists() &&
-            it.resolve("impl/build.gradle.kts").exists()
+        it.isDirectory && it.resolve("build.gradle.kts").exists()
     }
     ?.sortedBy { it.name }
     ?.forEach { featureDir ->
-        include(":feature:${featureDir.name}:api")
-        include(":feature:${featureDir.name}:impl")
+        include(":feature:${featureDir.name}")
     }

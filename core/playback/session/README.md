@@ -2,9 +2,8 @@
 
 One capability: **the single playback session the app runs.**
 
-`PlaybackCoordinator` is the port every screen steers playback through, and `PlaybackSummary` is
-the engine-independent view they render. Not a repository — there is nothing here to store or
-query, only a live session to drive.
+`PlaybackPort` is the port every screen steers playback through, and `PlaybackSummary` is the
+engine-independent view they render. It is a live command/state boundary, not a persistence layer.
 
 The session is content-independent: it plays a `PlaybackItemId`, which is a *kind* and a raw value.
 What that item is, where its bytes come from and whether it should loop are answered by an internal
@@ -13,8 +12,8 @@ resolver, one per kind:
 ```
 core:playback:session
    │
-   ├─ PlaybackCoordinator          the only thing a screen can reach
-   ├─ DefaultPlaybackCoordinator   one item at a time; newest request wins
+   ├─ PlaybackPort          the only thing a screen can reach
+   ├─ DefaultPlaybackAdapter   one item at a time; newest request wins
    ├─ SoundPlaybackResolver        internal
    │    ├─► core:sound:catalog     what the track is called, for the media session to publish
    │    └─► core:sound:delivery    a local file if it is cached, HTTPS if it is not
@@ -34,12 +33,12 @@ two authorities would never be compared.
 
 The catalog, delivery and the engine are all `implementation` dependencies, and nothing this module
 publishes names a type from any of them — so no screen can resolve an item to a URI or touch
-`AudioPlayerState`. `checkArchitecture` rule 4 keeps it that way by failing the build on a feature
+`AudioPlayerState`. `checkArchitecture` keeps it that way by failing the build on a feature
 that adds one of those dependencies, or that reaches one through a module which re-exports it.
 
 The resolvers are `internal` for the same reason the modules behind them are off limits: a resolver
-hands back a URI. A public one could be pulled out of the Koin container by any screen, and the
-boundary would be a comment again.
+hands back a URI. Metro exposes only `PlaybackPort`; the source-resolution chain remains a private
+implementation detail of this module.
 
 ## What it decides
 

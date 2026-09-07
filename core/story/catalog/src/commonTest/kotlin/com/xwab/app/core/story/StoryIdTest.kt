@@ -1,4 +1,4 @@
-package com.xwab.app.core.story
+package com.xwab.app.core.story.port
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

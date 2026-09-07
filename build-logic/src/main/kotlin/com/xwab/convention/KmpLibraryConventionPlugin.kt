@@ -1,5 +1,7 @@
 package com.xwab.convention
 
+import dev.zacsweers.metro.gradle.DiagnosticSeverity
+import dev.zacsweers.metro.gradle.MetroPluginExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -18,6 +20,13 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             // Compile-time DI for every module. Metro is inert without its annotations, and
             // applying it here means no module has to remember to.
             pluginManager.apply("dev.zacsweers.metro")
+            extensions.configure(MetroPluginExtension::class.java) { metro ->
+                // Metro generates a public provider for the bound port while the contributed
+                // adapter itself stays internal to its module. This is the cross-module mode the
+                // port boundary relies on; exposing implementation bindings would undo it.
+                metro.generateContributionProviders.set(true)
+                metro.nonPublicContributionSeverity.set(DiagnosticSeverity.ERROR)
+            }
 
             kotlinMultiplatform {
                 if (iosEnabled) {

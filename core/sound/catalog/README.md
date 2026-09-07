@@ -1,10 +1,10 @@
 # Sound catalog
 
-One capability: **what a listener can pick.** `Music`, `Category`, `TrackId`, and the port screens
-read them through.
+One capability: **what a listener can pick.** `SoundCatalogPort` is the public boundary; `Music`,
+`Category` and their typed ids are public values in the same `sound.port` contract package.
 
-That is the whole module — four declarations and no data. It depends on nothing else in this
-build, and every feature depends on it.
+That is the whole module — a port, its model values and no data. It depends on nothing else in this
+build, and every sound feature depends on it.
 
 `TrackId` is a `@JvmInline value class`, so it erases to the `String` it holds and the safety is
 free — while it stays in a typed position. It is unwrapped in exactly four places, each an edge
@@ -19,16 +19,16 @@ positive — the same way `Story` and `StoryId` do. The two content types are he
 
 The shipped manifest, the HTTPS source behind each track, and the name it caches under live next
 door in [core:sound:manifest](../manifest/README.md), which implements
-`MusicCatalogRepository` and which no feature declares. The split is deliberate: a port that hands
+`SoundCatalogPort` and which no feature declares. The split is deliberate: a port that hands
 out a URL cannot sit in a module that is on every screen's classpath, or "a screen must not resolve
 a track itself" is a convention rather than a fact.
 
 So:
 
-| Port | Answers | Declared by |
+| Port | Answers | Consumed by |
 |---|---|---|
-| `MusicCatalogRepository` (here) | *what is there to play?* | every feature |
-| `AudioSourceCatalog` (next door) | *where do this track's bytes come from?* | `core:sound:delivery` |
+| `SoundCatalogPort` (here) | *what is there to play?* | every sound feature |
+| `SoundSourcePort` (next door) | *where do this track's bytes come from?* | `core:sound:delivery` |
 
 An earlier arrangement had both halves in one module. That put delivery on every feature's
 classpath and made the boundary a `checkArchitecture` rule that scanned source text for two class
