@@ -29,6 +29,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import kotlinx.io.IOException
+import kotlin.time.Duration.Companion.milliseconds
 
 class KtorNetworkAdapterTest {
     private val clients = mutableListOf<HttpClient>()
@@ -158,7 +159,7 @@ class KtorNetworkAdapterTest {
     @Test
     fun aTextRequestThatHangsFailsAsATimeoutAndNotAsACancellation() = runBlocking {
         val client = client(textTimeoutMillis = 30L) {
-            delay(Long.MAX_VALUE)
+            delay(Long.MAX_VALUE.milliseconds)
             respond("never arrives")
         }
 
@@ -171,12 +172,12 @@ class KtorNetworkAdapterTest {
     @Test
     fun aCallersTimeoutRemainsCancellation() = runBlocking {
         val client = client(textTimeoutMillis = 10_000L) {
-            delay(Long.MAX_VALUE)
+            delay(Long.MAX_VALUE.milliseconds)
             respond("never arrives")
         }
 
         assertFailsWith<TimeoutCancellationException> {
-            withTimeout(30L) {
+            withTimeout(30L.milliseconds) {
                 client.getText("https://example.test/catalog.json")
             }
         }
@@ -273,7 +274,7 @@ class KtorNetworkAdapterTest {
         val port = client { respond(channel) }
 
         assertFailsWith<TimeoutCancellationException> {
-            withTimeout(30L) {
+            withTimeout(30L.milliseconds) {
                 port.runOperation(download = true)
             }
         }
