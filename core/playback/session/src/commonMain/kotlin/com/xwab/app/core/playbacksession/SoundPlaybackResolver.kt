@@ -1,9 +1,11 @@
 package com.xwab.app.core.playbacksession
 
-import com.xwab.app.core.audiodelivery.resolution.AudioContentResolver
-import com.xwab.app.core.audiodelivery.resolution.AudioSourceResolution
-import com.xwab.app.core.catalog.MusicCatalogRepository
-import com.xwab.app.core.catalog.TrackId
+import com.xwab.app.core.playback.port.DEFAULT_LOOPING
+import com.xwab.app.core.playback.port.PlaybackKind
+import com.xwab.app.core.sound.port.SoundCatalogPort
+import com.xwab.app.core.sound.port.TrackId
+import com.xwab.app.core.sounddelivery.port.SoundContentPort
+import com.xwab.app.core.sounddelivery.port.SoundContentResolution
 import kotlinx.coroutines.flow.first
 
 /**
@@ -18,8 +20,8 @@ import kotlinx.coroutines.flow.first
  * stays here: a story streams and is not kept, so it must never be resolved through this path.
  */
 internal class SoundPlaybackResolver(
-    private val catalog: MusicCatalogRepository,
-    private val content: AudioContentResolver,
+    private val catalog: SoundCatalogPort,
+    private val content: SoundContentPort,
 ) : PlaybackItemResolver {
     override val kind: PlaybackKind = PlaybackKind.SOUND
 
@@ -28,14 +30,14 @@ internal class SoundPlaybackResolver(
         val music = catalog.observeMusic(trackId).first() ?: return ItemResolution.NotFound
 
         return when (val resolution = content.resolve(trackId)) {
-            is AudioSourceResolution.Resolved -> ItemResolution.Resolved(
+            is SoundContentResolution.Resolved -> ItemResolution.Resolved(
                 uri = resolution.uri,
                 title = music.playbackTitle,
                 artist = music.playbackArtist,
                 policy = SOUND_POLICY,
             )
-            AudioSourceResolution.NotFound -> ItemResolution.NotFound
-            is AudioSourceResolution.Unavailable -> ItemResolution.Unavailable(resolution.reason)
+            SoundContentResolution.NotFound -> ItemResolution.NotFound
+            is SoundContentResolution.Unavailable -> ItemResolution.Unavailable(resolution.reason)
         }
     }
 }

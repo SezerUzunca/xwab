@@ -2,7 +2,7 @@
 
 One capability: **performing shared HTTP operations**.
 
-`NetworkClient` is the application-facing port. Its Ktor implementation owns HTTPS enforcement,
+`NetworkPort` is the public application-facing port. Its internal Ktor adapter owns HTTPS enforcement,
 redirects, connection/socket timeouts, response metadata, text bodies and streamed response bytes.
 Android contributes Ktor's OkHttp engine and iOS contributes Darwin; callers never select an
 engine and never depend on a Ktor type.
@@ -34,6 +34,6 @@ Sound and Story manifests are local application data. Sound delivery decides acc
 types and sizes and writes downloaded bytes through Okio; Story streams go directly from their
 manifest source to the platform player and do not use this client.
 
-There is one client per Koin container and it is closed with that container, preserving the
-engine's connection pool for the lifetime of the application. Screens cannot declare this module;
-they read content through repositories.
+Metro contributes the internal adapter as `NetworkPort` in `AppScope`, so there is one Ktor client
+and one connection pool for the application lifetime. No provider container or implementation type
+is public. Screens do not declare this module; they read content through capability ports.

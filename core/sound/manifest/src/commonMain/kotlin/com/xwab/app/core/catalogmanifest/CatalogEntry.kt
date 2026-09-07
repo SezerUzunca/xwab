@@ -1,6 +1,6 @@
 package com.xwab.app.core.catalogmanifest
 
-import com.xwab.app.core.catalog.Music
+import com.xwab.app.core.sound.port.Music
 
 /**
  * One catalog track and the permanent HTTPS source its audio comes from.
@@ -25,8 +25,10 @@ internal class CatalogEntry(
         require(httpsUrl.startsWith("https://")) { "Catalog audio must use HTTPS." }
         // The pattern rejects a malformed or empty id and a negative version, but accepts v0.
         require(version > 0) { "Catalog audio versions must be positive." }
-        require(CACHE_FILE_NAME.matches(cacheFileName)) {
+        require(CACHE_FILE_NAME_PATTERN.matches(cacheFileName)) {
             "Catalog track ids must cache under a safe file name: $cacheFileName"
         }
     }
 }
+
+private val CACHE_FILE_NAME_PATTERN = Regex("[a-z0-9-]+-v[0-9]+\\.mp3")

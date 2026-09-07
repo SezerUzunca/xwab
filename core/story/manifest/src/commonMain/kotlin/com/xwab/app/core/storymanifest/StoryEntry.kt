@@ -1,6 +1,6 @@
 package com.xwab.app.core.storymanifest
 
-import com.xwab.app.core.story.Story
+import com.xwab.app.core.story.port.Story
 
 /**
  * One story, and where its audio streams from.

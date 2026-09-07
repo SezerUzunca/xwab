@@ -1,7 +1,7 @@
 package com.xwab.app.core.playbackengine.store
 
-import com.xwab.app.core.playbackengine.api.AudioSource
-import com.xwab.app.core.playbackengine.api.PlaybackRequest
+import com.xwab.app.core.playbackengine.port.AudioSource
+import com.xwab.app.core.playbackengine.port.PlaybackRequest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

@@ -1,6 +1,6 @@
 package com.xwab.app.core.playbackengine.timer
 
-import com.xwab.app.core.playbackengine.api.SleepTimerState
+import com.xwab.app.core.playbackengine.port.SleepTimerState
 import com.xwab.app.core.playbackengine.store.remainingDurationUntil
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

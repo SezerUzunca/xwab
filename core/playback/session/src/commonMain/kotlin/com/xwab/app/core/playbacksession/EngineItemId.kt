@@ -1,5 +1,8 @@
 package com.xwab.app.core.playbacksession
 
+import com.xwab.app.core.playback.port.PlaybackItemId
+import com.xwab.app.core.playback.port.PlaybackKind
+
 /**
  * How a [PlaybackItemId] travels through `core:playback:engine`, which identifies a source by plain
  * string and knows nothing about kinds.

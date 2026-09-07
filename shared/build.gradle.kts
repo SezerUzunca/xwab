@@ -52,8 +52,8 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // The composition root binds every core adapter. Features cannot reach the delivery
-            // layer, engine, manifests or network directly; the root declares the graph that does.
+            // The composition root sees every contributed core adapter. Features cannot reach the
+            // delivery layer, engine, manifests or network directly; this module declares the graph.
             implementation(projects.core.sound.catalog)
             implementation(projects.core.sound.manifest)
             implementation(projects.core.sound.delivery)
@@ -63,18 +63,13 @@ kotlin {
             implementation(projects.core.playback.session)
             implementation(projects.core.playback.engine)
             implementation(projects.core.network)
-            implementation(projects.core.designsystem)
+            implementation(projects.designsystem)
 
-            implementation(projects.feature.browse.api)
-            implementation(projects.feature.browse.impl)
-            implementation(projects.feature.favorites.api)
-            implementation(projects.feature.favorites.impl)
-            implementation(projects.feature.category.api)
-            implementation(projects.feature.category.impl)
-            implementation(projects.feature.sounds.api)
-            implementation(projects.feature.sounds.impl)
-            implementation(projects.feature.story.api)
-            implementation(projects.feature.story.impl)
+            implementation(projects.feature.browse)
+            implementation(projects.feature.favorites)
+            implementation(projects.feature.category)
+            implementation(projects.feature.sounds)
+            implementation(projects.feature.story)
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.ui)
@@ -88,14 +83,14 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
-            implementation(projects.core.testing)
-            // The root's navigation contract tests deliberately assert that every public API
+            implementation(projects.testing)
+            // The root's navigation contract tests deliberately assert that every public
             // route can be restored and rendered.
-            implementation(projects.feature.browse.api)
-            implementation(projects.feature.favorites.api)
-            implementation(projects.feature.category.api)
-            implementation(projects.feature.sounds.api)
-            implementation(projects.feature.story.api)
+            implementation(projects.feature.browse)
+            implementation(projects.feature.favorites)
+            implementation(projects.feature.category)
+            implementation(projects.feature.sounds)
+            implementation(projects.feature.story)
         }
     }
 }

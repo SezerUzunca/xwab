@@ -1,11 +1,9 @@
 package com.xwab.app.core.audiodelivery.cache
 
-import com.xwab.app.core.catalogmanifest.CACHE_FILE_NAME
-
 /**
  * The name a transfer is staged under until it is complete.
  *
- * Deliberately fails [CACHE_FILE_NAME]: [find][AudioFileStore.find] must not report it as a cache
+ * Deliberately fails [AUDIO_CACHE_FILE_NAME]: [find][AudioFileStore.find] must not report it as a cache
  * hit, and [unreferencedCacheFileNames] must not sweep it out from under a running transfer.
  *
  * Staging is delivery's business rather than the catalog's — the catalog knows the name a finished
@@ -19,11 +17,11 @@ internal fun partialCacheFileName(cacheFileName: String): String = ".$cacheFileN
  * name simply stops being asked for. Nothing else clears them, so without this a build that changes
  * the manifest would leave its predecessors on disk for the life of the install.
  *
- * [keep] comes from `AudioSourceCatalog.cacheFileNames`, so the catalog stays the one place that
+ * [keep] comes from `SoundSourcePort.cacheFileNames`, so the catalog stays the one place that
  * decides which tracks exist.
  *
  * Only well-formed names are returned. A download in progress is staged under a name that fails
- * [CACHE_FILE_NAME], so a sweep can never pull a file out from under a running transfer.
+ * [AUDIO_CACHE_FILE_NAME], so a sweep can never pull a file out from under a running transfer.
  */
 internal fun unreferencedCacheFileNames(existing: List<String>, keep: Set<String>): List<String> =
-    existing.filter { name -> name !in keep && CACHE_FILE_NAME.matches(name) }
+    existing.filter { name -> name !in keep && AUDIO_CACHE_FILE_NAME.matches(name) }

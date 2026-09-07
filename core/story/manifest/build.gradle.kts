@@ -7,7 +7,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // The types the manifest is written in, and the repository interface it implements.
+            // Story models used by the manifest and by the public source port.
             api(projects.core.story.catalog)
             api(libs.kotlinx.coroutines.core)
         }

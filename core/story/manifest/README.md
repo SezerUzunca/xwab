@@ -7,22 +7,22 @@ It mirrors the catalog/source split in
 
 | Port | Answers | Read by | Declared in |
 |---|---|---|---|
-| `StoryCatalogRepository` | What can be listened to? | screens and playback metadata resolution | `core:story:catalog` |
-| `StoryStreamCatalog` | Which HTTPS source plays this story? | `core:playback:session` | this module |
+| `StoryCatalogPort` | What can be listened to? | screens and playback metadata resolution | `core:story:catalog` |
+| `StorySourcePort` | Which HTTPS source plays this story? | `core:playback:session` | this module |
 
 Both ports are derived from one local `storyManifest` row, so metadata and audio cannot be added
 in unrelated edits. Every shipped row has a required HTTPS MP3 source; an unknown id is the only
-normal reason `StoryStreamCatalog.sourceFor` returns `null`.
+normal reason `StorySourcePort.sourceFor` returns `null`.
 
 ## Boundary
 
-No feature declares this module. `checkArchitecture` rule 4 rejects such a dependency because a
-screen should list stories through `StoryCatalogRepository`, not retrieve physical media URLs.
+No feature declares this module. `checkArchitecture` rejects such a dependency because a
+screen should list stories through `StoryCatalogPort`, not retrieve physical media URLs.
 The composition root and playback session are the intended consumers.
 
 This module contains no Ktor client, feed DTO, JSON parser, refresh job, retry policy, logger, or
-database. Its common code owns only manifest data, validation, repository mapping, and source
-mapping. There are no Android/iOS source sets because none of those jobs is platform-specific.
+database. Its common code owns only manifest data, validation, and internal adapters for the two
+ports. There are no Android/iOS source sets because none of those jobs is platform-specific.
 
 ## Direct Story streaming
 

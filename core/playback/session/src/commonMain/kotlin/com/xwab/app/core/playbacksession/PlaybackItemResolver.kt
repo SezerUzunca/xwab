@@ -1,5 +1,8 @@
 package com.xwab.app.core.playbacksession
 
+import com.xwab.app.core.playback.port.PlaybackItemId
+import com.xwab.app.core.playback.port.PlaybackKind
+
 /**
  * How the session turns one kind of item into something the engine can open.
  *
@@ -7,7 +10,7 @@ package com.xwab.app.core.playbacksession
  * its own: a resolver hands back a playback source, so a public one would let any screen resolve
  * `PlaybackItemResolver` out of the container and read the address of a file the session is
  * supposed to be the only route to. Kept here, the only thing a screen can reach is
- * [PlaybackCoordinator].
+ * [com.xwab.app.core.playback.port.PlaybackPort].
  *
  * Adding a kind is adding one implementation and one line in the DI module. Nothing else in the
  * build changes shape — which is the whole point of the session speaking [PlaybackItemId].

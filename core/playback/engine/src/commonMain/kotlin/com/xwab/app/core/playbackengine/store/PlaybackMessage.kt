@@ -1,9 +1,9 @@
 package com.xwab.app.core.playbackengine.store
 
-import com.xwab.app.core.playbackengine.api.AudioSource
-import com.xwab.app.core.playbackengine.api.PlaybackCommand
-import com.xwab.app.core.playbackengine.api.PlaybackError
-import com.xwab.app.core.playbackengine.api.PlaybackRequest
+import com.xwab.app.core.playbackengine.port.AudioSource
+import com.xwab.app.core.playbackengine.port.PlaybackCommand
+import com.xwab.app.core.playbackengine.port.PlaybackError
+import com.xwab.app.core.playbackengine.port.PlaybackRequest
 
 /**
  * The single mailbox message type consumed by [reducePlayback].

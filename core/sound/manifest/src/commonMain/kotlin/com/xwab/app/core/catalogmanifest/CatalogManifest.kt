@@ -1,9 +1,9 @@
 package com.xwab.app.core.catalogmanifest
 
-import com.xwab.app.core.catalog.Category
-import com.xwab.app.core.catalog.CategoryId
-import com.xwab.app.core.catalog.Music
-import com.xwab.app.core.catalog.TrackId
+import com.xwab.app.core.sound.port.Category
+import com.xwab.app.core.sound.port.CategoryId
+import com.xwab.app.core.sound.port.Music
+import com.xwab.app.core.sound.port.TrackId
 
 /**
  * Track metadata and the permanent HTTPS source behind it, in one hand-written list.
@@ -12,8 +12,8 @@ import com.xwab.app.core.catalog.TrackId
  * three-module change was the *other* kind of coupling — metadata in `core:data`, resource names in
  * the domain model, MP3s in `core:playback` — and none of those are split by capability.
  *
- * The list itself never leaves this module. Screens see it through [MusicCatalogRepository], and
- * `core:sound:delivery` sees only the physical half through [AudioSourceCatalog]; neither port can
+ * The list itself never leaves this module. Screens see it through [SoundCatalogPort], and
+ * `core:sound:delivery` sees only the physical half through [SoundSourcePort]; neither port can
  * be used to reach the other's business.
  *
  * Durations are the source recordings' own, so they no longer match the shorter, crossfaded copies

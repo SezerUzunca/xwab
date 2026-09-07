@@ -4,15 +4,15 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 
 /**
- * `xwab.kmp.feature` — what every screen in this app is built out of regardless of what it shows:
- * [KmpComposeConventionPlugin], the design system, Navigation 3 runtime and the Compose surface.
+ * `xwab.kmp.feature` — a complete feature slice: its Navigation 3 route and serializer, screen,
+ * state and presentation logic all live in one module.
  *
  * Capability modules are deliberately **not** here. A feature declares the ones it reads in its own
- * build file, which is what lets `checkArchitecture` state rule 4 as a dependency edge — a feature
+ * build file, which lets `checkArchitecture` enforce adapter boundaries as dependency edges — a feature
  * may not declare `core:sound:delivery` or `core:playback:engine` — instead of scanning sources for
  * class names. Handing every core module to every feature is what made that impossible before.
- * This is also why `core:testing` is declared per feature: a slice that reads two capabilities has
- * no business compiling against fakes for a third.
+ * Test support is declared per feature: a slice that reads two capabilities has no business
+ * compiling against fakes for a third.
  *
  * A feature must never depend on another feature module either — again rule-checked rather than
  * prevented, since nothing stops a build file from declaring one.
@@ -21,11 +21,13 @@ class KmpFeatureConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
             pluginManager.apply(KmpComposeConventionPlugin::class.java)
+            pluginManager.apply("org.jetbrains.kotlin.plugin.serialization")
 
             kotlinMultiplatform {
                 dependenciesOf("commonMain") {
-                    implementation(project(":core:designsystem"))
-                    implementation(libs.library("navigation3-runtime"))
+                    implementation(project(":designsystem"))
+                    api(libs.library("navigation3-runtime"))
+                    api(libs.library("kotlinx-serialization-core"))
                     implementation(libs.library("compose-foundation"))
                     implementation(libs.library("compose-material3"))
                     implementation(libs.library("compose-ui"))

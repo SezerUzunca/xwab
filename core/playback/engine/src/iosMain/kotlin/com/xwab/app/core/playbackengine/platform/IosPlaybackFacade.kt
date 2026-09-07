@@ -3,13 +3,13 @@
 package com.xwab.app.core.playbackengine.platform
 
 import co.touchlab.kermit.Logger
-import com.xwab.app.core.playbackengine.api.AudioPlayerState
-import com.xwab.app.core.playbackengine.api.AudioSource
-import com.xwab.app.core.playbackengine.api.PlaybackCommand
-import com.xwab.app.core.playbackengine.api.PlaybackController
-import com.xwab.app.core.playbackengine.api.PlaybackError
-import com.xwab.app.core.playbackengine.api.PlaybackErrorCode
-import com.xwab.app.core.playbackengine.api.SleepTimerState
+import com.xwab.app.core.playbackengine.port.AudioPlayerState
+import com.xwab.app.core.playbackengine.port.AudioSource
+import com.xwab.app.core.playbackengine.port.PlaybackCommand
+import com.xwab.app.core.playbackengine.port.PlaybackEnginePort
+import com.xwab.app.core.playbackengine.port.PlaybackError
+import com.xwab.app.core.playbackengine.port.PlaybackErrorCode
+import com.xwab.app.core.playbackengine.port.SleepTimerState
 import com.xwab.app.core.playbackengine.projection.projectPlaybackState
 import com.xwab.app.core.playbackengine.store.PlaybackMessage
 import com.xwab.app.core.playbackengine.store.PlaybackSideEffect
@@ -19,16 +19,15 @@ import com.xwab.app.core.playbackengine.store.playbackPhase
 import com.xwab.app.core.playbackengine.store.sleepTimerDeadline
 import com.xwab.app.core.playbackengine.store.toMessage
 import com.xwab.app.core.playbackengine.timer.SleepTimerTicker
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlin.time.TimeSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import platform.Foundation.NSThread
-
-fun createIosPlaybackController(): PlaybackController {
-    check(NSThread.isMainThread) { "createIosPlaybackController must be called on the main thread." }
-    return IosPlaybackFacade()
-}
 
 /**
  * A millisecond reading of a process-local monotonic clock.
@@ -42,7 +41,13 @@ private fun monotonicMillisSource(): () -> Long {
     return { origin.elapsedNow().inWholeMilliseconds }
 }
 
-private class IosPlaybackFacade : PlaybackController {
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+@Inject
+internal class IosPlaybackFacade : PlaybackEnginePort {
+    init {
+        check(NSThread.isMainThread) { "IosPlaybackFacade must be created on the main thread." }
+    }
     private val mutableState = MutableStateFlow(AudioPlayerState())
     override val state: StateFlow<AudioPlayerState> = mutableState.asStateFlow()
     private val nowMs: () -> Long = monotonicMillisSource()

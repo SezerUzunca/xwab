@@ -22,7 +22,7 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.xwab.app.core.playbackengine.store.remainingDurationUntil
 
-class PlaybackService : MediaSessionService() {
+internal class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
     private var player: ExoPlayer? = null

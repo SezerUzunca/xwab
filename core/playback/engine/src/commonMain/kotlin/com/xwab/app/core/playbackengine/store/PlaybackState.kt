@@ -1,10 +1,10 @@
 package com.xwab.app.core.playbackengine.store
 
-import com.xwab.app.core.playbackengine.api.AudioPlayerState
-import com.xwab.app.core.playbackengine.api.AudioSource
-import com.xwab.app.core.playbackengine.api.PlaybackError
-import com.xwab.app.core.playbackengine.api.PlaybackPhase
-import com.xwab.app.core.playbackengine.api.PlaybackRequest
+import com.xwab.app.core.playbackengine.port.AudioPlayerState
+import com.xwab.app.core.playbackengine.port.AudioSource
+import com.xwab.app.core.playbackengine.port.PlaybackError
+import com.xwab.app.core.playbackengine.port.PlaybackPhase
+import com.xwab.app.core.playbackengine.port.PlaybackRequest
 
 /**
  * Internal state owned by the [reducePlayback] function.

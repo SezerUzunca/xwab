@@ -1,5 +1,6 @@
 package com.xwab.app.core.playbacksession
 
+import com.xwab.app.core.playback.port.PlaybackItemId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

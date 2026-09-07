@@ -1,8 +1,7 @@
 package com.xwab.app.core.audiodelivery.cache
 
-import com.xwab.app.core.catalogmanifest.AudioSourceCatalog
-import com.xwab.app.core.catalogmanifest.CACHE_FILE_NAME
-import com.xwab.app.core.network.NetworkClient
+import com.xwab.app.core.network.port.NetworkPort
+import com.xwab.app.core.soundsource.port.SoundSourcePort
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -25,8 +24,8 @@ import okio.use
 internal class CachingAudioFileStore(
     private val fileSystem: FileSystem,
     private val root: Path,
-    private val network: NetworkClient,
-    private val sourceCatalog: AudioSourceCatalog,
+    private val networkPort: NetworkPort,
+    private val sourcePort: SoundSourcePort,
     private val fileDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : AudioFileStore {
     override suspend fun find(cacheFileName: String): String? {
@@ -96,7 +95,7 @@ internal class CachingAudioFileStore(
     private suspend fun writeDownload(partial: Path, remoteHttpsUrl: String) {
         fileSystem.openReadWrite(partial, mustCreate = true, mustExist = false).use { handle ->
             handle.sink().buffer().use { sink ->
-                network.downloadAudio(remoteHttpsUrl) { bytes, count ->
+                networkPort.downloadAudio(remoteHttpsUrl) { bytes, count ->
                     sink.write(bytes, 0, count)
                 }
             }
@@ -106,7 +105,7 @@ internal class CachingAudioFileStore(
 
     private fun removeUnreferencedFiles() {
         val cachedNames = fileSystem.list(root).map(Path::name)
-        unreferencedCacheFileNames(cachedNames, sourceCatalog.cacheFileNames).forEach { name ->
+        unreferencedCacheFileNames(cachedNames, sourcePort.cacheFileNames).forEach { name ->
             fileSystem.delete(pathOf(name), mustExist = false)
         }
     }
@@ -114,6 +113,8 @@ internal class CachingAudioFileStore(
     private fun pathOf(fileName: String): Path = root / fileName
 
     private fun requireSafeName(cacheFileName: String) {
-        require(CACHE_FILE_NAME.matches(cacheFileName)) { "Unsafe audio cache file name." }
+        require(AUDIO_CACHE_FILE_NAME.matches(cacheFileName)) { "Unsafe audio cache file name." }
     }
 }
+
+internal val AUDIO_CACHE_FILE_NAME = Regex("[a-z0-9-]+-v[0-9]+\\.mp3")

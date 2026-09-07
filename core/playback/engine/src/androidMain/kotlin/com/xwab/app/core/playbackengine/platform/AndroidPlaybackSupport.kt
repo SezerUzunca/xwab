@@ -3,9 +3,9 @@ package com.xwab.app.core.playbackengine.platform
 import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import com.xwab.app.core.playbackengine.api.PlaybackError
-import com.xwab.app.core.playbackengine.api.PlaybackErrorCode
-import com.xwab.app.core.playbackengine.api.PlaybackPhase
+import com.xwab.app.core.playbackengine.port.PlaybackError
+import com.xwab.app.core.playbackengine.port.PlaybackErrorCode
+import com.xwab.app.core.playbackengine.port.PlaybackPhase
 import com.xwab.app.core.playbackengine.store.playbackPhase
 
 /**

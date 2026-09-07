@@ -11,11 +11,11 @@ kotlin {
             api(projects.core.sound.catalog)
             // `implementation`, not `api`: where favorites are written is this module's business.
             // Nothing it publishes names a DataStore type any more — the platform halves bind
-            // `FavoritesRepository` itself — so DataStore stops here instead of landing on the
+            // `FavoritesPort` itself — so DataStore stops here instead of landing on the
             // compile classpath of every feature that reads a favourite.
             implementation(libs.androidx.datastore)
             implementation(libs.androidx.datastore.preferences)
-            // The favorites repository publishes Flow.
+            // FavoritesPort publishes Flow.
             api(libs.kotlinx.coroutines.core)
             implementation(libs.kermit)
         }

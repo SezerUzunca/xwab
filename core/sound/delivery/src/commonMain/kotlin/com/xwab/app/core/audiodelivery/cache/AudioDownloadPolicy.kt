@@ -1,6 +1,6 @@
 package com.xwab.app.core.audiodelivery.cache
 
-import com.xwab.app.core.network.NetworkClient
+import com.xwab.app.core.network.port.NetworkPort
 
 /**
  * The ceiling a cached track may not cross. Generous for a sleep sound and small enough that a
@@ -55,7 +55,7 @@ internal fun requireWithinSizeLimit(bytes: Long) {
  * The Okio sink provides only [writeChunk]; HTTP headers, response checks and byte accounting are
  * identical on Android and iOS and therefore belong in this common Sound adapter.
  */
-internal suspend fun NetworkClient.downloadAudio(
+internal suspend fun NetworkPort.downloadAudio(
     remoteHttpsUrl: String,
     writeChunk: (bytes: ByteArray, count: Int) -> Unit,
 ) {

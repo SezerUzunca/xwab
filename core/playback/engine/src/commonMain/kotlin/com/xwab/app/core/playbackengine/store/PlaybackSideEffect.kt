@@ -1,6 +1,6 @@
 package com.xwab.app.core.playbackengine.store
 
-import com.xwab.app.core.playbackengine.api.PlaybackRequest
+import com.xwab.app.core.playbackengine.port.PlaybackRequest
 
 /**
  * Imperative instructions returned by [reducePlayback] alongside the new state.

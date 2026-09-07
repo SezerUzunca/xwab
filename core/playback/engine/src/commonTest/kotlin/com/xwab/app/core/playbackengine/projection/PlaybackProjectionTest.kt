@@ -1,10 +1,10 @@
 package com.xwab.app.core.playbackengine.projection
 
-import com.xwab.app.core.playbackengine.api.AudioSource
-import com.xwab.app.core.playbackengine.api.PlaybackError
-import com.xwab.app.core.playbackengine.api.PlaybackErrorCode
-import com.xwab.app.core.playbackengine.api.PlaybackPhase
-import com.xwab.app.core.playbackengine.api.PlaybackRequest
+import com.xwab.app.core.playbackengine.port.AudioSource
+import com.xwab.app.core.playbackengine.port.PlaybackError
+import com.xwab.app.core.playbackengine.port.PlaybackErrorCode
+import com.xwab.app.core.playbackengine.port.PlaybackPhase
+import com.xwab.app.core.playbackengine.port.PlaybackRequest
 import com.xwab.app.core.playbackengine.store.DesiredPlayback
 import com.xwab.app.core.playbackengine.store.ObservedPlayback
 import com.xwab.app.core.playbackengine.store.PendingReconciliation

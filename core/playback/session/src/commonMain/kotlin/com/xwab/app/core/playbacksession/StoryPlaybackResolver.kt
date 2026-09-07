@@ -1,8 +1,9 @@
 package com.xwab.app.core.playbacksession
 
-import com.xwab.app.core.story.StoryCatalogRepository
-import com.xwab.app.core.story.StoryId
-import com.xwab.app.core.storymanifest.StoryStreamCatalog
+import com.xwab.app.core.playback.port.PlaybackKind
+import com.xwab.app.core.story.port.StoryCatalogPort
+import com.xwab.app.core.story.port.StoryId
+import com.xwab.app.core.storysource.port.StorySourcePort
 import kotlinx.coroutines.flow.first
 
 /**
@@ -17,8 +18,8 @@ import kotlinx.coroutines.flow.first
  * for a catalog/source mismatch, while an unknown catalog id is `NotFound`.
  */
 internal class StoryPlaybackResolver(
-    private val catalog: StoryCatalogRepository,
-    private val streams: StoryStreamCatalog,
+    private val catalog: StoryCatalogPort,
+    private val streams: StorySourcePort,
 ) : PlaybackItemResolver {
     override val kind: PlaybackKind = PlaybackKind.STORY
 

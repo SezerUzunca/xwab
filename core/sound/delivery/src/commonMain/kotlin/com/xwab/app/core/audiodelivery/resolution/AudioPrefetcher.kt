@@ -3,7 +3,7 @@ package com.xwab.app.core.audiodelivery.resolution
 /**
  * Fills the local audio cache in the background.
  *
- * Kept apart from [LocalFirstAudioContentResolver] because the two answer different questions: the
+ * Kept apart from [LocalFirstSoundContentPort] because the two answer different questions: the
  * resolver decides which URI is playable *now*, this one decides what is worth fetching for later
  * and how hard to try. Fetching is also the only half of the pair that owns a lifecycle, which is
  * why [close] belongs on this port rather than on the resolver.

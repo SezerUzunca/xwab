@@ -10,32 +10,35 @@ import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
 
 /**
- * Runs the five rules that keep feature slices independent. All of them are easy to break by
+ * Runs the rules that keep feature slices independent and core capabilities port-only. They are
+ * easy to break by
  * accident and none of them fail to compile, which is why they are checked rather than written
  * down.
  *
  * 1. A core module may not depend on a feature. Dependencies point one way.
  * 2. A feature may not depend on another feature module. Cross-feature navigation is application
- *    policy: an entry provider exposes an intent callback and `:shared` connects it to a route API.
- * 3. A use case in a core module must serve more than one feature. A screen-specific one belongs
+ *    policy: an entry provider exposes an intent callback and `:shared` connects it to a route.
+ * 3. A feature is exactly one `:feature:<name>` module; nested `api` / `impl` projects are invalid.
+ * 4. A use case in a core module must serve more than one feature. A screen-specific one belongs
  *    to that screen's module, otherwise screen logic leaks into shared capabilities.
- * 4. A feature may not declare — or reach through an `api` dependency — a module in
+ * 5. A feature may not declare — or reach through an `api` dependency — a module in
  *    [FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES].
  *    Fetching audio, driving a platform player and reading the shipped manifest are things done on
  *    a screen's behalf; a screen reaching any of them directly bypasses the port that exists for it.
- * 5. The app navigation package may depend on feature APIs, but feature implementation entry
- *    assembly belongs to the application composition root.
+ * 6. The app navigation package may depend on feature route contracts, but feature entry assembly
+ *    belongs to the application composition root.
+ * 7. A core capability exposes declarations only from an explicit `port` package; everything else
+ *    is internal or private.
+ * 8. References crossing between core modules target only `port` packages.
+ * 9. Core declares no repository/provider abstractions; a feature may own one if it truly needs it.
+ * 10. Koin and physical `api` / `impl` source layouts may not return; Metro and cohesive modules
+ *     are project-wide decisions.
  *
  * The rules themselves live in [FeatureFirstRules], where they are unit-tested from both sides.
- * This task is only their plumbing: it collects the dependency graph and the sources rules 3 and 5
- * read.
+ * This task is only their plumbing: it collects the dependency graph and source/configuration files.
  *
- * Rule 4 replaces one that scanned feature sources for the strings `AudioContentResolver` and
- * `AudioFileStore`. That version existed because the catalog and delivery shared a module, so
- * delivery was on every feature's classpath and the graph could not tell a legitimate dependency
- * from an illegitimate reach through it. Splitting capabilities apart until each boundary was a
- * real edge is what made the check possible — and an edge survives a rename, which a quoted class
- * name did not.
+ * Rule 5 is graph-based: adapter-only capabilities are represented by real dependency edges, so
+ * enforcement survives implementation renames and follows re-exported dependencies as well.
  */
 abstract class CheckArchitectureTask : DefaultTask() {
 
@@ -45,23 +48,31 @@ abstract class CheckArchitectureTask : DefaultTask() {
 
     /**
      * The same, narrowed to `api` configurations: the dependencies that do not stop at the module
-     * declaring them. Rule 4 follows these, so a forbidden module cannot reach a screen by being
+     * declaring them. Rule 5 follows these, so a forbidden module cannot reach a screen by being
      * re-exported from a module the screen is allowed to declare.
      */
     @get:Input
     abstract val moduleApiDependencies: MapProperty<String, List<String>>
 
-    /** The repository root; rule 3 reads Kotlin sources under it. */
+    /** The repository root; source-level rules read Kotlin files under it. */
     @get:Internal
     abstract val repositoryRoot: DirectoryProperty
 
     @TaskAction
     fun check() {
         val graph = moduleDependencies.get()
+        val root = repositoryRoot.get().asFile
+        val coreSources = coreProductionSources(root, graph.keys)
         val violations = FeatureFirstRules.staleRuleViolations(graph.keys) +
+            FeatureFirstRules.featureModuleShapeViolations(graph.keys) +
+            FeatureFirstRules.legacySplitDirectoryViolations(legacySplitDirectories(root)) +
+            FeatureFirstRules.koinUsageViolations(architectureTextSources(root)) +
             FeatureFirstRules.dependencyViolations(graph, moduleApiDependencies.get()) +
-            leakedUseCaseViolations(repositoryRoot.get().asFile, graph.keys) +
-            navigationImplementationImportViolations(repositoryRoot.get().asFile)
+            leakedUseCaseViolations(root, graph.keys) +
+            navigationImplementationImportViolations(root) +
+            FeatureFirstRules.coreVisibilityViolations(coreSources) +
+            FeatureFirstRules.coreImportViolations(coreSources) +
+            FeatureFirstRules.legacyCoreAbstractionViolations(coreSources)
 
         if (violations.isNotEmpty()) {
             throw GradleException(
@@ -75,8 +86,28 @@ abstract class CheckArchitectureTask : DefaultTask() {
         logger.lifecycle("Feature-first rules hold across ${graph.size} modules.")
     }
 
+    /** Only production source sets participate; tests may expose fixtures without changing ABI. */
+    private fun coreProductionSources(
+        root: File,
+        modulePaths: Set<String>,
+    ): List<FeatureFirstRules.CoreSource> {
+        val packageDeclaration = Regex("""^\s*package\s+([A-Za-z0-9_.]+)\s*$""", RegexOption.MULTILINE)
+        return kotlinSourcesIn(root.resolve("core")).mapNotNull { file ->
+            val path = file.relativeTo(root).invariantSeparatorsPath
+            val sourceSet = path.substringAfter("/src/", missingDelimiterValue = "")
+                .substringBefore('/')
+            if (!sourceSet.endsWith("Main")) return@mapNotNull null
+
+            val module = FeatureFirstRules.owningModule(path, modulePaths) ?: return@mapNotNull null
+            val text = file.readText()
+            val packageName = packageDeclaration.find(text)?.groupValues?.get(1)
+                .orEmpty()
+            FeatureFirstRules.CoreSource(path, module, packageName, text)
+        }
+    }
+
     /**
-     * Reads what rule 3 needs off the file system, then hands it to [FeatureFirstRules].
+     * Reads what rule 4 needs off the file system, then hands it to [FeatureFirstRules].
      *
      * @param modulePaths every module in the build, which is how a source file under a grouped
      *   core module — `core/sound/catalog`, not `core/catalog` — is attributed to the module that
@@ -119,6 +150,35 @@ abstract class CheckArchitectureTask : DefaultTask() {
         }
         return FeatureFirstRules.navigationImplementationImportViolations(sources)
     }
+
+    private fun legacySplitDirectories(root: File): List<String> =
+        listOf(root.resolve("core"), root.resolve("feature")).flatMap { sourceRoot ->
+            if (!sourceRoot.isDirectory) return@flatMap emptyList()
+            sourceRoot.walkTopDown()
+                .onEnter { it.name != "build" }
+                .filter { it.isDirectory && it.name in setOf("api", "impl") }
+                .map { it.relativeTo(root).invariantSeparatorsPath }
+                .toList()
+        }
+
+    private fun architectureTextSources(root: File): Map<String, String> =
+        root.walkTopDown()
+            .onEnter { directory ->
+                directory == root || directory.name !in setOf(
+                    ".git",
+                    ".gradle",
+                    ".idea",
+                    ".claude",
+                    ".agents",
+                    "build",
+                )
+            }
+            .filter { file ->
+                file.isFile && file.extension in setOf("kt", "kts", "toml")
+            }
+            .associate { file ->
+                file.relativeTo(root).invariantSeparatorsPath to file.readText()
+            }
 
     /** Kotlin sources under [dir], skipping Gradle output so generated code is never read. */
     private fun kotlinSourcesIn(dir: File): List<File> = dir.walkTopDown()

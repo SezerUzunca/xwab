@@ -6,7 +6,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.navigation3.runtime.NavKey
-import com.xwab.app.core.ui.theme.SleepRelaxTheme
+import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import com.xwab.app.navigation.TopLevelDestination
 
 /** Application chrome for switching between app-owned top-level destinations. */

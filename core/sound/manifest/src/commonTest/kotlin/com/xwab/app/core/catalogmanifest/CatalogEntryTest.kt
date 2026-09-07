@@ -1,8 +1,8 @@
 package com.xwab.app.core.catalogmanifest
 
-import com.xwab.app.core.catalog.CategoryId
-import com.xwab.app.core.catalog.Music
-import com.xwab.app.core.catalog.TrackId
+import com.xwab.app.core.sound.port.CategoryId
+import com.xwab.app.core.sound.port.Music
+import com.xwab.app.core.sound.port.TrackId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

@@ -1,9 +1,9 @@
 package com.xwab.app.core.audiodelivery.cache
 
-import com.xwab.app.core.audiodelivery.catalogKeeping
-import com.xwab.app.core.catalogmanifest.AudioSourceCatalog
-import com.xwab.app.core.network.NetworkClient
-import com.xwab.app.core.network.NetworkResponse
+import com.xwab.app.core.audiodelivery.sourcePortKeeping
+import com.xwab.app.core.soundsource.port.SoundSourcePort
+import com.xwab.app.core.network.port.NetworkPort
+import com.xwab.app.core.network.port.NetworkResponse
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -71,7 +71,7 @@ class CachingAudioFileStoreTest {
     @Test
     fun anAlreadyCachedFileIsNotFetchedAgain() = runBlocking {
         writeFile(FILE_NAME, byteArrayOf(1))
-        val network = FakeNetworkClient()
+        val network = FakeNetworkPort()
 
         store(network).download(FILE_NAME, REMOTE_URL)
 
@@ -82,7 +82,7 @@ class CachingAudioFileStoreTest {
     @Test
     fun aFetchedFileIsStagedAndThenAtomicallyPromoted() = runBlocking {
         val body = byteArrayOf(1, 2, 3, 4)
-        val network = FakeNetworkClient(body = body)
+        val network = FakeNetworkPort(body = body)
 
         store(network).download(FILE_NAME, REMOTE_URL)
 
@@ -97,7 +97,7 @@ class CachingAudioFileStoreTest {
         writeFile(kept, byteArrayOf(1))
         writeFile("long-gone-v1.mp3", byteArrayOf(2))
 
-        store(sourceCatalog = catalogKeeping(FILE_NAME, kept)).download(FILE_NAME, REMOTE_URL)
+        store(sourcePort = sourcePortKeeping(FILE_NAME, kept)).download(FILE_NAME, REMOTE_URL)
 
         assertNull(fileSystem.metadataOrNull(ROOT / "long-gone-v1.mp3"))
         assertContentEquals(byteArrayOf(1), readFile(kept))
@@ -105,7 +105,7 @@ class CachingAudioFileStoreTest {
 
     @Test
     fun aNetworkFailureLeavesNoStagedFileBehind() = runBlocking {
-        val network = FakeNetworkClient(failure = IllegalStateException("host unreachable"))
+        val network = FakeNetworkPort(failure = IllegalStateException("host unreachable"))
 
         assertFailsWith<IllegalStateException> { store(network).download(FILE_NAME, REMOTE_URL) }
 
@@ -114,7 +114,7 @@ class CachingAudioFileStoreTest {
 
     @Test
     fun anEmptyTransferIsRefusedAndNotPromoted() = runBlocking {
-        val network = FakeNetworkClient(body = byteArrayOf(), contentLength = 0L)
+        val network = FakeNetworkPort(body = byteArrayOf(), contentLength = 0L)
 
         assertFailsWith<IllegalStateException> { store(network).download(FILE_NAME, REMOTE_URL) }
 
@@ -124,7 +124,7 @@ class CachingAudioFileStoreTest {
     @Test
     fun aCancelledTransferStillClearsWhatItStaged() = runBlocking {
         val staged = CompletableDeferred<Unit>()
-        val network = FakeNetworkClient(
+        val network = FakeNetworkPort(
             body = byteArrayOf(1, 2, 3),
             afterChunk = {
                 staged.complete(Unit)
@@ -143,7 +143,7 @@ class CachingAudioFileStoreTest {
 
     @Test
     fun anUnsafeNameNeverReachesTheFileSystemOrNetwork() = runBlocking {
-        val network = FakeNetworkClient()
+        val network = FakeNetworkPort()
 
         assertFailsWith<IllegalArgumentException> { store(network).find("../etc/passwd") }
         assertFailsWith<IllegalArgumentException> {
@@ -162,13 +162,13 @@ class CachingAudioFileStoreTest {
     }
 
     private fun store(
-        network: NetworkClient = FakeNetworkClient(),
-        sourceCatalog: AudioSourceCatalog = catalogKeeping(FILE_NAME),
+        network: NetworkPort = FakeNetworkPort(),
+        sourcePort: SoundSourcePort = sourcePortKeeping(FILE_NAME),
     ) = CachingAudioFileStore(
         fileSystem = fileSystem,
         root = ROOT,
-        network = network,
-        sourceCatalog = sourceCatalog,
+        networkPort = network,
+        sourcePort = sourcePort,
         fileDispatcher = Dispatchers.Default,
     )
 
@@ -180,12 +180,12 @@ class CachingAudioFileStoreTest {
     private fun readFile(name: String): ByteArray =
         fileSystem.source(ROOT / name).buffer().use { it.readByteArray() }
 
-    private class FakeNetworkClient(
+    private class FakeNetworkPort(
         private val body: ByteArray = byteArrayOf(1, 2, 3),
         private val contentLength: Long? = body.size.toLong(),
         private val failure: Throwable? = null,
         private val afterChunk: suspend () -> Unit = {},
-    ) : NetworkClient {
+    ) : NetworkPort {
         var downloads = 0
 
         override suspend fun getText(httpsUrl: String, headers: Map<String, String>): String =

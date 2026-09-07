@@ -1,7 +1,7 @@
 package com.xwab.app.core.playbackengine.projection
 
-import com.xwab.app.core.playbackengine.api.AudioSource
-import com.xwab.app.core.playbackengine.api.PlaybackPhase
+import com.xwab.app.core.playbackengine.port.AudioSource
+import com.xwab.app.core.playbackengine.port.PlaybackPhase
 
 internal enum class NowPlayingUpdateAction {
     None,

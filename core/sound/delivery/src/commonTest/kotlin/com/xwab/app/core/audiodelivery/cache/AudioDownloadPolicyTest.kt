@@ -1,7 +1,7 @@
 package com.xwab.app.core.audiodelivery.cache
 
-import com.xwab.app.core.network.NetworkClient
-import com.xwab.app.core.network.NetworkResponse
+import com.xwab.app.core.network.port.NetworkPort
+import com.xwab.app.core.network.port.NetworkResponse
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -60,7 +60,7 @@ class AudioDownloadPolicyTest {
 
     @Test
     fun audioHeadersAndResponseChecksWrapTheNetworkStreamOnce() = runBlocking {
-        val network = FakeNetworkClient(
+        val network = FakeNetworkPort(
             response = NetworkResponse(200, "Audio/MPEG; charset=binary", 3),
             body = byteArrayOf(1, 2, 3),
         )
@@ -77,7 +77,7 @@ class AudioDownloadPolicyTest {
 
     @Test
     fun aShortNetworkBodyIsRefusedBeforeThePlatformPromotesIt() = runBlocking {
-        val network = FakeNetworkClient(
+        val network = FakeNetworkPort(
             response = NetworkResponse(200, "audio/mpeg", 4),
             body = byteArrayOf(1, 2, 3),
         )
@@ -88,10 +88,10 @@ class AudioDownloadPolicyTest {
         Unit
     }
 
-    private class FakeNetworkClient(
+    private class FakeNetworkPort(
         private val response: NetworkResponse,
         private val body: ByteArray,
-    ) : NetworkClient {
+    ) : NetworkPort {
         var headers: Map<String, String> = emptyMap()
 
         override suspend fun getText(httpsUrl: String, headers: Map<String, String>): String =

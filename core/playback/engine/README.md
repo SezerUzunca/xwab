@@ -9,20 +9,20 @@ Standalone Kotlin Multiplatform audio playback library.
 - iOS playback with AVFoundation `AVQueuePlayer`, `AVPlayerLooper`, and `AVAudioSession`.
 - One active audio source and optional single-track looping.
 
-The module intentionally does not own application DI, playlists, persistence,
-downloads, analytics, or UI. It does own the platform playback session,
+The module does not own the application graph, playlists, persistence, downloads, analytics, or
+UI. It contributes its platform adapter to Metro and owns the platform playback session,
 background controls, and playback metadata required by its player.
 
 ## Platform creation
 
-DI creates the platform `PlaybackController` (`createAndroidPlaybackController(context)` /
-`createIosPlaybackController()`).
+Metro selects the internal platform adapter for `PlaybackEnginePort`. Android receives the
+application `Context` from the app graph; iOS needs no caller-supplied platform dependency.
 
-The application-specific adapter in `core:playback:session` depends on `PlaybackController`: it
+The application-specific adapter in `core:playback:session` depends on `PlaybackEnginePort`: it
 observes `state` / `sleepTimerState` and drives playback through the single
 `submit(PlaybackCommand...)` entry point. That module and the composition root are the only two
-that declare this one — a feature may not, which `checkArchitecture` rule 4 enforces as a
-dependency edge, so screens reach playback through `PlaybackCoordinator` and never see this
+that declare this one — a feature may not, which `checkArchitecture` enforces as a
+dependency edge, so screens reach playback through `PlaybackPort` and never see this
 engine's state model. Use one app-scoped
 controller instance and call it only from the main thread; DI owns the engine's `release()`. Every
 `AudioSource` needs a stable non-blank ID and a non-blank playable URI.

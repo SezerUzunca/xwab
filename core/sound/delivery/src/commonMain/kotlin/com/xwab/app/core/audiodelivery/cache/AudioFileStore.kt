@@ -7,7 +7,7 @@ package com.xwab.app.core.audiodelivery.cache
  * download has completed successfully. A completed download also sweeps every file the catalog no
  * longer refers to, so the cache holds one version per track and nothing for a track that is gone.
  */
-interface AudioFileStore {
+internal interface AudioFileStore {
     suspend fun find(cacheFileName: String): String?
 
     /**

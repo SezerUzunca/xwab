@@ -1,7 +1,7 @@
 package com.xwab.app.core.storymanifest
 
-import com.xwab.app.core.story.Story
-import com.xwab.app.core.story.StoryId
+import com.xwab.app.core.story.port.Story
+import com.xwab.app.core.story.port.StoryId
 
 /**
  * The stories the app knows about, in one hand-written list.
@@ -11,9 +11,9 @@ import com.xwab.app.core.story.StoryId
  * cache; a story row names an address to stream, because story audio must never enter the cache in
  * `core:sound:delivery`, whose resolver starts a background download whenever it misses.
  *
- * The list never leaves the module. Screens see it through `StoryCatalogRepository`, whose interface
+ * The list never leaves the module. Screens see it through `StoryCatalogPort`, whose interface
  * lives in `core:story:catalog`, and the session sees only the source half through
- * [StoryStreamCatalog]; neither port can be used to reach the other's business. Recording sources
+ * [StorySourcePort]; neither port can be used to reach the other's business. Recording sources
  * and public-domain grants are audited in the repository's `THIRD_PARTY_AUDIO.md`.
  */
 internal val storyManifest: List<StoryEntry> = listOf(
@@ -85,5 +85,5 @@ internal val storyManifest: List<StoryEntry> = listOf(
     ),
 )
 
-/** The stories themselves, which is all the repository serves. */
+/** The stories themselves, which is all the catalog port adapter serves. */
 internal val storyCatalog: List<Story> = storyManifest.map(StoryEntry::story)

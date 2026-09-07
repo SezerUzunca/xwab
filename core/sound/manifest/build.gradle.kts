@@ -7,7 +7,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // The types the manifest is written in, and the repository interface it implements.
+            // Sound models used by the manifest and by the public source port.
             api(projects.core.sound.catalog)
             api(libs.kotlinx.coroutines.core)
         }
