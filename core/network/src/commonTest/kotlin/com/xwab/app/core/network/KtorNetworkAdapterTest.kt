@@ -4,21 +4,39 @@ import com.xwab.app.core.network.port.NetworkHttpException
 import com.xwab.app.core.network.port.NetworkPort
 import com.xwab.app.core.network.port.NetworkResponse
 import com.xwab.app.core.network.port.NetworkTimeoutException
+import com.xwab.app.core.network.port.NetworkTransportException
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.network.sockets.ConnectTimeoutException
+import io.ktor.client.network.sockets.SocketTimeoutException
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import io.ktor.utils.io.ByteChannel
+import io.ktor.utils.io.writeFully
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
+import kotlinx.io.IOException
 
 class KtorNetworkAdapterTest {
+    private val clients = mutableListOf<HttpClient>()
+
+    @AfterTest
+    fun closeClients() {
+        clients.forEach(HttpClient::close)
+    }
+
     @Test
     fun textResponsesAreReadThroughKtor() = runBlocking {
         val client = client { request ->
@@ -111,11 +129,122 @@ class KtorNetworkAdapterTest {
         Unit
     }
 
+    @Test
+    fun engineFailuresUseTheSamePortExceptionForTextAndDownloads() = runBlocking {
+        val failures = listOf(
+            IOException("connection failed"),
+            ConnectTimeoutException("connect timeout"),
+            SocketTimeoutException("socket timeout"),
+            HttpRequestTimeoutException("https://example.test/audio.mp3", 1L),
+        )
+        for (download in listOf(false, true)) {
+            for (original in failures) {
+                val port = client { throw original }
+                val failure = assertFailsWith<NetworkTransportException> {
+                    port.runOperation(download)
+                }
+                // Coroutine stack-trace recovery may copy the engine exception.
+                assertEquals(original::class, failure.cause?.let { it::class })
+                assertEquals(original.message, failure.cause?.message)
+            }
+        }
+    }
+
+    @Test
+    fun aFailureAfterAStreamChunkIsStillATransportFailure() = runBlocking {
+        val original = IOException("stream disconnected")
+        val channel = ByteChannel(autoFlush = true)
+        channel.writeFully("abc".encodeToByteArray())
+        val port = client { respond(channel) }
+        var received = 0
+
+        val failure = assertFailsWith<NetworkTransportException> {
+            port.download(
+                "https://example.test/audio.mp3",
+                onResponse = {},
+                onChunk = { _, count ->
+                    received += count
+                    channel.cancel(original)
+                },
+            )
+        }
+
+        assertEquals(3, received)
+        assertTrue(generateSequence(failure.cause) { it.cause }.any { it === original })
+    }
+
+    @Test
+    fun responsePolicyAndSinkFailuresArePropagatedUnchanged() = runBlocking {
+        for (failOnResponse in listOf(false, true)) {
+            val original = IOException("destination write or policy failed")
+            val port = client { respond("abc") }
+            val failure = assertFailsWith<IOException> {
+                port.download(
+                    "https://example.test/audio.mp3",
+                    onResponse = { if (failOnResponse) throw original },
+                    onChunk = { _, _ -> throw original },
+                )
+            }
+            assertSame(original, failure)
+        }
+    }
+
+    @Test
+    fun callbackCancellationKeepsItsIdentityEvenWithATransportCause() = runBlocking {
+        for (failOnResponse in listOf(false, true)) {
+            val original = CancellationException("consumer cancelled", IOException("cause"))
+            val port = client { respond("abc") }
+            val failure = assertFailsWith<CancellationException> {
+                port.download(
+                    "https://example.test/audio.mp3",
+                    onResponse = { if (failOnResponse) throw original },
+                    onChunk = { _, _ -> throw original },
+                )
+            }
+            assertSame(original, failure)
+        }
+    }
+
+    @Test
+    fun cancellationWhileWaitingForStreamBytesRemainsCancellation() = runBlocking {
+        val channel = ByteChannel(autoFlush = true)
+        val port = client { respond(channel) }
+
+        assertFailsWith<TimeoutCancellationException> {
+            withTimeout(30L) {
+                port.runOperation(download = true)
+            }
+        }
+        Unit
+    }
+
+    @Test
+    fun urlsRejectedByTheParserUseAStandardArgumentFailure() = runBlocking {
+        val port = client { error("the engine must not be called") }
+        for (download in listOf(false, true)) {
+            assertFailsWith<IllegalArgumentException> {
+                if (download) {
+                    port.download("https://example.test:invalid", onResponse = {}, onChunk = { _, _ -> })
+                } else {
+                    port.getText("https://example.test:invalid")
+                }
+            }
+        }
+    }
+
+    private suspend fun NetworkPort.runOperation(download: Boolean) {
+        if (download) {
+            download("https://example.test/audio.mp3", onResponse = {}, onChunk = { _, _ -> })
+        } else {
+            getText("https://example.test/audio.mp3")
+        }
+    }
+
     private fun client(
         textTimeoutMillis: Long = 15_000L,
         handler: io.ktor.client.engine.mock.MockRequestHandler,
     ): NetworkPort = KtorNetworkAdapter(
-        client = HttpClient(MockEngine(handler)) { expectSuccess = false },
+        client = HttpClient(MockEngine(handler)) { expectSuccess = false }.also(clients::add),
         textTimeoutMillis = textTimeoutMillis,
     )
 }
