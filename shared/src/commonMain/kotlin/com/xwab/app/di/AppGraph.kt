@@ -4,7 +4,7 @@ import com.xwab.app.feature.browse.di.BrowseDependencies
 import com.xwab.app.feature.category.di.CategoryDependencies
 import com.xwab.app.feature.favorites.di.FavoritesDependencies
 import com.xwab.app.feature.sounds.di.PlayerDependencies
-import com.xwab.app.feature.story.di.StoryDependencies
+import com.xwab.app.feature.story.di.StoriesDependencies
 
 /**
  * What the application root can ask for: one bag of ports per screen, and nothing else.
@@ -22,5 +22,5 @@ interface AppGraph {
     val favoritesDependencies: FavoritesDependencies
     val categoryDependencies: CategoryDependencies
     val playerDependencies: PlayerDependencies
-    val storyDependencies: StoryDependencies
+    val storiesDependencies: StoriesDependencies
 }

@@ -37,5 +37,5 @@ internal fun appEntryProvider(
         onBack = onBack,
     )
     playerEntry(dependencies = graph.playerDependencies, onBack = onBack)
-    storiesEntry(dependencies = graph.storyDependencies)
+    storiesEntry(dependencies = graph.storiesDependencies)
 }

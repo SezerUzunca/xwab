@@ -12,9 +12,9 @@ import com.xwab.app.feature.browse.navigation.browseNavigationSerializers
 import com.xwab.app.feature.category.navigation.categoryNavigationSerializers
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
 import com.xwab.app.feature.favorites.navigation.favoritesNavigationSerializers
-import com.xwab.app.feature.sounds.navigation.soundsNavigationSerializers
+import com.xwab.app.feature.sounds.navigation.playerNavigationSerializers
 import com.xwab.app.feature.story.navigation.StoriesRoute
-import com.xwab.app.feature.story.navigation.storyNavigationSerializers
+import com.xwab.app.feature.story.navigation.storiesNavigationSerializers
 import kotlinx.serialization.modules.SerializersModule
 import org.jetbrains.compose.resources.stringResource
 import xwab.shared.generated.resources.Res
@@ -58,6 +58,6 @@ internal val FEATURE_SERIALIZERS: SerializersModule = SerializersModule {
     include(browseNavigationSerializers)
     include(favoritesNavigationSerializers)
     include(categoryNavigationSerializers)
-    include(soundsNavigationSerializers)
-    include(storyNavigationSerializers)
+    include(playerNavigationSerializers)
+    include(storiesNavigationSerializers)
 }
