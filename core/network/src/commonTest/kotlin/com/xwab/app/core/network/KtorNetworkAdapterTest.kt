@@ -10,6 +10,7 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.network.sockets.ConnectTimeoutException
 import io.ktor.client.network.sockets.SocketTimeoutException
+import io.ktor.client.plugins.HttpRedirect
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -94,6 +95,59 @@ class KtorNetworkAdapterTest {
             client.getText("http://example.test/catalog.json")
         }
         Unit
+    }
+
+    /**
+     * A source answering an HTTPS request with a redirect to plain HTTP is asking for the
+     * connection to be downgraded. Ktor refuses on its own — `allowHttpsDowngrade` is false by
+     * default — so the redirect is never followed and arrives as its own response instead.
+     */
+    @Test
+    fun aRedirectThatDowngradesToCleartextIsNotFollowed() = runBlocking {
+        var requests = 0
+        val port = client {
+            requests++
+            respond(
+                content = "",
+                status = HttpStatusCode.Found,
+                headers = headersOf(HttpHeaders.Location, "http://example.test/catalog.json"),
+            )
+        }
+
+        val failure = assertFailsWith<NetworkHttpException> {
+            port.getText("https://example.test/catalog.json")
+        }
+
+        assertEquals(302, failure.statusCode)
+        assertEquals(1, requests)
+    }
+
+    /**
+     * The port checks the URL that was actually requested, not only the one it was handed. Ktor's
+     * own guard is what stops the case above, which leaves the port's guard with nothing to prove
+     * it still works — so this lets the downgrade through the client and drives it directly.
+     *
+     * It surfaces as a transport failure rather than the argument failure an unusable initial URL
+     * produces, because the check runs inside the request. Refused either way; only the type
+     * differs, and this test is where that choice is written down.
+     */
+    @Test
+    fun aCleartextUrlReachedByFollowingARedirectIsStillRefused() = runBlocking {
+        for (download in listOf(false, true)) {
+            val port = client(downgradeAllowed = true) { request ->
+                if (request.url.protocol.name == "https") {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.Found,
+                        headers = headersOf(HttpHeaders.Location, "http://example.test/audio.mp3"),
+                    )
+                } else {
+                    respond("the body a downgraded source would have served")
+                }
+            }
+
+            assertFailsWith<NetworkTransportException> { port.runOperation(download) }
+        }
     }
 
     /**
@@ -240,11 +294,19 @@ class KtorNetworkAdapterTest {
         }
     }
 
+    /**
+     * [downgradeAllowed] only ever relaxes Ktor's own guard, so a test can reach the port's. The
+     * production client leaves it at Ktor's default.
+     */
     private fun client(
         textTimeoutMillis: Long = 15_000L,
+        downgradeAllowed: Boolean = false,
         handler: io.ktor.client.engine.mock.MockRequestHandler,
     ): NetworkPort = KtorNetworkAdapter(
-        client = HttpClient(MockEngine(handler)) { expectSuccess = false }.also(clients::add),
+        client = HttpClient(MockEngine(handler)) {
+            expectSuccess = false
+            install(HttpRedirect) { allowHttpsDowngrade = downgradeAllowed }
+        }.also(clients::add),
         textTimeoutMillis = textTimeoutMillis,
     )
 }
