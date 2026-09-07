@@ -26,13 +26,18 @@ internal class CategoryViewModel(
 ) : ViewModel() {
     val state: StateFlow<Loadable<CategoryState>> = observeCategoryContentUseCase(categoryId)
         .map<CategoryContent, Loadable<CategoryState>> { content ->
+            // A story occupying the session lights up no row on a screen that lists sounds.
+            val requestedTrackId =
+                content.playback.requestedValueOf(PlaybackKind.SOUND)?.let(::TrackId)
+
             Loadable.Ready(CategoryState(
                 category = content.category,
                 musics = content.musics,
                 favoriteIds = content.favoriteIds,
-                // A story occupying the session lights up no row on a screen that lists sounds.
-                requestedTrackId = content.playback.requestedValueOf(PlaybackKind.SOUND)?.let(::TrackId),
-                playIntent = content.playback.playIntent,
+                requestedTrackId = requestedTrackId,
+                // Gated on the id for the same reason the other screens gate it: the flag says
+                // "a row here is playing", and no row here is when the session is on a story.
+                playIntent = requestedTrackId != null && content.playback.playIntent,
             ))
         }.stateIn(
             scope = viewModelScope,

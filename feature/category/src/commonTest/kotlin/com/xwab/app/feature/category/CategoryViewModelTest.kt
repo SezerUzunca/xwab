@@ -15,6 +15,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlinx.coroutines.Dispatchers
@@ -50,11 +51,8 @@ class CategoryViewModelTest {
     /**
      * A sound and a story are allowed to share a raw id, which is why the session's item carries a
      * kind. The session being on the *story* called `gentle-rain` must leave the *sound* called
-     * `gentle-rain` as idle as every other row here.
-     *
-     * Asserted through the pair the screen reads rather than through `playIntent` alone: this
-     * feature keeps that flag as the session reports it and pairs it with `requestedTrackId` at
-     * every use, where favorites and stories fold the pair into the flag itself.
+     * `gentle-rain` as idle as every other row here: no row named, no row playing, and a tap that
+     * starts playback rather than pausing something this screen never showed.
      */
     @Test
     fun aStoryInTheSessionLeavesEveryRowIdle() = runTest(mainDispatcher) {
@@ -71,7 +69,9 @@ class CategoryViewModelTest {
         collectState(viewModel)
         advanceUntilIdle()
 
-        assertNull(readyState(viewModel).requestedTrackId)
+        val state = readyState(viewModel)
+        assertNull(state.requestedTrackId)
+        assertFalse(state.playIntent)
 
         viewModel.togglePlayback(GENTLE_RAIN)
         advanceUntilIdle()
