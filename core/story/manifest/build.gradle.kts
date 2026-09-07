@@ -3,7 +3,7 @@ plugins {
 }
 
 kotlin {
-    android { namespace = "com.xwab.app.core.storymanifest" }
+    android { namespace = "com.xwab.app.core.storysource" }
 
     sourceSets {
         commonMain.dependencies {

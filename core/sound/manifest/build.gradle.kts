@@ -3,7 +3,7 @@ plugins {
 }
 
 kotlin {
-    android { namespace = "com.xwab.app.core.catalogmanifest" }
+    android { namespace = "com.xwab.app.core.soundsource" }
 
     sourceSets {
         commonMain.dependencies {

@@ -3,7 +3,7 @@ plugins {
 }
 
 kotlin {
-    android { namespace = "com.xwab.app.core.playbacksession" }
+    android { namespace = "com.xwab.app.core.playback" }
 
     sourceSets {
         commonMain.dependencies {

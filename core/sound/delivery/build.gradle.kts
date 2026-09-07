@@ -5,7 +5,7 @@ plugins {
 }
 
 kotlin {
-    android { namespace = "com.xwab.app.core.audiodelivery" }
+    android { namespace = "com.xwab.app.core.sounddelivery" }
 
     sourceSets {
         commonMain.dependencies {

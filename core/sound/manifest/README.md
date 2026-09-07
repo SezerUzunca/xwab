@@ -25,7 +25,7 @@ Two things follow:
   `checkArchitecture` fails the build if a feature declares it.
 
 Adding a track is still one edit in one file —
-[CatalogManifest.kt](src/commonMain/kotlin/com/xwab/app/core/catalogmanifest/CatalogManifest.kt) —
+[CatalogManifest.kt](src/commonMain/kotlin/com/xwab/app/core/soundsource/CatalogManifest.kt) —
 because metadata and source stayed together. Splitting *those* apart is the coupling this project
 already dissolved once, and is not what happened here.
 
