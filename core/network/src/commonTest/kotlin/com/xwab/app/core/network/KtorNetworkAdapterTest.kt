@@ -224,7 +224,15 @@ class KtorNetworkAdapterTest {
         }
 
         assertEquals(3, received)
-        assertTrue(generateSequence(failure.cause) { it.cause }.any { it === original })
+        // Identity is the stronger claim, but not one the JVM keeps: coroutine stack-trace
+        // recovery copies the exception on its way out, which is what
+        // engineFailuresUseTheSamePortExceptionForTextAndDownloads already matches around. It
+        // depends on where the exception crosses a coroutine boundary, so it holds until the
+        // client's plugin pipeline changes and then stops.
+        assertTrue(
+            generateSequence(failure.cause) { it.cause }
+                .any { it::class == original::class && it.message == original.message },
+        )
     }
 
     @Test
@@ -305,7 +313,10 @@ class KtorNetworkAdapterTest {
     ): NetworkPort = KtorNetworkAdapter(
         client = HttpClient(MockEngine(handler)) {
             expectSuccess = false
-            install(HttpRedirect) { allowHttpsDowngrade = downgradeAllowed }
+            // Installed only where a test needs Ktor's guard out of the way. Adding a Send phase
+            // to every client moves where an exception crosses a coroutine boundary, which was
+            // enough to turn the streaming test's cause into a stack-trace-recovery copy.
+            if (downgradeAllowed) install(HttpRedirect) { allowHttpsDowngrade = true }
         }.also(clients::add),
         textTimeoutMillis = textTimeoutMillis,
     )
