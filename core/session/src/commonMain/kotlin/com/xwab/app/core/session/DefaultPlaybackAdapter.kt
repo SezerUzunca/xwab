@@ -94,6 +94,18 @@ internal class DefaultPlaybackAdapter internal constructor(
      */
     private var loopPreferenceEstablished = false
 
+    /**
+     * The loop value this adapter itself last sent as part of a [PlaybackCommand.Load], or `null`
+     * before the first one.
+     *
+     * The only way to tell a genuine preference — one adopted from a remote controller, which never
+     * runs through [setLooping] — apart from a value that is merely sitting there because the last
+     * item's own default put it there: compare the engine's current `isLooping` against this. Equal
+     * means nothing has touched it since; different means something did, most likely a remote
+     * control, and that counts exactly like an explicit choice.
+     */
+    private var lastAppliedLooping: Boolean? = null
+
     override suspend fun play(itemId: PlaybackItemId) {
         val engine = enginePort.state.value
         if (itemOf(engine.activeSource) == itemId && engine.phase != PlaybackPhase.Failed) {
@@ -188,13 +200,36 @@ internal class DefaultPlaybackAdapter internal constructor(
     ): PlaybackRequest = PlaybackRequest(
         source = AudioSource(itemId.toEngineId(), resolved.uri, resolved.title, resolved.artist),
         autoplay = true,
-        loopMode = if (enginePort.state.value.effectiveLooping(resolved.policy.defaultLooping)) {
-            LoopMode.One
-        } else {
-            LoopMode.Off
-        },
+        loopMode = if (loadLooping(resolved.policy.defaultLooping)) LoopMode.One else LoopMode.Off,
         volume = enginePort.state.value.volume,
     )
+
+    /**
+     * What looping should be for the item about to replace whatever the engine currently holds.
+     *
+     * [defaultLooping] wins unless [loopPreferenceEstablished] says the listener chose explicitly,
+     * or the engine's current `isLooping` has drifted from [lastAppliedLooping] — the value this
+     * adapter itself set for the outgoing item, which a drift means a remote controller changed
+     * since. Comparing against that recorded value, rather than reusing [effectiveLooping]'s cruder
+     * "something is attached" check, is what keeps a switch between kinds from inheriting whatever
+     * loop value the outgoing item's own default happened to leave behind: without it, a sound
+     * playing first made every story after it loop, and a story playing first made every sound
+     * after it not loop, with no preference — local or remote — ever established.
+     */
+    private fun loadLooping(defaultLooping: Boolean): Boolean {
+        val currentLooping = enginePort.state.value.isLooping
+        val looping = when {
+            loopPreferenceEstablished -> currentLooping
+            lastAppliedLooping != null && currentLooping != lastAppliedLooping -> {
+                // Nothing this adapter did changed it since the last load — a remote controller did.
+                loopPreferenceEstablished = true
+                currentLooping
+            }
+            else -> defaultLooping
+        }
+        lastAppliedLooping = looping
+        return looping
+    }
 
     private fun summaryOf(engine: AudioPlayerState, wanted: SessionIntent): PlaybackSummary {
         // What was asked for, and what is actually attached. They differ for the whole of a switch:
@@ -224,16 +259,17 @@ internal class DefaultPlaybackAdapter internal constructor(
         source?.id?.let { playbackItemIdOf(it) }
 
     /**
-     * The session's loop setting, carried into the next item and published to screens from the same
-     * call — so the value a listener sees before the first load is the value that load uses.
+     * What the summary should show as the current loop state, before or after anything has loaded.
      *
-     * An explicit choice is session-wide and survives a switch, including one between kinds: a
-     * listener who turned looping off meant it. Only [defaultLooping] is per-item, which is what
-     * lets a story start un-looped without overruling a preference somebody did express.
+     * Called with no argument from [summaryOf]. Once anything is attached or requested, the screen
+     * shows the engine's real, reconciled [AudioPlayerState.isLooping] instead of a re-derived
+     * default — [AudioPlayerState.activeSource], not `source`, is the test for that: a dropped
+     * service connection clears only the *attached* source while the session's reconciled settings
+     * live on, so keying off `source` would show a listener's choice reverting mid-reconnect.
      *
-     * The test is [AudioPlayerState.activeSource], not `source`: a dropped service connection
-     * clears only the *attached* source while the session and its reconciled settings live on,
-     * so keying off `source` would silently undo the listener's choice on the next item.
+     * Deciding a *new* item's own loop default is a different question, answered by [loadLooping]:
+     * a previous item merely being attached is not a listener preference, and must not leak into
+     * whatever plays next.
      */
     private fun AudioPlayerState.effectiveLooping(defaultLooping: Boolean = DEFAULT_LOOPING): Boolean =
         if (loopPreferenceEstablished || activeSource != null) isLooping else defaultLooping

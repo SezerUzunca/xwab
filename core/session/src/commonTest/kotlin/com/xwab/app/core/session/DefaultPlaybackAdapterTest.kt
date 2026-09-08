@@ -624,6 +624,34 @@ class DefaultPlaybackAdapterTest {
     }
 
     /**
+     * Without an explicit preference, a sound playing first must not decide what a story plays as
+     * next. Nothing here calls `setLooping` — only the sound's own default is engine state by the
+     * time the story is requested, and that is not a preference.
+     */
+    @Test
+    fun aSoundsLoopDoesNotLeakIntoAStoryPlayedNextWithoutAPreference() = runBlocking {
+        val player = FakePlaybackEnginePort()
+        val adapter = storyAdapter(player)
+
+        adapter.play(sound("gentle-rain"))
+        adapter.play(PlaybackItemId.story("night-came-slowly"))
+
+        assertEquals(LoopMode.Off, player.lastLoadRequest?.loopMode)
+    }
+
+    /** The same gap in the other direction: a story's non-looping default must not carry to a sound. */
+    @Test
+    fun aStorysLoopDoesNotLeakIntoASoundPlayedNextWithoutAPreference() = runBlocking {
+        val player = FakePlaybackEnginePort()
+        val adapter = storyAdapter(player)
+
+        adapter.play(PlaybackItemId.story("night-came-slowly"))
+        adapter.play(sound("gentle-rain"))
+
+        assertEquals(LoopMode.One, player.lastLoadRequest?.loopMode)
+    }
+
+    /**
      * The shipped manifest has a source for every story. A mismatched catalog/source implementation
      * still fails explicitly instead of sending an empty URI to the engine.
      */
