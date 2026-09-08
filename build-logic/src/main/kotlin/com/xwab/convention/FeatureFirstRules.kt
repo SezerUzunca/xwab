@@ -122,6 +122,16 @@ internal object FeatureFirstRules {
 
         graph.forEach { (module, dependencies) ->
             dependencies.forEach { dependency ->
+                val reusableDependencies = when (module) {
+                    ":core:favorites" -> emptySet<String>()
+                    ":core:delivery" -> setOf(":core:network")
+                    else -> null
+                }
+                // KMP host-test configurations include a dependency on their own main module.
+                if (reusableDependencies != null && dependency != module && dependency !in reusableDependencies) {
+                    violations += "$module depends on $dependency. Reusable favorites and delivery " +
+                        "must not depend on app content; only delivery may use core:network."
+                }
                 if (module.startsWith(CORE_PREFIX) && dependency.startsWith(FEATURE_PREFIX)) {
                     violations += "$module depends on $dependency. A core module may not depend on a feature."
                 }

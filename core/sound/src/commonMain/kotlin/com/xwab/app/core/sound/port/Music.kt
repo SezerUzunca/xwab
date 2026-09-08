@@ -8,13 +8,13 @@ package com.xwab.app.core.sound.port
  * positive is a label that reads "0:00" for something that plays. The manifest is hand-written
  * today and a feed may write it later, and both go through this.
  */
-public data class Music(
-    public val id: TrackId,
-    public val name: String,
-    public val categoryId: CategoryId,
-    public val durationSeconds: Int,
-    public val playbackTitle: String = name,
-    public val playbackArtist: String = "Sleep Sounds",
+data class Music(
+    val id: TrackId,
+    val name: String,
+    val categoryId: CategoryId,
+    val durationSeconds: Int,
+    val playbackTitle: String = name,
+    val playbackArtist: String = "Sleep Sounds",
 ) {
     init {
         require(name.isNotBlank()) { "A track needs a name: ${id.value}" }

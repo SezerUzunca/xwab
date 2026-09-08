@@ -14,7 +14,7 @@ import com.xwab.app.core.playback.port.PlaybackEnginePort
 import com.xwab.app.core.playback.port.PlaybackPhase
 import com.xwab.app.core.playback.port.PlaybackRequest
 import com.xwab.app.core.sound.port.SoundPort
-import com.xwab.app.core.sounddelivery.port.SoundContentPort
+import com.xwab.app.core.delivery.port.DeliveryPort
 import com.xwab.app.core.story.port.StoryPort
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
@@ -45,7 +45,7 @@ internal class DefaultPlaybackAdapter internal constructor(
     internal constructor(
         enginePort: PlaybackEnginePort,
         soundPort: SoundPort,
-        soundContentPort: SoundContentPort,
+        soundContentPort: DeliveryPort,
         storyPort: StoryPort,
     ) : this(
         enginePort = enginePort,

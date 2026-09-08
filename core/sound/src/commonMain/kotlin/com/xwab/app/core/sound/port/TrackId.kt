@@ -22,7 +22,7 @@ import kotlin.jvm.JvmInline
  * `core:playback`, which is a standalone library that knows nothing about this app's catalog.
  */
 @JvmInline
-public value class TrackId(public val value: String) {
+value class TrackId(val value: String) {
     init {
         // The same check the story catalog's id makes, for the same reason: an id that is blank
         // names a track no lookup can ever match, so it is refused where it is built rather than
@@ -30,5 +30,5 @@ public value class TrackId(public val value: String) {
         require(value.isNotBlank()) { "A track id cannot be blank." }
     }
 
-    public override fun toString(): String = value
+    override fun toString(): String = value
 }

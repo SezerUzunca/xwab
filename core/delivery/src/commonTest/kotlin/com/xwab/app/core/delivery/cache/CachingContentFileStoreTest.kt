@@ -1,14 +1,15 @@
-package com.xwab.app.core.sounddelivery.cache
+package com.xwab.app.core.delivery.cache
 
-import com.xwab.app.core.sounddelivery.sourcePortKeeping
-import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.network.port.NetworkPort
 import com.xwab.app.core.network.port.NetworkResponse
+import com.xwab.app.core.delivery.port.CacheKey
+import com.xwab.app.core.delivery.port.DeliveryRequest
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
@@ -18,16 +19,43 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okio.FileSystem
+import okio.Path
 import okio.Path.Companion.toPath
 import okio.buffer
 import okio.fakefilesystem.FakeFileSystem
 // `okio.use` (not the stdlib's) is required on Kotlin/Native — see the note on `writeDownload` in
-// CachingAudioFileStore.kt.
+// CachingContentFileStore.kt.
 import okio.use
 
 /** Cache behaviour against Okio's multiplatform in-memory file system. */
-class CachingAudioFileStoreTest {
+class CachingContentFileStoreTest {
     private val fileSystem = FakeFileSystem()
+
+    @Test
+    fun namespacesSeparateCachedBytesAndInventoryCleanup() = runBlocking {
+        val sound = DeliveryRequest(CacheKey("sound", "item-v1.mp3"), REMOTE_URL)
+        val story = sound.copy(key = CacheKey("story", "item-v1.mp3"))
+        store(FakeNetworkPort(body = byteArrayOf(1))).download(sound)
+        store(FakeNetworkPort(body = byteArrayOf(2))).download(story)
+        store().download(story.copy(
+            key = CacheKey("story", "item-v2.mp3"),
+            retainedFileNames = setOf("item-v2.mp3"),
+        ))
+
+        assertEquals("/cache/sound/item-v1.mp3", store().find(sound.key))
+        assertNull(store().find(story.key))
+        assertContentEquals(byteArrayOf(1), fileSystem.read(ROOT / "sound" / "item-v1.mp3") { readByteArray() })
+    }
+
+    @Test
+    fun documentsUseTheirOwnTypeLimitAndFileExtension() = runBlocking {
+        val document = DeliveryRequest(
+            CacheKey("documents", "guide-v1.pdf"), "https://example.test/guide.pdf",
+            acceptedContentTypes = setOf("application/pdf"), maxBytes = 1024,
+        )
+        store(FakeNetworkPort(contentType = "application/pdf")).download(document)
+        assertEquals("/cache/documents/guide-v1.pdf", store().find(document.key))
+    }
 
     @AfterTest
     fun closeFileSystem() {
@@ -45,27 +73,27 @@ class CachingAudioFileStoreTest {
     fun aCachedFileIsAnsweredWithItsAbsolutePath() = runBlocking {
         writeFile(FILE_NAME, byteArrayOf(1, 2, 3))
 
-        assertEquals("/cache/$FILE_NAME", store().find(FILE_NAME))
+        assertEquals("/cache/sample/$FILE_NAME", store().find(CacheKey("sample", FILE_NAME)))
     }
 
     @Test
     fun anAbsentFileIsACacheMiss() = runBlocking {
-        assertNull(store().find(FILE_NAME))
+        assertNull(store().find(CacheKey("sample", FILE_NAME)))
     }
 
     @Test
     fun aDirectoryIsNotMistakenForPlayableAudio() = runBlocking {
-        fileSystem.createDirectories(ROOT / FILE_NAME)
+        fileSystem.createDirectories(ROOT / "sample" / FILE_NAME)
 
-        assertNull(store().find(FILE_NAME))
+        assertNull(store().find(CacheKey("sample", FILE_NAME)))
     }
 
     @Test
     fun anEmptyFileIsDiscardedRatherThanServed() = runBlocking {
         writeFile(FILE_NAME, byteArrayOf())
 
-        assertNull(store().find(FILE_NAME))
-        assertNull(fileSystem.metadataOrNull(ROOT / FILE_NAME))
+        assertNull(store().find(CacheKey("sample", FILE_NAME)))
+        assertNull(fileSystem.metadataOrNull(ROOT / "sample" / FILE_NAME))
     }
 
     @Test
@@ -73,7 +101,7 @@ class CachingAudioFileStoreTest {
         writeFile(FILE_NAME, byteArrayOf(1))
         val network = FakeNetworkPort()
 
-        store(network).download(FILE_NAME, REMOTE_URL)
+        store(network).download(request())
 
         assertEquals(0, network.downloads)
         assertContentEquals(byteArrayOf(1), readFile(FILE_NAME))
@@ -84,11 +112,11 @@ class CachingAudioFileStoreTest {
         val body = byteArrayOf(1, 2, 3, 4)
         val network = FakeNetworkPort(body = body)
 
-        store(network).download(FILE_NAME, REMOTE_URL)
+        store(network).download(request())
 
         assertEquals(1, network.downloads)
         assertContentEquals(body, readFile(FILE_NAME))
-        assertNull(fileSystem.metadataOrNull(ROOT / partialCacheFileName(FILE_NAME)))
+        assertNull(fileSystem.metadataOrNull(ROOT / "sample" / partialCacheFileName(FILE_NAME)))
     }
 
     @Test
@@ -97,9 +125,9 @@ class CachingAudioFileStoreTest {
         writeFile(kept, byteArrayOf(1))
         writeFile("long-gone-v1.mp3", byteArrayOf(2))
 
-        store(sourcePort = sourcePortKeeping(FILE_NAME, kept)).download(FILE_NAME, REMOTE_URL)
+        store().download(request(retained = setOf(FILE_NAME, kept)))
 
-        assertNull(fileSystem.metadataOrNull(ROOT / "long-gone-v1.mp3"))
+        assertNull(fileSystem.metadataOrNull(ROOT / "sample" / "long-gone-v1.mp3"))
         assertContentEquals(byteArrayOf(1), readFile(kept))
     }
 
@@ -107,18 +135,18 @@ class CachingAudioFileStoreTest {
     fun aNetworkFailureLeavesNoStagedFileBehind() = runBlocking {
         val network = FakeNetworkPort(failure = IllegalStateException("host unreachable"))
 
-        assertFailsWith<IllegalStateException> { store(network).download(FILE_NAME, REMOTE_URL) }
+        assertFailsWith<IllegalStateException> { store(network).download(request()) }
 
-        assertTrue(fileSystem.listOrNull(ROOT).orEmpty().isEmpty())
+        assertTrue(fileSystem.listOrNull(ROOT / "sample").orEmpty().isEmpty())
     }
 
     @Test
     fun anEmptyTransferIsRefusedAndNotPromoted() = runBlocking {
         val network = FakeNetworkPort(body = byteArrayOf(), contentLength = 0L)
 
-        assertFailsWith<IllegalStateException> { store(network).download(FILE_NAME, REMOTE_URL) }
+        assertFailsWith<IllegalStateException> { store(network).download(request()) }
 
-        assertTrue(fileSystem.listOrNull(ROOT).orEmpty().isEmpty())
+        assertTrue(fileSystem.listOrNull(ROOT / "sample").orEmpty().isEmpty())
     }
 
     @Test
@@ -132,22 +160,22 @@ class CachingAudioFileStoreTest {
             },
         )
         val download = launch(Dispatchers.Default) {
-            store(network).download(FILE_NAME, REMOTE_URL)
+            store(network).download(request())
         }
 
         staged.await()
         download.cancelAndJoin()
 
-        assertTrue(fileSystem.listOrNull(ROOT).orEmpty().isEmpty())
+        assertTrue(fileSystem.listOrNull(ROOT / "sample").orEmpty().isEmpty())
     }
 
     @Test
     fun anUnsafeNameNeverReachesTheFileSystemOrNetwork() = runBlocking {
         val network = FakeNetworkPort()
 
-        assertFailsWith<IllegalArgumentException> { store(network).find("../etc/passwd") }
+        assertFailsWith<IllegalArgumentException> { store(network).find(CacheKey("sample", "../etc/passwd")) }
         assertFailsWith<IllegalArgumentException> {
-            store(network).download("../etc/passwd", REMOTE_URL)
+            store(network).download(DeliveryRequest(CacheKey("sample", "../etc/passwd"), REMOTE_URL))
         }
 
         assertEquals(0, network.downloads)
@@ -156,32 +184,54 @@ class CachingAudioFileStoreTest {
 
     @Test
     fun downloadingCreatesTheCacheRoot() = runBlocking {
-        store().download(FILE_NAME, REMOTE_URL)
+        store().download(request())
 
         assertTrue(fileSystem.metadata(ROOT).isDirectory)
     }
 
+    /**
+     * The pre-namespace cache sat beside the namespace directories rather than inside one, so no
+     * sweep can reach it. A download after the upgrade is the only moment that still knows it was
+     * there — and a missing legacy directory, the normal case, must not disturb anything.
+     */
+    @Test
+    fun theCacheWrittenBeforeNamespacesIsDroppedOnTheFirstDownload() = runBlocking {
+        val legacy = "/legacy".toPath()
+        fileSystem.createDirectories(legacy)
+        fileSystem.sink(legacy / FILE_NAME).buffer().use { it.write(byteArrayOf(9)) }
+
+        store(legacyRoots = listOf(legacy, "/never-existed".toPath())).download(request())
+
+        assertFalse(fileSystem.exists(legacy))
+        assertContentEquals(byteArrayOf(1, 2, 3), readFile(FILE_NAME))
+    }
+
+    private fun request(retained: Set<String>? = null) = DeliveryRequest(
+        CacheKey("sample", FILE_NAME), REMOTE_URL, retainedFileNames = retained,
+    )
+
     private fun store(
         network: NetworkPort = FakeNetworkPort(),
-        sourcePort: SoundPort = sourcePortKeeping(FILE_NAME),
-    ) = CachingAudioFileStore(
+        legacyRoots: List<Path> = emptyList(),
+    ) = CachingContentFileStore(
         fileSystem = fileSystem,
         root = ROOT,
         networkPort = network,
-        sourcePort = sourcePort,
         fileDispatcher = Dispatchers.Default,
+        legacyRoots = legacyRoots,
     )
 
     private fun writeFile(name: String, bytes: ByteArray) {
-        fileSystem.createDirectories(ROOT)
-        fileSystem.sink(ROOT / name).buffer().use { it.write(bytes) }
+        fileSystem.createDirectories(ROOT / "sample")
+        fileSystem.sink(ROOT / "sample" / name).buffer().use { it.write(bytes) }
     }
 
     private fun readFile(name: String): ByteArray =
-        fileSystem.source(ROOT / name).buffer().use { it.readByteArray() }
+        fileSystem.source(ROOT / "sample" / name).buffer().use { it.readByteArray() }
 
     private class FakeNetworkPort(
         private val body: ByteArray = byteArrayOf(1, 2, 3),
+        private val contentType: String = "audio/mpeg",
         private val contentLength: Long? = body.size.toLong(),
         private val failure: Throwable? = null,
         private val afterChunk: suspend () -> Unit = {},
@@ -198,7 +248,7 @@ class CachingAudioFileStoreTest {
             onChunk: (bytes: ByteArray, count: Int) -> Unit,
         ) {
             downloads++
-            onResponse(NetworkResponse(200, "audio/mpeg", contentLength))
+            onResponse(NetworkResponse(200, contentType, contentLength))
             if (body.isNotEmpty()) onChunk(body, body.size)
             failure?.let { throw it }
             afterChunk()

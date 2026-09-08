@@ -7,7 +7,6 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import co.touchlab.kermit.Logger
 import com.xwab.app.core.favorites.port.FavoritesPort
-import com.xwab.app.core.sound.port.TrackId
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
@@ -20,47 +19,47 @@ internal class DataStoreFavoritesAdapter(
     private val dataStore: DataStore<Preferences>,
 ) : FavoritesPort {
     private val logger = Logger.withTag("FavoritesPort")
-    private val favoriteIdsKey = stringSetPreferencesKey("favorite_music_ids")
 
-    override val favoriteIds: Flow<Set<TrackId>> = dataStore.data
-        .retryWhen { error, attempt ->
-            val willRetry = attempt < MAX_READ_RETRIES
-            if (willRetry) {
-                logger.w(error) { "Could not read the favorites (attempt ${attempt + 1}); retrying." }
-                delay(RETRY_DELAY_MS.milliseconds)
+    override fun observe(namespace: String): Flow<Set<String>> {
+        val favoriteIdsKey = idsKey(namespace)
+        return dataStore.data
+            .retryWhen { error, attempt ->
+                val willRetry = attempt < MAX_READ_RETRIES
+                if (willRetry) {
+                    logger.w(error) { "Could not read the favorites (attempt ${attempt + 1}); retrying." }
+                    delay(RETRY_DELAY_MS.milliseconds)
+                }
+                willRetry
             }
-            willRetry
-        }
-        .catch { error ->
-            logger.e(error) { "Could not read the favorites; falling back to an empty set." }
-            emit(emptyPreferences())
-        }
-        // Stored as plain strings, because that is what a preferences file holds; the wrapper goes
-        // back on at the boundary so nothing downstream handles a bare id again.
-        // Blanks are dropped rather than turned into a `TrackId`, which refuses one. This store
-        // outlives the code that wrote it, so what comes out of it is read defensively: an id that
-        // cannot name a track is a favorite that cannot be shown, and throwing here would take the
-        // whole set — and the screen collecting it — down with it. `catch` above cannot help; it
-        // only covers what happens upstream of it.
-        .map { preferences ->
-            preferences[favoriteIdsKey].orEmpty()
-                .filter { it.isNotBlank() }
-                .mapTo(mutableSetOf(), ::TrackId)
-        }
+            .catch { error ->
+                logger.e(error) { "Could not read the favorites; falling back to an empty set." }
+                emit(emptyPreferences())
+            }
+            .map { preferences ->
+                preferences[favoriteIdsKey].orEmpty()
+                    .filterTo(mutableSetOf()) { it.isNotBlank() }
+            }
+    }
 
-    override suspend fun toggle(trackId: TrackId) {
-        val storedId = trackId.value
+    override suspend fun toggle(namespace: String, itemId: String) {
+        val favoriteIdsKey = idsKey(namespace)
+        require(itemId.isNotBlank()) { "Favorite IDs must not be blank." }
         try {
             dataStore.edit { preferences ->
                 val current = preferences[favoriteIdsKey].orEmpty()
                 preferences[favoriteIdsKey] =
-                    if (storedId in current) current - storedId else current + storedId
+                    if (itemId in current) current - itemId else current + itemId
             }
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (error: Throwable) {
-            logger.e(error) { "Could not persist the favorite toggle for $trackId." }
+            logger.e(error) { "Could not persist the favorite toggle for $namespace/$itemId." }
         }
+    }
+
+    private fun idsKey(namespace: String): Preferences.Key<Set<String>> {
+        require(namespace.matches(Regex("[a-z0-9][a-z0-9_-]{0,63}"))) { "Invalid favorites namespace." }
+        return stringSetPreferencesKey("favorite_${namespace}_ids")
     }
 
     private companion object {

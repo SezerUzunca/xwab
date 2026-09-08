@@ -10,6 +10,7 @@ import com.xwab.app.core.favorites.port.FavoritesPort
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -57,17 +58,19 @@ class FakeMusicCatalog(
 }
 
 class FakeFavorites(favoriteIds: Set<TrackId> = emptySet()) : FavoritesPort {
-    private val state = MutableStateFlow(favoriteIds)
-    val toggles = mutableListOf<TrackId>()
+    private val state = MutableStateFlow<Map<String, Set<String>>>(
+        mapOf("music" to favoriteIds.mapTo(mutableSetOf()) { it.value }),
+    )
+    val toggles = mutableListOf<Pair<String, String>>()
 
-    override val favoriteIds: Flow<Set<TrackId>> = state
+    override fun observe(namespace: String): Flow<Set<String>> = state.map { it[namespace].orEmpty() }
 
-    override suspend fun toggle(trackId: TrackId) {
-        toggles += trackId
-        state.value = if (trackId in state.value) state.value - trackId else state.value + trackId
+    override suspend fun toggle(namespace: String, itemId: String) {
+        toggles += namespace to itemId
+        val current = state.value[namespace].orEmpty()
+        state.value = state.value + (namespace to if (itemId in current) current - itemId else current + itemId)
     }
 }
-
 class FakePlaybackPort : PlaybackPort {
     private val summary = MutableStateFlow(PlaybackSummary())
     private val remainingMs = MutableStateFlow<Long?>(null)

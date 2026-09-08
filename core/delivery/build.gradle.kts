@@ -1,16 +1,13 @@
 plugins {
-    // No Compose here: nothing in this module renders, and since every track is fetched over
-    // HTTPS there are no bundled MP3 files needing the Compose Resources pipeline either.
+    // Content storage and transport require no UI or bundled resource pipeline.
     id("xwab.kmp.library")
 }
 
 kotlin {
-    android { namespace = "com.xwab.app.core.sounddelivery" }
+    android { namespace = "com.xwab.app.core.delivery" }
 
     sourceSets {
         commonMain.dependencies {
-            // SoundContentPort exposes TrackId from the sound module.
-            api(projects.core.sound)
             implementation(projects.core.network)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kermit)

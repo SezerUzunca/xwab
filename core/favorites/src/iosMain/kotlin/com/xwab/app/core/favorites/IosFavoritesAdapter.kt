@@ -3,7 +3,6 @@
 package com.xwab.app.core.favorites
 
 import com.xwab.app.core.favorites.port.FavoritesPort
-import com.xwab.app.core.sound.port.TrackId
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -32,7 +31,7 @@ internal class IosFavoritesAdapter : FavoritesPort {
         },
     )
 
-    override val favoriteIds: Flow<Set<TrackId>> = delegate.favoriteIds
+    override fun observe(namespace: String): Flow<Set<String>> = delegate.observe(namespace)
 
-    override suspend fun toggle(trackId: TrackId) = delegate.toggle(trackId)
+    override suspend fun toggle(namespace: String, itemId: String) = delegate.toggle(namespace, itemId)
 }

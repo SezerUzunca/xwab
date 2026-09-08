@@ -20,12 +20,12 @@ import kotlin.jvm.JvmInline
  * feature's entry — exactly where [TrackId] is rebuilt from `PlayerRoute`.
  */
 @JvmInline
-public value class CategoryId(public val value: String) {
+value class CategoryId(val value: String) {
     init {
         // The same check [TrackId] makes: an id that is blank names a category no lookup can
         // match, so it is refused where it is built rather than where it fails.
         require(value.isNotBlank()) { "A category id cannot be blank." }
     }
 
-    public override fun toString(): String = value
+    override fun toString(): String = value
 }

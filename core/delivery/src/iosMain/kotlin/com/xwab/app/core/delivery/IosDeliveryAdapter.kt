@@ -1,10 +1,9 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
-package com.xwab.app.core.sounddelivery
+package com.xwab.app.core.delivery
 
 import com.xwab.app.core.network.port.NetworkPort
-import com.xwab.app.core.sounddelivery.port.SoundContentPort
-import com.xwab.app.core.sound.port.SoundPort
+import com.xwab.app.core.delivery.port.DeliveryPort
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -17,16 +16,16 @@ import platform.Foundation.NSUserDomainMask
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
 @Inject
-internal class IosSoundContentAdapter(
+internal class IosDeliveryAdapter(
     networkPort: NetworkPort,
-    sourcePort: SoundPort,
-) : SoundContentPort by createSoundContentAdapter(
-    root = iosAudioCachePath(),
+) : DeliveryPort by createDeliveryAdapter(
+    root = iosCachePath("content"),
     networkPort = networkPort,
-    sourcePort = sourcePort,
+    // Where sound-only delivery cached its tracks, before any of this was namespaced.
+    legacyRoots = listOf(iosCachePath("audio-content")),
 )
 
-private fun iosAudioCachePath() = (
+private fun iosCachePath(directoryName: String) = (
     requireNotNull(
         NSFileManager.defaultManager.URLForDirectory(
             directory = NSCachesDirectory,
@@ -35,5 +34,5 @@ private fun iosAudioCachePath() = (
             create = true,
             error = null,
         )?.path,
-    ) + "/audio-content"
+    ) + "/" + directoryName
 ).toPath()

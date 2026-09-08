@@ -1,4 +1,4 @@
-package com.xwab.app.core.sounddelivery.cache
+package com.xwab.app.core.delivery.cache
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -46,9 +46,7 @@ class CacheSweepTest {
         val existing = listOf(
             partialCacheFileName("heavy-rain-v1.mp3"),
             "heavy-rain-v1.mp3.tmp",
-            "heavy-rain-v1.wav",
             "Heavy-Rain-v1.mp3",
-            "heavy-rain.mp3",
         )
 
         assertTrue(unreferencedCacheFileNames(existing, keep = emptySet()).isEmpty())

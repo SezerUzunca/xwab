@@ -1,20 +1,20 @@
 # Favorites
 
-One capability: **the tracks the listener marked**, kept across launches.
+`:core:favorites` stores arbitrary item IDs separately for each caller-owned namespace. It has no
+project dependency on sound, story or another content module. Its only public interface is
+`com.xwab.app.core.favorites.port.FavoritesPort`; DataStore and platform adapters are internal.
 
-- `FavoritesPort` and its DataStore-backed implementation;
-- the `DataStore<Preferences>` itself, created at the platform's own path — `filesDir` on Android,
-  the documents directory on iOS.
+```kotlin
+val storyIds = favoritesPort.observe("story") // Flow<Set<String>>
+favoritesPort.toggle(namespace = "story", itemId = "night-came-slowly")
+```
 
-Named for the capability rather than for DataStore, and rather than for "preferences": the store is
-*how*, not *what*. A module called `preferences` would have collected the next persisted thing, and
-the one after that, until it was a layer named for a mechanism — which is exactly what `core:data`
-was before it was dissolved.
+The same ID may be favorited in multiple namespaces independently. IDs must be nonblank;
+namespaces use lowercase letters, digits, underscores or hyphens, with a maximum of 64 characters.
+The caller maps these strings to its own domain types. Features and core modules may consume this
+port through Metro without accessing persistence implementation details.
 
-So a second persisted capability gets its own module beside this one rather than a second key in
-here. The cost is that the two would need a shared `DataStore` binding; at that point the store
-moves to a small module both depend on, and each capability still owns its own port. That trade is
-worth making at the second capability, not before it.
-
-The on-disk file name is `xwab.preferences_pb` and stays that way regardless of what this module is
-called — renaming it would silently drop every favorite an installed copy of the app has saved.
+The file remains `xwab.preferences_pb`, in Android filesDir or the iOS documents directory.
+Each namespace uses `favorite_<namespace>_ids`. Existing sound features continue to use `music`,
+which preserves the previously stored `favorite_music_ids` without a data migration or reset.
+Tests cover legacy records, persistence, namespace isolation and invalid inputs.

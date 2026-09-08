@@ -5,9 +5,9 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringSetPreferencesKey
-import com.xwab.app.core.sound.port.TrackId
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,30 +19,63 @@ import kotlinx.coroutines.runBlocking
 
 class DataStoreFavoritesAdapterTest {
     @Test
+    fun identicalIdsInDifferentNamespacesAreIndependentAndPersist() = runBlocking {
+        val store = FakePreferencesDataStore()
+        val adapter = DataStoreFavoritesAdapter(store)
+        adapter.toggle("music", "shared-id")
+        adapter.toggle("story", "shared-id")
+        adapter.toggle("music", "shared-id")
+
+        val reopened = DataStoreFavoritesAdapter(store)
+        assertEquals(emptySet(), reopened.observe("music").first())
+        assertEquals(setOf("shared-id"), reopened.observe("story").first())
+    }
+
+    @Test
+    fun legacyMusicFavoritesSurviveOtherNamespacesAndToggles() = runBlocking {
+        val store = FakePreferencesDataStore().apply { store(setOf("gentle-rain")) }
+        val adapter = DataStoreFavoritesAdapter(store)
+        adapter.toggle("story", "night")
+        assertEquals(setOf("gentle-rain"), adapter.observe("music").first())
+        adapter.toggle("music", "gentle-rain")
+        assertEquals(emptySet(), DataStoreFavoritesAdapter(store).observe("music").first())
+        assertEquals(setOf("night"), adapter.observe("story").first())
+    }
+
+    @Test
+    fun invalidKeysFailBeforeWriting() = runBlocking {
+        val adapter = DataStoreFavoritesAdapter(FakePreferencesDataStore())
+        assertFailsWith<IllegalArgumentException> { adapter.observe("") }
+        assertFailsWith<IllegalArgumentException> { adapter.toggle("../story", "id") }
+        assertFailsWith<IllegalArgumentException> { adapter.toggle("story", " ") }
+        assertEquals(emptySet(), adapter.observe("story").first())
+    }
+
+    @Test
     fun togglingAddsAndThenRemovesTheId() = runBlocking {
         val adapter = DataStoreFavoritesAdapter(FakePreferencesDataStore())
 
-        adapter.toggle(TrackId("gentle-rain"))
-        assertEquals(setOf(TrackId("gentle-rain")), adapter.favoriteIds.first())
+        adapter.toggle("music", "gentle-rain")
+        assertEquals(setOf("gentle-rain"), adapter.observe("music").first())
 
-        adapter.toggle(TrackId("calm-waves"))
+        adapter.toggle("music", "calm-waves")
         assertEquals(
-            setOf(TrackId("gentle-rain"), TrackId("calm-waves")),
-            adapter.favoriteIds.first(),
+            setOf("gentle-rain", "calm-waves"),
+            adapter.observe("music").first(),
         )
 
-        adapter.toggle(TrackId("gentle-rain"))
-        assertEquals(setOf(TrackId("calm-waves")), adapter.favoriteIds.first())
+        adapter.toggle("music", "gentle-rain")
+        assertEquals(setOf("calm-waves"), adapter.observe("music").first())
     }
 
     @Test
     fun aTransientReadFailureIsRetriedRatherThanLeavingFavoritesEmptyForever() = runBlocking {
         val dataStore = FakePreferencesDataStore()
         val adapter = DataStoreFavoritesAdapter(dataStore)
-        adapter.toggle(TrackId("gentle-rain"))
+        adapter.toggle("music", "gentle-rain")
         dataStore.failingReads = 2
 
-        assertEquals(setOf(TrackId("gentle-rain")), adapter.favoriteIds.first())
+        assertEquals(setOf("gentle-rain"), adapter.observe("music").first())
         assertEquals(0, dataStore.failingReads)
     }
 
@@ -51,20 +84,20 @@ class DataStoreFavoritesAdapterTest {
         val dataStore = FakePreferencesDataStore().apply { failingReads = Int.MAX_VALUE }
         val adapter = DataStoreFavoritesAdapter(dataStore)
 
-        assertEquals(listOf(emptySet<TrackId>()), adapter.favoriteIds.take(1).toList())
+        assertEquals(listOf(emptySet<String>()), adapter.observe("music").take(1).toList())
     }
 
     @Test
     fun aFailedWriteDoesNotCancelTheCallingScope() = runBlocking {
         val dataStore = FakePreferencesDataStore()
         val adapter = DataStoreFavoritesAdapter(dataStore)
-        adapter.toggle(TrackId("gentle-rain"))
+        adapter.toggle("music", "gentle-rain")
 
         dataStore.writeFailure = IllegalStateException("disk is full")
-        adapter.toggle(TrackId("calm-waves"))
+        adapter.toggle("music", "calm-waves")
 
         dataStore.writeFailure = null
-        assertEquals(setOf(TrackId("gentle-rain")), adapter.favoriteIds.first())
+        assertEquals(setOf("gentle-rain"), adapter.observe("music").first())
     }
 
     @Test
@@ -74,8 +107,8 @@ class DataStoreFavoritesAdapterTest {
         val adapter = DataStoreFavoritesAdapter(dataStore)
 
         assertEquals(
-            setOf(TrackId("gentle-rain"), TrackId("calm-waves")),
-            adapter.favoriteIds.first(),
+            setOf("gentle-rain", "calm-waves"),
+            adapter.observe("music").first(),
         )
     }
 

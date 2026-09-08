@@ -42,7 +42,7 @@ class ObserveFavoritesContentUseCaseTest {
         while (emissions.isEmpty()) yield()
 
         assertTrue(emissions.single().musics.isEmpty())
-        favorites.toggle(TrackId("calm-waves"))
+        favorites.toggle("music", "calm-waves")
         collection.join()
 
         assertEquals(listOf(waves), emissions.last().musics)

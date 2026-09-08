@@ -651,13 +651,27 @@ class FeatureFirstRulesTest {
     }
 
     @Test
+    fun reusableCapabilitiesCannotDependOnContentModules() {
+        for (module in listOf(":core:favorites", ":core:delivery")) {
+            for (dependency in listOf(":core:sound", ":core:story", ":core:session", ":shared")) {
+                assertTrue(FeatureFirstRules.dependencyViolations(mapOf(module to listOf(dependency)))
+                    .any { it.contains("must not depend on app content") })
+            }
+        }
+        assertEquals(emptyList(), FeatureFirstRules.dependencyViolations(mapOf(
+            ":core:favorites" to listOf(":core:favorites"),
+            ":core:delivery" to listOf(":core:delivery", ":core:network"),
+        )))
+    }
+
+    @Test
     fun currentModuleGraphSatisfiesDependencyRules() {
         val graph = mapOf(
             ":core:sound" to emptyList<String>(),
             ":core:story" to emptyList<String>(),
             ":core:network" to emptyList<String>(),
-            ":core:delivery" to listOf(":core:sound", ":core:network"),
-            ":core:favorites" to listOf(":core:sound"),
+            ":core:delivery" to listOf(":core:network"),
+            ":core:favorites" to emptyList<String>(),
             ":core:playback" to emptyList<String>(),
             ":core:session" to listOf(
                 ":core:sound", ":core:delivery", ":core:story",
@@ -691,8 +705,8 @@ class FeatureFirstRulesTest {
             ":androidApp" to listOf(":shared"),
         )
         val apiEdges = mapOf(
-            ":core:delivery" to listOf(":core:sound"),
-            ":core:favorites" to listOf(":core:sound"),
+            ":core:delivery" to emptyList(),
+            ":core:favorites" to emptyList(),
             ":core:session" to emptyList(),
             ":testing" to listOf(":core:sound", ":core:favorites", ":core:session"),
         )

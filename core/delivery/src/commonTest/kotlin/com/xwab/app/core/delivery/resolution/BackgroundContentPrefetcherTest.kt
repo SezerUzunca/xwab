@@ -1,7 +1,9 @@
-package com.xwab.app.core.sounddelivery.resolution
+package com.xwab.app.core.delivery.resolution
 
-import com.xwab.app.core.sounddelivery.cache.AudioFileStore
-import com.xwab.app.core.sounddelivery.cache.UnusableAudioSourceException
+import com.xwab.app.core.delivery.cache.ContentFileStore
+import com.xwab.app.core.delivery.cache.UnusableContentSourceException
+import com.xwab.app.core.delivery.port.CacheKey
+import com.xwab.app.core.delivery.port.DeliveryRequest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration
@@ -19,13 +21,29 @@ import kotlinx.coroutines.withTimeout
 /**
  * Download policy only: what gets fetched, how often, and what happens when the network refuses.
  */
-class BackgroundAudioPrefetcherTest {
+class BackgroundContentPrefetcherTest {
+    @Test
+    fun theSameFileNameInDifferentNamespacesStartsSeparateDownloads() = runBlocking {
+        val fileStore = BlockingContentFileStore()
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope)
+        try {
+            prefetcher.prefetch(DeliveryRequest(CacheKey("sound", FILE_NAME), REMOTE_URL))
+            prefetcher.prefetch(DeliveryRequest(CacheKey("story", FILE_NAME), REMOTE_URL))
+            assertEquals(2, fileStore.downloadCount)
+            fileStore.releaseDownload.complete(Unit)
+            scope.settle()
+        } finally {
+            prefetcher.close()
+        }
+    }
+
     @Test
     fun aRequestedFileIsDownloadedOnce() = runBlocking {
-        val fileStore = FakeAudioFileStore()
-        val prefetcher = BackgroundAudioPrefetcher(fileStore)
+        val fileStore = FakeContentFileStore()
+        val prefetcher = BackgroundContentPrefetcher(fileStore)
         try {
-            prefetcher.prefetch(FILE_NAME, REMOTE_URL)
+            prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
 
             withTimeout(TIMEOUT_MS) { fileStore.downloaded.await() }
             assertEquals(1, fileStore.downloadCount)
@@ -36,13 +54,13 @@ class BackgroundAudioPrefetcherTest {
 
     @Test
     fun repeatedRequestsShareOneInFlightDownload() = runBlocking {
-        val fileStore = BlockingAudioFileStore()
-        val prefetcher = BackgroundAudioPrefetcher(fileStore)
+        val fileStore = BlockingContentFileStore()
+        val prefetcher = BackgroundContentPrefetcher(fileStore)
         try {
-            prefetcher.prefetch(FILE_NAME, REMOTE_URL)
+            prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
             withTimeout(TIMEOUT_MS) { fileStore.downloadStarted.await() }
 
-            prefetcher.prefetch(FILE_NAME, REMOTE_URL)
+            prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
             assertEquals(1, fileStore.downloadCount)
 
             fileStore.releaseDownload.complete(Unit)
@@ -59,10 +77,10 @@ class BackgroundAudioPrefetcherTest {
      */
     @Test
     fun aFailingDownloadIsRetriedThreeTimesAndThenGivenUpQuietly() = runBlocking {
-        val fileStore = FailingAudioFileStore()
-        val prefetcher = BackgroundAudioPrefetcher(fileStore)
+        val fileStore = FailingContentFileStore()
+        val prefetcher = BackgroundContentPrefetcher(fileStore)
         try {
-            prefetcher.prefetch(FILE_NAME, REMOTE_URL)
+            prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
 
             withTimeout(RETRY_TIMEOUT_MS) { fileStore.attemptsExhausted.await() }
             assertEquals(3, fileStore.attempts)
@@ -77,15 +95,15 @@ class BackgroundAudioPrefetcherTest {
      */
     @Test
     fun aFileThatJustFailedIsNotRetriedAgainImmediately() = runBlocking {
-        val fileStore = FailingAudioFileStore()
+        val fileStore = FailingContentFileStore()
         val scope = testScope()
-        val prefetcher = BackgroundAudioPrefetcher(fileStore, scope)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope)
         try {
-            prefetcher.prefetch(FILE_NAME, REMOTE_URL)
+            prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
             scope.settle()
             assertEquals(3, fileStore.attempts)
 
-            prefetcher.prefetch(FILE_NAME, REMOTE_URL)
+            prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
             scope.settle()
 
             assertEquals(3, fileStore.attempts, "the cooldown should have refused a second burst")
@@ -96,16 +114,16 @@ class BackgroundAudioPrefetcherTest {
 
     @Test
     fun aFileIsRetriedOnceTheCooldownHasPassed() = runBlocking {
-        val fileStore = FailingAudioFileStore()
+        val fileStore = FailingContentFileStore()
         val time = FakeTimeSource()
         val scope = testScope()
-        val prefetcher = BackgroundAudioPrefetcher(fileStore, scope, time)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, time)
         try {
-            prefetcher.prefetch(FILE_NAME, REMOTE_URL)
+            prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
             scope.settle()
 
             time.advance(10.minutes)
-            prefetcher.prefetch(FILE_NAME, REMOTE_URL)
+            prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
             scope.settle()
 
             assertEquals(6, fileStore.attempts, "a second burst should follow the cooldown")
@@ -120,11 +138,11 @@ class BackgroundAudioPrefetcherTest {
      */
     @Test
     fun anUnusableSourceIsNotRetriedAtAll() = runBlocking {
-        val fileStore = UnusableAudioFileStore()
+        val fileStore = UnusableContentFileStore()
         val scope = testScope()
-        val prefetcher = BackgroundAudioPrefetcher(fileStore, scope)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope)
         try {
-            prefetcher.prefetch(FILE_NAME, REMOTE_URL)
+            prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
             scope.settle()
 
             assertEquals(1, fileStore.attempts, "an unusable source should not be retried")
@@ -145,27 +163,27 @@ class BackgroundAudioPrefetcherTest {
         this.coroutineContext.job.children.toList().forEach { it.join() }
     }
 
-    private class FakeAudioFileStore : AudioFileStore {
+    private class FakeContentFileStore : ContentFileStore {
         val downloaded = CompletableDeferred<Unit>()
         var downloadCount = 0
 
-        override suspend fun find(cacheFileName: String): String? = null
+        override suspend fun find(key: CacheKey): String? = null
 
-        override suspend fun download(cacheFileName: String, remoteHttpsUrl: String) {
+        override suspend fun download(request: DeliveryRequest) {
             downloadCount++
             downloaded.complete(Unit)
         }
     }
 
-    private class BlockingAudioFileStore : AudioFileStore {
+    private class BlockingContentFileStore : ContentFileStore {
         val downloadStarted = CompletableDeferred<Unit>()
         val releaseDownload = CompletableDeferred<Unit>()
         val downloadFinished = CompletableDeferred<Unit>()
         var downloadCount = 0
 
-        override suspend fun find(cacheFileName: String): String? = null
+        override suspend fun find(key: CacheKey): String? = null
 
-        override suspend fun download(cacheFileName: String, remoteHttpsUrl: String) {
+        override suspend fun download(request: DeliveryRequest) {
             downloadCount++
             downloadStarted.complete(Unit)
             releaseDownload.await()
@@ -173,27 +191,27 @@ class BackgroundAudioPrefetcherTest {
         }
     }
 
-    private class FailingAudioFileStore : AudioFileStore {
+    private class FailingContentFileStore : ContentFileStore {
         val attemptsExhausted = CompletableDeferred<Unit>()
         var attempts = 0
 
-        override suspend fun find(cacheFileName: String): String? = null
+        override suspend fun find(key: CacheKey): String? = null
 
-        override suspend fun download(cacheFileName: String, remoteHttpsUrl: String) {
+        override suspend fun download(request: DeliveryRequest) {
             attempts++
             if (attempts == 3) attemptsExhausted.complete(Unit)
             error("The audio host is unreachable.")
         }
     }
 
-    private class UnusableAudioFileStore : AudioFileStore {
+    private class UnusableContentFileStore : ContentFileStore {
         var attempts = 0
 
-        override suspend fun find(cacheFileName: String): String? = null
+        override suspend fun find(key: CacheKey): String? = null
 
-        override suspend fun download(cacheFileName: String, remoteHttpsUrl: String) {
+        override suspend fun download(request: DeliveryRequest) {
             attempts++
-            throw UnusableAudioSourceException("Unexpected audio content type: text/html")
+            throw UnusableContentSourceException("Unexpected audio content type: text/html")
         }
     }
 

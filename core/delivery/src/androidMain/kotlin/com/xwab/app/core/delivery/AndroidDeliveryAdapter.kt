@@ -1,9 +1,8 @@
-package com.xwab.app.core.sounddelivery
+package com.xwab.app.core.delivery
 
 import android.content.Context
 import com.xwab.app.core.network.port.NetworkPort
-import com.xwab.app.core.sounddelivery.port.SoundContentPort
-import com.xwab.app.core.sound.port.SoundPort
+import com.xwab.app.core.delivery.port.DeliveryPort
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -13,12 +12,12 @@ import okio.Path.Companion.toPath
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
 @Inject
-internal class AndroidSoundContentAdapter(
+internal class AndroidDeliveryAdapter(
     context: Context,
     networkPort: NetworkPort,
-    sourcePort: SoundPort,
-) : SoundContentPort by createSoundContentAdapter(
-    root = context.cacheDir.resolve("audio-content").absolutePath.toPath(),
+) : DeliveryPort by createDeliveryAdapter(
+    root = context.cacheDir.resolve("content").absolutePath.toPath(),
     networkPort = networkPort,
-    sourcePort = sourcePort,
+    // Where sound-only delivery cached its tracks, before any of this was namespaced.
+    legacyRoots = listOf(context.cacheDir.resolve("audio-content").absolutePath.toPath()),
 )

@@ -7,8 +7,6 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // `TrackId` is the catalog's, and it is in this module's public API.
-            api(projects.core.sound)
             // `implementation`, not `api`: where favorites are written is this module's business.
             // Nothing it publishes names a DataStore type any more — the platform halves bind
             // `FavoritesPort` itself — so DataStore stops here instead of landing on the

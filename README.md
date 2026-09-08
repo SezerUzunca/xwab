@@ -44,7 +44,7 @@ There is no shared repository abstraction. A feature consumes the narrow capabil
 | Capability module | Public port |
 |---|---|
 | `:core:sound` | `SoundPort`, sound models and `TrackSource` |
-| `:core:delivery` | `SoundContentPort` and its resolution result |
+| `:core:delivery` | `DeliveryPort`, `DeliveryRequest`, `CacheKey` and `DeliveryResult` |
 | `:core:favorites` | `FavoritesPort` |
 | `:core:story` | `StoryPort`, story models and `StoryStreamSource` |
 | `:core:session` | `PlaybackPort` and session model types |
@@ -85,6 +85,8 @@ one port, manifest data and an internal implementation in a separate file. `Soun
 `StoryPort` combine metadata queries with source lookup. Contracts and models live in each
 module's `port` package; `SoundPortImpl.kt` and `StoryPortImpl.kt` live in the module package.
 Delivery and favorites are separate modules. `checkArchitecture` enforces one port per content module.
+Favorites uses caller-owned namespaces and string IDs; delivery accepts source URLs and namespaced
+cache requests. Neither depends on sound or story. Only delivery depends on the network module.
 
 ## Navigation 3
 
@@ -103,7 +105,8 @@ sharing the content-neutral playback port.
 kind and value, keeping sound and story identifiers distinct. Its internal adapter resolves
 metadata and content through ports, then drives `PlaybackEnginePort`.
 
-Sound playback asks `SoundContentPort` for a playable source. Cached files are preferred; otherwise
+Sound playback resolves its source through `SoundPort`, then gives a request to `DeliveryPort`.
+The session owns the sound namespace, MPEG policy and current cache inventory. Cached files are preferred; otherwise
 the HTTPS source is returned immediately and a single background download fills app-owned cache.
 Stories use `StoryPort` and stream without being cached.
 
@@ -126,6 +129,7 @@ internal Metro contributions behind `PlaybackEnginePort`.
 10. A Koin import or dependency is reintroduced anywhere in the project.
 11. A feature exposes a declaration outside its navigation package or a DI `*Dependencies` class.
 12. Sound or story exposes more than one port interface or lacks its `SoundPort` / `StoryPort` contract.
+13. Favorites depends on another project, or delivery depends on a project other than itself or `:core:network`.
 
 The Metro convention additionally treats non-public contribution problems as errors and generates
 providers that allow internal contributed adapters to remain hidden across modules.
