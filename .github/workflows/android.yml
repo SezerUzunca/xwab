@@ -39,5 +39,27 @@ jobs:
       - name: Check architecture, test its rules, and run Android host tests
         run: ./gradlew :check testAndroidHostTest --stacktrace
 
+      # Gradle's console reports a failed test as a class, a method and a line number, which is the
+      # line of the test function rather than of the expectation that broke. For a test that fails
+      # only here — `aFailureAfterAStreamChunkIsStillATransportFailure` has never reproduced on a
+      # developer machine — that is not enough to tell which assertion went, and the JUnit XML that
+      # says so is discarded with the runner. Printed rather than uploaded so it needs no action
+      # version and is readable straight from the job log.
+      - name: Report the failing test expectations
+        if: failure()
+        run: |
+          found=0
+          while IFS= read -r report; do
+            if grep -q '<failure\|<error' "$report"; then
+              found=1
+              echo "::group::$report"
+              cat "$report"
+              echo "::endgroup::"
+            fi
+          done < <(find . -path '*/build/test-results/*' -name '*.xml')
+          if [ "$found" -eq 0 ]; then
+            echo "No JUnit report recorded a failure; the build failed before or outside the tests."
+          fi
+
       - name: Assemble debug APK
         run: ./gradlew :androidApp:assembleDebug --stacktrace
