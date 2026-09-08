@@ -1,7 +1,7 @@
 package com.xwab.app.feature.story.domain
 
-import com.xwab.app.core.playback.port.PlaybackItemId
-import com.xwab.app.core.playback.port.PlaybackSummary
+import com.xwab.app.core.session.port.PlaybackItemId
+import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.testing.FakePlaybackPort
 import com.xwab.app.feature.story.FakeStoryCatalog
 import com.xwab.app.feature.story.story

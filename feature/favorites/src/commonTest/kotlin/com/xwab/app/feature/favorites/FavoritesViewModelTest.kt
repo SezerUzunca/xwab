@@ -1,9 +1,9 @@
 package com.xwab.app.feature.favorites
 
 import com.xwab.app.core.sound.port.TrackId
-import com.xwab.app.core.playback.port.PlaybackFailure
-import com.xwab.app.core.playback.port.PlaybackItemId
-import com.xwab.app.core.playback.port.PlaybackSummary
+import com.xwab.app.core.session.port.PlaybackFailure
+import com.xwab.app.core.session.port.PlaybackItemId
+import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.testing.FakeFavorites
 import com.xwab.app.testing.FakeMusicCatalog
 import com.xwab.app.testing.FakePlaybackPort

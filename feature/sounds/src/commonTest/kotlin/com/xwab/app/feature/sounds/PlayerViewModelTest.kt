@@ -1,8 +1,8 @@
 package com.xwab.app.feature.sounds
 
-import com.xwab.app.core.playback.port.PlaybackFailure
-import com.xwab.app.core.playback.port.PlaybackItemId
-import com.xwab.app.core.playback.port.PlaybackSummary
+import com.xwab.app.core.session.port.PlaybackFailure
+import com.xwab.app.core.session.port.PlaybackItemId
+import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.feature.sounds.domain.ObservePlayerContentUseCase

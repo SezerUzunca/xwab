@@ -3,10 +3,10 @@ package com.xwab.app.feature.favorites
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xwab.app.core.sound.port.TrackId
-import com.xwab.app.core.playback.port.PlaybackPort
-import com.xwab.app.core.playback.port.PlaybackItemId
-import com.xwab.app.core.playback.port.PlaybackKind
-import com.xwab.app.core.playback.port.requestedValueOf
+import com.xwab.app.core.session.port.PlaybackPort
+import com.xwab.app.core.session.port.PlaybackItemId
+import com.xwab.app.core.session.port.PlaybackKind
+import com.xwab.app.core.session.port.requestedValueOf
 import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.feature.favorites.domain.FavoritesContent
 import com.xwab.app.feature.favorites.domain.ObserveFavoritesContentUseCase

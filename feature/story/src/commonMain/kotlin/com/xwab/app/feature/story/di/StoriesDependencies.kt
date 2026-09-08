@@ -1,6 +1,6 @@
 package com.xwab.app.feature.story.di
 
-import com.xwab.app.core.playback.port.PlaybackPort
+import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.story.port.StoryCatalogPort
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject

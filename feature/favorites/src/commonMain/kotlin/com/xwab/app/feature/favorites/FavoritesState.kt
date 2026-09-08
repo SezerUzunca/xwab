@@ -2,7 +2,7 @@ package com.xwab.app.feature.favorites
 
 import com.xwab.app.core.sound.port.Music
 import com.xwab.app.core.sound.port.TrackId
-import com.xwab.app.core.playback.port.PlaybackFailure
+import com.xwab.app.core.session.port.PlaybackFailure
 
 /** Content available after the outer [com.xwab.app.designsystem.state.Loadable] becomes ready. */
 internal data class FavoritesState(
