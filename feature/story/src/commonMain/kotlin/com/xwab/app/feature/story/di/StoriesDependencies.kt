@@ -7,8 +7,11 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 
 /**
- * The two ports this screen reads — two, not three: there is no favorites port for stories, and
- * the manifest that knows where one streams from is the session's business.
+ * The two ports this screen reads — two, not three, because stories have no favorites port.
+ *
+ * `StoryPort` carries the stream address next to the metadata, so unlike the split this replaced,
+ * nothing at the module boundary stops a screen from asking for one. Only the session does, and a
+ * screen has no use for an address it would only hand back through [PlaybackPort].
  */
 @SingleIn(AppScope::class)
 @Inject
