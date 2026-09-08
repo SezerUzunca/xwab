@@ -2,10 +2,10 @@ package com.xwab.app.feature.story
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xwab.app.core.playback.port.PlaybackPort
-import com.xwab.app.core.playback.port.PlaybackItemId
-import com.xwab.app.core.playback.port.PlaybackKind
-import com.xwab.app.core.playback.port.requestedValueOf
+import com.xwab.app.core.session.port.PlaybackPort
+import com.xwab.app.core.session.port.PlaybackItemId
+import com.xwab.app.core.session.port.PlaybackKind
+import com.xwab.app.core.session.port.requestedValueOf
 import com.xwab.app.core.story.port.StoryId
 import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.feature.story.domain.ObserveStoriesContentUseCase

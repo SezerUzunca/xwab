@@ -4,8 +4,8 @@ import com.xwab.app.core.sound.port.Music
 import com.xwab.app.core.sound.port.SoundCatalogPort
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.favorites.port.FavoritesPort
-import com.xwab.app.core.playback.port.PlaybackPort
-import com.xwab.app.core.playback.port.PlaybackSummary
+import com.xwab.app.core.session.port.PlaybackPort
+import com.xwab.app.core.session.port.PlaybackSummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 

@@ -8,7 +8,7 @@ It mirrors the catalog/source split in
 | Port | Answers | Read by | Declared in |
 |---|---|---|---|
 | `StoryCatalogPort` | What can be listened to? | screens and playback metadata resolution | `core:story:catalog` |
-| `StorySourcePort` | Which HTTPS source plays this story? | `core:playback:session` | this module |
+| `StorySourcePort` | Which HTTPS source plays this story? | `core:session` | this module |
 
 Both ports are derived from one local `storyManifest` row, so metadata and audio cannot be added
 in unrelated edits. Every shipped row has a required HTTPS MP3 source; an unknown id is the only

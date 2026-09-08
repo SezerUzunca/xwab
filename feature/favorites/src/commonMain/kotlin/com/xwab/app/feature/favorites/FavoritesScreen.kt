@@ -16,7 +16,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Music
 import com.xwab.app.core.sound.port.TrackId
-import com.xwab.app.core.playback.port.PlaybackFailure
+import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.PlayableRow
 import com.xwab.app.designsystem.components.SleepRelaxBackground

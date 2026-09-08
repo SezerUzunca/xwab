@@ -19,7 +19,7 @@ import kotlin.jvm.JvmInline
  *
  * The places it is deliberately unwrapped are all edges where a string is the format: the cache
  * file name a track downloads under, a serialized navigation route, a Compose list key, and
- * `core:playback:engine`, which is a standalone library that knows nothing about this app's catalog.
+ * `core:playback`, which is a standalone library that knows nothing about this app's catalog.
  */
 @JvmInline
 public value class TrackId(public val value: String) {

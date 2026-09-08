@@ -8,7 +8,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(projects.core.story.catalog)
-            implementation(projects.core.playback.session)
+            implementation(projects.core.session)
         }
         commonTest.dependencies {
             implementation(projects.testing)

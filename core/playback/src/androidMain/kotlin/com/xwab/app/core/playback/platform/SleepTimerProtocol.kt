@@ -1,0 +1,41 @@
+package com.xwab.app.core.playback.platform
+
+import android.os.Bundle
+import androidx.media3.session.SessionCommand
+
+/**
+ * Private MediaSession custom command protocol between [SleepTimerClient] and [PlaybackService].
+ *
+ * The action names still say `playbackengine`, which this module's package no longer does. They are
+ * wire values, not package identity: they travel to a service that outlives the app process, so a
+ * client and the session it reconnects to have to agree on them across builds. Renaming the package
+ * must not change what a running service already answers to — the same reason `EngineItemId` spells
+ * its prefixes out instead of deriving them from an enum.
+ */
+internal object SleepTimerProtocol {
+    const val ACTION_START = "com.xwab.app.core.playbackengine.action.START_SLEEP_TIMER"
+    const val ACTION_CANCEL = "com.xwab.app.core.playbackengine.action.CANCEL_SLEEP_TIMER"
+    const val ACTION_GET_STATE = "com.xwab.app.core.playbackengine.action.GET_SLEEP_TIMER_STATE"
+
+    private const val EXTRA_REQUESTED_DEADLINE_ELAPSED_REALTIME_MS =
+        "sleep_timer_requested_deadline_elapsed_realtime_ms"
+    private const val EXTRA_DEADLINE_ELAPSED_REALTIME_MS = "sleep_timer_deadline_elapsed_realtime_ms"
+    private const val NO_TIMER_DEADLINE = -1L
+
+    fun command(action: String): SessionCommand = SessionCommand(action, Bundle.EMPTY)
+
+    fun startArguments(deadlineElapsedRealtimeMs: Long): Bundle = Bundle().apply {
+        putLong(EXTRA_REQUESTED_DEADLINE_ELAPSED_REALTIME_MS, deadlineElapsedRealtimeMs)
+    }
+
+    fun requestedDeadlineFrom(arguments: Bundle): Long =
+        arguments.getLong(EXTRA_REQUESTED_DEADLINE_ELAPSED_REALTIME_MS, 0L)
+
+    fun stateArguments(deadlineElapsedRealtimeMs: Long?): Bundle = Bundle().apply {
+        putLong(EXTRA_DEADLINE_ELAPSED_REALTIME_MS, deadlineElapsedRealtimeMs ?: NO_TIMER_DEADLINE)
+    }
+
+    fun deadlineFrom(arguments: Bundle): Long? = arguments
+        .getLong(EXTRA_DEADLINE_ELAPSED_REALTIME_MS, NO_TIMER_DEADLINE)
+        .takeIf { it > 0L }
+}

@@ -17,7 +17,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xwab.app.core.story.port.Story
 import com.xwab.app.core.story.port.StoryId
-import com.xwab.app.core.playback.port.PlaybackFailure
+import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.designsystem.components.PlayableRow
 import com.xwab.app.designsystem.format.formatDuration
 import com.xwab.app.designsystem.components.LoadingContent

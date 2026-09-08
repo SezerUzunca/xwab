@@ -104,7 +104,7 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
-                mapOf(":core:playback:session" to FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys.toList()),
+                mapOf(":core:session" to FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys.toList()),
             ),
         )
     }
@@ -321,11 +321,19 @@ class FeatureFirstRulesTest {
         )
         assertEquals(emptyList(), FeatureFirstRules.coreVisibilityViolations(good))
 
+        // A port is public by definition; Kotlin's own default visibility already says so without
+        // a keyword, so a declaration that omits one is not a violation.
         val implicitPort = FeatureFirstRules.coreVisibilityViolations(
             listOf(coreSource("port/SoundCatalogPort.kt", ".port", "interface SoundCatalogPort")),
         )
-        assertEquals(1, implicitPort.size)
-        assertTrue(implicitPort.single().contains("implicit visibility"))
+        assertEquals(emptyList(), implicitPort)
+
+        // The naming rule still applies whether or not `public` was written out.
+        val implicitWrongName = FeatureFirstRules.coreVisibilityViolations(
+            listOf(coreSource("port/Catalog.kt", ".port", "interface Catalog")),
+        )
+        assertEquals(1, implicitWrongName.size)
+        assertTrue(implicitWrongName.single().contains("must end in Port"))
 
         val hiddenPortDeclaration = FeatureFirstRules.coreVisibilityViolations(
             listOf(coreSource("port/Helper.kt", ".port", "private object Helper")),
@@ -369,6 +377,7 @@ class FeatureFirstRulesTest {
         )
         assertEquals(1, indentedTopLevelLeak.size)
 
+        // The same holds for a nested port declaration: a member with no keyword is still public.
         val implicitPortMember = FeatureFirstRules.CoreSource(
             path = "core/sample/src/commonMain/kotlin/port/SamplePort.kt",
             module = ":core:sample",
@@ -380,7 +389,7 @@ class FeatureFirstRulesTest {
                 }
             """.trimIndent(),
         )
-        assertEquals(1, FeatureFirstRules.coreVisibilityViolations(listOf(implicitPortMember)).size)
+        assertEquals(emptyList(), FeatureFirstRules.coreVisibilityViolations(listOf(implicitPortMember)))
 
         val implicitCompanion = FeatureFirstRules.CoreSource(
             path = "core/sample/src/commonMain/kotlin/port/Sample.kt",
@@ -393,7 +402,7 @@ class FeatureFirstRulesTest {
                 }
             """.trimIndent(),
         )
-        assertEquals(1, FeatureFirstRules.coreVisibilityViolations(listOf(implicitCompanion)).size)
+        assertEquals(emptyList(), FeatureFirstRules.coreVisibilityViolations(listOf(implicitCompanion)))
 
         val internalAdapterMember = FeatureFirstRules.CoreSource(
             path = "core/sample/src/commonMain/kotlin/SampleAdapter.kt",
@@ -619,7 +628,6 @@ class FeatureFirstRulesTest {
         val graph = mapOf(
             ":core:sound" to emptyList<String>(),
             ":core:story" to emptyList<String>(),
-            ":core:playback" to emptyList<String>(),
             ":core:network" to emptyList<String>(),
             ":core:sound:catalog" to emptyList<String>(),
             ":core:sound:manifest" to listOf(":core:sound:catalog"),
@@ -627,33 +635,33 @@ class FeatureFirstRulesTest {
             ":core:sound:favorites" to listOf(":core:sound:catalog"),
             ":core:story:catalog" to emptyList<String>(),
             ":core:story:manifest" to listOf(":core:story:catalog"),
-            ":core:playback:engine" to emptyList<String>(),
-            ":core:playback:session" to listOf(
+            ":core:playback" to emptyList<String>(),
+            ":core:session" to listOf(
                 ":core:sound:catalog", ":core:sound:delivery", ":core:story:catalog",
-                ":core:story:manifest", ":core:playback:engine",
+                ":core:story:manifest", ":core:playback",
             ),
             ":designsystem" to emptyList<String>(),
-            ":testing" to listOf(":core:sound:catalog", ":core:sound:favorites", ":core:playback:session"),
+            ":testing" to listOf(":core:sound:catalog", ":core:sound:favorites", ":core:session"),
             ":feature:browse" to listOf(":core:sound:catalog", ":testing", ":designsystem"),
             ":feature:category" to listOf(
-                ":core:sound:catalog", ":core:sound:favorites", ":core:playback:session",
+                ":core:sound:catalog", ":core:sound:favorites", ":core:session",
                 ":testing", ":designsystem",
             ),
             ":feature:favorites" to listOf(
-                ":core:sound:catalog", ":core:sound:favorites", ":core:playback:session",
+                ":core:sound:catalog", ":core:sound:favorites", ":core:session",
                 ":testing", ":designsystem",
             ),
             ":feature:sounds" to listOf(
-                ":core:sound:catalog", ":core:sound:favorites", ":core:playback:session",
+                ":core:sound:catalog", ":core:sound:favorites", ":core:session",
                 ":testing", ":designsystem",
             ),
             ":feature:story" to listOf(
-                ":core:story:catalog", ":core:playback:session", ":testing", ":designsystem",
+                ":core:story:catalog", ":core:session", ":testing", ":designsystem",
             ),
             ":shared" to listOf(
                 ":core:sound:catalog", ":core:sound:manifest", ":core:sound:delivery",
                 ":core:sound:favorites", ":core:story:catalog", ":core:story:manifest",
-                ":core:playback:session", ":core:playback:engine", ":core:network",
+                ":core:session", ":core:playback", ":core:network",
                 ":designsystem", ":testing", ":feature:browse", ":feature:category",
                 ":feature:favorites", ":feature:sounds", ":feature:story",
             ),
@@ -664,8 +672,8 @@ class FeatureFirstRulesTest {
             ":core:sound:delivery" to listOf(":core:sound:catalog"),
             ":core:sound:favorites" to listOf(":core:sound:catalog"),
             ":core:story:manifest" to listOf(":core:story:catalog"),
-            ":core:playback:session" to emptyList(),
-            ":testing" to listOf(":core:sound:catalog", ":core:sound:favorites", ":core:playback:session"),
+            ":core:session" to emptyList(),
+            ":testing" to listOf(":core:sound:catalog", ":core:sound:favorites", ":core:session"),
         )
 
         assertEquals(emptyList(), FeatureFirstRules.staleRuleViolations(graph.keys))

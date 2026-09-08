@@ -1,7 +1,7 @@
 package com.xwab.app.feature.story.domain
 
-import com.xwab.app.core.playback.port.PlaybackPort
-import com.xwab.app.core.playback.port.PlaybackSummary
+import com.xwab.app.core.session.port.PlaybackPort
+import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.core.story.port.Story
 import com.xwab.app.core.story.port.StoryCatalogPort
 import kotlinx.coroutines.flow.Flow

@@ -2,7 +2,7 @@
 
 One capability: **getting a track's bytes to the player**.
 
-`SoundContentPort` is this module's only public surface. `core:playback:session` asks it for a
+`SoundContentPort` is this module's only public surface. `core:session` asks it for a
 playable source; features cannot depend on this module. All cache, download, retry and platform
 storage types are internal.
 

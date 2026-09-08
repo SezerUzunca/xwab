@@ -1,7 +1,7 @@
 package com.xwab.app.feature.sounds
 
 import com.xwab.app.core.sound.port.Music
-import com.xwab.app.core.playback.port.DEFAULT_LOOPING
+import com.xwab.app.core.session.port.DEFAULT_LOOPING
 
 internal enum class PlayerError {
     AudioNotFound,

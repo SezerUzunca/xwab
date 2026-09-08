@@ -1,6 +1,6 @@
 package com.xwab.app.feature.story
 
-import com.xwab.app.core.playback.port.PlaybackFailure
+import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.story.port.Story
 import com.xwab.app.core.story.port.StoryId
 

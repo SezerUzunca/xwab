@@ -5,10 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.favorites.port.FavoritesPort
-import com.xwab.app.core.playback.port.PlaybackPort
-import com.xwab.app.core.playback.port.PlaybackItemId
-import com.xwab.app.core.playback.port.PlaybackKind
-import com.xwab.app.core.playback.port.requestedValueOf
+import com.xwab.app.core.session.port.PlaybackPort
+import com.xwab.app.core.session.port.PlaybackItemId
+import com.xwab.app.core.session.port.PlaybackKind
+import com.xwab.app.core.session.port.requestedValueOf
 import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.feature.category.domain.CategoryContent
 import com.xwab.app.feature.category.domain.ObserveCategoryContentUseCase
