@@ -21,7 +21,7 @@ fun EntryProviderScope<NavKey>.favoritesEntry(
             viewModel = viewModel {
                 FavoritesViewModel(
                     observeFavoritesContentUseCase = ObserveFavoritesContentUseCase(
-                        dependencies.soundCatalogPort,
+                        dependencies.soundPort,
                         dependencies.favoritesPort,
                         dependencies.playbackPort,
                     ),

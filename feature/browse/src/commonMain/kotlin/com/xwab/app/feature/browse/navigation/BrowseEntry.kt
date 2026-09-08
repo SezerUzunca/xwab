@@ -19,7 +19,7 @@ fun EntryProviderScope<NavKey>.browseEntry(
             onCategoryClick = onCategoryClick,
             // Built here rather than pulled from the graph: the ViewModel is internal to this
             // module, and `viewModel` scopes it to the entry's own store.
-            viewModel = viewModel { BrowseViewModel(soundCatalogPort = dependencies.soundCatalogPort) },
+            viewModel = viewModel { BrowseViewModel(soundPort = dependencies.soundPort) },
         )
     }
 }

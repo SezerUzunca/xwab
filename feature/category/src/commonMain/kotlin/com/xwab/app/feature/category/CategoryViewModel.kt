@@ -46,7 +46,7 @@ internal class CategoryViewModel(
         )
 
     fun toggleFavorite(musicId: TrackId) {
-        viewModelScope.launch { favoritesPort.toggle(musicId) }
+        viewModelScope.launch { favoritesPort.toggle("music", musicId.value) }
     }
 
     /** Branches on the value the control renders, so the icon and the tap cannot disagree. */

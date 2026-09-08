@@ -1,6 +1,6 @@
 package com.xwab.app.feature.browse.di
 
-import com.xwab.app.core.sound.port.SoundCatalogPort
+import com.xwab.app.core.sound.port.SoundPort
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -16,5 +16,5 @@ import dev.zacsweers.metro.SingleIn
 @SingleIn(AppScope::class)
 @Inject
 class BrowseDependencies(
-    internal val soundCatalogPort: SoundCatalogPort,
+    internal val soundPort: SoundPort,
 )

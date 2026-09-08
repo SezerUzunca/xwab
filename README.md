@@ -43,12 +43,10 @@ There is no shared repository abstraction. A feature consumes the narrow capabil
 
 | Capability module | Public port |
 |---|---|
-| `:core:sound:catalog` | `SoundCatalogPort` and sound model types |
-| `:core:sound:manifest` | `SoundSourcePort` and `TrackSource` |
-| `:core:sound:delivery` | `SoundContentPort` and its resolution result |
-| `:core:sound:favorites` | `FavoritesPort` |
-| `:core:story:catalog` | `StoryCatalogPort` and story model types |
-| `:core:story:manifest` | `StorySourcePort` and `StoryStreamSource` |
+| `:core:sound` | `SoundPort`, sound models and `TrackSource` |
+| `:core:delivery` | `DeliveryPort`, `DeliveryRequest`, `CacheKey` and `DeliveryResult` |
+| `:core:favorites` | `FavoritesPort` |
+| `:core:story` | `StoryPort`, story models and `StoryStreamSource` |
 | `:core:session` | `PlaybackPort` and session model types |
 | `:core:playback` | `PlaybackEnginePort` and engine command/state types |
 | `:core:network` | `NetworkPort` and transport-neutral response/error types |
@@ -65,17 +63,12 @@ properties; `shared.di` exposes these bags so the composition root can pass them
 ```text
 core/
 ├── network
-├── sound/
-│   ├── catalog
-│   ├── manifest
-│   ├── delivery
-│   └── favorites
-├── story/
-│   ├── catalog
-│   └── manifest
-└── playback/
-    ├── session
-    └── engine
+├── sound
+├── story
+├── delivery
+├── favorites
+├── session
+└── playback
 
 designsystem/
 testing/
@@ -87,8 +80,13 @@ feature/
 └── story
 ```
 
-The grouping directories under `core` are not Gradle modules; only directories containing a
-`build.gradle.kts` are included.
+Each directory directly under `core` is one Gradle module. Sound and story each own their models,
+one port, manifest data and an internal implementation in a separate file. `SoundPort` and
+`StoryPort` combine metadata queries with source lookup. Contracts and models live in each
+module's `port` package; `SoundPortImpl.kt` and `StoryPortImpl.kt` live in the module package.
+Delivery and favorites are separate modules. `checkArchitecture` enforces one port per content module.
+Favorites uses caller-owned namespaces and string IDs; delivery accepts source URLs and namespaced
+cache requests. Neither depends on sound or story. Only delivery depends on the network module.
 
 ## Navigation 3
 
@@ -107,9 +105,10 @@ sharing the content-neutral playback port.
 kind and value, keeping sound and story identifiers distinct. Its internal adapter resolves
 metadata and content through ports, then drives `PlaybackEnginePort`.
 
-Sound playback asks `SoundContentPort` for a playable source. Cached files are preferred; otherwise
+Sound playback resolves its source through `SoundPort`, then gives a request to `DeliveryPort`.
+The session owns the sound namespace, MPEG policy and current cache inventory. Cached files are preferred; otherwise
 the HTTPS source is returned immediately and a single background download fills app-owned cache.
-Stories use `StorySourcePort` and stream without being cached.
+Stories use `StoryPort` and stream without being cached.
 
 Android playback uses Media3; iOS playback uses AVFoundation. Platform implementations are
 internal Metro contributions behind `PlaybackEnginePort`.
@@ -129,6 +128,12 @@ internal Metro contributions behind `PlaybackEnginePort`.
 9. A `Repository` or DI-style `Provider` abstraction appears in `core`.
 10. A Koin import or dependency is reintroduced anywhere in the project.
 11. A feature exposes a declaration outside its navigation package or a DI `*Dependencies` class.
+12. Sound or story exposes more than one port interface or lacks its `SoundPort` / `StoryPort` contract.
+13. Favorites depends on another project, or delivery depends on a project other than itself or `:core:network`.
+
+Rules 5, 12 and 13 name modules by path, so each of those names is also checked against the modules
+the build actually contains. Renaming one without updating its rule fails the build instead of
+leaving a rule that matches nothing and reports nothing.
 
 The Metro convention additionally treats non-public contribution problems as errors and generates
 providers that allow internal contributed adapters to remain hidden across modules.

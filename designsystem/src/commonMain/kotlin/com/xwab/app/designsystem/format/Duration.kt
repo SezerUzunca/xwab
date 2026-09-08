@@ -4,7 +4,7 @@ package com.xwab.app.designsystem.format
  * A running time as `m:ss`, for any content a screen lists.
  *
  * It lives in the design system rather than beside a catalog because it is presentation, not data:
- * `core:sound:catalog` and `core:story:catalog` describe different content and never see each
+ * `core:sound` and `core:story` describe different content and never see each
  * other, so a formatter owned by either one leaves the other reimplementing it. That is exactly
  * what happened — the story list carried a four-line copy with a comment explaining that it could
  * not reach the sound catalog's version.

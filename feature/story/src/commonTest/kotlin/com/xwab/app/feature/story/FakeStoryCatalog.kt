@@ -1,7 +1,8 @@
 package com.xwab.app.feature.story
 
 import com.xwab.app.core.story.port.Story
-import com.xwab.app.core.story.port.StoryCatalogPort
+import com.xwab.app.core.story.port.StoryPort
+import com.xwab.app.core.story.port.StoryStreamSource
 import com.xwab.app.core.story.port.StoryId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -11,7 +12,7 @@ import kotlinx.coroutines.flow.flowOf
  *
  * Deliberately here rather than in `testing`. That module holds the fakes *every* sound feature
  * needs — the catalog, favorites and playback ports all three sound screens read — and adding a
- * story fake would put `core:story:catalog` on the test classpath of every feature, for the sake of
+ * story fake would put `core:story` on the test classpath of every feature, for the sake of
  * the one that reads it. It moves the day a second feature needs it, which is the same rule
  * `checkArchitecture` states for use cases.
  */
@@ -27,7 +28,8 @@ internal fun story(id: String, durationSeconds: Int = 180) = Story(
 
 internal class FakeStoryCatalog(
     private val stories: List<Story> = emptyList(),
-) : StoryCatalogPort {
+) : StoryPort {
+    override fun sourceFor(storyId: StoryId): StoryStreamSource? = null
     override fun observeStories(): Flow<List<Story>> = flowOf(stories)
 
     override fun observeStory(storyId: StoryId): Flow<Story?> =

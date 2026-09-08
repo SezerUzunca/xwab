@@ -1,6 +1,6 @@
 package com.xwab.app.feature.sounds.di
 
-import com.xwab.app.core.sound.port.SoundCatalogPort
+import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.favorites.port.FavoritesPort
 import com.xwab.app.core.session.port.PlaybackPort
 import dev.zacsweers.metro.AppScope
@@ -16,7 +16,7 @@ import dev.zacsweers.metro.SingleIn
 @SingleIn(AppScope::class)
 @Inject
 class PlayerDependencies(
-    internal val soundCatalogPort: SoundCatalogPort,
+    internal val soundPort: SoundPort,
     internal val favoritesPort: FavoritesPort,
     internal val playbackPort: PlaybackPort,
 )

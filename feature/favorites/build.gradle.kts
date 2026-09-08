@@ -7,8 +7,8 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(projects.core.sound.catalog)
-            implementation(projects.core.sound.favorites)
+            implementation(projects.core.sound)
+            implementation(projects.core.favorites)
             implementation(projects.core.session)
         }
         commonTest.dependencies {

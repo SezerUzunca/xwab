@@ -17,6 +17,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.writeFully
+import io.ktor.utils.io.writer
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -24,12 +25,17 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.io.IOException
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class KtorNetworkAdapterTest {
     private val clients = mutableListOf<HttpClient>()
@@ -205,12 +211,42 @@ class KtorNetworkAdapterTest {
         }
     }
 
+    /**
+     * The body ends in a failure rather than in an end of stream, and the bytes written before it
+     * still reach the caller.
+     *
+     * The body is a writer coroutine that emits its bytes and then throws, so the failure is the
+     * channel's own closing cause and a reader meets it only after everything written ahead of it.
+     * An earlier version wrote to a plain channel and cancelled it from inside `onChunk`, which
+     * describes the same scenario but does not produce it: `cancel` is a consumer discarding a
+     * stream, and the stream being discarded was this test's own, not the copy the client hands the
+     * adapter. Whether the cause crossed that copy turned out to be platform-dependent — it did on
+     * Windows and did not on the Linux CI runner, where the adapter read three bytes, saw a clean
+     * end of stream and completed normally. That failed three of five CI runs on a commit which
+     * passed 13 of 13 locally, and the assertion it broke was the one expecting any failure at all.
+     *
+     * The writer waits for the chunk to be delivered before it throws, rather than throwing as soon
+     * as the bytes are written. Writing and failing back to back is not the same scenario: a
+     * channel closed with a cause hands its reader that cause instead of what is still buffered
+     * ahead of it, so the adapter saw the failure and never the three bytes — deterministically, on
+     * both platforms. Waiting on [chunkDelivered] orders the two by construction, with no sleep and
+     * nothing to lose a race. The wait is bounded only so that a chunk which never arrives fails
+     * this test on its assertions instead of hanging the job; nothing is expected to reach it.
+     *
+     * The writer gets a scope of its own, so the throw it is built around fails the channel rather
+     * than the coroutine this test runs in.
+     */
     @Test
     fun aFailureAfterAStreamChunkIsStillATransportFailure() = runBlocking {
         val original = IOException("stream disconnected")
-        val channel = ByteChannel(autoFlush = true)
-        channel.writeFully("abc".encodeToByteArray())
-        val port = client { respond(channel) }
+        val chunkDelivered = CompletableDeferred<Unit>()
+        val body = CoroutineScope(Dispatchers.Default).writer {
+            channel.writeFully("abc".encodeToByteArray())
+            channel.flush()
+            withTimeoutOrNull(10.seconds) { chunkDelivered.await() }
+            throw original
+        }.channel
+        val port = client { respond(body) }
         var received = 0
 
         val failure = assertFailsWith<NetworkTransportException> {
@@ -219,7 +255,7 @@ class KtorNetworkAdapterTest {
                 onResponse = {},
                 onChunk = { _, count ->
                     received += count
-                    channel.cancel(original)
+                    chunkDelivered.complete(Unit)
                 },
             )
         }

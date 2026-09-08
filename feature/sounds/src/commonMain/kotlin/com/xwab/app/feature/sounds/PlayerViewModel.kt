@@ -62,7 +62,7 @@ internal class PlayerViewModel(
     fun toggleFavorite() {
         val current = (state.value as? Loadable.Ready)?.value ?: return
         if (current.music == null) return
-        viewModelScope.launch { favoritesPort.toggle(trackId) }
+        viewModelScope.launch { favoritesPort.toggle("music", trackId.value) }
     }
 
     /**

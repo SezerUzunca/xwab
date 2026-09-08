@@ -4,12 +4,13 @@ import com.xwab.app.core.session.port.DEFAULT_LOOPING
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
-import com.xwab.app.core.sounddelivery.port.SoundContentPort
-import com.xwab.app.core.sounddelivery.port.SoundContentResolution
+import com.xwab.app.core.delivery.port.DeliveryPort
+import com.xwab.app.core.delivery.port.DeliveryResult
 import com.xwab.app.core.sound.port.Category
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Music
-import com.xwab.app.core.sound.port.SoundCatalogPort
+import com.xwab.app.core.sound.port.SoundPort
+import com.xwab.app.core.sound.port.TrackSource
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.playback.port.AudioPlayerState
 import com.xwab.app.core.playback.port.AudioSource
@@ -20,10 +21,9 @@ import com.xwab.app.core.playback.port.PlaybackPhase
 import com.xwab.app.core.playback.port.PlaybackRequest
 import com.xwab.app.core.playback.port.SleepTimerState
 import com.xwab.app.core.story.port.Story
-import com.xwab.app.core.story.port.StoryCatalogPort
+import com.xwab.app.core.story.port.StoryPort
 import com.xwab.app.core.story.port.StoryId
-import com.xwab.app.core.storysource.port.StorySourcePort
-import com.xwab.app.core.storysource.port.StoryStreamSource
+import com.xwab.app.core.story.port.StoryStreamSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -43,7 +43,7 @@ import kotlinx.coroutines.runBlocking
 
 class DefaultPlaybackAdapterTest {
     private val testContentResolver =
-        SoundContentPort { musicId -> SoundContentResolution.Resolved("test://$musicId") }
+        DeliveryPort { musicId -> DeliveryResult.Resolved("test://$musicId") }
 
     @Test
     fun playReloadsAFailedSourceWithAutoplay() = runBlocking {
@@ -135,7 +135,7 @@ class DefaultPlaybackAdapterTest {
         val player = FakePlaybackEnginePort()
         val adapter = adapter(player) {
             lookupStarted.complete(Unit)
-            SoundContentResolution.Resolved(lookupResult.await())
+            DeliveryResult.Resolved(lookupResult.await())
         }
 
         val firstTap = launch { adapter.play(sound("gentle-rain")) }
@@ -157,7 +157,7 @@ class DefaultPlaybackAdapterTest {
         val player = FakePlaybackEnginePort()
         val adapter = adapter(player) {
             lookupStarted.complete(Unit)
-            SoundContentResolution.Resolved(lookupResult.await())
+            DeliveryResult.Resolved(lookupResult.await())
         }
 
         val firstTap = launch { adapter.play(sound("gentle-rain")) }
@@ -260,16 +260,16 @@ class DefaultPlaybackAdapterTest {
         val wavesResult = CompletableDeferred<String>()
         val player = FakePlaybackEnginePort()
         val adapter = adapter(player) { musicId ->
-            when (musicId) {
-                TrackId("gentle-rain") -> {
+            when (musicId.key.fileName) {
+                "gentle-rain-v1.mp3" -> {
                     rainStarted.complete(Unit)
-                    SoundContentResolution.Resolved(rainResult.await())
+                    DeliveryResult.Resolved(rainResult.await())
                 }
-                TrackId("calm-waves") -> {
+                "calm-waves-v1.mp3" -> {
                     wavesStarted.complete(Unit)
-                    SoundContentResolution.Resolved(wavesResult.await())
+                    DeliveryResult.Resolved(wavesResult.await())
                 }
-                else -> SoundContentResolution.NotFound
+                else -> DeliveryResult.Unavailable("missing source")
             }
         }
 
@@ -321,7 +321,7 @@ class DefaultPlaybackAdapterTest {
     @Test
     fun aSourceThatCouldNotBeReachedIsPublishedAsAFailure() = runBlocking {
         val player = FakePlaybackEnginePort()
-        val adapter = adapter(player) { SoundContentResolution.Unavailable("offline") }
+        val adapter = adapter(player) { DeliveryResult.Unavailable("offline") }
 
         adapter.play(sound("gentle-rain"))
 
@@ -440,7 +440,7 @@ class DefaultPlaybackAdapterTest {
         }
         val adapter = adapter(player) {
             lookupStarted.complete(Unit)
-            SoundContentResolution.Resolved(lookupResult.await())
+            DeliveryResult.Resolved(lookupResult.await())
         }
 
         val switch = launch { adapter.play(sound("calm-waves")) }
@@ -471,7 +471,7 @@ class DefaultPlaybackAdapterTest {
                 isPlaying = true,
             )
         }
-        val adapter = adapter(player) { SoundContentResolution.Unavailable("offline") }
+        val adapter = adapter(player) { DeliveryResult.Unavailable("offline") }
 
         adapter.play(sound("calm-waves"))
 
@@ -701,7 +701,7 @@ class DefaultPlaybackAdapterTest {
 
     private fun adapter(
         player: FakePlaybackEnginePort,
-        resolver: SoundContentPort = testContentResolver,
+        resolver: DeliveryPort = testContentResolver,
     ) = DefaultPlaybackAdapter(player, listOf(SoundPlaybackResolver(FakeCatalog, resolver)))
 
     /** The same session with both kinds wired, which is what the app ships. */
@@ -709,12 +709,12 @@ class DefaultPlaybackAdapterTest {
         player,
         listOf(
             SoundPlaybackResolver(FakeCatalog, testContentResolver),
-            StoryPlaybackResolver(FakeStoryCatalog, FakeStoryStreams),
+            StoryPlaybackResolver(FakeStoryCatalog),
         ),
     )
 
     /** Two catalog rows, with one source deliberately omitted to exercise defensive handling. */
-    private object FakeStoryCatalog : StoryCatalogPort {
+    private object FakeStoryCatalog : StoryPort {
         private val stories = listOf(
             story("night-came-slowly", "The Night Came Slowly"),
             story("an-idle-fellow", "An Idle Fellow"),
@@ -733,9 +733,7 @@ class DefaultPlaybackAdapterTest {
             durationSeconds = 174,
             artworkUrl = null,
         )
-    }
 
-    private object FakeStoryStreams : StorySourcePort {
         override fun sourceFor(storyId: StoryId): StoryStreamSource? =
             if (storyId == StoryId("night-came-slowly")) {
                 StoryStreamSource("https://example.test/night.mp3")
@@ -745,7 +743,9 @@ class DefaultPlaybackAdapterTest {
     }
 
     /** The catalog the adapter reads its metadata from; only `observeMusic` is ever asked. */
-    private object FakeCatalog : SoundCatalogPort {
+    private object FakeCatalog : SoundPort {
+        override val cacheFileNames: Set<String> get() = tracks.mapTo(mutableSetOf()) { "${it.id.value}-v1.mp3" }
+        override fun sourceFor(trackId: TrackId): TrackSource? = tracks.find { it.id == trackId }?.let { TrackSource("${it.id.value}-v1.mp3", "https://example.test/${it.id.value}.mp3") }
         private val tracks = listOf(
             Music(
                 id = TrackId("gentle-rain"),

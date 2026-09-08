@@ -1,11 +1,12 @@
 package com.xwab.app.feature.sounds.domain
 
 import com.xwab.app.core.sound.port.Music
-import com.xwab.app.core.sound.port.SoundCatalogPort
+import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.favorites.port.FavoritesPort
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
@@ -22,13 +23,13 @@ internal data class PlayerContent(
  * are shared.
  */
 internal class ObservePlayerContentUseCase(
-    private val soundCatalogPort: SoundCatalogPort,
+    private val soundPort: SoundPort,
     private val favoritesPort: FavoritesPort,
     private val playbackPort: PlaybackPort,
 ) {
     operator fun invoke(musicId: TrackId): Flow<PlayerContent> = combine(
-        soundCatalogPort.observeMusic(musicId),
-        favoritesPort.favoriteIds,
+        soundPort.observeMusic(musicId),
+        favoritesPort.observe("music").map { ids -> ids.mapTo(mutableSetOf(), ::TrackId) },
         playbackPort.playback,
         playbackPort.sleepTimerRemainingMs,
     ) { music, favoriteIds, playback, sleepTimerRemainingMs ->

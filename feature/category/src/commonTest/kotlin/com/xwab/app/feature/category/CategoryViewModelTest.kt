@@ -132,7 +132,7 @@ class CategoryViewModelTest {
         viewModel.toggleFavorite(HEAVY_RAIN)
         advanceUntilIdle()
 
-        assertEquals(listOf(HEAVY_RAIN), favorites.toggles)
+        assertEquals(listOf("music" to HEAVY_RAIN.value), favorites.toggles)
     }
 
     private fun createViewModel(
@@ -144,7 +144,7 @@ class CategoryViewModelTest {
             tracks = listOf(track("gentle-rain"), track("heavy-rain")),
         )
         val useCase = ObserveCategoryContentUseCase(
-            soundCatalogPort = catalog,
+            soundPort = catalog,
             favoritesPort = favorites,
             playbackPort = port,
         )
