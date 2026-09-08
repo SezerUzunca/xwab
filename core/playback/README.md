@@ -18,7 +18,7 @@ background controls, and playback metadata required by its player.
 Metro selects the internal platform adapter for `PlaybackEnginePort`. Android receives the
 application `Context` from the app graph; iOS needs no caller-supplied platform dependency.
 
-The application-specific adapter in `core:playback:session` depends on `PlaybackEnginePort`: it
+The application-specific adapter in `core:session` depends on `PlaybackEnginePort`: it
 observes `state` / `sleepTimerState` and drives playback through the single
 `submit(PlaybackCommand...)` entry point. That module and the composition root are the only two
 that declare this one — a feature may not, which `checkArchitecture` enforces as a

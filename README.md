@@ -48,8 +48,8 @@ There is no shared repository abstraction. A feature consumes the narrow capabil
 | `:core:sound:favorites` | `FavoritesPort` |
 | `:core:story:catalog` | `StoryCatalogPort` and story model types |
 | `:core:story:manifest` | `StorySourcePort` and `StoryStreamSource` |
-| `:core:playback:session` | `PlaybackPort` and session model types |
-| `:core:playback:engine` | `PlaybackEnginePort` and engine command/state types |
+| `:core:session` | `PlaybackPort` and session model types |
+| `:core:playback` | `PlaybackEnginePort` and engine command/state types |
 | `:core:network` | `NetworkPort` and transport-neutral response/error types |
 
 Implementations such as manifest, DataStore, Ktor, cache and platform playback adapters stay

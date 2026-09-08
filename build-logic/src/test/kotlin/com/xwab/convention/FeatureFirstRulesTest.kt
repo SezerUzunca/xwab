@@ -104,7 +104,7 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
-                mapOf(":core:playback:session" to FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys.toList()),
+                mapOf(":core:session" to FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys.toList()),
             ),
         )
     }
@@ -619,7 +619,6 @@ class FeatureFirstRulesTest {
         val graph = mapOf(
             ":core:sound" to emptyList<String>(),
             ":core:story" to emptyList<String>(),
-            ":core:playback" to emptyList<String>(),
             ":core:network" to emptyList<String>(),
             ":core:sound:catalog" to emptyList<String>(),
             ":core:sound:manifest" to listOf(":core:sound:catalog"),
@@ -627,33 +626,33 @@ class FeatureFirstRulesTest {
             ":core:sound:favorites" to listOf(":core:sound:catalog"),
             ":core:story:catalog" to emptyList<String>(),
             ":core:story:manifest" to listOf(":core:story:catalog"),
-            ":core:playback:engine" to emptyList<String>(),
-            ":core:playback:session" to listOf(
+            ":core:playback" to emptyList<String>(),
+            ":core:session" to listOf(
                 ":core:sound:catalog", ":core:sound:delivery", ":core:story:catalog",
-                ":core:story:manifest", ":core:playback:engine",
+                ":core:story:manifest", ":core:playback",
             ),
             ":designsystem" to emptyList<String>(),
-            ":testing" to listOf(":core:sound:catalog", ":core:sound:favorites", ":core:playback:session"),
+            ":testing" to listOf(":core:sound:catalog", ":core:sound:favorites", ":core:session"),
             ":feature:browse" to listOf(":core:sound:catalog", ":testing", ":designsystem"),
             ":feature:category" to listOf(
-                ":core:sound:catalog", ":core:sound:favorites", ":core:playback:session",
+                ":core:sound:catalog", ":core:sound:favorites", ":core:session",
                 ":testing", ":designsystem",
             ),
             ":feature:favorites" to listOf(
-                ":core:sound:catalog", ":core:sound:favorites", ":core:playback:session",
+                ":core:sound:catalog", ":core:sound:favorites", ":core:session",
                 ":testing", ":designsystem",
             ),
             ":feature:sounds" to listOf(
-                ":core:sound:catalog", ":core:sound:favorites", ":core:playback:session",
+                ":core:sound:catalog", ":core:sound:favorites", ":core:session",
                 ":testing", ":designsystem",
             ),
             ":feature:story" to listOf(
-                ":core:story:catalog", ":core:playback:session", ":testing", ":designsystem",
+                ":core:story:catalog", ":core:session", ":testing", ":designsystem",
             ),
             ":shared" to listOf(
                 ":core:sound:catalog", ":core:sound:manifest", ":core:sound:delivery",
                 ":core:sound:favorites", ":core:story:catalog", ":core:story:manifest",
-                ":core:playback:session", ":core:playback:engine", ":core:network",
+                ":core:session", ":core:playback", ":core:network",
                 ":designsystem", ":testing", ":feature:browse", ":feature:category",
                 ":feature:favorites", ":feature:sounds", ":feature:story",
             ),
@@ -664,8 +663,8 @@ class FeatureFirstRulesTest {
             ":core:sound:delivery" to listOf(":core:sound:catalog"),
             ":core:sound:favorites" to listOf(":core:sound:catalog"),
             ":core:story:manifest" to listOf(":core:story:catalog"),
-            ":core:playback:session" to emptyList(),
-            ":testing" to listOf(":core:sound:catalog", ":core:sound:favorites", ":core:playback:session"),
+            ":core:session" to emptyList(),
+            ":testing" to listOf(":core:sound:catalog", ":core:sound:favorites", ":core:session"),
         )
 
         assertEquals(emptyList(), FeatureFirstRules.staleRuleViolations(graph.keys))

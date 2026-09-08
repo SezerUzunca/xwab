@@ -40,9 +40,9 @@ dependencyResolutionManagement {
 
 include(":androidApp")
 
-// Core modules are grouped by the content they serve rather than listed flat. `sound`, `story` and
-// `playback` are directories with no build file of their own — Gradle creates a container project
-// for each, and nothing is ever declared on it. A module's Gradle path is its directory path, so
+// Content capabilities are grouped by the content they serve rather than listed flat. `sound` and
+// `story` are directories with no build file of their own — Gradle creates a container project for
+// each, and nothing is ever declared on it. A module's Gradle path is its directory path, so
 // `core/sound/manifest` is `:core:sound:manifest`, and the architecture rules read that path.
 include(":core:sound:catalog")
 include(":core:sound:manifest")
@@ -50,8 +50,12 @@ include(":core:sound:delivery")
 include(":core:sound:favorites")
 include(":core:story:catalog")
 include(":core:story:manifest")
-include(":core:playback:session")
-include(":core:playback:engine")
+
+// Playback is two flat modules rather than a content group, because the halves are not the same
+// kind of thing. `:core:playback` is a standalone audio library that names no module of this app;
+// `:core:session` is the one playback session the app runs, and the only half a feature may reach.
+include(":core:playback")
+include(":core:session")
 
 // Crosscutting transport capability, tied to no content type.
 include(":core:network")

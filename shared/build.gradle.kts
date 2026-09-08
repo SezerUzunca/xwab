@@ -60,8 +60,8 @@ kotlin {
             implementation(projects.core.story.catalog)
             implementation(projects.core.story.manifest)
             implementation(projects.core.sound.favorites)
-            implementation(projects.core.playback.session)
-            implementation(projects.core.playback.engine)
+            implementation(projects.core.session)
+            implementation(projects.core.playback)
             implementation(projects.core.network)
             implementation(projects.designsystem)
 

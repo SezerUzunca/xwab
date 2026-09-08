@@ -56,7 +56,7 @@ internal object FeatureFirstRules {
             "HTTP is an adapter detail; screens read content through public ports",
         ":core:sound:delivery" to
             "source resolution and caching belong behind PlaybackPort",
-        ":core:playback:engine" to
+        ":core:playback" to
             "the platform engine is hidden behind PlaybackPort",
         ":core:sound:manifest" to
             "physical sound sources are adapter details hidden from screens",

@@ -9,7 +9,7 @@ kotlin {
         commonMain.dependencies {
             implementation(projects.core.sound.catalog)
             implementation(projects.core.sound.favorites)
-            implementation(projects.core.playback.session)
+            implementation(projects.core.session)
         }
         commonTest.dependencies {
             implementation(projects.testing)

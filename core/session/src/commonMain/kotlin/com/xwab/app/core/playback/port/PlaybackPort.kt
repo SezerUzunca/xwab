@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.Flow
  *
  * **Every member here must be called from the main thread**, and [play] must be *resumed* on it too
  * — so launch it in a main-dispatched scope, which is what a `viewModelScope` is. The commands go
- * straight to `core:playback:engine`, whose Media3 and AVFoundation facades are main-thread-only and
+ * straight to `core:playback`, whose Media3 and AVFoundation facades are main-thread-only and
  * check it on entry: calling from elsewhere fails loudly rather than corrupting the session, but it
  * fails deep in the engine instead of here. The constraint is stated on this port so it is part of
  * the contract a caller reads, not a property of an implementation nobody mentioned.

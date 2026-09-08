@@ -10,7 +10,7 @@ What that item is, where its bytes come from and whether it should loop are answ
 resolver, one per kind:
 
 ```
-core:playback:session
+core:session
    │
    ├─ PlaybackPort          the only thing a screen can reach
    ├─ DefaultPlaybackAdapter   one item at a time; newest request wins
@@ -20,7 +20,7 @@ core:playback:session
    └─ StoryPlaybackResolver        internal
         ├─► core:story:catalog     the story's title and narrator
         └─► core:story:manifest    the address it streams from — no cache, ever
-   ────► core:playback:engine      the platform player that opens whatever was resolved
+   ────► core:playback      the platform player that opens whatever was resolved
 ```
 
 The two resolvers are the same two steps: metadata, then a source. The sound one has a cache behind

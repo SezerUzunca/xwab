@@ -35,6 +35,6 @@ ids and unique playable sources.
 
 The catalog contains five real English-language literary stories, and `feature:story` lists and
 plays every shipped row through `PlaybackPort`. There is still no progress bar or resume:
-`core:playback:engine` publishes no position and accepts no seek, so a story is played and paused
+`core:playback` publishes no position and accepts no seek, so a story is played and paused
 the way a sound is. Recording sources and their public-domain grants are listed in
 [THIRD_PARTY_AUDIO.md](../../../THIRD_PARTY_AUDIO.md).

@@ -65,7 +65,7 @@ jobs:
 
       # Covers every module that has iOS tests, so a new one is picked up without touching this
       # file: core:sound:catalog, core:sound:manifest, core:sound:delivery, core:sound:favorites,
-      # core:story:catalog, core:story:manifest, core:playback:session, core:playback:engine, shared.
+      # core:story:catalog, core:story:manifest, core:session, core:playback, shared.
       - name: Run Simulator ARM64 tests
         run: ./gradlew -PenableIos=true iosSimulatorArm64Test --stacktrace
 

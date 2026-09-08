@@ -12,7 +12,7 @@ kotlin {
             // them, so no screen can resolve an item to a URL or reach the engine's state model.
             implementation(projects.core.sound.delivery)
             implementation(projects.core.story.manifest)
-            implementation(projects.core.playback.engine)
+            implementation(projects.core.playback)
             // The two catalogs, read by the internal resolvers for titles and narrators. Nothing
             // this module publishes names a type from either — the session speaks `PlaybackItemId`
             // — so neither travels, and a screen that wants `TrackId` declares the catalog itself.

@@ -178,7 +178,7 @@ internal class DefaultPlaybackAdapter internal constructor(
     }
 
     /**
-     * The one place an item id is flattened on the way out: `core:playback:engine` is a standalone
+     * The one place an item id is flattened on the way out: `core:playback` is a standalone
      * library and its [AudioSource] identifies a source by plain string, as it should. The kind
      * travels inside that string, so two items sharing a raw id stay two sources.
      */
