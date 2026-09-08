@@ -11,19 +11,19 @@ import kotlinx.coroutines.flow.StateFlow
  *
  * Implementations must be created and used exclusively from the main thread.
  */
-public interface PlaybackEnginePort {
+interface PlaybackEnginePort {
 
-    public val state: StateFlow<AudioPlayerState>
+    val state: StateFlow<AudioPlayerState>
 
     /** The active sleep timer, kept separate so non-player screens do not refresh every second. */
-    public val sleepTimerState: StateFlow<SleepTimerState>
+    val sleepTimerState: StateFlow<SleepTimerState>
 
     /** Submit a user command. Platform-specific pre-processing happens before dispatch. */
-    public fun submit(command: PlaybackCommand)
+    fun submit(command: PlaybackCommand)
 
     /**
      * Releases client-side resources owned by this process. On Android this disconnects the
      * client while the playback service may continue running.
      */
-    public fun release()
+    fun release()
 }

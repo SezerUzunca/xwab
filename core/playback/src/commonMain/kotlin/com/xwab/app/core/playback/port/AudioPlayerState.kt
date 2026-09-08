@@ -1,11 +1,11 @@
 package com.xwab.app.core.playback.port
 
 /** [uri] is an HTTPS URI or an absolute local path interpreted by the platform playback adapter. */
-public data class AudioSource(
-    public val id: String,
-    public val uri: String,
-    public val title: String? = null,
-    public val artist: String? = null,
+data class AudioSource(
+    val id: String,
+    val uri: String,
+    val title: String? = null,
+    val artist: String? = null,
 ) {
     init {
         require(id.isNotBlank()) { "Audio source id cannot be blank." }
@@ -13,23 +13,23 @@ public data class AudioSource(
     }
 }
 
-public enum class LoopMode {
+enum class LoopMode {
     Off,
     One,
 }
 
-public data class PlaybackRequest(
-    public val source: AudioSource,
-    public val autoplay: Boolean = false,
-    public val loopMode: LoopMode = LoopMode.Off,
-    public val volume: Float = 1.0f,
+data class PlaybackRequest(
+    val source: AudioSource,
+    val autoplay: Boolean = false,
+    val loopMode: LoopMode = LoopMode.Off,
+    val volume: Float = 1.0f,
 ) {
     init {
         require(volume in 0.0f..1.0f) { "Volume must be between 0.0 and 1.0." }
     }
 }
 
-public enum class PlaybackPhase {
+enum class PlaybackPhase {
     Idle,
     Loading,
     Buffering,
@@ -38,24 +38,24 @@ public enum class PlaybackPhase {
     Failed,
 }
 
-public enum class PlaybackErrorCode {
+enum class PlaybackErrorCode {
     InvalidSource,
     ServiceUnavailable,
     Timeout,
     PlaybackFailed,
 }
 
-public data class PlaybackError(
-    public val code: PlaybackErrorCode,
-    public val message: String? = null,
+data class PlaybackError(
+    val code: PlaybackErrorCode,
+    val message: String? = null,
 )
 
 /**
  * A timer belongs to playback, but is intentionally exposed separately from [AudioPlayerState].
  * The latter is consumed by multiple screens and must not emit once per second just for the timer UI.
  */
-public data class SleepTimerState(
-    public val remainingMs: Long? = null,
+data class SleepTimerState(
+    val remainingMs: Long? = null,
 ) {
     init {
         require(remainingMs == null || remainingMs >= 0L) {
@@ -64,20 +64,20 @@ public data class SleepTimerState(
     }
 }
 
-public data class AudioPlayerState(
+data class AudioPlayerState(
     /** The source most recently requested by the app, including during reconnects. */
-    public val requestedSource: AudioSource? = null,
+    val requestedSource: AudioSource? = null,
     /** The source currently attached to the native playback engine, if any. */
-    public val source: AudioSource? = null,
-    public val phase: PlaybackPhase = PlaybackPhase.Idle,
+    val source: AudioSource? = null,
+    val phase: PlaybackPhase = PlaybackPhase.Idle,
     /** Whether playback is desired, even while the native engine is not actively playing yet. */
-    public val playRequested: Boolean = false,
-    public val isPlaying: Boolean = false,
-    public val isLooping: Boolean = false,
-    public val volume: Float = 1.0f,
-    public val error: PlaybackError? = null,
+    val playRequested: Boolean = false,
+    val isPlaying: Boolean = false,
+    val isLooping: Boolean = false,
+    val volume: Float = 1.0f,
+    val error: PlaybackError? = null,
 ) {
     /** The source consumers should render while the engine is reconnecting. */
-    public val activeSource: AudioSource?
+    val activeSource: AudioSource?
         get() = source ?: requestedSource
 }

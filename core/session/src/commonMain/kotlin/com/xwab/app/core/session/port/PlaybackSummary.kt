@@ -11,7 +11,7 @@ package com.xwab.app.core.session.port
  * sound repeats until the timer stops it, a story that repeats has not ended. This is what the
  * session publishes until an item makes the question concrete.
  */
-public const val DEFAULT_LOOPING: Boolean = true
+const val DEFAULT_LOOPING: Boolean = true
 
 /**
  * Why the session could not play an item — and *which* item.
@@ -21,20 +21,20 @@ public const val DEFAULT_LOOPING: Boolean = true
  * was playing before, or to nothing. A screen asking "is this failure mine?" has to compare against
  * the failure's own item. Gating on the session's current one hid every resolution error.
  */
-public sealed interface PlaybackFailure {
-    public val itemId: PlaybackItemId
+sealed interface PlaybackFailure {
+    val itemId: PlaybackItemId
 
     /**
      * Nothing could find this item: the catalog does not hold it, or — for a kind the session has
      * no resolver for yet — nothing is able to look. Tapping again cannot help.
      */
-    public data class ItemNotFound(public override val itemId: PlaybackItemId) : PlaybackFailure
+    data class ItemNotFound(override val itemId: PlaybackItemId) : PlaybackFailure
 
     /** The item exists, but no source could be produced for it. Worth another tap. */
-    public data class SourceUnavailable(public override val itemId: PlaybackItemId) : PlaybackFailure
+    data class SourceUnavailable(override val itemId: PlaybackItemId) : PlaybackFailure
 
     /** The engine accepted a source and then failed on it. */
-    public data class EngineFailed(public override val itemId: PlaybackItemId) : PlaybackFailure
+    data class EngineFailed(override val itemId: PlaybackItemId) : PlaybackFailure
 }
 
 /**
@@ -48,21 +48,21 @@ public sealed interface PlaybackFailure {
  * is still the sound coming out of the speaker. Collapsing them into one field published "B is
  * playing" for as long as B took to resolve.
  */
-public data class PlaybackSummary(
+data class PlaybackSummary(
     /**
      * The item the listener last asked for.
      *
      * What a screen highlights and what its controls act on — set from the moment of the tap, before
      * any source lookup. `null` when the session has never been given an item.
      */
-    public val requestedItemId: PlaybackItemId? = null,
+    val requestedItemId: PlaybackItemId? = null,
     /**
      * The item the engine is actually holding, and therefore the one [isPlaying] describes.
      *
      * Differs from [requestedItemId] while a switch is in flight, and goes `null` while a dropped
      * service connection is being restored — the session's own choice lives on in [requestedItemId].
      */
-    public val activeItemId: PlaybackItemId? = null,
+    val activeItemId: PlaybackItemId? = null,
     /**
      * Whether playback is *wanted*.
      *
@@ -71,14 +71,14 @@ public data class PlaybackSummary(
      * while the screen drew the actual one, so during buffering a listener saw a Play icon and got
      * a pause out of tapping it.
      */
-    public val playIntent: Boolean = false,
+    val playIntent: Boolean = false,
     /** Whether the engine is producing sound right now — for [activeItemId], not for the request. */
-    public val isPlaying: Boolean = false,
+    val isPlaying: Boolean = false,
     /** The requested item is wanted but not audible yet: being resolved, loaded or buffered. */
-    public val isPreparing: Boolean = false,
-    public val isLooping: Boolean = DEFAULT_LOOPING,
-    public val volume: Float = 1.0f,
-    public val failure: PlaybackFailure? = null,
+    val isPreparing: Boolean = false,
+    val isLooping: Boolean = DEFAULT_LOOPING,
+    val volume: Float = 1.0f,
+    val failure: PlaybackFailure? = null,
 )
 
 /**
@@ -88,5 +88,5 @@ public data class PlaybackSummary(
  * A list of sounds has nothing to say about a story being played. Asking "is this row the current
  * item?" without checking the kind would light up the sound whose id a story happens to share.
  */
-public fun PlaybackSummary.requestedValueOf(kind: PlaybackKind): String? =
+fun PlaybackSummary.requestedValueOf(kind: PlaybackKind): String? =
     requestedItemId?.takeIf { it.kind == kind }?.value

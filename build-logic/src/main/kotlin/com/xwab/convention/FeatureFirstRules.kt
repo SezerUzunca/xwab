@@ -237,7 +237,7 @@ internal object FeatureFirstRules {
     )
 
     /**
-     * Keeps the public ABI of every core capability to explicit port contracts and their data.
+     * Keeps the public ABI of every core capability to port contracts and their data.
      * Implementations, Metro contributors and helpers must be internal or private.
      */
     fun coreVisibilityViolations(sources: List<CoreSource>): List<String> =
@@ -256,17 +256,16 @@ internal object FeatureFirstRules {
                     .removeSurrounding("`")
                     .substringAfterLast('.')
                     .ifBlank { "<anonymous $kind>" }
+                // A port is public by definition, so Kotlin's own default visibility already says
+                // so without a keyword. Only a keyword that says otherwise is a violation.
+                val isPublic = visibility == null || visibility == "public"
 
                 when {
-                    isPortPackage && visibility == null ->
-                        "${source.path}:${parsed.lineNumber} declares $name with implicit visibility. " +
-                            "Port contracts must say public explicitly."
-
-                    isPortPackage && visibility != "public" ->
+                    isPortPackage && !isPublic ->
                         "${source.path}:${parsed.lineNumber} declares $name as $visibility. " +
                             "Every declaration in a port package must be public."
 
-                    isPortPackage && visibility == "public" &&
+                    isPortPackage && isPublic &&
                         kind == "interface" && "sealed" !in modifiers && !name.endsWith("Port") ->
                         "${source.path}:${parsed.lineNumber} exposes interface $name. " +
                             "Public port interfaces must end in Port."

@@ -21,11 +21,11 @@ import kotlinx.coroutines.flow.Flow
  *
  * The two flows are safe to collect from anywhere.
  */
-public interface PlaybackPort {
-    public val playback: Flow<PlaybackSummary>
+interface PlaybackPort {
+    val playback: Flow<PlaybackSummary>
 
     /** Milliseconds left on the sleep timer, or null when no timer is running. */
-    public val sleepTimerRemainingMs: Flow<Long?>
+    val sleepTimerRemainingMs: Flow<Long?>
 
     /**
      * Wants [itemId] playing: resumes it when the session is already on it, and otherwise makes it
@@ -41,7 +41,7 @@ public interface PlaybackPort {
      * An item of a kind the session has no resolver for fails as
      * [PlaybackFailure.ItemNotFound]; it never reaches the engine.
      */
-    public suspend fun play(itemId: PlaybackItemId)
+    suspend fun play(itemId: PlaybackItemId)
 
     /**
      * Stops wanting playback, and abandons a source lookup still in flight.
@@ -51,10 +51,10 @@ public interface PlaybackPort {
      * [PlaybackSummary.playIntent], which is the same value its play/pause control renders. A
      * toggle inside the session decided from a value the screen never saw.
      */
-    public fun pause()
+    fun pause()
 
-    public fun setLooping(enabled: Boolean)
-    public fun setVolume(volume: Float)
-    public fun startSleepTimer(durationMs: Long)
-    public fun cancelSleepTimer()
+    fun setLooping(enabled: Boolean)
+    fun setVolume(volume: Float)
+    fun startSleepTimer(durationMs: Long)
+    fun cancelSleepTimer()
 }

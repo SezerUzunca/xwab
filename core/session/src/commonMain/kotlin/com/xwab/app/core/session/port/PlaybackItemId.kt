@@ -1,7 +1,7 @@
 package com.xwab.app.core.session.port
 
 /** What kind of thing is being played. One resolver in this module answers for each. */
-public enum class PlaybackKind {
+enum class PlaybackKind {
     SOUND,
     STORY,
 }
@@ -19,17 +19,17 @@ public enum class PlaybackKind {
  * this module's public API, which is exactly the coupling this type exists to remove; a screen
  * converts at the one line where it calls [PlaybackPort.play].
  */
-public data class PlaybackItemId(
-    public val kind: PlaybackKind,
-    public val value: String,
+data class PlaybackItemId(
+    val kind: PlaybackKind,
+    val value: String,
 ) {
     init {
         require(value.isNotBlank()) { "A playback item id cannot be blank." }
     }
 
-    public companion object {
-        public fun sound(value: String): PlaybackItemId = PlaybackItemId(PlaybackKind.SOUND, value)
+    companion object {
+        fun sound(value: String): PlaybackItemId = PlaybackItemId(PlaybackKind.SOUND, value)
 
-        public fun story(value: String): PlaybackItemId = PlaybackItemId(PlaybackKind.STORY, value)
+        fun story(value: String): PlaybackItemId = PlaybackItemId(PlaybackKind.STORY, value)
     }
 }

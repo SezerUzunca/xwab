@@ -10,22 +10,22 @@ package com.xwab.app.core.playback.port
  * teardown (`release`) is intentionally absent — it is a DI/ownership concern,
  * not a user command.
  */
-public sealed interface PlaybackCommand {
+sealed interface PlaybackCommand {
 
     /** Replace the current source using one atomic playback configuration. */
-    public data class Load(public val request: PlaybackRequest) : PlaybackCommand
+    data class Load(val request: PlaybackRequest) : PlaybackCommand
 
-    public data object Play : PlaybackCommand
-    public data object Pause : PlaybackCommand
+    data object Play : PlaybackCommand
+    data object Pause : PlaybackCommand
 
-    public data class SetLooping(public val enabled: Boolean) : PlaybackCommand
+    data class SetLooping(val enabled: Boolean) : PlaybackCommand
 
     /** Set the audio volume between 0.0 (mute) and 1.0 (max). */
-    public data class SetVolume(public val volume: Float) : PlaybackCommand
+    data class SetVolume(val volume: Float) : PlaybackCommand
 
     /** Stop playback when the requested duration has elapsed. */
-    public data class StartSleepTimer(public val durationMs: Long) : PlaybackCommand
+    data class StartSleepTimer(val durationMs: Long) : PlaybackCommand
 
     /** Clear an active sleep timer without changing playback. */
-    public data object CancelSleepTimer : PlaybackCommand
+    data object CancelSleepTimer : PlaybackCommand
 }

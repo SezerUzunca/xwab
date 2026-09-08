@@ -321,11 +321,19 @@ class FeatureFirstRulesTest {
         )
         assertEquals(emptyList(), FeatureFirstRules.coreVisibilityViolations(good))
 
+        // A port is public by definition; Kotlin's own default visibility already says so without
+        // a keyword, so a declaration that omits one is not a violation.
         val implicitPort = FeatureFirstRules.coreVisibilityViolations(
             listOf(coreSource("port/SoundCatalogPort.kt", ".port", "interface SoundCatalogPort")),
         )
-        assertEquals(1, implicitPort.size)
-        assertTrue(implicitPort.single().contains("implicit visibility"))
+        assertEquals(emptyList(), implicitPort)
+
+        // The naming rule still applies whether or not `public` was written out.
+        val implicitWrongName = FeatureFirstRules.coreVisibilityViolations(
+            listOf(coreSource("port/Catalog.kt", ".port", "interface Catalog")),
+        )
+        assertEquals(1, implicitWrongName.size)
+        assertTrue(implicitWrongName.single().contains("must end in Port"))
 
         val hiddenPortDeclaration = FeatureFirstRules.coreVisibilityViolations(
             listOf(coreSource("port/Helper.kt", ".port", "private object Helper")),
@@ -369,6 +377,7 @@ class FeatureFirstRulesTest {
         )
         assertEquals(1, indentedTopLevelLeak.size)
 
+        // The same holds for a nested port declaration: a member with no keyword is still public.
         val implicitPortMember = FeatureFirstRules.CoreSource(
             path = "core/sample/src/commonMain/kotlin/port/SamplePort.kt",
             module = ":core:sample",
@@ -380,7 +389,7 @@ class FeatureFirstRulesTest {
                 }
             """.trimIndent(),
         )
-        assertEquals(1, FeatureFirstRules.coreVisibilityViolations(listOf(implicitPortMember)).size)
+        assertEquals(emptyList(), FeatureFirstRules.coreVisibilityViolations(listOf(implicitPortMember)))
 
         val implicitCompanion = FeatureFirstRules.CoreSource(
             path = "core/sample/src/commonMain/kotlin/port/Sample.kt",
@@ -393,7 +402,7 @@ class FeatureFirstRulesTest {
                 }
             """.trimIndent(),
         )
-        assertEquals(1, FeatureFirstRules.coreVisibilityViolations(listOf(implicitCompanion)).size)
+        assertEquals(emptyList(), FeatureFirstRules.coreVisibilityViolations(listOf(implicitCompanion)))
 
         val internalAdapterMember = FeatureFirstRules.CoreSource(
             path = "core/sample/src/commonMain/kotlin/SampleAdapter.kt",

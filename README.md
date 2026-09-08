@@ -34,9 +34,10 @@ application capability ports.
 
 ## Core boundary
 
-Every type crossing a core-module boundary lives in a `.port` package and is explicitly `public`.
-Hand-written production declarations outside `.port` packages are `internal` or `private`. Core modules may
-import another core module only through that module's `.port` package.
+Every type crossing a core-module boundary lives in a `.port` package and is public — Kotlin's own
+default when no modifier is written, or `public` written out; either is fine, only a keyword saying
+otherwise is not. Hand-written production declarations outside `.port` packages are `internal` or
+`private`. Core modules may import another core module only through that module's `.port` package.
 
 There is no shared repository abstraction. A feature consumes the narrow capability it needs:
 
@@ -123,7 +124,7 @@ internal Metro contributions behind `PlaybackEnginePort`.
 4. A feature-specific use case leaks into `core`.
 5. Any shared production source set references a feature outside the allowed boundaries: navigation/composition may use feature navigation contracts, and DI may use feature dependency bags.
 6. A production core declaration outside an exact capability `.port` package is public.
-7. A port declaration or member is not explicitly `public`, or a public contract interface does not end in `Port`.
+7. A port declaration or member is written as non-public, or a public contract interface does not end in `Port`.
 8. A cross-core import, wildcard import, or fully qualified reference bypasses an exact `.port` package.
 9. A `Repository` or DI-style `Provider` abstraction appears in `core`.
 10. A Koin import or dependency is reintroduced anywhere in the project.
