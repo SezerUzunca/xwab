@@ -25,7 +25,7 @@ fun EntryProviderScope<NavKey>.playerEntry(
                     // track string.
                     trackId = TrackId(route.musicId),
                     observePlayerContentUseCase = ObservePlayerContentUseCase(
-                        dependencies.soundCatalogPort,
+                        dependencies.soundPort,
                         dependencies.favoritesPort,
                         dependencies.playbackPort,
                     ),

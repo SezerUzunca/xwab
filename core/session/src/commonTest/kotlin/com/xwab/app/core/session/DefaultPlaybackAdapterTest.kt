@@ -9,7 +9,8 @@ import com.xwab.app.core.sounddelivery.port.SoundContentResolution
 import com.xwab.app.core.sound.port.Category
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Music
-import com.xwab.app.core.sound.port.SoundCatalogPort
+import com.xwab.app.core.sound.port.SoundPort
+import com.xwab.app.core.sound.port.TrackSource
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.playback.port.AudioPlayerState
 import com.xwab.app.core.playback.port.AudioSource
@@ -20,10 +21,9 @@ import com.xwab.app.core.playback.port.PlaybackPhase
 import com.xwab.app.core.playback.port.PlaybackRequest
 import com.xwab.app.core.playback.port.SleepTimerState
 import com.xwab.app.core.story.port.Story
-import com.xwab.app.core.story.port.StoryCatalogPort
+import com.xwab.app.core.story.port.StoryPort
 import com.xwab.app.core.story.port.StoryId
-import com.xwab.app.core.storysource.port.StorySourcePort
-import com.xwab.app.core.storysource.port.StoryStreamSource
+import com.xwab.app.core.story.port.StoryStreamSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -709,12 +709,12 @@ class DefaultPlaybackAdapterTest {
         player,
         listOf(
             SoundPlaybackResolver(FakeCatalog, testContentResolver),
-            StoryPlaybackResolver(FakeStoryCatalog, FakeStoryStreams),
+            StoryPlaybackResolver(FakeStoryCatalog),
         ),
     )
 
     /** Two catalog rows, with one source deliberately omitted to exercise defensive handling. */
-    private object FakeStoryCatalog : StoryCatalogPort {
+    private object FakeStoryCatalog : StoryPort {
         private val stories = listOf(
             story("night-came-slowly", "The Night Came Slowly"),
             story("an-idle-fellow", "An Idle Fellow"),
@@ -733,9 +733,7 @@ class DefaultPlaybackAdapterTest {
             durationSeconds = 174,
             artworkUrl = null,
         )
-    }
 
-    private object FakeStoryStreams : StorySourcePort {
         override fun sourceFor(storyId: StoryId): StoryStreamSource? =
             if (storyId == StoryId("night-came-slowly")) {
                 StoryStreamSource("https://example.test/night.mp3")
@@ -745,7 +743,9 @@ class DefaultPlaybackAdapterTest {
     }
 
     /** The catalog the adapter reads its metadata from; only `observeMusic` is ever asked. */
-    private object FakeCatalog : SoundCatalogPort {
+    private object FakeCatalog : SoundPort {
+        override val cacheFileNames: Set<String> = emptySet()
+        override fun sourceFor(trackId: TrackId): TrackSource? = null
         private val tracks = listOf(
             Music(
                 id = TrackId("gentle-rain"),

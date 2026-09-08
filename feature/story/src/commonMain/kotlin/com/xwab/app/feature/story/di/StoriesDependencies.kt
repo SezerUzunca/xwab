@@ -1,7 +1,7 @@
 package com.xwab.app.feature.story.di
 
 import com.xwab.app.core.session.port.PlaybackPort
-import com.xwab.app.core.story.port.StoryCatalogPort
+import com.xwab.app.core.story.port.StoryPort
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -13,6 +13,6 @@ import dev.zacsweers.metro.SingleIn
 @SingleIn(AppScope::class)
 @Inject
 class StoriesDependencies(
-    internal val storyCatalogPort: StoryCatalogPort,
+    internal val storyPort: StoryPort,
     internal val playbackPort: PlaybackPort,
 )

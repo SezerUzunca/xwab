@@ -144,7 +144,7 @@ class CategoryViewModelTest {
             tracks = listOf(track("gentle-rain"), track("heavy-rain")),
         )
         val useCase = ObserveCategoryContentUseCase(
-            soundCatalogPort = catalog,
+            soundPort = catalog,
             favoritesPort = favorites,
             playbackPort = port,
         )

@@ -3,7 +3,8 @@ package com.xwab.app.testing
 import com.xwab.app.core.sound.port.Category
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Music
-import com.xwab.app.core.sound.port.SoundCatalogPort
+import com.xwab.app.core.sound.port.SoundPort
+import com.xwab.app.core.sound.port.TrackSource
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.favorites.port.FavoritesPort
 import com.xwab.app.core.session.port.PlaybackPort
@@ -41,7 +42,9 @@ fun category(id: String, musicCount: Int = 0) = Category(
 class FakeMusicCatalog(
     private val categories: List<Category> = emptyList(),
     private val tracks: List<Music> = emptyList(),
-) : SoundCatalogPort {
+) : SoundPort {
+    override val cacheFileNames: Set<String> = emptySet()
+    override fun sourceFor(trackId: TrackId): TrackSource? = null
     override fun observeCategories(): Flow<List<Category>> = flowOf(categories)
     override fun observeAllMusic(): Flow<List<Music>> = flowOf(tracks)
     override fun observeCategory(categoryId: CategoryId): Flow<Category?> =

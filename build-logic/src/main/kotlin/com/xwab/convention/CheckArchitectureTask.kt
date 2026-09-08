@@ -23,8 +23,8 @@ import org.gradle.api.tasks.TaskAction
  *    to that screen's module, otherwise screen logic leaks into shared capabilities.
  * 5. A feature may not declare — or reach through an `api` dependency — a module in
  *    [FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES].
- *    Fetching audio, driving a platform player and reading the shipped manifest are things done on
- *    a screen's behalf; a screen reaching any of them directly bypasses the port that exists for it.
+ *    Fetching audio and driving a platform player are done on a screen's behalf. Content-port
+ *    checks also enforce one cohesive port per sound/story module.
  * 6. All shared production source sets may reference features only at the navigation/composition
  *    boundary (navigation contracts) or DI boundary (Dependencies classes).
  * 7. A core capability exposes declarations only from an explicit `port` package; everything else
@@ -73,6 +73,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
             leakedUseCaseViolations(root, graph.keys) +
             FeatureFirstRules.sharedFeatureReferenceViolations(productionSources(root, "shared")) +
             FeatureFirstRules.featureVisibilityViolations(productionSources(root, "feature")) +
+            FeatureFirstRules.contentPortViolations(coreSources) +
             FeatureFirstRules.coreVisibilityViolations(coreSources) +
             FeatureFirstRules.coreImportViolations(coreSources) +
             FeatureFirstRules.legacyCoreAbstractionViolations(coreSources)
@@ -112,9 +113,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
     /**
      * Reads what rule 4 needs off the file system, then hands it to [FeatureFirstRules].
      *
-     * @param modulePaths every module in the build, which is how a source file under a grouped
-     *   core module — `core/sound/catalog`, not `core/catalog` — is attributed to the module that
-     *   actually declares it rather than to the group directory above it.
+     * @param modulePaths every module in the build, used to attribute each source to its owner.
      */
     private fun leakedUseCaseViolations(root: File, modulePaths: Set<String>): List<String> {
         val coreRoot = root.resolve("core")

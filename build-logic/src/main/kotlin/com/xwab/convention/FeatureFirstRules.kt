@@ -54,20 +54,33 @@ internal object FeatureFirstRules {
             "the app shell owns navigation state and destination policy",
         ":core:network" to
             "HTTP is an adapter detail; screens read content through public ports",
-        ":core:sound:delivery" to
+        ":core:delivery" to
             "source resolution and caching belong behind PlaybackPort",
         ":core:playback" to
             "the platform engine is hidden behind PlaybackPort",
-        ":core:sound:manifest" to
-            "physical sound sources are adapter details hidden from screens",
-        ":core:story:manifest" to
-            "physical story sources are adapter details hidden from screens",
     )
 
     fun staleRuleViolations(modules: Set<String>): List<String> =
         (MODULES_OFF_LIMITS_TO_FEATURES.keys - modules).sorted().map { missing ->
             "The adapter-boundary rule names $missing, which is not a module in this build. Update " +
                 "MODULES_OFF_LIMITS_TO_FEATURES, or the rule protects nothing."
+        }
+
+    /** Sound and story each expose one cohesive port. */
+    fun contentPortViolations(sources: List<CoreSource>): List<String> =
+        mapOf(":core:sound" to "SoundPort", ":core:story" to "StoryPort").flatMap { (module, expected) ->
+            val moduleSources = sources.filter { it.module == module }
+            if (moduleSources.isEmpty()) return@flatMap emptyList()
+            val interfaces = moduleSources.flatMap { source ->
+                declarations(source.source, includeNested = true).mapNotNull { parsed ->
+                    val declaration = parsed.match
+                    if (declaration.groupValues[2] != "interface") return@mapNotNull null
+                    if (!CORE_PORT_PACKAGE.matches(source.packageName)) return@mapNotNull null
+                    declaration.groupValues[3]
+                }
+            }
+            if (interfaces == listOf(expected)) emptyList()
+            else listOf("$module must expose exactly one port interface: $expected.")
         }
 
     /** A feature is one Gradle module; nested `api` / `impl` projects are not part of the model. */

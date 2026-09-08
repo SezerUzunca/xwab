@@ -116,7 +116,7 @@ class FavoritesViewModelTest {
 
     private fun createViewModel(coordinator: FakePlaybackPort): FavoritesViewModel {
         val useCase = ObserveFavoritesContentUseCase(
-            soundCatalogPort = FakeMusicCatalog(tracks = listOf(track("rain"))),
+            soundPort = FakeMusicCatalog(tracks = listOf(track("rain"))),
             favoritesPort = FakeFavorites(setOf(TrackId("rain"))),
             playbackPort = coordinator,
         )

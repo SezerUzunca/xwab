@@ -40,16 +40,12 @@ dependencyResolutionManagement {
 
 include(":androidApp")
 
-// Content capabilities are grouped by the content they serve rather than listed flat. `sound` and
-// `story` are directories with no build file of their own — Gradle creates a container project for
-// each, and nothing is ever declared on it. A module's Gradle path is its directory path, so
-// `core/sound/manifest` is `:core:sound:manifest`, and the architecture rules read that path.
-include(":core:sound:catalog")
-include(":core:sound:manifest")
-include(":core:sound:delivery")
-include(":core:sound:favorites")
-include(":core:story:catalog")
-include(":core:story:manifest")
+// Each content module owns its catalog, manifest and internal adapters.
+// Delivery and favorites remain independent capabilities.
+include(":core:sound")
+include(":core:delivery")
+include(":core:favorites")
+include(":core:story")
 
 // Playback is two flat modules rather than a content group, because the halves are not the same
 // kind of thing. `:core:playback` is a standalone audio library that names no module of this app;

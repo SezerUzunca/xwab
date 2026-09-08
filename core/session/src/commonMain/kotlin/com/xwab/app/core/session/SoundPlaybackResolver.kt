@@ -2,7 +2,7 @@ package com.xwab.app.core.session
 
 import com.xwab.app.core.session.port.DEFAULT_LOOPING
 import com.xwab.app.core.session.port.PlaybackKind
-import com.xwab.app.core.sound.port.SoundCatalogPort
+import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.sounddelivery.port.SoundContentPort
 import com.xwab.app.core.sounddelivery.port.SoundContentResolution
@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.first
  * stays here: a story streams and is not kept, so it must never be resolved through this path.
  */
 internal class SoundPlaybackResolver(
-    private val catalog: SoundCatalogPort,
+    private val catalog: SoundPort,
     private val content: SoundContentPort,
 ) : PlaybackItemResolver {
     override val kind: PlaybackKind = PlaybackKind.SOUND

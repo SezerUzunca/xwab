@@ -139,7 +139,7 @@ class StoriesViewModelTest {
 
     private fun createViewModel(port: FakePlaybackPort): StoriesViewModel {
         val useCase = ObserveStoriesContentUseCase(
-            storyCatalogPort = FakeStoryCatalog(listOf(story("bedtime"), story("moonlight"))),
+            storyPort = FakeStoryCatalog(listOf(story("bedtime"), story("moonlight"))),
             playbackPort = port,
         )
         return StoriesViewModel(useCase, port)

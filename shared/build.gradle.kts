@@ -53,13 +53,11 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             // The composition root sees every contributed core adapter. Features cannot reach the
-            // delivery layer, engine, manifests or network directly; this module declares the graph.
-            implementation(projects.core.sound.catalog)
-            implementation(projects.core.sound.manifest)
-            implementation(projects.core.sound.delivery)
-            implementation(projects.core.story.catalog)
-            implementation(projects.core.story.manifest)
-            implementation(projects.core.sound.favorites)
+            // delivery layer, engine or network directly; this module declares the graph.
+            implementation(projects.core.sound)
+            implementation(projects.core.delivery)
+            implementation(projects.core.story)
+            implementation(projects.core.favorites)
             implementation(projects.core.session)
             implementation(projects.core.playback)
             implementation(projects.core.network)
@@ -86,11 +84,6 @@ kotlin {
             implementation(projects.testing)
             // The root's navigation contract tests deliberately assert that every public
             // route can be restored and rendered.
-            implementation(projects.feature.browse)
-            implementation(projects.feature.favorites)
-            implementation(projects.feature.category)
-            implementation(projects.feature.sounds)
-            implementation(projects.feature.story)
         }
     }
 }

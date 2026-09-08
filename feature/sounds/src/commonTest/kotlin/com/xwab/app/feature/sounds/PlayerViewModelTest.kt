@@ -165,7 +165,7 @@ class PlayerViewModelTest {
             tracks = if (catalogHasTrack) listOf(track(RAIN.value, categoryId = "rain")) else emptyList(),
         )
         val useCase = ObservePlayerContentUseCase(
-            soundCatalogPort = catalog,
+            soundPort = catalog,
             favoritesPort = FakeFavorites(setOf(RAIN)),
             playbackPort = port,
         )

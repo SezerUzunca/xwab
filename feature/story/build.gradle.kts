@@ -7,7 +7,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(projects.core.story.catalog)
+            implementation(projects.core.story)
             implementation(projects.core.session)
         }
         commonTest.dependencies {

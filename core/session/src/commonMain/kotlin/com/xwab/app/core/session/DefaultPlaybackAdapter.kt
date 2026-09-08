@@ -13,10 +13,9 @@ import com.xwab.app.core.playback.port.PlaybackCommand
 import com.xwab.app.core.playback.port.PlaybackEnginePort
 import com.xwab.app.core.playback.port.PlaybackPhase
 import com.xwab.app.core.playback.port.PlaybackRequest
-import com.xwab.app.core.sound.port.SoundCatalogPort
+import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.sounddelivery.port.SoundContentPort
-import com.xwab.app.core.story.port.StoryCatalogPort
-import com.xwab.app.core.storysource.port.StorySourcePort
+import com.xwab.app.core.story.port.StoryPort
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -45,15 +44,14 @@ internal class DefaultPlaybackAdapter internal constructor(
     @Inject
     internal constructor(
         enginePort: PlaybackEnginePort,
-        soundCatalogPort: SoundCatalogPort,
+        soundPort: SoundPort,
         soundContentPort: SoundContentPort,
-        storyCatalogPort: StoryCatalogPort,
-        storySourcePort: StorySourcePort,
+        storyPort: StoryPort,
     ) : this(
         enginePort = enginePort,
         resolvers = listOf(
-            SoundPlaybackResolver(catalog = soundCatalogPort, content = soundContentPort),
-            StoryPlaybackResolver(catalog = storyCatalogPort, streams = storySourcePort),
+            SoundPlaybackResolver(catalog = soundPort, content = soundContentPort),
+            StoryPlaybackResolver(storyPort),
         ),
     )
     private val resolversByKind: Map<PlaybackKind, PlaybackItemResolver> =

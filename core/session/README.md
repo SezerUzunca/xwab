@@ -15,11 +15,10 @@ core:session
    ├─ PlaybackPort          the only thing a screen can reach
    ├─ DefaultPlaybackAdapter   one item at a time; newest request wins
    ├─ SoundPlaybackResolver        internal
-   │    ├─► core:sound:catalog     what the track is called, for the media session to publish
-   │    └─► core:sound:delivery    a local file if it is cached, HTTPS if it is not
+   │    ├─► core:sound     what the track is called, for the media session to publish
+   │    └─► core:delivery    a local file if it is cached, HTTPS if it is not
    └─ StoryPlaybackResolver        internal
-        ├─► core:story:catalog     the story's title and narrator
-        └─► core:story:manifest    the address it streams from — no cache, ever
+        └─► core:story     title, narrator and HTTPS stream address, without caching
    ────► core:playback      the platform player that opens whatever was resolved
 ```
 
@@ -31,13 +30,12 @@ last.
 a `Music` it happened to be holding could pair a stale title with a freshly resolved URI, and the
 two authorities would never be compared.
 
-The catalog, delivery and the engine are all `implementation` dependencies, and nothing this module
-publishes names a type from any of them — so no screen can resolve an item to a URI or touch
-`AudioPlayerState`. `checkArchitecture` keeps it that way by failing the build on a feature
-that adds one of those dependencies, or that reaches one through a module which re-exports it.
+Content, delivery and the engine are `implementation` dependencies; this module publishes no
+types from them. `checkArchitecture` rejects feature dependencies on delivery or the engine,
+including re-exported dependencies. Content metadata and source lookup use SoundPort and StoryPort.
 
-The resolvers are `internal` for the same reason the modules behind them are off limits: a resolver
-hands back a URI. Metro exposes only `PlaybackPort`; the source-resolution chain remains a private
+The resolvers are `internal` because they hand back URIs. Metro exposes only `PlaybackPort`;
+the source-resolution chain remains a private
 implementation detail of this module.
 
 ## What it decides

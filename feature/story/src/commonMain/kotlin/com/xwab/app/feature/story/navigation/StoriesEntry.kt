@@ -16,7 +16,7 @@ fun EntryProviderScope<NavKey>.storiesEntry(dependencies: StoriesDependencies) {
             viewModel = viewModel {
                 StoriesViewModel(
                     observeStoriesContentUseCase = ObserveStoriesContentUseCase(
-                        dependencies.storyCatalogPort,
+                        dependencies.storyPort,
                         dependencies.playbackPort,
                     ),
                     playbackPort = dependencies.playbackPort,

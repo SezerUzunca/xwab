@@ -2,7 +2,7 @@ package com.xwab.app.feature.browse
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xwab.app.core.sound.port.SoundCatalogPort
+import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.designsystem.state.Loadable
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -10,9 +10,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 internal class BrowseViewModel(
-    soundCatalogPort: SoundCatalogPort,
+    soundPort: SoundPort,
 ) : ViewModel() {
-    val state: StateFlow<Loadable<BrowseState>> = soundCatalogPort.observeCategories()
+    val state: StateFlow<Loadable<BrowseState>> = soundPort.observeCategories()
         .map { categories -> Loadable.Ready(BrowseState(categories)) as Loadable<BrowseState> }
         .stateIn(
             scope = viewModelScope,

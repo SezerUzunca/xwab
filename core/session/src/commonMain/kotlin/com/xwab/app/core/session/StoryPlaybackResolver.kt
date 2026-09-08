@@ -1,16 +1,15 @@
 package com.xwab.app.core.session
 
 import com.xwab.app.core.session.port.PlaybackKind
-import com.xwab.app.core.story.port.StoryCatalogPort
+import com.xwab.app.core.story.port.StoryPort
 import com.xwab.app.core.story.port.StoryId
-import com.xwab.app.core.storysource.port.StorySourcePort
 import kotlinx.coroutines.flow.first
 
 /**
  * Stories: metadata from the catalog, an address from the stream catalog.
  *
  * The same two steps as [SoundPlaybackResolver], with the cache step missing. A sound is resolved
- * through `core:sound:delivery`, which answers with a local file when there is one and starts a
+ * through `core:delivery`, which answers with a local file when there is one and starts a
  * download when there is not. A story has no such module by design: it streams over HTTPS and
  * nothing is kept.
  *
@@ -18,15 +17,14 @@ import kotlinx.coroutines.flow.first
  * for a catalog/source mismatch, while an unknown catalog id is `NotFound`.
  */
 internal class StoryPlaybackResolver(
-    private val catalog: StoryCatalogPort,
-    private val streams: StorySourcePort,
+    private val catalog: StoryPort,
 ) : PlaybackItemResolver {
     override val kind: PlaybackKind = PlaybackKind.STORY
 
     override suspend fun resolve(value: String): ItemResolution {
         val storyId = StoryId(value)
         val story = catalog.observeStory(storyId).first() ?: return ItemResolution.NotFound
-        val source = streams.sourceFor(storyId)
+        val source = catalog.sourceFor(storyId)
             ?: return ItemResolution.Unavailable("story source is missing")
 
         return ItemResolution.Resolved(

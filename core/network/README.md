@@ -12,7 +12,7 @@ The client deliberately has two operations:
 - `getText` keeps a small UTF-8 document in memory;
 - `download` exposes bounded chunks so media is never accumulated as one `ByteArray`.
 
-Only `download` has a caller today — `core:sound:delivery`, filling the audio cache. Both catalogs
+Only `download` has a caller today — `core:delivery`, filling the audio cache. Both catalogs
 ship with the build, so `getText` is the half of this port that a content feed would use, kept with
 its tests rather than deleted and re-added unchanged. If a feed is ruled out, `getText`,
 `NetworkHttpException` and `NetworkTimeoutException` go with it; `NetworkTransportException` also

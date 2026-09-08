@@ -27,7 +27,7 @@ fun EntryProviderScope<NavKey>.categoryEntry(
                 CategoryViewModel(
                     categoryId = CategoryId(route.categoryId),
                     observeCategoryContentUseCase = ObserveCategoryContentUseCase(
-                        dependencies.soundCatalogPort,
+                        dependencies.soundPort,
                         dependencies.favoritesPort,
                         dependencies.playbackPort,
                     ),

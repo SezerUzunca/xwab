@@ -11,7 +11,7 @@ class FeatureFirstRulesTest {
     @Test
     fun coreDependenciesPointOutwardNeverTowardFeatures() {
         val violations = FeatureFirstRules.dependencyViolations(
-            mapOf(":core:sound:catalog" to listOf(":feature:category")),
+            mapOf(":core:sound" to listOf(":feature:category")),
         )
 
         assertEquals(1, violations.size)
@@ -19,7 +19,7 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
-                mapOf(":feature:category" to listOf(":core:sound:catalog")),
+                mapOf(":feature:category" to listOf(":core:sound")),
             ),
         )
     }
@@ -45,7 +45,7 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.featureModuleShapeViolations(
-                setOf(":feature", ":feature:browse", ":core:sound:catalog"),
+                setOf(":feature", ":feature:browse", ":core:sound"),
             ),
         )
 
@@ -96,7 +96,7 @@ class FeatureFirstRulesTest {
 
         val transitive = FeatureFirstRules.dependencyViolations(
             graph = mapOf(":feature:sounds" to listOf(":testing")),
-            apiEdges = mapOf(":testing" to listOf(":core:sound:delivery")),
+            apiEdges = mapOf(":testing" to listOf(":core:delivery")),
         )
         assertEquals(1, transitive.size)
         assertTrue(transitive.single().contains("through :testing"))
@@ -227,7 +227,7 @@ class FeatureFirstRulesTest {
                 """
                     @Inject
                     class BrowseDependencies(
-                        internal val catalog: SoundCatalogPort,
+                        internal val catalog: SoundPort,
                     )
                     internal class Helper {
                         fun localMember() = Unit
@@ -278,7 +278,7 @@ class FeatureFirstRulesTest {
     @Test
     fun featureSpecificUseCasesStayInTheirFeature() {
         val violations = FeatureFirstRules.leakedUseCaseViolations(
-            useCases = listOf("ObserveSoundsContentUseCase" to ":core:sound:catalog"),
+            useCases = listOf("ObserveSoundsContentUseCase" to ":core:sound"),
             sourcesByFeature = mapOf(
                 "category" to listOf("ObserveSoundsContentUseCase()"),
                 "sounds" to listOf("unrelated"),
@@ -289,7 +289,7 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.leakedUseCaseViolations(
-                useCases = listOf("SharedUseCase" to ":core:sound:catalog"),
+                useCases = listOf("SharedUseCase" to ":core:sound"),
                 sourcesByFeature = mapOf(
                     "category" to listOf("SharedUseCase()"),
                     "sounds" to listOf("SharedUseCase()"),
@@ -299,23 +299,23 @@ class FeatureFirstRulesTest {
     }
 
     @Test
-    fun groupedSourcesAreAttributedToTheirLeafModule() {
+    fun contentSourcesAreAttributedToTheirModule() {
         assertEquals(
-            ":core:sound:catalog",
+            ":core:sound",
             FeatureFirstRules.owningModule(
-                "core/sound/catalog/src/commonMain/kotlin/Port.kt",
-                listOf(":core:sound", ":core:sound:catalog"),
+                "core/sound/src/commonMain/kotlin/Port.kt",
+                listOf(":core", ":core:sound"),
             ),
         )
         assertNull(
-            FeatureFirstRules.owningModule("gradle/libs.versions.toml", listOf(":core:sound:catalog")),
+            FeatureFirstRules.owningModule("gradle/libs.versions.toml", listOf(":core:sound")),
         )
     }
 
     @Test
     fun corePublicSurfaceIsExplicitAndConfinedToPortPackages() {
         val good = listOf(
-            coreSource("port/SoundCatalogPort.kt", ".port", "public interface SoundCatalogPort"),
+            coreSource("port/SoundPort.kt", ".port", "public interface SoundPort"),
             coreSource("port/Outcome.kt", ".port", "public sealed interface Outcome"),
             coreSource("ManifestAdapter.kt", "", "internal class ManifestAdapter"),
         )
@@ -324,7 +324,7 @@ class FeatureFirstRulesTest {
         // A port is public by definition; Kotlin's own default visibility already says so without
         // a keyword, so a declaration that omits one is not a violation.
         val implicitPort = FeatureFirstRules.coreVisibilityViolations(
-            listOf(coreSource("port/SoundCatalogPort.kt", ".port", "interface SoundCatalogPort")),
+            listOf(coreSource("port/SoundPort.kt", ".port", "interface SoundPort")),
         )
         assertEquals(emptyList(), implicitPort)
 
@@ -624,43 +624,66 @@ class FeatureFirstRulesTest {
     }
 
     @Test
+    fun contentModulesExposeExactlyOnePort() {
+        listOf("sound" to "SoundPort", "story" to "StoryPort").forEach { (name, port) ->
+            fun source(declaration: String) = FeatureFirstRules.CoreSource(
+                path = "core/$name/src/commonMain/kotlin/port/$port.kt",
+                module = ":core:$name",
+                packageName = "com.xwab.app.core.$name.port",
+                source = declaration,
+            )
+            assertEquals(emptyList(), FeatureFirstRules.contentPortViolations(
+                listOf(source("interface $port")),
+            ))
+            assertEquals(1, FeatureFirstRules.contentPortViolations(
+                listOf(source("interface $port\ninterface ExtraPort")),
+            ).size)
+            assertEquals(1, FeatureFirstRules.contentPortViolations(
+                listOf(source("interface $port {\n    interface ExtraPort\n}")),
+            ).size)
+            assertEquals(emptyList(), FeatureFirstRules.contentPortViolations(
+                listOf(source("interface $port {\n    data class Model(val id: String)\n}")),
+            ))
+            assertEquals(1, FeatureFirstRules.contentPortViolations(
+                listOf(source("data class Model(val id: String)")),
+            ).size)
+        }
+    }
+
+    @Test
     fun currentModuleGraphSatisfiesDependencyRules() {
         val graph = mapOf(
             ":core:sound" to emptyList<String>(),
             ":core:story" to emptyList<String>(),
             ":core:network" to emptyList<String>(),
-            ":core:sound:catalog" to emptyList<String>(),
-            ":core:sound:manifest" to listOf(":core:sound:catalog"),
-            ":core:sound:delivery" to listOf(":core:sound:catalog", ":core:sound:manifest", ":core:network"),
-            ":core:sound:favorites" to listOf(":core:sound:catalog"),
-            ":core:story:catalog" to emptyList<String>(),
-            ":core:story:manifest" to listOf(":core:story:catalog"),
+            ":core:delivery" to listOf(":core:sound", ":core:network"),
+            ":core:favorites" to listOf(":core:sound"),
             ":core:playback" to emptyList<String>(),
             ":core:session" to listOf(
-                ":core:sound:catalog", ":core:sound:delivery", ":core:story:catalog",
-                ":core:story:manifest", ":core:playback",
+                ":core:sound", ":core:delivery", ":core:story",
+                ":core:playback",
             ),
             ":designsystem" to emptyList<String>(),
-            ":testing" to listOf(":core:sound:catalog", ":core:sound:favorites", ":core:session"),
-            ":feature:browse" to listOf(":core:sound:catalog", ":testing", ":designsystem"),
+            ":testing" to listOf(":core:sound", ":core:favorites", ":core:session"),
+            ":feature:browse" to listOf(":core:sound", ":testing", ":designsystem"),
             ":feature:category" to listOf(
-                ":core:sound:catalog", ":core:sound:favorites", ":core:session",
+                ":core:sound", ":core:favorites", ":core:session",
                 ":testing", ":designsystem",
             ),
             ":feature:favorites" to listOf(
-                ":core:sound:catalog", ":core:sound:favorites", ":core:session",
+                ":core:sound", ":core:favorites", ":core:session",
                 ":testing", ":designsystem",
             ),
             ":feature:sounds" to listOf(
-                ":core:sound:catalog", ":core:sound:favorites", ":core:session",
+                ":core:sound", ":core:favorites", ":core:session",
                 ":testing", ":designsystem",
             ),
             ":feature:story" to listOf(
-                ":core:story:catalog", ":core:session", ":testing", ":designsystem",
+                ":core:story", ":core:session", ":testing", ":designsystem",
             ),
             ":shared" to listOf(
-                ":core:sound:catalog", ":core:sound:manifest", ":core:sound:delivery",
-                ":core:sound:favorites", ":core:story:catalog", ":core:story:manifest",
+                ":core:sound", ":core:delivery",
+                ":core:favorites", ":core:story",
                 ":core:session", ":core:playback", ":core:network",
                 ":designsystem", ":testing", ":feature:browse", ":feature:category",
                 ":feature:favorites", ":feature:sounds", ":feature:story",
@@ -668,12 +691,10 @@ class FeatureFirstRulesTest {
             ":androidApp" to listOf(":shared"),
         )
         val apiEdges = mapOf(
-            ":core:sound:manifest" to listOf(":core:sound:catalog"),
-            ":core:sound:delivery" to listOf(":core:sound:catalog"),
-            ":core:sound:favorites" to listOf(":core:sound:catalog"),
-            ":core:story:manifest" to listOf(":core:story:catalog"),
+            ":core:delivery" to listOf(":core:sound"),
+            ":core:favorites" to listOf(":core:sound"),
             ":core:session" to emptyList(),
-            ":testing" to listOf(":core:sound:catalog", ":core:sound:favorites", ":core:session"),
+            ":testing" to listOf(":core:sound", ":core:favorites", ":core:session"),
         )
 
         assertEquals(emptyList(), FeatureFirstRules.staleRuleViolations(graph.keys))
