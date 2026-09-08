@@ -60,15 +60,58 @@ internal object FeatureFirstRules {
             "the platform engine is hidden behind PlaybackPort",
     )
 
+    /** The one port interface each content module is allowed to publish. */
+    val CONTENT_MODULE_PORTS = mapOf(
+        ":core:sound" to "SoundPort",
+        ":core:story" to "StoryPort",
+    )
+
+    /**
+     * Modules reusable outside this app, and the only project dependencies each may declare.
+     * Favorites stores ids it never interprets; delivery moves bytes and needs a transport.
+     */
+    val REUSABLE_MODULE_DEPENDENCIES = mapOf(
+        ":core:favorites" to emptySet<String>(),
+        ":core:delivery" to setOf(":core:network"),
+    )
+
+    /**
+     * Every rule that names a module by path, and the constant holding those names.
+     *
+     * A rule keyed on a module path stops matching anything the moment that module is renamed —
+     * it does not fail, it just quietly protects nothing, which is the one failure mode an
+     * architecture guard cannot afford. Registering each list here makes the rename itself the
+     * thing that breaks the build, rather than the next mistake the rule was meant to catch.
+     */
+    private val RULE_MODULE_REFERENCES: List<Triple<String, String, Set<String>>> = listOf(
+        Triple(
+            "adapter-boundary rule",
+            "MODULES_OFF_LIMITS_TO_FEATURES",
+            MODULES_OFF_LIMITS_TO_FEATURES.keys,
+        ),
+        Triple(
+            "one-port-per-content rule",
+            "CONTENT_MODULE_PORTS",
+            CONTENT_MODULE_PORTS.keys,
+        ),
+        Triple(
+            "reusable-capability rule",
+            "REUSABLE_MODULE_DEPENDENCIES",
+            REUSABLE_MODULE_DEPENDENCIES.keys + REUSABLE_MODULE_DEPENDENCIES.values.flatten(),
+        ),
+    )
+
     fun staleRuleViolations(modules: Set<String>): List<String> =
-        (MODULES_OFF_LIMITS_TO_FEATURES.keys - modules).sorted().map { missing ->
-            "The adapter-boundary rule names $missing, which is not a module in this build. Update " +
-                "MODULES_OFF_LIMITS_TO_FEATURES, or the rule protects nothing."
+        RULE_MODULE_REFERENCES.flatMap { (rule, constant, referenced) ->
+            (referenced - modules).sorted().map { missing ->
+                "The $rule names $missing, which is not a module in this build. Update " +
+                    "$constant, or the rule protects nothing."
+            }
         }
 
     /** Sound and story each expose one cohesive port. */
     fun contentPortViolations(sources: List<CoreSource>): List<String> =
-        mapOf(":core:sound" to "SoundPort", ":core:story" to "StoryPort").flatMap { (module, expected) ->
+        CONTENT_MODULE_PORTS.flatMap { (module, expected) ->
             val moduleSources = sources.filter { it.module == module }
             if (moduleSources.isEmpty()) return@flatMap emptyList()
             val interfaces = moduleSources.flatMap { source ->
@@ -121,12 +164,8 @@ internal object FeatureFirstRules {
         val violations = mutableListOf<String>()
 
         graph.forEach { (module, dependencies) ->
+            val reusableDependencies = REUSABLE_MODULE_DEPENDENCIES[module]
             dependencies.forEach { dependency ->
-                val reusableDependencies = when (module) {
-                    ":core:favorites" -> emptySet<String>()
-                    ":core:delivery" -> setOf(":core:network")
-                    else -> null
-                }
                 // KMP host-test configurations include a dependency on their own main module.
                 if (reusableDependencies != null && dependency != module && dependency !in reusableDependencies) {
                     violations += "$module depends on $dependency. Reusable favorites and delivery " +

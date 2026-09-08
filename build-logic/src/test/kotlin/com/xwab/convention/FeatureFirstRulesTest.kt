@@ -263,16 +263,36 @@ class FeatureFirstRulesTest {
         assertEquals(6, FeatureFirstRules.featureVisibilityViolations(leaks).size)
     }
 
+    /**
+     * Each registry is checked on its own, so a rule that starts naming a module nobody builds any
+     * more is reported by name rather than disappearing into the total.
+     */
     @Test
-    fun staleOffLimitsModuleNamesFailLoudly() {
+    fun staleModuleNamesFailLoudlyForEveryRuleThatNamesOne() {
+        // Kept per rule rather than flattened: `:core:delivery` is named by two of them, and each
+        // has to report it, or one rule could go stale behind the other still holding the name.
+        val referencesPerRule = listOf(
+            FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys,
+            FeatureFirstRules.CONTENT_MODULE_PORTS.keys,
+            FeatureFirstRules.REUSABLE_MODULE_DEPENDENCIES.keys +
+                FeatureFirstRules.REUSABLE_MODULE_DEPENDENCIES.values.flatten(),
+        )
+        val everyNamedModule = referencesPerRule.flatten().toSet()
+
         assertEquals(
-            FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.size,
+            referencesPerRule.sumOf { it.size },
             FeatureFirstRules.staleRuleViolations(setOf(":feature:category")).size,
         )
-        assertEquals(
-            emptyList(),
-            FeatureFirstRules.staleRuleViolations(FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys),
-        )
+        assertEquals(emptyList(), FeatureFirstRules.staleRuleViolations(everyNamedModule))
+
+        listOf(
+            FeatureFirstRules.CONTENT_MODULE_PORTS.keys.first() to "CONTENT_MODULE_PORTS",
+            FeatureFirstRules.REUSABLE_MODULE_DEPENDENCIES.keys.first() to "REUSABLE_MODULE_DEPENDENCIES",
+        ).forEach { (renamed, constant) ->
+            val violations = FeatureFirstRules.staleRuleViolations(everyNamedModule - renamed)
+            assertEquals(1, violations.size, renamed)
+            assertTrue(violations.single().contains(renamed) && violations.single().contains(constant))
+        }
     }
 
     @Test

@@ -131,6 +131,10 @@ internal Metro contributions behind `PlaybackEnginePort`.
 12. Sound or story exposes more than one port interface or lacks its `SoundPort` / `StoryPort` contract.
 13. Favorites depends on another project, or delivery depends on a project other than itself or `:core:network`.
 
+Rules 5, 12 and 13 name modules by path, so each of those names is also checked against the modules
+the build actually contains. Renaming one without updating its rule fails the build instead of
+leaving a rule that matches nothing and reports nothing.
+
 The Metro convention additionally treats non-public contribution problems as errors and generates
 providers that allow internal contributed adapters to remain hidden across modules.
 
