@@ -16,7 +16,6 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.utils.io.ByteChannel
-import io.ktor.utils.io.writeFully
 import io.ktor.utils.io.writer
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -207,43 +206,39 @@ class KtorNetworkAdapterTest {
             }
         }
     }
+
     /**
-     * A body that ends in a failure rather than in an end of stream reaches the caller as a
-     * transport failure.
+     * A body that fails instead of ending reaches the caller as a transport failure.
      *
-     * This used to claim more — that the bytes written before the failure reached the caller in the
-     * same run — and the history of trying is why it no longer does.
+     * The bytes are gone from this test on purpose, and the history is why. It used to assert that
+     * a chunk delivered *before* the failure reached the caller in the same run, and no arrangement
+     * of that ever held on the Linux CI runner:
      *
-     * An earlier version wrote to a plain channel and cancelled it from inside `onChunk`, which
-     * describes the same scenario but does not produce it: `cancel` is a consumer discarding a
-     * stream, and the stream being discarded was this test's own, not the copy the client hands the
-     * adapter. Whether the cause crossed that copy turned out to be platform-dependent — it did on
-     * Windows and did not on the Linux CI runner, where the adapter read three bytes, saw a clean
-     * end of stream and completed normally.
+     * - cancelling the channel from inside `onChunk` — CI "read three bytes, saw a clean end of
+     *   stream and completed normally", three runs in five
+     * - a handshake making the writer wait for the chunk before throwing — same symptom, twice in
+     *   a row, against twenty local runs with none
+     * - writing and throwing back to back — same symptom again, which is what retired the claim
      *
-     * A later version had the writer wait for the chunk to be delivered before throwing. That
-     * narrowed the window rather than closing it: the reader has not returned to its read when the
-     * throw lands, and CI produced the same symptom again — twice in a row, against twenty local
-     * runs with no failure at all. The cause crossing that copy is what is unreliable, and no
-     * ordering on this side of it can make it reliable.
+     * Whether a cause crosses the copy the client hands the adapter is not guaranteed once the
+     * body's bytes have all been delivered: the client is free to call that a complete body. No
+     * ordering on this side of that copy changes it, so this no longer writes any.
      *
-     * So the ordering is given up rather than raced for. Writing and failing back to back is
-     * deterministic on both platforms — a channel closed with a cause hands its reader that cause
-     * instead of what is still buffered ahead of it — and it proves the half that was ever in
-     * doubt. That the bytes of a body reach the caller is covered, with no failure anywhere near
-     * it, by [downloadsExposeMetadataAndStreamTheBody].
+     * That the bytes of a body reach the caller is covered, with no failure anywhere near it, by
+     * [downloadsExposeMetadataAndStreamTheBody]. What is left here is the half that was ever in
+     * doubt, in the one shape with nothing for the client to mistake for a finished body.
+     *
+     * If this still flakes, delete it rather than tune it a fourth time — the mapping it reaches
+     * for is also covered by [engineFailuresUseTheSamePortExceptionForTextAndDownloads], and a test
+     * that fails at random costs more than the little this one adds over that.
      *
      * The writer gets a scope of its own, so the throw it is built around fails the channel rather
      * than the coroutine this test runs in.
      */
     @Test
-    fun aBodyThatEndsInAFailureIsATransportFailure() = runBlocking {
+    fun aBodyThatFailsInsteadOfEndingIsATransportFailure() = runBlocking {
         val original = IOException("stream disconnected")
-        val body = CoroutineScope(Dispatchers.Default).writer {
-            channel.writeFully("abc".encodeToByteArray())
-            channel.flush()
-            throw original
-        }.channel
+        val body = CoroutineScope(Dispatchers.Default).writer { throw original }.channel
         val port = client { respond(body) }
 
         val failure = assertFailsWith<NetworkTransportException> {

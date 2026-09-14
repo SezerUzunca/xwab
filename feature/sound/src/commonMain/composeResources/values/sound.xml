@@ -15,7 +15,12 @@
     <string name="sound_could_not_open">Could not play this sound</string>
 
     <string name="volume">Volume</string>
-    <string name="volume_percentage">%1$d%%</string>
+    <!--
+      One `%`, not the `%%` an Android XML string would escape it with: Compose Multiplatform
+      formats this itself and passes a doubled sign straight through, so the slider read "100%%"
+      on a device from the first commit until someone looked at one.
+    -->
+    <string name="volume_percentage">%1$d%</string>
     <string name="loop_sound">Loop sound</string>
     <string name="sleep_timer">Sleep timer</string>
     <string name="sleep_timer_off">Off</string>
