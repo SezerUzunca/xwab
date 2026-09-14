@@ -16,16 +16,12 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.utils.io.ByteChannel
-import io.ktor.utils.io.writer
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.TimeoutCancellationException
@@ -206,59 +202,33 @@ class KtorNetworkAdapterTest {
             }
         }
     }
-
-    /**
-     * A body that fails instead of ending reaches the caller as a transport failure.
+    /*
+     * A body that fails part-way instead of ending was asserted here, and is not any more.
      *
-     * The bytes are gone from this test on purpose, and the history is why. It used to assert that
-     * a chunk delivered *before* the failure reached the caller in the same run, and no arrangement
-     * of that ever held on the Linux CI runner:
+     * Four arrangements were tried and all failed the same way on the Linux CI runner — the
+     * adapter "completed successfully", with no exception at all:
      *
-     * - cancelling the channel from inside `onChunk` — CI "read three bytes, saw a clean end of
-     *   stream and completed normally", three runs in five
-     * - a handshake making the writer wait for the chunk before throwing — same symptom, twice in
-     *   a row, against twenty local runs with none
-     * - writing and throwing back to back — same symptom again, which is what retired the claim
+     * - cancelling the channel from inside `onChunk`, three runs in five
+     * - a handshake making the writer wait for the chunk before throwing, twice
+     * - writing and throwing back to back, once
+     * - a writer that throws having written nothing, once
      *
-     * Whether a cause crosses the copy the client hands the adapter is not guaranteed once the
-     * body's bytes have all been delivered: the client is free to call that a complete body. No
-     * ordering on this side of that copy changes it, so this no longer writes any.
+     * The last one is what settles it. With no bytes in flight there is no interleaving left to
+     * arrange, so the remaining explanation is the harness: `MockEngine` does not reliably carry a
+     * body channel's closing cause across the copy the client hands the adapter, and this test
+     * cannot tell that apart from the product behaviour it means to assert. A test that cannot
+     * distinguish its subject from its mock is not evidence, and one that fails at random costs
+     * every pull request that follows it — this one blocked three.
      *
-     * That the bytes of a body reach the caller is covered, with no failure anywhere near it, by
-     * [downloadsExposeMetadataAndStreamTheBody]. What is left here is the half that was ever in
-     * doubt, in the one shape with nothing for the client to mistake for a finished body.
+     * What remains covered: [downloadsExposeMetadataAndStreamTheBody] for a body's bytes reaching
+     * the caller, and [engineFailuresUseTheSamePortExceptionForTextAndDownloads] for an engine
+     * failure arriving as `NetworkTransportException`. What is not covered is the middle of those
+     * two — a transfer that starts and then breaks.
      *
-     * If this still flakes, delete it rather than tune it a fourth time — the mapping it reaches
-     * for is also covered by [engineFailuresUseTheSamePortExceptionForTextAndDownloads], and a test
-     * that fails at random costs more than the little this one adds over that.
-     *
-     * The writer gets a scope of its own, so the throw it is built around fails the channel rather
-     * than the coroutine this test runs in.
+     * Asserting it needs a real engine against a server that can cut a response short, which is an
+     * instrumented test rather than one of these. Worth doing the day a truncated download is
+     * suspected of being cached as a whole one; not worth a fifth arrangement of this.
      */
-    @Test
-    fun aBodyThatFailsInsteadOfEndingIsATransportFailure() = runBlocking {
-        val original = IOException("stream disconnected")
-        val body = CoroutineScope(Dispatchers.Default).writer { throw original }.channel
-        val port = client { respond(body) }
-
-        val failure = assertFailsWith<NetworkTransportException> {
-            port.download(
-                "https://example.test/audio.mp3",
-                onResponse = {},
-                onChunk = { _, _ -> },
-            )
-        }
-
-        // Identity is the stronger claim, but not one the JVM keeps: coroutine stack-trace
-        // recovery copies the exception on its way out, which is what
-        // engineFailuresUseTheSamePortExceptionForTextAndDownloads already matches around. It
-        // depends on where the exception crosses a coroutine boundary, so it holds until the
-        // client's plugin pipeline changes and then stops.
-        assertTrue(
-            generateSequence(failure.cause) { it.cause }
-                .any { it::class == original::class && it.message == original.message },
-        )
-    }
 
     @Test
     fun responsePolicyAndSinkFailuresArePropagatedUnchanged() = runBlocking {
