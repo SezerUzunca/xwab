@@ -39,7 +39,9 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
                     minSdk = libs.version("android-minSdk").toInt()
 
                     compilerOptions { jvmTarget.set(JvmTarget.JVM_11) }
-                    withHostTest { }
+                    // Android resources reach host tests so Robolectric can read the Compose
+                    // resource assets a screen draws its text from.
+                    withHostTest { isIncludeAndroidResources = true }
                 }
 
                 dependenciesOf("commonTest") {
