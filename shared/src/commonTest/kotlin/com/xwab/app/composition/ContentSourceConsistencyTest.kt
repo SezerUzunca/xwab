@@ -19,10 +19,10 @@ class ContentSourceConsistencyTest {
     fun everyPublishedContentItemHasAPhysicalSource() = runBlocking {
         val graph = createGraph<ContentSourceConsistencyGraph>()
 
-        graph.soundPort.observeAllMusic().first().forEach { music ->
+        graph.soundPort.observeAllTracks().first().forEach { track ->
             assertNotNull(
-                graph.sourcePort.sourceFor(SOUND_NAMESPACE, music.id.value),
-                "${music.id} has no physical source",
+                graph.sourcePort.sourceFor(SOUND_NAMESPACE, track.id.value),
+                "${track.id} has no physical source",
             )
         }
         graph.storyPort.observeStories().first().forEach { story ->

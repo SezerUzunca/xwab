@@ -29,7 +29,7 @@ data class SleepRelaxDimens(
 
     val contentMaxWidth: Dp = 600.dp,
     val categoryCardMinWidth: Dp = 150.dp,
-    val playerShortWindowMaxHeight: Dp = 900.dp,
+    val shortWindowMaxHeight: Dp = 900.dp,
 )
 
 val LocalSleepRelaxDimens = staticCompositionLocalOf { SleepRelaxDimens() }

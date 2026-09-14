@@ -97,13 +97,13 @@ internal fun StoriesScreen(
             }
 
             items(state.stories, key = { it.id.value }) { story ->
+                // Every question about this row is the state's to answer; this only draws what
+                // comes back.
                 StoryRow(
                     story = story,
-                    isPlaying = state.requestedStoryId == story.id && state.playIntent,
-                    isPreparing = state.requestedStoryId == story.id && state.isPreparing,
-                    // Matched against the failure's own story, not the session's current one: a
-                    // lookup that fails releases its claim, so the session has already moved on.
-                    failure = state.playbackFailure?.takeIf { it.itemId.value == story.id.value },
+                    isPlaying = state.isRowPlaying(story.id),
+                    isPreparing = state.isRowPreparing(story.id),
+                    failure = state.rowFailure(story.id),
                     onClick = { onPlaybackClick(story.id) },
                 )
             }

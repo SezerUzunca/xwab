@@ -4,7 +4,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.xwab.app.core.sound.port.CategoryId
-import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.browse.BrowseScreenRoute
 import com.xwab.app.feature.browse.BrowseViewModel
 import com.xwab.app.feature.browse.di.BrowseDependencies

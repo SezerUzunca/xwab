@@ -6,9 +6,8 @@ import kotlinx.coroutines.flow.Flow
  * Persists favorites independently for each caller-owned namespace. Namespaces use lowercase
  * letters, digits, underscores or hyphens (1–64 characters). Item IDs must be nonblank.
  *
- * A namespace is part of the stored key, so it is a name an installed copy of the app already has
- * on disk: renaming one drops every favorite saved under it. Sounds pass `music` for that reason
- * rather than `sound` — it is the name the store was first written with.
+ * A namespace is part of the stored key, so once an app has shipped it is a name installed copies
+ * already hold on disk: renaming one then drops every favorite saved under it.
  */
 interface FavoritesPort {
     fun observe(namespace: String): Flow<Set<String>>

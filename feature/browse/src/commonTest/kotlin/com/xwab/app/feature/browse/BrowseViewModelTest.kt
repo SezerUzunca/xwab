@@ -1,6 +1,6 @@
 package com.xwab.app.feature.browse
 
-import com.xwab.app.testing.FakeMusicCatalog
+import com.xwab.app.testing.FakeSoundCatalog
 import com.xwab.app.testing.category
 import com.xwab.app.designsystem.state.Loadable
 import kotlin.test.AfterTest
@@ -37,7 +37,7 @@ class BrowseViewModelTest {
     @Test
     fun mapsCatalogCategoriesToReadyState() = runTest(mainDispatcher) {
         val categories = listOf(category("rain"), category("ocean"))
-        val viewModel = BrowseViewModel(FakeMusicCatalog(categories = categories))
+        val viewModel = BrowseViewModel(FakeSoundCatalog(categories = categories))
         collectState(viewModel)
         advanceUntilIdle()
 

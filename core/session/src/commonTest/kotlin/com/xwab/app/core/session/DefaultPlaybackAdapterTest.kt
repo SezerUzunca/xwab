@@ -8,7 +8,7 @@ import com.xwab.app.core.delivery.port.DeliveryPort
 import com.xwab.app.core.delivery.port.DeliveryResult
 import com.xwab.app.core.sound.port.Category
 import com.xwab.app.core.sound.port.CategoryId
-import com.xwab.app.core.sound.port.Music
+import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.sources.port.ContentSource
@@ -45,7 +45,7 @@ import kotlinx.coroutines.runBlocking
 
 class DefaultPlaybackAdapterTest {
     private val testContentResolver =
-        DeliveryPort { musicId -> DeliveryResult.Resolved("test://$musicId") }
+        DeliveryPort { trackId -> DeliveryResult.Resolved("test://$trackId") }
 
     @Test
     fun playReloadsAFailedSourceWithAutoplay() = runBlocking {
@@ -261,8 +261,8 @@ class DefaultPlaybackAdapterTest {
         val rainResult = CompletableDeferred<String>()
         val wavesResult = CompletableDeferred<String>()
         val player = FakePlaybackEnginePort()
-        val adapter = adapter(player) { musicId ->
-            when (musicId.key.fileName) {
+        val adapter = adapter(player) { trackId ->
+            when (trackId.key.fileName) {
                 "gentle-rain-v1.mp3" -> {
                     rainStarted.complete(Unit)
                     DeliveryResult.Resolved(rainResult.await())
@@ -740,17 +740,17 @@ class DefaultPlaybackAdapterTest {
         )
     }
 
-    /** The catalog the adapter reads its metadata from; only `observeMusic` is ever asked. */
+    /** The catalog the adapter reads its metadata from; only `observeTrack` is ever asked. */
     private object FakeCatalog : SoundPort {
         private val tracks = listOf(
-            Music(
+            Track(
                 id = TrackId("gentle-rain"),
                 name = "Rain on the Window",
                 categoryId = CategoryId("rain"),
                 durationSeconds = 9,
                 playbackTitle = "Gentle Rain",
             ),
-            Music(
+            Track(
                 id = TrackId("calm-waves"),
                 name = "Ontario Waves",
                 categoryId = CategoryId("ocean"),
@@ -760,10 +760,10 @@ class DefaultPlaybackAdapterTest {
         )
 
         override fun observeCategories(): Flow<List<Category>> = flowOf(emptyList())
-        override fun observeAllMusic(): Flow<List<Music>> = flowOf(tracks)
+        override fun observeAllTracks(): Flow<List<Track>> = flowOf(tracks)
         override fun observeCategory(categoryId: CategoryId): Flow<Category?> = flowOf(null)
-        override fun observeMusicForCategory(categoryId: CategoryId): Flow<List<Music>> = flowOf(emptyList())
-        override fun observeMusic(trackId: TrackId): Flow<Music?> = flowOf(tracks.find { it.id == trackId })
+        override fun observeTracksForCategory(categoryId: CategoryId): Flow<List<Track>> = flowOf(emptyList())
+        override fun observeTrack(trackId: TrackId): Flow<Track?> = flowOf(tracks.find { it.id == trackId })
     }
 
     /** Physical addresses are deliberately separate from both metadata fakes. */

@@ -3,7 +3,7 @@ package com.xwab.app.di
 import com.xwab.app.feature.browse.di.BrowseDependencies
 import com.xwab.app.feature.category.di.CategoryDependencies
 import com.xwab.app.feature.favorites.di.FavoritesDependencies
-import com.xwab.app.feature.sounds.di.PlayerDependencies
+import com.xwab.app.feature.sound.di.SoundDependencies
 import com.xwab.app.feature.story.di.StoriesDependencies
 
 /**
@@ -21,6 +21,6 @@ interface AppGraph {
     val browseDependencies: BrowseDependencies
     val favoritesDependencies: FavoritesDependencies
     val categoryDependencies: CategoryDependencies
-    val playerDependencies: PlayerDependencies
+    val soundDependencies: SoundDependencies
     val storiesDependencies: StoriesDependencies
 }

@@ -2,8 +2,9 @@ package com.xwab.app.feature.category.domain
 
 import com.xwab.app.core.sound.port.Category
 import com.xwab.app.core.sound.port.CategoryId
-import com.xwab.app.core.sound.port.Music
+import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.SoundPort
+import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.favorites.port.FavoritesPort
 import com.xwab.app.core.session.port.PlaybackPort
@@ -14,7 +15,7 @@ import kotlinx.coroutines.flow.combine
 
 internal data class CategoryContent(
     val category: Category?,
-    val musics: List<Music>,
+    val tracks: List<Track>,
     val favoriteIds: Set<TrackId>,
     val playback: PlaybackSummary,
 )
@@ -30,10 +31,10 @@ internal class ObserveCategoryContentUseCase(
 ) {
     operator fun invoke(categoryId: CategoryId): Flow<CategoryContent> = combine(
         soundPort.observeCategory(categoryId),
-        soundPort.observeMusicForCategory(categoryId),
-        favoritesPort.observe("music").map { ids -> ids.mapTo(mutableSetOf(), ::TrackId) },
+        soundPort.observeTracksForCategory(categoryId),
+        favoritesPort.observe(SOUND_FAVORITES_NAMESPACE).map { ids -> ids.mapTo(mutableSetOf(), ::TrackId) },
         playbackPort.playback,
-    ) { category, musics, favoriteIds, playback ->
-        CategoryContent(category, musics, favoriteIds, playback)
+    ) { category, tracks, favoriteIds, playback ->
+        CategoryContent(category, tracks, favoriteIds, playback)
     }
 }

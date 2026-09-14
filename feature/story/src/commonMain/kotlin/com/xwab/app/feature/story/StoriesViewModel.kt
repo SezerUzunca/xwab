@@ -46,7 +46,7 @@ internal class StoriesViewModel(
     /** Branches on the value the control renders, so the icon and the tap cannot disagree. */
     fun togglePlayback(storyId: StoryId) {
         val current = (state.value as? Loadable.Ready)?.value ?: return
-        if (current.requestedStoryId == storyId && current.playIntent) {
+        if (current.isRowPlaying(storyId)) {
             playbackPort.pause()
         } else {
             viewModelScope.launch { playbackPort.play(PlaybackItemId.story(storyId.value)) }

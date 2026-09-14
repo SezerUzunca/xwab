@@ -1,6 +1,7 @@
 package com.xwab.app.feature.favorites.domain
 
-import com.xwab.app.core.sound.port.Music
+import com.xwab.app.core.sound.port.Track
+import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.favorites.port.FavoritesPort
@@ -11,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
 internal data class FavoritesContent(
-    val musics: List<Music>,
+    val tracks: List<Track>,
     val playback: PlaybackSummary,
 )
 
@@ -22,12 +23,12 @@ internal class ObserveFavoritesContentUseCase(
     private val playbackPort: PlaybackPort,
 ) {
     operator fun invoke(): Flow<FavoritesContent> = combine(
-        soundPort.observeAllMusic(),
-        favoritesPort.observe("music").map { ids -> ids.mapTo(mutableSetOf(), ::TrackId) },
+        soundPort.observeAllTracks(),
+        favoritesPort.observe(SOUND_FAVORITES_NAMESPACE).map { ids -> ids.mapTo(mutableSetOf(), ::TrackId) },
         playbackPort.playback,
-    ) { musics, favoriteIds, playback ->
+    ) { tracks, favoriteIds, playback ->
         FavoritesContent(
-            musics = musics.filter { it.id in favoriteIds },
+            tracks = tracks.filter { it.id in favoriteIds },
             playback = playback,
         )
     }

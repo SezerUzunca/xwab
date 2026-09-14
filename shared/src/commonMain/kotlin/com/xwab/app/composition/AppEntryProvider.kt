@@ -8,8 +8,8 @@ import com.xwab.app.feature.browse.navigation.browseEntry
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.category.navigation.categoryEntry
 import com.xwab.app.feature.favorites.navigation.favoritesEntry
-import com.xwab.app.feature.sounds.navigation.PlayerRoute
-import com.xwab.app.feature.sounds.navigation.playerEntry
+import com.xwab.app.feature.sound.navigation.SoundRoute
+import com.xwab.app.feature.sound.navigation.soundEntry
 import com.xwab.app.feature.story.navigation.storiesEntry
 
 /**
@@ -29,13 +29,13 @@ internal fun appEntryProvider(
     )
     favoritesEntry(
         dependencies = graph.favoritesDependencies,
-        onMusicClick = { onNavigate(PlayerRoute(it.value)) },
+        onTrackClick = { onNavigate(SoundRoute(it.value)) },
     )
     categoryEntry(
         dependencies = graph.categoryDependencies,
-        onMusicClick = { onNavigate(PlayerRoute(it.value)) },
+        onTrackClick = { onNavigate(SoundRoute(it.value)) },
         onBack = onBack,
     )
-    playerEntry(dependencies = graph.playerDependencies, onBack = onBack)
+    soundEntry(dependencies = graph.soundDependencies, onBack = onBack)
     storiesEntry(dependencies = graph.storiesDependencies)
 }

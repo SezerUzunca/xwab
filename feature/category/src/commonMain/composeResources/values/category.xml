@@ -3,4 +3,13 @@
         <item quantity="one">%1$d track • offline</item>
         <item quantity="other">%1$d tracks • offline</item>
     </plurals>
+
+    <!--
+      The same three messages the favorites list shows, because this list holds the same thing.
+      Declared per feature rather than shared: the design system draws the line but deliberately
+      does not choose the words, which differ for a sound and for a story.
+    -->
+    <string name="sound_not_found">This sound is no longer in the catalog</string>
+    <string name="sound_unavailable">Could not reach this sound. Tap to try again.</string>
+    <string name="sound_could_not_open">Could not play this sound</string>
 </resources>

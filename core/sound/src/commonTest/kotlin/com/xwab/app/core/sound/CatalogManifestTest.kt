@@ -14,16 +14,16 @@ class CatalogManifestTest {
         catalogCategories.forEach { category ->
             val tracks = catalogManifest.filter { it.categoryId == category.id }
             assertTrue(tracks.size >= 4, "${category.id} should have at least four tracks")
-            assertEquals(tracks.size, category.musicCount)
+            assertEquals(tracks.size, category.trackCount)
         }
     }
 
     @Test
     fun catalogIdsAndCategoryReferencesAreValidAndUnique() {
-        val musicIds = catalogManifest.map { it.id }
+        val trackIds = catalogManifest.map { it.id }
         val categoryIds = catalogCategories.map { it.id }.toSet()
 
-        assertEquals(musicIds.size, musicIds.toSet().size, "duplicate music ids")
+        assertEquals(trackIds.size, trackIds.toSet().size, "duplicate track ids")
         assertTrue(catalogManifest.all { it.categoryId in categoryIds })
         assertTrue(catalogManifest.all { it.durationSeconds > 0 })
     }

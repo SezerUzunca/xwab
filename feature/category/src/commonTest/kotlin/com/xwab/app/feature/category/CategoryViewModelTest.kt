@@ -1,13 +1,15 @@
 package com.xwab.app.feature.category
 
+import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.core.sound.port.CategoryId
+import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.feature.category.domain.ObserveCategoryContentUseCase
 import com.xwab.app.testing.FakeFavorites
-import com.xwab.app.testing.FakeMusicCatalog
+import com.xwab.app.testing.FakeSoundCatalog
 import com.xwab.app.testing.FakePlaybackPort
 import com.xwab.app.testing.category
 import com.xwab.app.testing.track
@@ -18,6 +20,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
@@ -132,15 +135,76 @@ class CategoryViewModelTest {
         viewModel.toggleFavorite(HEAVY_RAIN)
         advanceUntilIdle()
 
-        assertEquals(listOf("music" to HEAVY_RAIN.value), favorites.toggles)
+        assertEquals(listOf(SOUND_FAVORITES_NAMESPACE to HEAVY_RAIN.value), favorites.toggles)
+    }
+
+    /**
+     * Which row the session is on is the state's answer, not a comparison spelled out again by
+     * whatever draws the list.
+     */
+    @Test
+    fun onlyTheRequestedRowReadsAsPlayingOrPreparing() = runTest(mainDispatcher) {
+        val port = FakePlaybackPort().apply {
+            publish(
+                PlaybackSummary(
+                    requestedItemId = PlaybackItemId.sound("gentle-rain"),
+                    playIntent = true,
+                    isPreparing = true,
+                ),
+            )
+        }
+        val viewModel = createViewModel(port)
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        val state = readyState(viewModel)
+        assertTrue(state.isRowPlaying(GENTLE_RAIN))
+        assertTrue(state.isRowPreparing(GENTLE_RAIN))
+        assertFalse(state.isRowPlaying(HEAVY_RAIN))
+        assertFalse(state.isRowPreparing(HEAVY_RAIN))
+    }
+
+    /**
+     * A row here starts playback like a favorites row does, so it now reports what came of that the
+     * same way — against the failure's own track, since a failed lookup has already released the
+     * session's claim on it.
+     */
+    @Test
+    fun aFailureReachesOnlyTheRowItHappenedTo() = runTest(mainDispatcher) {
+        val failure = PlaybackFailure.SourceUnavailable(PlaybackItemId.sound("gentle-rain"))
+        val port = FakePlaybackPort().apply { publish(PlaybackSummary(failure = failure)) }
+        val viewModel = createViewModel(port)
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        val state = readyState(viewModel)
+        assertEquals(failure, state.rowFailure(GENTLE_RAIN))
+        assertNull(state.rowFailure(HEAVY_RAIN))
+    }
+
+    /** A story that failed is not this screen's to report, even sharing a row's raw id. */
+    @Test
+    fun aStorysFailureReachesNoRow() = runTest(mainDispatcher) {
+        val port = FakePlaybackPort().apply {
+            publish(
+                PlaybackSummary(
+                    failure = PlaybackFailure.SourceUnavailable(PlaybackItemId.story("gentle-rain")),
+                ),
+            )
+        }
+        val viewModel = createViewModel(port)
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        assertNull(readyState(viewModel).rowFailure(GENTLE_RAIN))
     }
 
     private fun createViewModel(
         port: FakePlaybackPort,
         favorites: FakeFavorites = FakeFavorites(setOf(GENTLE_RAIN)),
     ): CategoryViewModel {
-        val catalog = FakeMusicCatalog(
-            categories = listOf(category("rain", musicCount = 2)),
+        val catalog = FakeSoundCatalog(
+            categories = listOf(category("rain", trackCount = 2)),
             tracks = listOf(track("gentle-rain"), track("heavy-rain")),
         )
         val useCase = ObserveCategoryContentUseCase(

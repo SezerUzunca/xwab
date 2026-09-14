@@ -5,7 +5,7 @@ import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.testing.FakeFavorites
-import com.xwab.app.testing.FakeMusicCatalog
+import com.xwab.app.testing.FakeSoundCatalog
 import com.xwab.app.testing.FakePlaybackPort
 import com.xwab.app.testing.track
 import com.xwab.app.designsystem.state.Loadable
@@ -60,7 +60,7 @@ class FavoritesViewModelTest {
         advanceUntilIdle()
 
         val state = assertIs<Loadable.Ready<FavoritesState>>(viewModel.state.value).value
-        assertEquals(listOf(TrackId("rain")), state.musics.map { it.id })
+        assertEquals(listOf(TrackId("rain")), state.tracks.map { it.id })
         assertNull(state.requestedTrackId)
         assertFalse(state.playIntent)
         assertFalse(state.isPreparing)
@@ -78,6 +78,9 @@ class FavoritesViewModelTest {
 
         val state = assertIs<Loadable.Ready<FavoritesState>>(viewModel.state.value).value
         assertEquals(PlaybackFailure.SourceUnavailable(itemId), state.playbackFailure)
+        // Which row wears it is the state's answer too, and only the row it happened to.
+        assertEquals(PlaybackFailure.SourceUnavailable(itemId), state.rowFailure(TrackId("rain")))
+        assertNull(state.rowFailure(TrackId("ocean")))
     }
 
     @Test
@@ -116,7 +119,7 @@ class FavoritesViewModelTest {
 
     private fun createViewModel(coordinator: FakePlaybackPort): FavoritesViewModel {
         val useCase = ObserveFavoritesContentUseCase(
-            soundPort = FakeMusicCatalog(tracks = listOf(track("rain"))),
+            soundPort = FakeSoundCatalog(tracks = listOf(track("rain"))),
             favoritesPort = FakeFavorites(setOf(TrackId("rain"))),
             playbackPort = coordinator,
         )

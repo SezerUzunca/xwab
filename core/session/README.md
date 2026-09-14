@@ -29,7 +29,7 @@ it and the story one does not, and that is the only difference between the kinds
 last.
 
 `play` takes an id, and the metadata is read beside the URI by the resolver. A screen handing over
-a `Music` it happened to be holding could pair a stale title with a freshly resolved URI, and the
+a `Track` it happened to be holding could pair a stale title with a freshly resolved URI, and the
 two authorities would never be compared.
 
 Content, sources, delivery and the engine are `implementation` dependencies; this module publishes

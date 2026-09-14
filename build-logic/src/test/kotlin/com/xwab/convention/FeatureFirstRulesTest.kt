@@ -27,7 +27,7 @@ class FeatureFirstRulesTest {
     @Test
     fun featuresNeverDependOnOtherFeatures() {
         val violations = FeatureFirstRules.dependencyViolations(
-            mapOf(":feature:category" to listOf(":feature:sounds")),
+            mapOf(":feature:category" to listOf(":feature:sound")),
         )
 
         assertEquals(1, violations.size)
@@ -35,7 +35,7 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
-                mapOf(":shared" to listOf(":feature:category", ":feature:sounds")),
+                mapOf(":shared" to listOf(":feature:category", ":feature:sound")),
             ),
         )
     }
@@ -89,13 +89,13 @@ class FeatureFirstRulesTest {
     fun featuresCannotDeclareOrReachAdapterModules() {
         FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys.forEach { offLimits ->
             val violations = FeatureFirstRules.dependencyViolations(
-                mapOf(":feature:sounds" to listOf(offLimits)),
+                mapOf(":feature:sound" to listOf(offLimits)),
             )
             assertEquals(1, violations.size, offLimits)
         }
 
         val transitive = FeatureFirstRules.dependencyViolations(
-            graph = mapOf(":feature:sounds" to listOf(":testing")),
+            graph = mapOf(":feature:sound" to listOf(":testing")),
             apiEdges = mapOf(":testing" to listOf(":core:delivery")),
         )
         assertEquals(1, transitive.size)
@@ -308,7 +308,7 @@ class FeatureFirstRulesTest {
             useCases = listOf("ObserveSoundsContentUseCase" to ":core:sound"),
             sourcesByFeature = mapOf(
                 "category" to listOf("ObserveSoundsContentUseCase()"),
-                "sounds" to listOf("unrelated"),
+                "sound" to listOf("unrelated"),
             ),
         )
         assertEquals(1, violations.size)
@@ -319,7 +319,7 @@ class FeatureFirstRulesTest {
                 useCases = listOf("SharedUseCase" to ":core:sound"),
                 sourcesByFeature = mapOf(
                     "category" to listOf("SharedUseCase()"),
-                    "sounds" to listOf("SharedUseCase()"),
+                    "sound" to listOf("SharedUseCase()"),
                 ),
             ),
         )
@@ -715,7 +715,7 @@ class FeatureFirstRulesTest {
                 ":core:sound", ":core:favorites", ":core:session",
                 ":testing", ":designsystem",
             ),
-            ":feature:sounds" to listOf(
+            ":feature:sound" to listOf(
                 ":core:sound", ":core:favorites", ":core:session",
                 ":testing", ":designsystem",
             ),
@@ -727,7 +727,7 @@ class FeatureFirstRulesTest {
                 ":core:favorites", ":core:story",
                 ":core:session", ":core:playback", ":core:network",
                 ":designsystem", ":testing", ":feature:browse", ":feature:category",
-                ":feature:favorites", ":feature:sounds", ":feature:story",
+                ":feature:favorites", ":feature:sound", ":feature:story",
             ),
             ":androidApp" to listOf(":shared"),
         )
