@@ -65,6 +65,19 @@ class CategoryScreenTest {
         onAllNodesWithText(UNAVAILABLE).assertCountEquals(0)
     }
 
+    /**
+     * A route outlives the build that wrote it, so a restored back stack can name a category the
+     * catalog no longer holds. That used to draw a blank heading above "0 tracks" — a screen that
+     * looks broken rather than one that answers.
+     */
+    @Test
+    fun aCategoryTheCatalogDoesNotHoldSaysSoInsteadOfDrawingABlankOne() = runComposeUiTest {
+        show(CategoryState())
+
+        onNodeWithText(CATEGORY_NOT_FOUND).assertExists()
+        onAllNodesWithText(GENTLE_RAIN_NAME).assertCountEquals(0)
+    }
+
     private fun ComposeUiTest.show(state: CategoryState) {
         setContent {
             SleepRelaxTheme {
@@ -104,6 +117,7 @@ class CategoryScreenTest {
 
         /** The words a listener reads, spelled out rather than read back from the same resource. */
         const val PREPARING = "Loading\u2026"
-        const val UNAVAILABLE = "Could not reach this sound. Tap to try again."
+        const val UNAVAILABLE = "Could not reach this sound. Tap play to try again."
+        const val CATEGORY_NOT_FOUND = "This category is no longer in the catalog"
     }
 }

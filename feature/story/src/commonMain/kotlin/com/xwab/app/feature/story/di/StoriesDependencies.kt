@@ -9,9 +9,13 @@ import dev.zacsweers.metro.SingleIn
 /**
  * The two ports this screen reads — two, not three, because stories have no favorites port.
  *
- * `StoryPort` carries the stream address next to the metadata, so unlike the split this replaced,
- * nothing at the module boundary stops a screen from asking for one. Only the session does, and a
- * screen has no use for an address it would only hand back through [PlaybackPort].
+ * `StoryPort` is metadata only. Where a story's audio actually lives is `:core:sources`, which a
+ * feature may not depend on at all — so this screen could not ask for an address even if it wanted
+ * one, and it does not: it names a story to [PlaybackPort] and the session resolves it.
+ *
+ * This comment used to say the opposite, from before the addresses were split out, which is the
+ * kind of stale signal that invites the next reader to reach for something the boundary has since
+ * taken away.
  */
 @SingleIn(AppScope::class)
 @Inject

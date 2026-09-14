@@ -8,6 +8,14 @@ import com.xwab.app.core.sound.port.TrackId
 
 /** Content available after the outer [com.xwab.app.designsystem.state.Loadable] becomes ready. */
 internal data class CategoryState(
+    /**
+     * The category this screen is about, or null when the catalog holds no such category.
+     *
+     * Null is an answer, not a gap to paper over. A route is a serialized string that outlives the
+     * build that wrote it, so a back stack restored after the catalog changed can name a category
+     * that is gone — and that used to draw a blank heading above "0 tracks", which reads as a
+     * broken screen. Whoever renders this has to say so instead.
+     */
     val category: Category? = null,
     val tracks: List<Track> = emptyList(),
     val favoriteIds: Set<TrackId> = emptySet(),

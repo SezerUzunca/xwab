@@ -36,6 +36,7 @@ import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.designsystem.format.formatDuration
+import com.xwab.app.designsystem.format.formatRemaining
 import com.xwab.app.designsystem.components.BackButton
 import com.xwab.app.designsystem.components.FavoriteButton
 import com.xwab.app.designsystem.components.LoadingContent
@@ -133,6 +134,7 @@ internal fun SoundScreen(
                     FavoriteButton(
                         isFavorite = state.isFavorite,
                         onClick = onFavoriteClick,
+                        enabled = state.canFavorite,
                     )
                 }
 
@@ -165,6 +167,7 @@ internal fun SoundScreen(
                     isPlaying = state.playIntent,
                     onClick = onPlaybackClick,
                     large = true,
+                    enabled = state.canPlay,
                 )
 
                 // The same line every list draws under a row that is wanted but not audible yet.
@@ -259,9 +262,6 @@ private fun PlaybackControls(
     onTimerStart: (Long) -> Unit,
     onTimerCancel: () -> Unit,
 ) {
-    // Nothing to act on until a track is loaded, and the same answer holds for every control.
-    val controlsEnabled = state.track != null
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -271,19 +271,19 @@ private fun PlaybackControls(
     ) {
         VolumeControl(
             volume = state.volume,
-            enabled = controlsEnabled,
+            enabled = state.canConfigure,
             onVolumeChange = onVolumeChange,
         )
 
         LoopingControl(
             isLooping = state.isLooping,
-            enabled = controlsEnabled,
+            enabled = state.canConfigure,
             onLoopingChange = onLoopingChange,
         )
 
         SleepTimerControl(
             remainingMs = state.sleepTimerRemainingMs,
-            enabled = controlsEnabled,
+            enabled = state.canConfigure,
             onTimerStart = onTimerStart,
             onTimerCancel = onTimerCancel,
         )
@@ -376,7 +376,7 @@ private fun ColumnScope.SleepTimerControl(
     )
     Text(
         text = remainingMs
-            ?.let { stringResource(Res.string.sleep_timer_stops_in, formatSleepTimer(it)) }
+            ?.let { stringResource(Res.string.sleep_timer_stops_in, formatRemaining(it)) }
             ?: stringResource(Res.string.sleep_timer_off),
         color = SleepRelaxTheme.colors.textSecondary,
         style = SleepRelaxTheme.typography.labelMedium,
@@ -430,13 +430,6 @@ private fun TimerPresetButton(
             style = SleepRelaxTheme.typography.labelMedium,
         )
     }
-}
-
-private fun formatSleepTimer(remainingMs: Long): String {
-    val totalSeconds = (remainingMs + 999L) / 1_000L
-    val minutes = totalSeconds / 60L
-    val seconds = totalSeconds % 60L
-    return "$minutes:${seconds.toString().padStart(2, '0')}"
 }
 
 @Preview

@@ -11,7 +11,7 @@
       does not choose the words, which differ for a sound and for a story.
     -->
     <string name="sound_not_found">This sound is no longer in the catalog</string>
-    <string name="sound_unavailable">Could not reach this sound. Tap to try again.</string>
+    <string name="sound_unavailable">Could not reach this sound. Tap play to try again.</string>
     <string name="sound_could_not_open">Could not play this sound</string>
 
     <string name="volume">Volume</string>

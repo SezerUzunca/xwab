@@ -18,12 +18,17 @@ import xwab.designsystem.generated.resources.Res
 import xwab.designsystem.generated.resources.pause
 import xwab.designsystem.generated.resources.play
 
+/**
+ * @param enabled false where there is nothing to play and nothing to pause. A list row always has
+ *   both, so it is the screen for one sound that passes this.
+ */
 @Composable
 fun PlayPauseButton(
     isPlaying: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     large: Boolean = false,
+    enabled: Boolean = true,
 ) {
     val circleSize = if (large) {
         SleepRelaxTheme.dimens.largePlayCircleSize
@@ -36,6 +41,7 @@ fun PlayPauseButton(
         onClick = onClick,
         modifier = modifier
             .size(touchTargetSize),
+        enabled = enabled,
     ) {
         Box(
             modifier = Modifier
@@ -46,7 +52,11 @@ fun PlayPauseButton(
             Icon(
                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                 contentDescription = stringResource(if (isPlaying) Res.string.pause else Res.string.play),
-                tint = SleepRelaxTheme.colors.accent,
+                tint = if (enabled) {
+                    SleepRelaxTheme.colors.accent
+                } else {
+                    SleepRelaxTheme.colors.accent.copy(alpha = DISABLED_ALPHA)
+                },
                 modifier = Modifier.size(if (large) SleepRelaxTheme.dimens.iconLarge else SleepRelaxTheme.dimens.iconMedium),
             )
         }

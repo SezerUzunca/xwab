@@ -15,6 +15,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -186,6 +187,52 @@ class SoundViewModelTest {
         assertNull(port.looping)
         assertNull(port.volume)
         assertNull(port.startedTimerMs)
+    }
+
+    /**
+     * A sound the catalog does not hold offers nothing to do, and both layers now say so from the
+     * same predicate. Play used to be refused by neither: the button looked live and asked the
+     * session for a sound nothing could resolve, which took the session's claim off whatever was
+     * playing to fail on this one.
+     */
+    @Test
+    fun nothingCanBeDoneToATrackTheCatalogDoesNotHold() = runTest(mainDispatcher) {
+        val port = FakePlaybackPort()
+        val viewModel = createViewModel(port, catalogHasTrack = false)
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        val state = readyState(viewModel)
+        assertFalse(state.canPlay)
+        assertFalse(state.canFavorite)
+        assertFalse(state.canConfigure)
+
+        viewModel.togglePlayback()
+        advanceUntilIdle()
+
+        assertNull(port.playedItemId)
+        assertEquals(0, port.pauses)
+    }
+
+    /**
+     * Unless the session is already on it. A sound leaving the catalog while it plays must not
+     * leave audible sound with nothing able to stop it — the same reason cancelling a running
+     * sleep timer is never refused.
+     */
+    @Test
+    fun aSoundAlreadyPlayingCanStillBePausedAfterItLeavesTheCatalog() = runTest(mainDispatcher) {
+        val port = FakePlaybackPort().apply {
+            publish(PlaybackSummary(requestedItemId = RAIN_ITEM, playIntent = true))
+        }
+        val viewModel = createViewModel(port, catalogHasTrack = false)
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        assertTrue(readyState(viewModel).canPlay)
+
+        viewModel.togglePlayback()
+
+        assertEquals(1, port.pauses)
     }
 
     private fun createViewModel(
