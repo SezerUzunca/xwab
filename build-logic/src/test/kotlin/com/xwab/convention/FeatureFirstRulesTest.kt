@@ -271,6 +271,38 @@ class FeatureFirstRulesTest {
     }
 
     /**
+     * The shape that crashed a device: `key = { it.id }` compiles, passes every test that runs on
+     * a simulator, and throws on Android the moment the list is measured inside a navigation entry.
+     */
+    @Test
+    fun aValueClassIdUsedAsALazyKeyIsReported() {
+        val offender = mapOf(
+            "feature/browse/src/commonMain/kotlin/BrowseScreen.kt" to
+                "items(state.categories, key = { it.id }) { category -> }",
+        )
+
+        val reported = FeatureFirstRules.lazyListKeyViolations(offender)
+
+        assertEquals(1, reported.size)
+        assertTrue(reported.single().contains(".value"), "the fix belongs in the message")
+        assertTrue(reported.single().contains(":1"), "the line is what a reader needs")
+    }
+
+    /** Everything that is already a key a Bundle can hold, and the comment that talks about one. */
+    @Test
+    fun keysAlreadySafeAreLeftAlone() {
+        val safe = mapOf(
+            "a.kt" to "items(state.tracks, key = { it.id.value }) { track -> }",
+            "b.kt" to "items(state.rows, key = { it.name }) { row -> }",
+            "c.kt" to "itemsIndexed(state.rows) { index, row -> }",
+            "d.kt" to "// a key = { it.id } here is prose, not code",
+            "e.kt" to """val hint = "key = { it.id }"""",
+        )
+
+        assertEquals(emptyList(), FeatureFirstRules.lazyListKeyViolations(safe))
+    }
+
+    /**
      * Each registry is checked on its own, so a rule that starts naming a module nobody builds any
      * more is reported by name rather than disappearing into the total.
      */

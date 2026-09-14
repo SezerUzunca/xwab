@@ -40,6 +40,9 @@ internal object FeatureFirstRules {
 
     private val KOIN_COORDINATE = Regex("""io\.insert-koin""")
 
+    /** A single-line `key = { ... }` lambda, which is how every list in this app spells one. */
+    private val LAZY_LIST_KEY = Regex("""\bkey\s*=\s*\{([^{}\n]*)\}""")
+
     private val DECLARATION = Regex(
         """^\s*(?:(?:@[A-Za-z_][A-Za-z0-9_.:]*(?:\([^()\r\n]*\))?)\s+)*((?:(?:public|internal|private|protected|expect|actual|open|abstract|final|override|inner|companion|suspend|inline|tailrec|operator|infix|external|lateinit|const|data|sealed|enum|value|annotation|fun)\s+)*)(class|interface|object|fun|const\s+val|val|var|typealias)(?:\s+(?:<[^>]+>\s+)?(`[^`\r\n]+`|[A-Za-z_][A-Za-z0-9_.]*))?""",
     )
@@ -279,6 +282,38 @@ internal object FeatureFirstRules {
                 "$path:${parsed.lineNumber} exposes $name outside feature navigation contracts " +
                     "or a DI Dependencies class. Feature implementations must be internal or private."
             }
+        }.sorted()
+
+    /**
+     * A lazy list key is an identity, not a value class.
+     *
+     * Compose holds a key as `Any`, so a `@JvmInline value class` boxes back into an object, and on
+     * Android the saveable state holder behind a navigation entry writes those keys into a
+     * `Bundle`, which cannot hold one. The screen crashes rather than degrades, and only on
+     * Android.
+     *
+     * Nothing else in this build sees it. The compiler cannot: a key accepts every type. The
+     * screen tests cannot: they run on a simulator with no `Bundle`. `BrowseScreen` carried the
+     * mistake from the first commit until it crashed a device, while three sibling lists unwrapped
+     * correctly the whole time.
+     *
+     * Deliberately narrow: it flags a key lambda whose body ends in `.id`, which in this codebase
+     * is always one of the value-class ids. A key built from anything else — a plain `String`
+     * field, an index, a already-unwrapped `.value` — is left alone. A method reference or a key
+     * computed over several lines is out of its reach; the rule is a cheap net over the shape that
+     * actually went wrong, not a type checker.
+     */
+    fun lazyListKeyViolations(sources: Map<String, String>): List<String> =
+        sources.flatMap { (path, source) ->
+            val code = codeOnly(source)
+            LAZY_LIST_KEY.findAll(code).mapNotNull { match ->
+                val body = match.groupValues[1].trim()
+                if (!body.endsWith(".id")) return@mapNotNull null
+                val lineNumber = code.take(match.range.first).count { it == '\n' } + 1
+                "$path:$lineNumber uses `$body` as a lazy list key. A key is stored as `Any`, so a " +
+                    "value class boxes into an object Android cannot put in a Bundle: unwrap it " +
+                    "with `.value`."
+            }.toList()
         }.sorted()
 
     fun leakedUseCaseViolations(
