@@ -40,9 +40,10 @@ dependencyResolutionManagement {
 
 include(":androidApp")
 
-// Each content module owns its catalog, manifest and internal adapters.
+// Content modules own metadata; physical source addresses live behind their own adapter-only port.
 // Delivery and favorites remain independent capabilities.
 include(":core:sound")
+include(":core:sources")
 include(":core:delivery")
 include(":core:favorites")
 include(":core:story")

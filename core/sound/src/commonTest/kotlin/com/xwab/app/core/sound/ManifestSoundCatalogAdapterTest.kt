@@ -11,11 +11,11 @@ import kotlin.test.assertNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
-class SoundPortImplTest {
+class ManifestSoundCatalogAdapterTest {
     private val rain = track("gentle-rain", "rain")
     private val waves = track("calm-waves", "ocean")
-    private val adapter = SoundPortImpl(
-        entries = listOf(rain, waves).map(::entry),
+    private val adapter = ManifestSoundCatalogAdapter(
+        music = listOf(rain, waves),
         categories = listOf(category("rain", musicCount = 1), category("ocean", musicCount = 1)),
     )
 
@@ -52,14 +52,12 @@ class SoundPortImplTest {
     @Test
     fun twoTracksUnderOneIdAreRejected() {
         assertFailsWith<IllegalArgumentException> {
-            SoundPortImpl(
-                entries = listOf(rain, track("gentle-rain", "ocean")).map(::entry),
+            ManifestSoundCatalogAdapter(
+                music = listOf(rain, track("gentle-rain", "ocean")),
                 categories = emptyList(),
             )
         }
     }
-
-    private fun entry(music: Music) = CatalogEntry(music, "https://example.test/${music.id.value}.mp3")
 
     private fun track(id: String, categoryId: String) = Music(
         id = TrackId(id),

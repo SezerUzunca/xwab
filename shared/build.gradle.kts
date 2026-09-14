@@ -55,6 +55,7 @@ kotlin {
             // The composition root sees every contributed core adapter. Features cannot reach the
             // delivery layer, engine or network directly; this module declares the graph.
             implementation(projects.core.sound)
+            implementation(projects.core.sources)
             implementation(projects.core.delivery)
             implementation(projects.core.story)
             implementation(projects.core.favorites)

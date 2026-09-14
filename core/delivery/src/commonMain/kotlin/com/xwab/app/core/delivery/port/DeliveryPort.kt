@@ -6,6 +6,6 @@ fun interface DeliveryPort {
 }
 
 sealed interface DeliveryResult {
-    data class Resolved(public val uri: String) : DeliveryResult
-    data class Unavailable(public val reason: String?) : DeliveryResult
+    data class Resolved(val uri: String) : DeliveryResult
+    data class Unavailable(val reason: String?) : DeliveryResult
 }

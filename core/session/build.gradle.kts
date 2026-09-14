@@ -10,6 +10,7 @@ kotlin {
             // Resolve content through core ports and drive the internal platform engine.
             implementation(projects.core.delivery)
             implementation(projects.core.story)
+            implementation(projects.core.sources)
             implementation(projects.core.playback)
             // Content dependencies stay internal: the session publishes PlaybackItemId.
             implementation(projects.core.sound)

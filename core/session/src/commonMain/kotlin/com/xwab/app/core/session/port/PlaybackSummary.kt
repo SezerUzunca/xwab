@@ -7,9 +7,9 @@ package com.xwab.app.core.session.port
  * to hand the engine, and once in the player screen, which showed "looping" whenever no source was
  * attached yet. Turning the loop off before the first play made the two disagree.
  *
- * Per-item defaults live on [PlaybackPolicy] and apply from the moment an item is loaded: a sleep
- * sound repeats until the timer stops it, a story that repeats has not ended. This is what the
- * session publishes until an item makes the question concrete.
+ * Once an item is loaded, the session applies that content kind's own default: a sleep sound
+ * repeats until the timer stops it, while a story does not repeat. This constant controls only
+ * what the session publishes until an item makes the question concrete.
  */
 const val DEFAULT_LOOPING: Boolean = true
 

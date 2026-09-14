@@ -10,8 +10,11 @@ import com.xwab.app.core.sound.port.Category
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Music
 import com.xwab.app.core.sound.port.SoundPort
-import com.xwab.app.core.sound.port.TrackSource
 import com.xwab.app.core.sound.port.TrackId
+import com.xwab.app.core.sources.port.ContentSource
+import com.xwab.app.core.sources.port.SOUND_NAMESPACE
+import com.xwab.app.core.sources.port.STORY_NAMESPACE
+import com.xwab.app.core.sources.port.SourcePort
 import com.xwab.app.core.playback.port.AudioPlayerState
 import com.xwab.app.core.playback.port.AudioSource
 import com.xwab.app.core.playback.port.LoopMode
@@ -23,7 +26,6 @@ import com.xwab.app.core.playback.port.SleepTimerState
 import com.xwab.app.core.story.port.Story
 import com.xwab.app.core.story.port.StoryPort
 import com.xwab.app.core.story.port.StoryId
-import com.xwab.app.core.story.port.StoryStreamSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -172,7 +174,7 @@ class DefaultPlaybackAdapterTest {
     }
 
     @Test
-    fun theFirstSoundLoopsBecauseThatIsTheProductDefault() = runBlocking {
+    fun aSoundLoopsIndependentlyOfTheUnloadedSessionDefault() = runBlocking {
         val player = FakePlaybackEnginePort()
 
         adapter(player).play(sound("gentle-rain"))
@@ -690,8 +692,8 @@ class DefaultPlaybackAdapterTest {
             DefaultPlaybackAdapter(
                 FakePlaybackEnginePort(),
                 listOf(
-                    SoundPlaybackResolver(FakeCatalog, testContentResolver),
-                    SoundPlaybackResolver(FakeCatalog, testContentResolver),
+                    SoundPlaybackResolver(FakeCatalog, FakeSources, testContentResolver),
+                    SoundPlaybackResolver(FakeCatalog, FakeSources, testContentResolver),
                 ),
             )
         }
@@ -702,14 +704,17 @@ class DefaultPlaybackAdapterTest {
     private fun adapter(
         player: FakePlaybackEnginePort,
         resolver: DeliveryPort = testContentResolver,
-    ) = DefaultPlaybackAdapter(player, listOf(SoundPlaybackResolver(FakeCatalog, resolver)))
+    ) = DefaultPlaybackAdapter(
+        player,
+        listOf(SoundPlaybackResolver(FakeCatalog, FakeSources, resolver)),
+    )
 
     /** The same session with both kinds wired, which is what the app ships. */
     private fun storyAdapter(player: FakePlaybackEnginePort) = DefaultPlaybackAdapter(
         player,
         listOf(
-            SoundPlaybackResolver(FakeCatalog, testContentResolver),
-            StoryPlaybackResolver(FakeStoryCatalog),
+            SoundPlaybackResolver(FakeCatalog, FakeSources, testContentResolver),
+            StoryPlaybackResolver(FakeStoryCatalog, FakeSources),
         ),
     )
 
@@ -733,19 +738,10 @@ class DefaultPlaybackAdapterTest {
             durationSeconds = 174,
             artworkUrl = null,
         )
-
-        override fun sourceFor(storyId: StoryId): StoryStreamSource? =
-            if (storyId == StoryId("night-came-slowly")) {
-                StoryStreamSource("https://example.test/night.mp3")
-            } else {
-                null
-            }
     }
 
     /** The catalog the adapter reads its metadata from; only `observeMusic` is ever asked. */
     private object FakeCatalog : SoundPort {
-        override val cacheFileNames: Set<String> get() = tracks.mapTo(mutableSetOf()) { "${it.id.value}-v1.mp3" }
-        override fun sourceFor(trackId: TrackId): TrackSource? = tracks.find { it.id == trackId }?.let { TrackSource("${it.id.value}-v1.mp3", "https://example.test/${it.id.value}.mp3") }
         private val tracks = listOf(
             Music(
                 id = TrackId("gentle-rain"),
@@ -768,6 +764,28 @@ class DefaultPlaybackAdapterTest {
         override fun observeCategory(categoryId: CategoryId): Flow<Category?> = flowOf(null)
         override fun observeMusicForCategory(categoryId: CategoryId): Flow<List<Music>> = flowOf(emptyList())
         override fun observeMusic(trackId: TrackId): Flow<Music?> = flowOf(tracks.find { it.id == trackId })
+    }
+
+    /** Physical addresses are deliberately separate from both metadata fakes. */
+    private object FakeSources : SourcePort {
+        private val soundIds = setOf("gentle-rain", "calm-waves")
+
+        override fun sourceFor(namespace: String, itemId: String): ContentSource? = when {
+            namespace == SOUND_NAMESPACE && itemId in soundIds -> ContentSource(
+                httpsUrl = "https://example.test/$itemId.mp3",
+                cacheFileName = "$itemId-v1.mp3",
+            )
+            namespace == STORY_NAMESPACE && itemId == "night-came-slowly" ->
+                ContentSource("https://example.test/night.mp3")
+            else -> null
+        }
+
+        override fun cacheFileNames(namespace: String): Set<String> =
+            if (namespace == SOUND_NAMESPACE) {
+                soundIds.mapTo(mutableSetOf()) { "$it-v1.mp3" }
+            } else {
+                emptySet()
+            }
     }
 
     /**

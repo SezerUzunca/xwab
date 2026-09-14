@@ -4,19 +4,19 @@ package com.xwab.app.core.story.port
  * One sleep story, as a screen needs to know it.
  *
  * Metadata only: what it is called, who wrote and reads it, and how long it runs.
- * StoryPort supplies the stream separately through sourceFor.
+ * StoryPort supplies metadata only; the playback session resolves the stream through SourcePort.
  *
  * The invariants are checked here rather than trusted. A story with no title or author is a row a
  * screen cannot explain; a negative duration is a progress bar that cannot be drawn.
  */
-public data class Story(
-    public val id: StoryId,
-    public val title: String,
-    public val author: String,
-    public val description: String,
-    public val narrator: String?,
-    public val durationSeconds: Int,
-    public val artworkUrl: String?,
+data class Story(
+    val id: StoryId,
+    val title: String,
+    val author: String,
+    val description: String,
+    val narrator: String?,
+    val durationSeconds: Int,
+    val artworkUrl: String?,
 ) {
     init {
         require(title.isNotBlank()) { "A story needs a title: ${id.value}" }
