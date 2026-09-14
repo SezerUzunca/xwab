@@ -148,17 +148,6 @@ class SoundViewModelTest {
         assertEquals(1, port.cancelledTimers)
     }
 
-    /** The control renders `state.volume` directly, so the state is where the range is guaranteed. */
-    @Test
-    fun volumeReachesTheStateWithinItsRange() = runTest(mainDispatcher) {
-        val port = FakePlaybackPort().apply { publish(PlaybackSummary(volume = 1.4f)) }
-        val viewModel = createViewModel(port)
-        collectState(viewModel)
-        advanceUntilIdle()
-
-        assertEquals(1.0f, readyState(viewModel).volume)
-    }
-
     /**
      * The favorites namespace a sound is stored under is shared by three screens, and a screen that
      * named a different one would read an empty store rather than fail to build. The value itself
@@ -197,19 +186,6 @@ class SoundViewModelTest {
         assertNull(port.looping)
         assertNull(port.volume)
         assertNull(port.startedTimerMs)
-    }
-
-    /** The range is stated here for both directions, rather than trusted to the slider's own. */
-    @Test
-    fun aVolumeOutsideTheRangeIsHeldToItOnTheWayToTheSession() = runTest(mainDispatcher) {
-        val port = FakePlaybackPort()
-        val viewModel = createViewModel(port)
-        collectState(viewModel)
-        advanceUntilIdle()
-
-        viewModel.setVolume(1.4f)
-
-        assertEquals(1.0f, port.volume)
     }
 
     private fun createViewModel(

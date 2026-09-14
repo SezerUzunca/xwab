@@ -6,6 +6,7 @@ import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackKind
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
+import com.xwab.app.core.session.port.VOLUME_RANGE
 import com.xwab.app.core.playback.port.AudioPlayerState
 import com.xwab.app.core.playback.port.AudioSource
 import com.xwab.app.core.playback.port.LoopMode
@@ -167,7 +168,7 @@ internal class DefaultPlaybackAdapter internal constructor(
 
     override fun setVolume(volume: Float) {
         require(volume.isFinite()) { "Volume must be finite." }
-        enginePort.submit(PlaybackCommand.SetVolume(volume.coerceIn(0.0f, 1.0f)))
+        enginePort.submit(PlaybackCommand.SetVolume(volume.coerceIn(VOLUME_RANGE)))
     }
 
     override fun startSleepTimer(durationMs: Long) {
@@ -205,7 +206,12 @@ internal class DefaultPlaybackAdapter internal constructor(
         source = AudioSource(itemId.toEngineId(), resolved.uri, resolved.title, resolved.artist),
         autoplay = true,
         loopMode = if (loadLooping(resolved.policy.defaultLooping)) LoopMode.One else LoopMode.Off,
-        volume = enginePort.state.value.volume,
+        // Clamped for the same reason the published summary is, but with a sharper edge: a
+        // `PlaybackRequest` *refuses* a volume outside the range, so an engine reporting its own
+        // idea of loudness would not produce a wrong number here — it would throw, and take the
+        // next load with it. The engine is only ever sent values inside the range, so this catches
+        // nothing today; what it removes is a load that fails for a reason no listener caused.
+        volume = enginePort.state.value.volume.coerceIn(VOLUME_RANGE),
     )
 
     /**
@@ -253,7 +259,11 @@ internal class DefaultPlaybackAdapter internal constructor(
                 (requested != active || !engine.isPlaying) &&
                 engine.phase != PlaybackPhase.Failed,
             isLooping = engine.effectiveLooping(),
-            volume = engine.volume,
+            // Clamped on the way out as well as in. Everything this adapter sends the engine is
+            // already inside the range, so this only catches an engine reporting its own idea of
+            // loudness — but the published range is a promise to every reader, and a promise kept
+            // only while the layer below behaves is not one a screen can build on.
+            volume = engine.volume.coerceIn(VOLUME_RANGE),
             failure = wanted.failure ?: engine.engineFailure(),
         )
     }

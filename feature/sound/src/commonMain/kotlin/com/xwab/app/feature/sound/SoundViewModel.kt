@@ -42,9 +42,9 @@ internal class SoundViewModel(
             // Straight from the session, including before anything is loaded: the product default
             // lives there, so this screen has no second opinion to disagree with it.
             isLooping = playback.isLooping,
-            // Clamped here so the control that renders it can trust the range instead of
-            // defending against it at every use.
-            volume = playback.volume.coerceIn(VOLUME_RANGE),
+            // Straight from the session, which states its range on the port and keeps it. This
+            // used to be clamped again here, back when the range was not written down anywhere.
+            volume = playback.volume,
             sleepTimerRemainingMs = content.sleepTimerRemainingMs,
             error = when {
                 content.track == null -> SoundError.SoundNotFound
@@ -80,9 +80,8 @@ internal class SoundViewModel(
     }
 
     /**
-     * The settings below reach the coordinator unchanged, bar the range on [setVolume]. They used
-     * to go through a use case each, and none of those held a decision — a use case has to earn
-     * its name.
+     * The settings below reach the coordinator unchanged. They used to go through a use case each,
+     * and none of those held a decision — a use case has to earn its name.
      *
      * Each refuses on a track that does not exist, which is the answer the panel drawing them
      * already renders as disabled. The rule used to be stated in both places and applied to a
@@ -94,7 +93,7 @@ internal class SoundViewModel(
     }
 
     fun setVolume(volume: Float) {
-        if (loadedTrack() != null) playbackPort.setVolume(volume.coerceIn(VOLUME_RANGE))
+        if (loadedTrack() != null) playbackPort.setVolume(volume)
     }
 
     fun startSleepTimer(durationMs: Long) {
@@ -111,15 +110,6 @@ internal class SoundViewModel(
     /** The track this screen is showing, or null while there is nothing to act on. */
     private fun loadedTrack(): Track? = (state.value as? Loadable.Ready)?.value?.track
 }
-
-/**
- * The range a volume is in, going out to the screen and coming back from it.
- *
- * Stated once for both directions: the state clamps what the session publishes so the slider can
- * render it without defending itself, and the slider's own value is held to the same bound on the
- * way back, rather than trusting a composable to be the place that range is guaranteed.
- */
-private val VOLUME_RANGE = 0.0f..1.0f
 
 /**
  * A missing track and an unreachable one read the same on screen otherwise, and they are not the
