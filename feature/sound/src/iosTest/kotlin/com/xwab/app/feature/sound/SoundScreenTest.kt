@@ -69,6 +69,20 @@ class SoundScreenTest {
         onNodeWithContentDescription(ADD_FAVORITE).assertIsNotEnabled()
     }
 
+    /**
+     * The volume label formats a number into a resource, and the sign it ends in is the part that
+     * went wrong: the string escaped its percent the way an Android XML string would, and Compose
+     * Multiplatform passed both characters through, so a device read "100%%" from the first commit
+     * onward. Spelled out here rather than built from the same resource, so the test disagrees with
+     * the string instead of agreeing with whatever it happens to say.
+     */
+    @Test
+    fun theVolumeLabelEndsInOnePercentSign() = runComposeUiTest {
+        show(SoundState(track = TRACK, volume = 1.0f))
+
+        onNodeWithText(FULL_VOLUME).assertExists()
+    }
+
     private fun ComposeUiTest.show(state: SoundState) {
         setContent {
             SleepRelaxTheme {
@@ -99,6 +113,7 @@ class SoundScreenTest {
         const val PREPARING = "Loading\u2026"
         const val UNAVAILABLE = "Could not reach this sound. Tap play to try again."
         const val NOT_FOUND = "This sound is no longer in the catalog"
+        const val FULL_VOLUME = "100%"
 
         /** What a screen reader announces for the two controls, from the design system. */
         const val PLAY = "Play"
