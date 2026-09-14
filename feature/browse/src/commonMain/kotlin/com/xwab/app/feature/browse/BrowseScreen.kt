@@ -93,7 +93,11 @@ internal fun BrowseScreen(
                     )
                 }
             }
-            items(state.categories, key = { it.id }) { category ->
+            // `it.id.value`, not `it.id`: a lazy key is stored as `Any`, which boxes the value
+            // class back into an object, and Android saves these keys into a `Bundle` that cannot
+            // hold one. Every other list in the app already unwraps here; this one was missed since
+            // the first commit, and it crashes the screen rather than degrading.
+            items(state.categories, key = { it.id.value }) { category ->
                 CategoryCard(category, onClick = { onCategoryClick(category.id) })
             }
         }
