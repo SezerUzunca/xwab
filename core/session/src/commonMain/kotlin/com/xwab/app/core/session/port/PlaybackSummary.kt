@@ -14,6 +14,15 @@ package com.xwab.app.core.session.port
 const val DEFAULT_LOOPING: Boolean = true
 
 /**
+ * The volume a session accepts and reports.
+ *
+ * Stated on the port because it is part of the contract, not a property of one adapter: callers
+ * pass a fraction of full volume, and a screen rendering [PlaybackSummary.volume] can trust the
+ * bound rather than defend against it.
+ */
+val VOLUME_RANGE: ClosedFloatingPointRange<Float> = 0.0f..1.0f
+
+/**
  * Why the session could not play an item — and *which* item.
  *
  * The id is part of the failure because a lookup that fails releases the session's claim on the
@@ -77,6 +86,14 @@ data class PlaybackSummary(
     /** The requested item is wanted but not audible yet: being resolved, loaded or buffered. */
     val isPreparing: Boolean = false,
     val isLooping: Boolean = DEFAULT_LOOPING,
+    /**
+     * How loud the session is, always within [VOLUME_RANGE].
+     *
+     * Guaranteed here rather than left to whoever renders it. This is the projection features read
+     * instead of the engine's own state model, and a raw engine float with no stated range is
+     * exactly the technical detail that projection exists to keep out: a slider reading it had to
+     * clamp defensively, and a second screen reading it would have had to remember to.
+     */
     val volume: Float = 1.0f,
     val failure: PlaybackFailure? = null,
 )

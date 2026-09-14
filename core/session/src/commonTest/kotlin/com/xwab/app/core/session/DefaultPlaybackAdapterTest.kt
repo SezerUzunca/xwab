@@ -358,6 +358,30 @@ class DefaultPlaybackAdapterTest {
         assertEquals(1, player.cancelSleepTimerCalls)
     }
 
+    /**
+     * The port states a range, so the range is this adapter's to keep — in both directions.
+     *
+     * It was kept on the way in and not on the way out, and untested either way, so the one screen
+     * that renders a volume clamped it again for itself. A second screen would have had to know to
+     * do the same.
+     */
+    @Test
+    fun aVolumeOutsideTheRangeIsClampedGoingBothWays() = runBlocking {
+        val player = FakePlaybackEnginePort()
+        val adapter = adapter(player)
+
+        adapter.setVolume(1.4f)
+        assertEquals(1.0f, player.lastVolume)
+        adapter.setVolume(-0.2f)
+        assertEquals(0.0f, player.lastVolume)
+
+        // An engine reporting its own idea of loudness does not get to break the published range.
+        player.mutableState.update { it.copy(volume = 1.4f) }
+        assertEquals(1.0f, adapter.playback.first().volume)
+        player.mutableState.update { it.copy(volume = -0.2f) }
+        assertEquals(0.0f, adapter.playback.first().volume)
+    }
+
     @Test
     fun nonFiniteVolumeIsRejectedWithoutPoisoningTheNextLoad() = runBlocking {
         val player = FakePlaybackEnginePort()

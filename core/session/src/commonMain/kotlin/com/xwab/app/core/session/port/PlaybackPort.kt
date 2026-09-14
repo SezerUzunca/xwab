@@ -54,6 +54,15 @@ interface PlaybackPort {
     fun pause()
 
     fun setLooping(enabled: Boolean)
+
+    /**
+     * Sets how loud the session is.
+     *
+     * A volume outside [VOLUME_RANGE] is clamped into it rather than refused — a control that
+     * overshoots its own bound by a rounding step should not be an error. A non-finite one is
+     * refused: it is not a loud or quiet sound, it is a broken caller, and handing it to the engine
+     * poisons every later load.
+     */
     fun setVolume(volume: Float)
     fun startSleepTimer(durationMs: Long)
     fun cancelSleepTimer()

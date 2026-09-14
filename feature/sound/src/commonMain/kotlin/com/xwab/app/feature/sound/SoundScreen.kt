@@ -290,7 +290,7 @@ private fun PlaybackControls(
     }
 }
 
-/** The volume arrives from the state already inside its range, so the slider renders it as it is. */
+/** The session states and keeps the volume range, so the slider renders what it is handed. */
 @Composable
 private fun VolumeControl(
     volume: Float,

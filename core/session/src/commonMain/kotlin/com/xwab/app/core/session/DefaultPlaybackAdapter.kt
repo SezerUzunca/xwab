@@ -6,6 +6,7 @@ import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackKind
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
+import com.xwab.app.core.session.port.VOLUME_RANGE
 import com.xwab.app.core.playback.port.AudioPlayerState
 import com.xwab.app.core.playback.port.AudioSource
 import com.xwab.app.core.playback.port.LoopMode
@@ -167,7 +168,7 @@ internal class DefaultPlaybackAdapter internal constructor(
 
     override fun setVolume(volume: Float) {
         require(volume.isFinite()) { "Volume must be finite." }
-        enginePort.submit(PlaybackCommand.SetVolume(volume.coerceIn(0.0f, 1.0f)))
+        enginePort.submit(PlaybackCommand.SetVolume(volume.coerceIn(VOLUME_RANGE)))
     }
 
     override fun startSleepTimer(durationMs: Long) {
@@ -253,7 +254,11 @@ internal class DefaultPlaybackAdapter internal constructor(
                 (requested != active || !engine.isPlaying) &&
                 engine.phase != PlaybackPhase.Failed,
             isLooping = engine.effectiveLooping(),
-            volume = engine.volume,
+            // Clamped on the way out as well as in. Everything this adapter sends the engine is
+            // already inside the range, so this only catches an engine reporting its own idea of
+            // loudness — but the published range is a promise to every reader, and a promise kept
+            // only while the layer below behaves is not one a screen can build on.
+            volume = engine.volume.coerceIn(VOLUME_RANGE),
             failure = wanted.failure ?: engine.engineFailure(),
         )
     }
