@@ -22,6 +22,24 @@ import kotlin.test.Test
  *
  * In the iOS source set because the screen is common code — what the simulator draws is the same
  * composable Android draws — and because CI already runs the simulator tests.
+ *
+ * That reasoning has one hole, and it has cost once. The code is shared; the *host's* constraints
+ * are not. A lazy list key that boxes a value class is rejected by Android's `Bundle` and accepted
+ * by a simulator, so these tests watched `BrowseScreen` crash the first screen of the app without
+ * seeing anything wrong. `checkArchitecture` now reports that particular shape at build time,
+ * which is the cheap half of the answer.
+ *
+ * The other half was tried and set down: an Android host test under Robolectric, in a closed PR
+ * kept for what it established rather than for what it shipped. Two of the three unknowns are
+ * settled — the AGP 9.3 KMP DSL accepts `withHostTest { isIncludeAndroidResources = true }`, and
+ * Robolectric runs with this Compose version once `androidx.activity.ComponentActivity` is
+ * declared in a host-test manifest. What stopped it was the third: Compose Multiplatform resources
+ * did not resolve from assets under Robolectric, so the screen composed nothing and the test
+ * failed on its own assertion.
+ *
+ * Worth picking up again when a second host-specific bug gets past these tests — not before. The
+ * first one is guarded by a rule now, and an Android harness costs a second set of screen tests to
+ * keep.
  */
 @OptIn(ExperimentalTestApi::class)
 class SoundScreenTest {
