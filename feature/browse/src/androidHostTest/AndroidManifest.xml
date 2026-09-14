@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Robolectric launches a real activity to host the composition, and `createComposeRule` picks
+  `androidx.activity.ComponentActivity`. An activity has to be declared somewhere the merged
+  manifest can see it, and this module ships none of its own — a feature is a screen, not an entry
+  point. Declaring it here keeps it out of the library's own manifest, where it would be a lie:
+  nothing in the app launches this module.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity
+            android:name="androidx.activity.ComponentActivity"
+            android:exported="false" />
+    </application>
+</manifest>
