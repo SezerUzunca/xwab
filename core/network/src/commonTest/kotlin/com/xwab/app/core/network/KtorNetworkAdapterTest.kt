@@ -206,9 +206,7 @@ class KtorNetworkAdapterTest {
             }
         }
     }
-    /**
-     * A body that ends in a failure rather than in an end of stream reaches the caller as a
-     * transport failure.
+
     /**
      * A body that fails instead of ending reaches the caller as a transport failure.
      *
