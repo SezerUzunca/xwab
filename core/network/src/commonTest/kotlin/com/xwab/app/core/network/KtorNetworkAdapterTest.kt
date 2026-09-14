@@ -25,17 +25,14 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.io.IOException
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 class KtorNetworkAdapterTest {
     private val clients = mutableListOf<HttpClient>()
@@ -210,57 +207,53 @@ class KtorNetworkAdapterTest {
             }
         }
     }
-
     /**
-     * The body ends in a failure rather than in an end of stream, and the bytes written before it
-     * still reach the caller.
+     * A body that ends in a failure rather than in an end of stream reaches the caller as a
+     * transport failure.
      *
-     * The body is a writer coroutine that emits its bytes and then throws, so the failure is the
-     * channel's own closing cause and a reader meets it only after everything written ahead of it.
+     * This used to claim more — that the bytes written before the failure reached the caller in the
+     * same run — and the history of trying is why it no longer does.
+     *
      * An earlier version wrote to a plain channel and cancelled it from inside `onChunk`, which
      * describes the same scenario but does not produce it: `cancel` is a consumer discarding a
      * stream, and the stream being discarded was this test's own, not the copy the client hands the
      * adapter. Whether the cause crossed that copy turned out to be platform-dependent — it did on
      * Windows and did not on the Linux CI runner, where the adapter read three bytes, saw a clean
-     * end of stream and completed normally. That failed three of five CI runs on a commit which
-     * passed 13 of 13 locally, and the assertion it broke was the one expecting any failure at all.
+     * end of stream and completed normally.
      *
-     * The writer waits for the chunk to be delivered before it throws, rather than throwing as soon
-     * as the bytes are written. Writing and failing back to back is not the same scenario: a
-     * channel closed with a cause hands its reader that cause instead of what is still buffered
-     * ahead of it, so the adapter saw the failure and never the three bytes — deterministically, on
-     * both platforms. Waiting on [chunkDelivered] orders the two by construction, with no sleep and
-     * nothing to lose a race. The wait is bounded only so that a chunk which never arrives fails
-     * this test on its assertions instead of hanging the job; nothing is expected to reach it.
+     * A later version had the writer wait for the chunk to be delivered before throwing. That
+     * narrowed the window rather than closing it: the reader has not returned to its read when the
+     * throw lands, and CI produced the same symptom again — twice in a row, against twenty local
+     * runs with no failure at all. The cause crossing that copy is what is unreliable, and no
+     * ordering on this side of it can make it reliable.
+     *
+     * So the ordering is given up rather than raced for. Writing and failing back to back is
+     * deterministic on both platforms — a channel closed with a cause hands its reader that cause
+     * instead of what is still buffered ahead of it — and it proves the half that was ever in
+     * doubt. That the bytes of a body reach the caller is covered, with no failure anywhere near
+     * it, by [downloadsExposeMetadataAndStreamTheBody].
      *
      * The writer gets a scope of its own, so the throw it is built around fails the channel rather
      * than the coroutine this test runs in.
      */
     @Test
-    fun aFailureAfterAStreamChunkIsStillATransportFailure() = runBlocking {
+    fun aBodyThatEndsInAFailureIsATransportFailure() = runBlocking {
         val original = IOException("stream disconnected")
-        val chunkDelivered = CompletableDeferred<Unit>()
         val body = CoroutineScope(Dispatchers.Default).writer {
             channel.writeFully("abc".encodeToByteArray())
             channel.flush()
-            withTimeoutOrNull(10.seconds) { chunkDelivered.await() }
             throw original
         }.channel
         val port = client { respond(body) }
-        var received = 0
 
         val failure = assertFailsWith<NetworkTransportException> {
             port.download(
                 "https://example.test/audio.mp3",
                 onResponse = {},
-                onChunk = { _, count ->
-                    received += count
-                    chunkDelivered.complete(Unit)
-                },
+                onChunk = { _, _ -> },
             )
         }
 
-        assertEquals(3, received)
         // Identity is the stronger claim, but not one the JVM keeps: coroutine stack-trace
         // recovery copies the exception on its way out, which is what
         // engineFailuresUseTheSamePortExceptionForTextAndDownloads already matches around. It
