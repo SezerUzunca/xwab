@@ -73,6 +73,9 @@ abstract class CheckArchitectureTask : DefaultTask() {
             leakedUseCaseViolations(root, graph.keys) +
             FeatureFirstRules.sharedFeatureReferenceViolations(productionSources(root, "shared")) +
             FeatureFirstRules.featureVisibilityViolations(productionSources(root, "feature")) +
+            FeatureFirstRules.lazyListKeyViolations(
+                productionSources(root, "feature") + productionSources(root, "shared"),
+            ) +
             FeatureFirstRules.contentPortViolations(coreSources) +
             FeatureFirstRules.coreVisibilityViolations(coreSources) +
             FeatureFirstRules.coreImportViolations(coreSources) +
