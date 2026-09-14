@@ -382,6 +382,23 @@ class DefaultPlaybackAdapterTest {
         assertEquals(0.0f, adapter.playback.first().volume)
     }
 
+    /**
+     * The load path has a sharper edge than the summary: a `PlaybackRequest` *refuses* a volume
+     * outside the range rather than rounding it. So an engine reporting its own idea of loudness
+     * would not show up as a wrong number — it would throw, on the next sound the listener asked
+     * for, for a reason nothing they did explains.
+     */
+    @Test
+    fun anEngineReportingAnOutOfRangeVolumeDoesNotBreakTheNextLoad() = runBlocking {
+        val player = FakePlaybackEnginePort()
+        val adapter = adapter(player)
+        player.mutableState.update { it.copy(volume = 1.4f) }
+
+        adapter.play(sound("gentle-rain"))
+
+        assertEquals(1.0f, player.lastLoadRequest?.volume)
+    }
+
     @Test
     fun nonFiniteVolumeIsRejectedWithoutPoisoningTheNextLoad() = runBlocking {
         val player = FakePlaybackEnginePort()

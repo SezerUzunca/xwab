@@ -206,7 +206,12 @@ internal class DefaultPlaybackAdapter internal constructor(
         source = AudioSource(itemId.toEngineId(), resolved.uri, resolved.title, resolved.artist),
         autoplay = true,
         loopMode = if (loadLooping(resolved.policy.defaultLooping)) LoopMode.One else LoopMode.Off,
-        volume = enginePort.state.value.volume,
+        // Clamped for the same reason the published summary is, but with a sharper edge: a
+        // `PlaybackRequest` *refuses* a volume outside the range, so an engine reporting its own
+        // idea of loudness would not produce a wrong number here — it would throw, and take the
+        // next load with it. The engine is only ever sent values inside the range, so this catches
+        // nothing today; what it removes is a load that fails for a reason no listener caused.
+        volume = enginePort.state.value.volume.coerceIn(VOLUME_RANGE),
     )
 
     /**
