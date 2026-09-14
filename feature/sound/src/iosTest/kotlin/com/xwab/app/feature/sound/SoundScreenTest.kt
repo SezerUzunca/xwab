@@ -2,6 +2,8 @@ package com.xwab.app.feature.sound
 
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.runComposeUiTest
 import com.xwab.app.core.sound.port.CategoryId
@@ -50,6 +52,23 @@ class SoundScreenTest {
         onNodeWithText(UNAVAILABLE).assertExists()
     }
 
+    /**
+     * A control that cannot act must not look like it can.
+     *
+     * The heart used to be drawn live over a sound the catalog no longer held and do nothing when
+     * tapped, because the refusal lived in the ViewModel and the drawing did not know. The play
+     * button was worse: nothing refused it, so it asked the session for a sound nothing could
+     * resolve.
+     */
+    @Test
+    fun aSoundTheCatalogDoesNotHoldOffersNothingToTap() = runComposeUiTest {
+        show(SoundState(track = null, error = SoundError.SoundNotFound))
+
+        onNodeWithText(NOT_FOUND).assertExists()
+        onNodeWithContentDescription(PLAY).assertIsNotEnabled()
+        onNodeWithContentDescription(ADD_FAVORITE).assertIsNotEnabled()
+    }
+
     private fun ComposeUiTest.show(state: SoundState) {
         setContent {
             SleepRelaxTheme {
@@ -78,6 +97,11 @@ class SoundScreenTest {
 
         /** The words a listener reads, spelled out rather than read back from the same resource. */
         const val PREPARING = "Loading\u2026"
-        const val UNAVAILABLE = "Could not reach this sound. Tap to try again."
+        const val UNAVAILABLE = "Could not reach this sound. Tap play to try again."
+        const val NOT_FOUND = "This sound is no longer in the catalog"
+
+        /** What a screen reader announces for the two controls, from the design system. */
+        const val PLAY = "Play"
+        const val ADD_FAVORITE = "Add to favorites"
     }
 }

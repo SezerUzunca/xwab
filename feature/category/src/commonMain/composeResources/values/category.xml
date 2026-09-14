@@ -9,7 +9,11 @@
       Declared per feature rather than shared: the design system draws the line but deliberately
       does not choose the words, which differ for a sound and for a story.
     -->
+    <!-- A route outlives the build that wrote it, so a restored back stack can name a category
+         the catalog no longer has. -->
+    <string name="category_not_found">This category is no longer in the catalog</string>
+
     <string name="sound_not_found">This sound is no longer in the catalog</string>
-    <string name="sound_unavailable">Could not reach this sound. Tap to try again.</string>
+    <string name="sound_unavailable">Could not reach this sound. Tap play to try again.</string>
     <string name="sound_could_not_open">Could not play this sound</string>
 </resources>

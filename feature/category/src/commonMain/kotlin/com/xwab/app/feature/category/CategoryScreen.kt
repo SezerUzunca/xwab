@@ -35,6 +35,7 @@ import xwab.designsystem.generated.resources.Res as UiRes
 import xwab.designsystem.generated.resources.duration_public_domain
 import xwab.designsystem.generated.resources.preparing
 import xwab.feature.category.generated.resources.Res
+import xwab.feature.category.generated.resources.category_not_found
 import xwab.feature.category.generated.resources.category_track_count
 import xwab.feature.category.generated.resources.sound_could_not_open
 import xwab.feature.category.generated.resources.sound_not_found
@@ -82,48 +83,63 @@ internal fun CategoryScreen(
             BackButton(onClick = onBack)
 
             Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraLarge))
-            Text(
-                text = state.category?.name.orEmpty(),
-                style = SleepRelaxTheme.typography.headlineMedium,
-                color = SleepRelaxTheme.colors.textPrimary,
-            )
-            Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraSmall))
-            Text(
-                text = pluralStringResource(
-                    Res.plurals.category_track_count,
-                    state.tracks.size,
-                    state.tracks.size,
-                ),
-                style = SleepRelaxTheme.typography.bodyMedium,
-                color = SleepRelaxTheme.colors.textSecondary,
-            )
 
-            Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingHuge))
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingSmall)) {
-                items(state.tracks, key = { it.id.value }) { track ->
-                    // Every question about this row is the state's to answer; this only draws what
-                    // comes back. The same row the favorites and story lists draw, so a tap that
-                    // cannot be served says so here too.
-                    PlayableRow(
-                        title = track.name,
-                        subtitle = stringResource(
-                            UiRes.string.duration_public_domain,
-                            formatDuration(track.durationSeconds),
-                        ),
-                        isPlaying = state.isRowPlaying(track.id),
-                        onClick = { onTrackClick(track.id) },
-                        onPlayPauseClick = { onPlaybackClick(track.id) },
-                        statusMessage = stringResource(UiRes.string.preparing)
-                            .takeIf { state.isRowPreparing(track.id) },
-                        errorMessage = state.rowFailure(track.id)
-                            ?.let { stringResource(it.messageResource()) },
-                        trailingContent = {
-                            FavoriteButton(
-                                isFavorite = state.isRowFavorite(track.id),
-                                onClick = { onFavoriteClick(track.id) },
-                            )
-                        },
-                    )
+            // A null category is the catalog's answer, not a gap to paper over: this used to run
+            // through `orEmpty()` and draw a blank heading above "0 tracks", which reads as a
+            // broken screen rather than as "there is no such category".
+            val category = state.category
+            if (category == null) {
+                Text(
+                    text = stringResource(Res.string.category_not_found),
+                    style = SleepRelaxTheme.typography.bodyLarge,
+                    color = SleepRelaxTheme.colors.textSecondary,
+                )
+            } else {
+                Text(
+                    text = category.name,
+                    style = SleepRelaxTheme.typography.headlineMedium,
+                    color = SleepRelaxTheme.colors.textPrimary,
+                )
+                Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraSmall))
+                Text(
+                    text = pluralStringResource(
+                        Res.plurals.category_track_count,
+                        state.tracks.size,
+                        state.tracks.size,
+                    ),
+                    style = SleepRelaxTheme.typography.bodyMedium,
+                    color = SleepRelaxTheme.colors.textSecondary,
+                )
+
+                Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingHuge))
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingSmall),
+                ) {
+                    items(state.tracks, key = { it.id.value }) { track ->
+                        // Every question about this row is the state's to answer; this only draws
+                        // what comes back. The same row the favorites and story lists draw, so a
+                        // tap that cannot be served says so here too.
+                        PlayableRow(
+                            title = track.name,
+                            subtitle = stringResource(
+                                UiRes.string.duration_public_domain,
+                                formatDuration(track.durationSeconds),
+                            ),
+                            isPlaying = state.isRowPlaying(track.id),
+                            onClick = { onTrackClick(track.id) },
+                            onPlayPauseClick = { onPlaybackClick(track.id) },
+                            statusMessage = stringResource(UiRes.string.preparing)
+                                .takeIf { state.isRowPreparing(track.id) },
+                            errorMessage = state.rowFailure(track.id)
+                                ?.let { stringResource(it.messageResource()) },
+                            trailingContent = {
+                                FavoriteButton(
+                                    isFavorite = state.isRowFavorite(track.id),
+                                    onClick = { onFavoriteClick(track.id) },
+                                )
+                            },
+                        )
+                    }
                 }
             }
         }

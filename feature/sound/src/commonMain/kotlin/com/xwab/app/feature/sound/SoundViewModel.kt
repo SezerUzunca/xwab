@@ -2,7 +2,6 @@ package com.xwab.app.feature.sound
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.favorites.port.FavoritesPort
@@ -62,7 +61,7 @@ internal class SoundViewModel(
     )
 
     fun toggleFavorite() {
-        if (loadedTrack() == null) return
+        if (readyState()?.canFavorite != true) return
         viewModelScope.launch { favoritesPort.toggle(SOUND_FAVORITES_NAMESPACE, trackId.value) }
     }
 
@@ -71,7 +70,8 @@ internal class SoundViewModel(
      * publishing an intent: whatever the icon says, the tap does.
      */
     fun togglePlayback() {
-        val current = (state.value as? Loadable.Ready)?.value ?: return
+        val current = readyState() ?: return
+        if (!current.canPlay) return
         if (current.playIntent) {
             playbackPort.pause()
         } else {
@@ -83,21 +83,20 @@ internal class SoundViewModel(
      * The settings below reach the coordinator unchanged. They used to go through a use case each,
      * and none of those held a decision — a use case has to earn its name.
      *
-     * Each refuses on a track that does not exist, which is the answer the panel drawing them
-     * already renders as disabled. The rule used to be stated in both places and applied to a
-     * different subset in each: the panel disabled all three controls, while only the sleep timer
-     * refused to act.
+     * Each refuses what [SoundState.canConfigure] refuses, which is also what the panel drawing
+     * them renders as disabled — one predicate, read by both. It used to be spelled out in each
+     * layer separately, and applied to a different subset in each.
      */
     fun setLooping(enabled: Boolean) {
-        if (loadedTrack() != null) playbackPort.setLooping(enabled)
+        if (readyState()?.canConfigure == true) playbackPort.setLooping(enabled)
     }
 
     fun setVolume(volume: Float) {
-        if (loadedTrack() != null) playbackPort.setVolume(volume)
+        if (readyState()?.canConfigure == true) playbackPort.setVolume(volume)
     }
 
     fun startSleepTimer(durationMs: Long) {
-        if (loadedTrack() != null) playbackPort.startSleepTimer(durationMs)
+        if (readyState()?.canConfigure == true) playbackPort.startSleepTimer(durationMs)
     }
 
     /**
@@ -107,8 +106,8 @@ internal class SoundViewModel(
      */
     fun cancelSleepTimer() = playbackPort.cancelSleepTimer()
 
-    /** The track this screen is showing, or null while there is nothing to act on. */
-    private fun loadedTrack(): Track? = (state.value as? Loadable.Ready)?.value?.track
+    /** What the screen is showing, or null while the first content has not arrived. */
+    private fun readyState(): SoundState? = (state.value as? Loadable.Ready)?.value
 }
 
 /**

@@ -31,3 +31,39 @@ class DurationTest {
         assertEquals("0:00", formatDuration(-1))
     }
 }
+
+/**
+ * The rounding is the whole point of this one existing separately: it is the difference between a
+ * timer that reads `0:01` for its last moment and one that sits on `0:00` while sound still plays.
+ */
+class RemainingTest {
+    @Test
+    fun aPartSecondStillCountsAsASecond() {
+        assertEquals("0:01", formatRemaining(1))
+        assertEquals("0:01", formatRemaining(200))
+        assertEquals("0:01", formatRemaining(1_000))
+    }
+
+    @Test
+    fun onlyAnExhaustedTimerReadsZero() {
+        assertEquals("0:00", formatRemaining(0))
+    }
+
+    @Test
+    fun secondsBelowTenArePadded() {
+        assertEquals("1:05", formatRemaining(65_000))
+        assertEquals("0:09", formatRemaining(9_000))
+    }
+
+    @Test
+    fun aFullPresetReadsAsItsOwnLength() {
+        assertEquals("15:00", formatRemaining(15L * 60_000L))
+        assertEquals("60:00", formatRemaining(60L * 60_000L))
+    }
+
+    /** Nothing hands this a negative, but a clock that went backwards should not print one. */
+    @Test
+    fun aNegativeRemainderIsClampedRatherThanFormattedAsNegative() {
+        assertEquals("0:00", formatRemaining(-1))
+    }
+}
