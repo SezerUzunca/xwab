@@ -2,8 +2,9 @@ package com.xwab.app.testing
 
 import com.xwab.app.core.sound.port.Category
 import com.xwab.app.core.sound.port.CategoryId
-import com.xwab.app.core.sound.port.Music
+import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.SoundPort
+import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.favorites.port.FavoritesPort
 import com.xwab.app.core.session.port.PlaybackPort
@@ -24,39 +25,39 @@ import kotlinx.coroutines.flow.flowOf
  * This module is only ever on a test compile classpath; nothing in `commonMain` of the app
  * depends on it.
  */
-fun track(id: String, categoryId: String = "rain") = Music(
+fun track(id: String, categoryId: String = "rain") = Track(
     id = TrackId(id),
     name = id,
     categoryId = CategoryId(categoryId),
     durationSeconds = 60,
 )
 
-fun category(id: String, musicCount: Int = 0) = Category(
+fun category(id: String, trackCount: Int = 0) = Category(
     id = CategoryId(id),
     name = id,
     description = "",
     symbol = "*",
-    musicCount = musicCount,
+    trackCount = trackCount,
 )
 
-class FakeMusicCatalog(
+class FakeSoundCatalog(
     private val categories: List<Category> = emptyList(),
-    private val tracks: List<Music> = emptyList(),
+    private val tracks: List<Track> = emptyList(),
 ) : SoundPort {
     override fun observeCategories(): Flow<List<Category>> = flowOf(categories)
-    override fun observeAllMusic(): Flow<List<Music>> = flowOf(tracks)
+    override fun observeAllTracks(): Flow<List<Track>> = flowOf(tracks)
     override fun observeCategory(categoryId: CategoryId): Flow<Category?> =
         flowOf(categories.find { it.id == categoryId })
 
-    override fun observeMusicForCategory(categoryId: CategoryId): Flow<List<Music>> =
+    override fun observeTracksForCategory(categoryId: CategoryId): Flow<List<Track>> =
         flowOf(tracks.filter { it.categoryId == categoryId })
 
-    override fun observeMusic(trackId: TrackId): Flow<Music?> = flowOf(tracks.find { it.id == trackId })
+    override fun observeTrack(trackId: TrackId): Flow<Track?> = flowOf(tracks.find { it.id == trackId })
 }
 
 class FakeFavorites(favoriteIds: Set<TrackId> = emptySet()) : FavoritesPort {
     private val state = MutableStateFlow<Map<String, Set<String>>>(
-        mapOf("music" to favoriteIds.mapTo(mutableSetOf()) { it.value }),
+        mapOf(SOUND_FAVORITES_NAMESPACE to favoriteIds.mapTo(mutableSetOf()) { it.value }),
     )
     val toggles = mutableListOf<Pair<String, String>>()
 

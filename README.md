@@ -15,7 +15,7 @@ iosApp ─────┘        │
                      ├── feature:browse
                      ├── feature:favorites
                      ├── feature:category
-                     ├── feature:sounds
+                     ├── feature:sound
                      └── feature:story
                               │
                               └── public core ports
@@ -44,7 +44,7 @@ There is no shared repository abstraction. A feature consumes the narrow capabil
 
 | Capability module | Public port |
 |---|---|
-| `:core:sound` | `SoundPort` and sound metadata models |
+| `:core:sound` | `SoundPort`, sound metadata models and `SOUND_FAVORITES_NAMESPACE` |
 | `:core:sources` | `SourcePort` and `ContentSource` |
 | `:core:delivery` | `DeliveryPort`, `DeliveryRequest`, `CacheKey` and `DeliveryResult` |
 | `:core:favorites` | `FavoritesPort` |
@@ -79,7 +79,7 @@ feature/
 ├── browse
 ├── category
 ├── favorites
-├── sounds
+├── sound
 └── story
 ```
 
@@ -91,6 +91,9 @@ and hand-written manifests live in the module package. Delivery and favorites ar
 `checkArchitecture` enforces one port per metadata content module.
 Favorites uses caller-owned namespaces and string IDs; delivery accepts source URLs and namespaced
 cache requests. Neither depends on sound or story. Only delivery depends on the network module.
+The namespace sounds are saved under is stated once — by `:core:sound`, which owns the identity —
+rather than at each screen that favorites one, and matches the `sound` namespace `:core:sources`
+gives the same content kind.
 
 ## Navigation 3
 
@@ -100,7 +103,7 @@ the app shell's navigation-composition boundary may import those packages; featu
 intent callbacks and does not name destination features.
 
 `BrowseRoute` is the initial destination. Browse and Favorites are top-level destinations;
-Category and Player are nested destinations. Story remains a separate content feature while
+Category and Sound are nested destinations. Story remains a separate content feature while
 sharing the content-neutral playback port.
 
 ## Playback and delivery

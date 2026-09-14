@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xwab.app.core.sound.port.CategoryId
-import com.xwab.app.core.sound.port.Music
+import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.designsystem.components.LoadingContent
@@ -35,20 +35,20 @@ import xwab.feature.favorites.generated.resources.sound_unavailable
 
 @Composable
 internal fun FavoritesScreenRoute(
-    onMusicClick: (TrackId) -> Unit,
+    onTrackClick: (TrackId) -> Unit,
     viewModel: FavoritesViewModel,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     when (val content = state) {
         Loadable.Loading -> LoadingContent()
-        is Loadable.Ready -> FavoritesScreen(content.value, onMusicClick, viewModel::togglePlayback)
+        is Loadable.Ready -> FavoritesScreen(content.value, onTrackClick, viewModel::togglePlayback)
     }
 }
 
 @Composable
 internal fun FavoritesScreen(
     state: FavoritesState,
-    onMusicClick: (TrackId) -> Unit,
+    onTrackClick: (TrackId) -> Unit,
     onPlaybackClick: (TrackId) -> Unit,
 ) {
     SleepRelaxBackground {
@@ -71,7 +71,7 @@ internal fun FavoritesScreen(
                     modifier = Modifier.padding(bottom = SleepRelaxTheme.dimens.spacingLarge),
                 )
             }
-            if (state.musics.isEmpty()) {
+            if (state.tracks.isEmpty()) {
                 item {
                     Text(
                         text = stringResource(Res.string.favorites_empty),
@@ -80,8 +80,8 @@ internal fun FavoritesScreen(
                     )
                 }
             } else {
-                items(state.musics, key = { it.id.value }) { music ->
-                    FavoriteRow(music, state, onMusicClick, onPlaybackClick)
+                items(state.tracks, key = { it.id.value }) { track ->
+                    FavoriteRow(track, state, onTrackClick, onPlaybackClick)
                 }
             }
         }
@@ -90,25 +90,21 @@ internal fun FavoritesScreen(
 
 @Composable
 private fun FavoriteRow(
-    music: Music,
+    track: Track,
     state: FavoritesState,
-    onMusicClick: (TrackId) -> Unit,
+    onTrackClick: (TrackId) -> Unit,
     onPlaybackClick: (TrackId) -> Unit,
 ) {
-    val isRequested = state.requestedTrackId == music.id
-    // The failure names its own item, which is not [FavoritesState.requestedTrackId] by the time it
-    // arrives: a failed lookup has already released the session's claim.
-    val failure = state.playbackFailure?.takeIf { it.itemId.value == music.id.value }
-
+    // Every question about this row is the state's to answer; this only draws what comes back.
     PlayableRow(
-        title = music.name,
-        subtitle = formatDuration(music.durationSeconds),
-        isPlaying = isRequested && state.playIntent,
-        onClick = { onMusicClick(music.id) },
-        onPlayPauseClick = { onPlaybackClick(music.id) },
+        title = track.name,
+        subtitle = formatDuration(track.durationSeconds),
+        isPlaying = state.isRowPlaying(track.id),
+        onClick = { onTrackClick(track.id) },
+        onPlayPauseClick = { onPlaybackClick(track.id) },
         statusMessage = stringResource(UiRes.string.preparing)
-            .takeIf { isRequested && state.isPreparing },
-        errorMessage = failure?.let { stringResource(it.messageResource()) },
+            .takeIf { state.isRowPreparing(track.id) },
+        errorMessage = state.rowFailure(track.id)?.let { stringResource(it.messageResource()) },
     )
 }
 
@@ -125,11 +121,11 @@ private fun FavoritesScreenPreview() {
     SleepRelaxTheme {
         FavoritesScreen(
             state = FavoritesState(
-                musics = listOf(
-                    Music(TrackId("rain"), "Rain", CategoryId("weather"), durationSeconds = 60),
+                tracks = listOf(
+                    Track(TrackId("rain"), "Rain", CategoryId("weather"), durationSeconds = 60),
                 ),
             ),
-            onMusicClick = {},
+            onTrackClick = {},
             onPlaybackClick = {},
         )
     }

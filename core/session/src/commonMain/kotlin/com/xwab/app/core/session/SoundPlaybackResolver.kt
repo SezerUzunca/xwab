@@ -31,7 +31,7 @@ internal class SoundPlaybackResolver(
 
     override suspend fun resolve(value: String): ItemResolution {
         val trackId = TrackId(value)
-        val music = catalog.observeMusic(trackId).first() ?: return ItemResolution.NotFound
+        val track = catalog.observeTrack(trackId).first() ?: return ItemResolution.NotFound
         val source = sources.sourceFor(SOUND_NAMESPACE, value)
             ?: return ItemResolution.Unavailable("sound source is missing")
         val cacheFileName = source.cacheFileName
@@ -47,8 +47,8 @@ internal class SoundPlaybackResolver(
         return when (val resolution = content.resolve(request)) {
             is DeliveryResult.Resolved -> ItemResolution.Resolved(
                 uri = resolution.uri,
-                title = music.playbackTitle,
-                artist = music.playbackArtist,
+                title = track.playbackTitle,
+                artist = track.playbackArtist,
                 policy = SOUND_POLICY,
             )
             is DeliveryResult.Unavailable -> ItemResolution.Unavailable(resolution.reason)

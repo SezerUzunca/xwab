@@ -22,23 +22,23 @@ class DataStoreFavoritesAdapterTest {
     fun identicalIdsInDifferentNamespacesAreIndependentAndPersist() = runBlocking {
         val store = FakePreferencesDataStore()
         val adapter = DataStoreFavoritesAdapter(store)
-        adapter.toggle("music", "shared-id")
+        adapter.toggle("sound", "shared-id")
         adapter.toggle("story", "shared-id")
-        adapter.toggle("music", "shared-id")
+        adapter.toggle("sound", "shared-id")
 
         val reopened = DataStoreFavoritesAdapter(store)
-        assertEquals(emptySet(), reopened.observe("music").first())
+        assertEquals(emptySet(), reopened.observe("sound").first())
         assertEquals(setOf("shared-id"), reopened.observe("story").first())
     }
 
     @Test
-    fun legacyMusicFavoritesSurviveOtherNamespacesAndToggles() = runBlocking {
+    fun favoritesAlreadyInTheStoreSurviveOtherNamespacesAndToggles() = runBlocking {
         val store = FakePreferencesDataStore().apply { store(setOf("gentle-rain")) }
         val adapter = DataStoreFavoritesAdapter(store)
         adapter.toggle("story", "night")
-        assertEquals(setOf("gentle-rain"), adapter.observe("music").first())
-        adapter.toggle("music", "gentle-rain")
-        assertEquals(emptySet(), DataStoreFavoritesAdapter(store).observe("music").first())
+        assertEquals(setOf("gentle-rain"), adapter.observe("sound").first())
+        adapter.toggle("sound", "gentle-rain")
+        assertEquals(emptySet(), DataStoreFavoritesAdapter(store).observe("sound").first())
         assertEquals(setOf("night"), adapter.observe("story").first())
     }
 
@@ -55,27 +55,27 @@ class DataStoreFavoritesAdapterTest {
     fun togglingAddsAndThenRemovesTheId() = runBlocking {
         val adapter = DataStoreFavoritesAdapter(FakePreferencesDataStore())
 
-        adapter.toggle("music", "gentle-rain")
-        assertEquals(setOf("gentle-rain"), adapter.observe("music").first())
+        adapter.toggle("sound", "gentle-rain")
+        assertEquals(setOf("gentle-rain"), adapter.observe("sound").first())
 
-        adapter.toggle("music", "calm-waves")
+        adapter.toggle("sound", "calm-waves")
         assertEquals(
             setOf("gentle-rain", "calm-waves"),
-            adapter.observe("music").first(),
+            adapter.observe("sound").first(),
         )
 
-        adapter.toggle("music", "gentle-rain")
-        assertEquals(setOf("calm-waves"), adapter.observe("music").first())
+        adapter.toggle("sound", "gentle-rain")
+        assertEquals(setOf("calm-waves"), adapter.observe("sound").first())
     }
 
     @Test
     fun aTransientReadFailureIsRetriedRatherThanLeavingFavoritesEmptyForever() = runBlocking {
         val dataStore = FakePreferencesDataStore()
         val adapter = DataStoreFavoritesAdapter(dataStore)
-        adapter.toggle("music", "gentle-rain")
+        adapter.toggle("sound", "gentle-rain")
         dataStore.failingReads = 2
 
-        assertEquals(setOf("gentle-rain"), adapter.observe("music").first())
+        assertEquals(setOf("gentle-rain"), adapter.observe("sound").first())
         assertEquals(0, dataStore.failingReads)
     }
 
@@ -84,20 +84,20 @@ class DataStoreFavoritesAdapterTest {
         val dataStore = FakePreferencesDataStore().apply { failingReads = Int.MAX_VALUE }
         val adapter = DataStoreFavoritesAdapter(dataStore)
 
-        assertEquals(listOf(emptySet<String>()), adapter.observe("music").take(1).toList())
+        assertEquals(listOf(emptySet<String>()), adapter.observe("sound").take(1).toList())
     }
 
     @Test
     fun aFailedWriteDoesNotCancelTheCallingScope() = runBlocking {
         val dataStore = FakePreferencesDataStore()
         val adapter = DataStoreFavoritesAdapter(dataStore)
-        adapter.toggle("music", "gentle-rain")
+        adapter.toggle("sound", "gentle-rain")
 
         dataStore.writeFailure = IllegalStateException("disk is full")
-        adapter.toggle("music", "calm-waves")
+        adapter.toggle("sound", "calm-waves")
 
         dataStore.writeFailure = null
-        assertEquals(setOf("gentle-rain"), adapter.observe("music").first())
+        assertEquals(setOf("gentle-rain"), adapter.observe("sound").first())
     }
 
     @Test
@@ -108,7 +108,7 @@ class DataStoreFavoritesAdapterTest {
 
         assertEquals(
             setOf("gentle-rain", "calm-waves"),
-            adapter.observe("music").first(),
+            adapter.observe("sound").first(),
         )
     }
 
@@ -119,7 +119,7 @@ class DataStoreFavoritesAdapterTest {
 
         /** Puts ids straight into the store, including values the adapter would never write. */
         fun store(ids: Set<String>) {
-            stored.value = mutablePreferencesOf(stringSetPreferencesKey("favorite_music_ids") to ids)
+            stored.value = mutablePreferencesOf(stringSetPreferencesKey("favorite_sound_ids") to ids)
         }
 
         override val data: Flow<Preferences> = flow {

@@ -17,7 +17,7 @@ import kotlin.jvm.JvmInline
  *
  * Deliberately absent from `CategoryRoute`, which keeps a plain [String]. A route is a serialized
  * wire format that Navigation 3 persists, and the seam where it becomes a [CategoryId] is the
- * feature's entry — exactly where [TrackId] is rebuilt from `PlayerRoute`.
+ * feature's entry — exactly where [TrackId] is rebuilt from `SoundRoute`.
  */
 @JvmInline
 value class CategoryId(val value: String) {

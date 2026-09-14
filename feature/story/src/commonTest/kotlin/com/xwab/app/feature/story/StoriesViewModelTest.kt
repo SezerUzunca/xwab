@@ -93,6 +93,9 @@ class StoriesViewModelTest {
         advanceUntilIdle()
 
         assertEquals(failure, readyState(showing).playbackFailure)
+        // Which row wears it is the state's answer too, and only the row it happened to.
+        assertEquals(failure, readyState(showing).rowFailure(BEDTIME))
+        assertNull(readyState(showing).rowFailure(MOONLIGHT))
     }
 
     @Test

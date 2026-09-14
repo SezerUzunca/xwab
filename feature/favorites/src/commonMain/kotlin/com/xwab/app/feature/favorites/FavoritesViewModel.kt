@@ -27,7 +27,7 @@ internal class FavoritesViewModel(
             val failure = playback.failure?.takeIf { it.itemId.kind == PlaybackKind.SOUND }
             Loadable.Ready(
                 FavoritesState(
-                    musics = content.musics,
+                    tracks = content.tracks,
                     requestedTrackId = requestedTrackId,
                     playIntent = requestedTrackId != null && playback.playIntent,
                     isPreparing = requestedTrackId != null && playback.isPreparing,
@@ -41,12 +41,12 @@ internal class FavoritesViewModel(
             initialValue = Loadable.Loading,
         )
 
-    fun togglePlayback(musicId: TrackId) {
+    fun togglePlayback(trackId: TrackId) {
         val current = (state.value as? Loadable.Ready)?.value ?: return
-        if (current.requestedTrackId == musicId && current.playIntent) {
+        if (current.isRowPlaying(trackId)) {
             playbackPort.pause()
         } else {
-            viewModelScope.launch { playbackPort.play(PlaybackItemId.sound(musicId.value)) }
+            viewModelScope.launch { playbackPort.play(PlaybackItemId.sound(trackId.value)) }
         }
     }
 }

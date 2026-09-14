@@ -3,6 +3,7 @@ package com.xwab.app.feature.category
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xwab.app.core.sound.port.CategoryId
+import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.favorites.port.FavoritesPort
 import com.xwab.app.core.session.port.PlaybackPort
@@ -26,18 +27,24 @@ internal class CategoryViewModel(
 ) : ViewModel() {
     val state: StateFlow<Loadable<CategoryState>> = observeCategoryContentUseCase(categoryId)
         .map<CategoryContent, Loadable<CategoryState>> { content ->
+            val playback = content.playback
             // A story occupying the session lights up no row on a screen that lists sounds.
-            val requestedTrackId =
-                content.playback.requestedValueOf(PlaybackKind.SOUND)?.let(::TrackId)
+            val requestedTrackId = playback.requestedValueOf(PlaybackKind.SOUND)?.let(::TrackId)
+            // Bound locally: `failure` is another module's property, so the check below cannot
+            // smart-cast it in place.
+            val failure = playback.failure?.takeIf { it.itemId.kind == PlaybackKind.SOUND }
 
             Loadable.Ready(CategoryState(
                 category = content.category,
-                musics = content.musics,
+                tracks = content.tracks,
                 favoriteIds = content.favoriteIds,
                 requestedTrackId = requestedTrackId,
-                // Gated on the id for the same reason the other screens gate it: the flag says
-                // "a row here is playing", and no row here is when the session is on a story.
-                playIntent = requestedTrackId != null && content.playback.playIntent,
+                // Gated on the id for the same reason the other screens gate it: these say "the
+                // session is on a sound", and it is not when the session is on a story. Which row
+                // that sound is — if it is on this screen at all — is [CategoryState.isRowPlaying].
+                playIntent = requestedTrackId != null && playback.playIntent,
+                isPreparing = requestedTrackId != null && playback.isPreparing,
+                playbackFailure = failure,
             ))
         }.stateIn(
             scope = viewModelScope,
@@ -45,17 +52,17 @@ internal class CategoryViewModel(
             initialValue = Loadable.Loading,
         )
 
-    fun toggleFavorite(musicId: TrackId) {
-        viewModelScope.launch { favoritesPort.toggle("music", musicId.value) }
+    fun toggleFavorite(trackId: TrackId) {
+        viewModelScope.launch { favoritesPort.toggle(SOUND_FAVORITES_NAMESPACE, trackId.value) }
     }
 
     /** Branches on the value the control renders, so the icon and the tap cannot disagree. */
-    fun togglePlayback(musicId: TrackId) {
+    fun togglePlayback(trackId: TrackId) {
         val current = (state.value as? Loadable.Ready)?.value ?: return
-        if (current.requestedTrackId == musicId && current.playIntent) {
+        if (current.isRowPlaying(trackId)) {
             playbackPort.pause()
         } else {
-            viewModelScope.launch { playbackPort.play(PlaybackItemId.sound(musicId.value)) }
+            viewModelScope.launch { playbackPort.play(PlaybackItemId.sound(trackId.value)) }
         }
     }
 }

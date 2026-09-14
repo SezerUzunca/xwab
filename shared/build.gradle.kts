@@ -67,7 +67,7 @@ kotlin {
             implementation(projects.feature.browse)
             implementation(projects.feature.favorites)
             implementation(projects.feature.category)
-            implementation(projects.feature.sounds)
+            implementation(projects.feature.sound)
             implementation(projects.feature.story)
 
             implementation(libs.compose.runtime)

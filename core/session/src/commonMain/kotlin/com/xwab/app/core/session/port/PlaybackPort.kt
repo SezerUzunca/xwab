@@ -32,7 +32,7 @@ interface PlaybackPort {
      * the session's item and starts it.
      *
      * Takes an id rather than the thing itself, so the metadata the media session publishes is read
-     * beside the source it is paired with. A screen handing over its own `Music` could pair a stale
+     * beside the source it is paired with. A screen handing over its own `Track` could pair a stale
      * title with a fresh URI, and nothing would have noticed.
      *
      * The session is on [itemId] from the moment this is called — before the source lookup that

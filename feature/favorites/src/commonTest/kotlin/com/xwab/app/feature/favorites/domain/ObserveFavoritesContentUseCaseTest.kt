@@ -1,10 +1,11 @@
 package com.xwab.app.feature.favorites.domain
 
+import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.testing.FakeFavorites
-import com.xwab.app.testing.FakeMusicCatalog
+import com.xwab.app.testing.FakeSoundCatalog
 import com.xwab.app.testing.FakePlaybackPort
 import com.xwab.app.testing.track
 import kotlin.test.Test
@@ -20,7 +21,7 @@ import kotlinx.coroutines.yield
 class ObserveFavoritesContentUseCaseTest {
     private val rain = track("gentle-rain", categoryId = "rain")
     private val waves = track("calm-waves", categoryId = "ocean")
-    private val catalog = FakeMusicCatalog(tracks = listOf(rain, waves))
+    private val catalog = FakeSoundCatalog(tracks = listOf(rain, waves))
 
     @Test
     fun filtersFavoritesAndPreservesCatalogOrder() = runBlocking {
@@ -30,7 +31,7 @@ class ObserveFavoritesContentUseCaseTest {
             FakePlaybackPort(),
         )
 
-        assertEquals(listOf(rain, waves), useCase().first().musics)
+        assertEquals(listOf(rain, waves), useCase().first().tracks)
     }
 
     @Test
@@ -41,11 +42,11 @@ class ObserveFavoritesContentUseCaseTest {
         val collection = launch { useCase().take(2).toList(emissions) }
         while (emissions.isEmpty()) yield()
 
-        assertTrue(emissions.single().musics.isEmpty())
-        favorites.toggle("music", "calm-waves")
+        assertTrue(emissions.single().tracks.isEmpty())
+        favorites.toggle(SOUND_FAVORITES_NAMESPACE, "calm-waves")
         collection.join()
 
-        assertEquals(listOf(waves), emissions.last().musics)
+        assertEquals(listOf(waves), emissions.last().tracks)
     }
 
     @Test

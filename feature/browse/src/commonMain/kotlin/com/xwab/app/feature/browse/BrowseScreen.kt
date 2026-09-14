@@ -141,7 +141,7 @@ private fun CategoryCard(category: Category, onClick: () -> Unit) {
                 maxLines = 1,
             )
             Text(
-                pluralStringResource(Res.plurals.track_count, category.musicCount, category.musicCount),
+                pluralStringResource(Res.plurals.track_count, category.trackCount, category.trackCount),
                 style = SleepRelaxTheme.typography.labelMedium,
                 color = SleepRelaxTheme.colors.accent.copy(alpha = 0.55f),
             )
