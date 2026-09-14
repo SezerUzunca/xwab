@@ -22,11 +22,9 @@ data class ContentSource(
             "Content source headers must not be blank."
         }
         cacheFileName?.let { name ->
-            require(name.length <= 128 && CACHE_FILE_NAME_PATTERN.matches(name)) {
+            require(name.length <= 128 && name.matches(Regex("[a-z0-9][a-z0-9_-]*(?:\\.[a-z0-9]+)?"))) {
                 "Cached content must use a safe filename: $name"
             }
         }
     }
 }
-
-private val CACHE_FILE_NAME_PATTERN = Regex("[a-z0-9][a-z0-9_-]*(?:\\.[a-z0-9]+)?")
