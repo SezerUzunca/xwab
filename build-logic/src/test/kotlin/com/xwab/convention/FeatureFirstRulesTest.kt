@@ -101,6 +101,13 @@ class FeatureFirstRulesTest {
         assertEquals(1, transitive.size)
         assertTrue(transitive.single().contains("through :testing"))
 
+        val sourceBoundary = FeatureFirstRules.dependencyViolations(
+            graph = mapOf(":feature:story" to listOf(":testing")),
+            apiEdges = mapOf(":testing" to listOf(":core:sources")),
+        )
+        assertEquals(1, sourceBoundary.size)
+        assertTrue(sourceBoundary.single().contains("physical content addresses"))
+
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
@@ -333,22 +340,19 @@ class FeatureFirstRulesTest {
     }
 
     @Test
-    fun corePublicSurfaceIsExplicitAndConfinedToPortPackages() {
+    fun corePublicSurfaceIsConfinedToPortPackages() {
         val good = listOf(
-            coreSource("port/SoundPort.kt", ".port", "public interface SoundPort"),
+            coreSource("port/SoundPort.kt", ".port", "interface SoundPort"),
             coreSource("port/Outcome.kt", ".port", "public sealed interface Outcome"),
             coreSource("ManifestAdapter.kt", "", "internal class ManifestAdapter"),
         )
         assertEquals(emptyList(), FeatureFirstRules.coreVisibilityViolations(good))
 
-        // A port is public by definition; Kotlin's own default visibility already says so without
-        // a keyword, so a declaration that omits one is not a violation.
-        val implicitPort = FeatureFirstRules.coreVisibilityViolations(
-            listOf(coreSource("port/SoundPort.kt", ".port", "interface SoundPort")),
+        val explicitPublic = FeatureFirstRules.coreVisibilityViolations(
+            listOf(coreSource("port/SoundPort.kt", ".port", "public interface SoundPort")),
         )
-        assertEquals(emptyList(), implicitPort)
+        assertEquals(emptyList(), explicitPublic)
 
-        // The naming rule still applies whether or not `public` was written out.
         val implicitWrongName = FeatureFirstRules.coreVisibilityViolations(
             listOf(coreSource("port/Catalog.kt", ".port", "interface Catalog")),
         )
@@ -404,7 +408,7 @@ class FeatureFirstRulesTest {
             packageName = "com.xwab.app.core.sample.port",
             source = """
                 package com.xwab.app.core.sample.port
-                public interface SamplePort {
+                interface SamplePort {
                     fun observe()
                 }
             """.trimIndent(),
@@ -417,7 +421,7 @@ class FeatureFirstRulesTest {
             packageName = "com.xwab.app.core.sample.port",
             source = """
                 package com.xwab.app.core.sample.port
-                public class Sample {
+                class Sample {
                     companion object
                 }
             """.trimIndent(),
@@ -457,7 +461,7 @@ class FeatureFirstRulesTest {
         assertEquals(1, packageLessLeak.size)
 
         val wrongName = FeatureFirstRules.coreVisibilityViolations(
-            listOf(coreSource("port/Catalog.kt", ".port", "public interface Catalog")),
+            listOf(coreSource("port/Catalog.kt", ".port", "interface Catalog")),
         )
         assertEquals(1, wrongName.size)
         assertTrue(wrongName.single().contains("must end in Port"))
@@ -636,11 +640,13 @@ class FeatureFirstRulesTest {
                 """.trimIndent(),
             ),
             coreSource("SoundAdapter.kt", "", "internal class SoundAdapter"),
+            coreSource("SoundPortImpl.kt", "", "internal class SoundPortImpl"),
         )
 
         val violations = FeatureFirstRules.legacyCoreAbstractionViolations(sources)
-        assertEquals(3, violations.size)
-        assertTrue(violations.all { it.contains("feature-local") })
+        assertEquals(4, violations.size)
+        assertEquals(3, violations.count { it.contains("feature-local") })
+        assertTrue(violations.single { it.contains("SoundPortImpl") }.contains("Adapter name"))
     }
 
     @Test
@@ -689,12 +695,13 @@ class FeatureFirstRulesTest {
         val graph = mapOf(
             ":core:sound" to emptyList<String>(),
             ":core:story" to emptyList<String>(),
+            ":core:sources" to emptyList<String>(),
             ":core:network" to emptyList<String>(),
             ":core:delivery" to listOf(":core:network"),
             ":core:favorites" to emptyList<String>(),
             ":core:playback" to emptyList<String>(),
             ":core:session" to listOf(
-                ":core:sound", ":core:delivery", ":core:story",
+                ":core:sound", ":core:sources", ":core:delivery", ":core:story",
                 ":core:playback",
             ),
             ":designsystem" to emptyList<String>(),
@@ -716,7 +723,7 @@ class FeatureFirstRulesTest {
                 ":core:story", ":core:session", ":testing", ":designsystem",
             ),
             ":shared" to listOf(
-                ":core:sound", ":core:delivery",
+                ":core:sound", ":core:sources", ":core:delivery",
                 ":core:favorites", ":core:story",
                 ":core:session", ":core:playback", ":core:network",
                 ":designsystem", ":testing", ":feature:browse", ":feature:category",

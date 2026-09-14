@@ -16,7 +16,7 @@ class StoryManifestTest {
 
     @Test
     fun everyStoryHasItsOwnId() {
-        val ids = storyManifest.map { it.story.id }
+        val ids = storyManifest.map { it.id }
 
         assertEquals(ids.size, ids.toSet().size, "two stories share an id: $ids")
     }
@@ -28,20 +28,12 @@ class StoryManifestTest {
      */
     @Test
     fun everyStoryIsListable() {
-        storyManifest.map(StoryEntry::story).forEach { story ->
+        storyManifest.forEach { story ->
             assertTrue(story.title.isNotBlank(), "${story.id} has no title")
             assertTrue(story.author.isNotBlank(), "${story.id} has no author")
             assertTrue(story.description.isNotBlank(), "${story.id} has no description")
             assertTrue(!story.narrator.isNullOrBlank(), "${story.id} has no narrator")
             assertTrue(story.durationSeconds > 0, "${story.id} has no duration")
         }
-    }
-
-    @Test
-    fun everyStoryHasItsOwnSource() {
-        val sources = storyManifest.map(StoryEntry::httpsUrl)
-
-        assertEquals(sources.size, sources.toSet().size, "two stories share an audio source")
-        assertTrue(sources.all { it.startsWith("https://") }, "a story source is not HTTPS")
     }
 }

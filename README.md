@@ -34,19 +34,21 @@ application capability ports.
 
 ## Core boundary
 
-Every type crossing a core-module boundary lives in a `.port` package and is public — Kotlin's own
-default when no modifier is written, or `public` written out; either is fine, only a keyword saying
-otherwise is not. Hand-written production declarations outside `.port` packages are `internal` or
-`private`. Core modules may import another core module only through that module's `.port` package.
+Every type crossing a core-module boundary lives in a `.port` package and is public. Kotlin's
+implicit public visibility and an explicit `public` modifier are both valid; the current port code
+uses the implicit style. Hand-written production declarations outside `.port` packages are
+`internal` or `private`. Core modules may import another core module only through that module's
+`.port` package.
 
 There is no shared repository abstraction. A feature consumes the narrow capability it needs:
 
 | Capability module | Public port |
 |---|---|
-| `:core:sound` | `SoundPort`, sound models and `TrackSource` |
+| `:core:sound` | `SoundPort` and sound metadata models |
+| `:core:sources` | `SourcePort` and `ContentSource` |
 | `:core:delivery` | `DeliveryPort`, `DeliveryRequest`, `CacheKey` and `DeliveryResult` |
 | `:core:favorites` | `FavoritesPort` |
-| `:core:story` | `StoryPort`, story models and `StoryStreamSource` |
+| `:core:story` | `StoryPort` and story metadata models |
 | `:core:session` | `PlaybackPort` and session model types |
 | `:core:playback` | `PlaybackEnginePort` and engine command/state types |
 | `:core:network` | `NetworkPort` and transport-neutral response/error types |
@@ -64,6 +66,7 @@ properties; `shared.di` exposes these bags so the composition root can pass them
 core/
 ├── network
 ├── sound
+├── sources
 ├── story
 ├── delivery
 ├── favorites
@@ -80,11 +83,12 @@ feature/
 └── story
 ```
 
-Each directory directly under `core` is one Gradle module. Sound and story each own their models,
-one port, manifest data and an internal implementation in a separate file. `SoundPort` and
-`StoryPort` combine metadata queries with source lookup. Contracts and models live in each
-module's `port` package; `SoundPortImpl.kt` and `StoryPortImpl.kt` live in the module package.
-Delivery and favorites are separate modules. `checkArchitecture` enforces one port per content module.
+Each directory directly under `core` is one Gradle module. Sound and story own metadata models,
+one metadata port, manifest data and an internal implementation in a separate file. Physical
+addresses and cache filenames live behind `SourcePort` in `:core:sources`; features are forbidden
+from depending on it. Contracts and models live in each module's `port` package; internal adapters
+and hand-written manifests live in the module package. Delivery and favorites are separate modules.
+`checkArchitecture` enforces one port per metadata content module.
 Favorites uses caller-owned namespaces and string IDs; delivery accepts source URLs and namespaced
 cache requests. Neither depends on sound or story. Only delivery depends on the network module.
 
@@ -105,10 +109,12 @@ sharing the content-neutral playback port.
 kind and value, keeping sound and story identifiers distinct. Its internal adapter resolves
 metadata and content through ports, then drives `PlaybackEnginePort`.
 
-Sound playback resolves its source through `SoundPort`, then gives a request to `DeliveryPort`.
+Sound playback reads metadata through `SoundPort`, resolves its physical address through
+`SourcePort`, then gives a request to `DeliveryPort`.
 The session owns the sound namespace, MPEG policy and current cache inventory. Cached files are preferred; otherwise
 the HTTPS source is returned immediately and a single background download fills app-owned cache.
-Stories use `StoryPort` and stream without being cached.
+Stories read metadata through `StoryPort`, resolve their address through `SourcePort`, and stream
+without being cached.
 
 Android playback uses Media3; iOS playback uses AVFoundation. Platform implementations are
 internal Metro contributions behind `PlaybackEnginePort`.
@@ -123,7 +129,7 @@ internal Metro contributions behind `PlaybackEnginePort`.
 4. A feature-specific use case leaks into `core`.
 5. Any shared production source set references a feature outside the allowed boundaries: navigation/composition may use feature navigation contracts, and DI may use feature dependency bags.
 6. A production core declaration outside an exact capability `.port` package is public.
-7. A port declaration or member is written as non-public, or a public contract interface does not end in `Port`.
+7. A port declaration or member is non-public, or a public contract interface does not end in `Port`.
 8. A cross-core import, wildcard import, or fully qualified reference bypasses an exact `.port` package.
 9. A `Repository` or DI-style `Provider` abstraction appears in `core`.
 10. A Koin import or dependency is reintroduced anywhere in the project.

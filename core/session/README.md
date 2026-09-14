@@ -16,9 +16,11 @@ core:session
    ├─ DefaultPlaybackAdapter   one item at a time; newest request wins
    ├─ SoundPlaybackResolver        internal
    │    ├─► core:sound     what the track is called, for the media session to publish
+   │    ├─► core:sources   its HTTPS address and current cache filename
    │    └─► core:delivery    a local file if it is cached, HTTPS if it is not
    └─ StoryPlaybackResolver        internal
-        └─► core:story     title, narrator and HTTPS stream address, without caching
+        ├─► core:story     title and narrator
+        └─► core:sources   its HTTPS stream address, without caching
    ────► core:playback      the platform player that opens whatever was resolved
 ```
 
@@ -30,9 +32,12 @@ last.
 a `Music` it happened to be holding could pair a stale title with a freshly resolved URI, and the
 two authorities would never be compared.
 
-Content, delivery and the engine are `implementation` dependencies; this module publishes no
-types from them. `checkArchitecture` rejects feature dependencies on delivery or the engine,
-including re-exported dependencies. Content metadata and source lookup use SoundPort and StoryPort.
+Content, sources, delivery and the engine are `implementation` dependencies; this module publishes
+no types from them. `checkArchitecture` rejects feature dependencies on sources, delivery or the
+engine, including re-exported dependencies. Content metadata uses `SoundPort` and `StoryPort`;
+physical addresses use `SourcePort`. `SOUND_NAMESPACE` and `STORY_NAMESPACE` are published by
+`core:sources`, not restated here — the sound one is reused for both source lookup and `CacheKey`,
+so a resolver and the delivery cache it feeds can never name different namespaces.
 
 The resolvers are `internal` because they hand back URIs. Metro exposes only `PlaybackPort`;
 the source-resolution chain remains a private

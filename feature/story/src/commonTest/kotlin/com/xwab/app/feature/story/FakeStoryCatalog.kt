@@ -2,7 +2,6 @@ package com.xwab.app.feature.story
 
 import com.xwab.app.core.story.port.Story
 import com.xwab.app.core.story.port.StoryPort
-import com.xwab.app.core.story.port.StoryStreamSource
 import com.xwab.app.core.story.port.StoryId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -29,7 +28,6 @@ internal fun story(id: String, durationSeconds: Int = 180) = Story(
 internal class FakeStoryCatalog(
     private val stories: List<Story> = emptyList(),
 ) : StoryPort {
-    override fun sourceFor(storyId: StoryId): StoryStreamSource? = null
     override fun observeStories(): Flow<List<Story>> = flowOf(stories)
 
     override fun observeStory(storyId: StoryId): Flow<Story?> =

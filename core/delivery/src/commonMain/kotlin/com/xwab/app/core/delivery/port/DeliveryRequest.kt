@@ -1,7 +1,7 @@
 package com.xwab.app.core.delivery.port
 
 /** Namespaces isolate files, cleanup and in-flight transfers belonging to different consumers. */
-data class CacheKey(public val namespace: String, public val fileName: String) {
+data class CacheKey(val namespace: String, val fileName: String) {
     init {
         require(namespace.matches(Regex("[a-z0-9][a-z0-9_-]{0,63}"))) { "Invalid cache namespace." }
         require(fileName.length <= 128 && fileName.matches(Regex("[a-z0-9][a-z0-9_-]*(?:\\.[a-z0-9]+)?"))) {

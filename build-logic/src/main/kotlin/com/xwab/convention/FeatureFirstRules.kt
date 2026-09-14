@@ -58,6 +58,8 @@ internal object FeatureFirstRules {
             "source resolution and caching belong behind PlaybackPort",
         ":core:playback" to
             "the platform engine is hidden behind PlaybackPort",
+        ":core:sources" to
+            "physical content addresses are adapter details hidden from screens",
     )
 
     /** The one port interface each content module is allowed to publish. */
@@ -318,8 +320,6 @@ internal object FeatureFirstRules {
                     .removeSurrounding("`")
                     .substringAfterLast('.')
                     .ifBlank { "<anonymous $kind>" }
-                // A port is public by definition, so Kotlin's own default visibility already says
-                // so without a keyword. Only a keyword that says otherwise is a violation.
                 val isPublic = visibility == null || visibility == "public"
 
                 when {
@@ -348,15 +348,21 @@ internal object FeatureFirstRules {
                 val declaration = parsed.match
                 val kind = declaration.groupValues[2]
                 val name = declaration.groupValues[3].removeSurrounding("`").substringAfterLast('.')
-                if (
-                    kind !in setOf("class", "interface", "object", "typealias") ||
-                    ("Repository" !in name && "Provider" !in name)
+                val isLegacyAbstraction = "Repository" in name || "Provider" in name
+                val hasImplementationSuffix = name.endsWith("Impl")
+                if (kind !in setOf("class", "interface", "object", "typealias") ||
+                    (!isLegacyAbstraction && !hasImplementationSuffix)
                 ) {
                     return@mapNotNull null
                 }
 
-                "${source.path}:${parsed.lineNumber} declares $name. Core contracts must be ports and " +
-                    "implementations must be adapters; repositories/providers may only be feature-local."
+                if (isLegacyAbstraction) {
+                    "${source.path}:${parsed.lineNumber} declares $name. Core contracts must be ports and " +
+                        "implementations must be adapters; repositories/providers may only be feature-local."
+                } else {
+                    "${source.path}:${parsed.lineNumber} declares $name. Concrete core implementations " +
+                        "must use an Adapter name, not an Impl suffix."
+                }
             }
         }.sorted()
 

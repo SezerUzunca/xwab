@@ -22,10 +22,10 @@ import kotlin.jvm.JvmInline
  * that can be listed and never opened, so a typo is rejected where the manifest is built.
  */
 @JvmInline
-public value class StoryId(public val value: String) {
+value class StoryId(val value: String) {
     init {
         require(value.isNotBlank()) { "A story id cannot be blank." }
     }
 
-    public override fun toString(): String = value
+    override fun toString(): String = value
 }

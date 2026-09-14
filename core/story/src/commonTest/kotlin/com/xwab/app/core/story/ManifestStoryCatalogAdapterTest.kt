@@ -9,10 +9,10 @@ import kotlin.test.assertNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
-class StoryPortImplTest {
+class ManifestStoryCatalogAdapterTest {
     private val night = story("night-came-slowly")
     private val idleFellow = story("an-idle-fellow")
-    private val adapter = StoryPortImpl(entries = listOf(night, idleFellow).map(::entry))
+    private val adapter = ManifestStoryCatalogAdapter(stories = listOf(night, idleFellow))
 
     @Test
     fun theWholeManifestIsServedAsGiven() = runBlocking {
@@ -32,24 +32,22 @@ class StoryPortImplTest {
     @Test
     fun twoStoriesUnderOneIdAreRejected() {
         assertFailsWith<IllegalArgumentException> {
-            StoryPortImpl(
-                entries = listOf(night, story("night-came-slowly", title = "Another Version")).map(::entry),
+            ManifestStoryCatalogAdapter(
+                stories = listOf(night, story("night-came-slowly", title = "Another Version")),
             )
         }
     }
 
     @Test
     fun theShippedManifestIsServed() = runBlocking {
-        val shippedAdapter = StoryPortImpl()
+        val shippedAdapter = ManifestStoryCatalogAdapter()
 
-        assertEquals(storyCatalog, shippedAdapter.observeStories().first())
+        assertEquals(storyManifest, shippedAdapter.observeStories().first())
         assertEquals(
-            storyCatalog.first(),
-            shippedAdapter.observeStory(storyCatalog.first().id).first(),
+            storyManifest.first(),
+            shippedAdapter.observeStory(storyManifest.first().id).first(),
         )
     }
-
-    private fun entry(story: Story) = StoryEntry(story, "https://example.test/${story.id.value}.mp3")
 
     private fun story(id: String, title: String = id) = Story(
         id = StoryId(id),
