@@ -11,8 +11,8 @@ import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackKind
 import com.xwab.app.core.session.port.requestedValueOf
-import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.feature.category.domain.CategoryContent
+import com.xwab.app.feature.category.domain.CategoryFavoritesReadStatus
 import com.xwab.app.feature.category.domain.ObserveCategoryContentUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,26 +28,35 @@ internal class CategoryViewModel(
     private val playbackPort: PlaybackPort,
 ) : ViewModel() {
     private val favoriteWriteFailed = MutableStateFlow(false)
-    val state: StateFlow<Loadable<CategoryState>> = combine<CategoryContent, Boolean, Loadable<CategoryState>>(
+    // Read failures after resubscribing must not clear the last successful membership.
+    private var lastKnownFavoriteIds: Set<TrackId>? = null
+    val state: StateFlow<CategoryUiState> = combine<CategoryContent, Boolean, CategoryUiState>(
         observeCategoryContentUseCase(categoryId), favoriteWriteFailed,
     ) { content, writeFailed ->
+            if (content.favoritesReadStatus == CategoryFavoritesReadStatus.Available) {
+                lastKnownFavoriteIds = content.favoriteIds
+            }
             val playback = content.playback
-            // A story occupying the session lights up no row on a screen that lists sounds.
             val requestedTrackId = playback.requestedValueOf(PlaybackKind.SOUND)?.let(::TrackId)
+                ?.takeIf { id -> content.tracks.any { it.id == id } }
             // Bound locally: `failure` is another module's property, so the check below cannot
             // smart-cast it in place.
-            val failure = playback.failure?.takeIf { it.itemId.kind == PlaybackKind.SOUND }
+            val failure = playback.failure?.takeIf { failure ->
+                failure.itemId.kind == PlaybackKind.SOUND &&
+                    content.tracks.any { it.id.value == failure.itemId.value }
+            }
 
-            Loadable.Ready(CategoryState(
+            CategoryUiState.Ready(CategoryState(
                 category = content.category,
-                favoritesAvailable = content.favoritesAvailable,
+                favoritesReadStatus = content.favoritesReadStatus,
                 favoriteWriteFailed = writeFailed,
                 tracks = content.tracks,
-                favoriteIds = content.favoriteIds,
+                favoriteIds = lastKnownFavoriteIds?.let { ids ->
+                    if (content.favoritesReadStatus == CategoryFavoritesReadStatus.Available) ids
+                    else content.tracks.mapNotNullTo(mutableSetOf()) { it.id.takeIf(ids::contains) }
+                } ?: content.favoriteIds,
                 requestedTrackId = requestedTrackId,
-                // Gated on the id for the same reason the other screens gate it: these say "the
-                // session is on a sound", and it is not when the session is on a story. Which row
-                // that sound is — if it is on this screen at all — is [CategoryState.isRowPlaying].
+                // Only playback represented by a row belongs in this screen's state.
                 playIntent = requestedTrackId != null && playback.playIntent,
                 isPreparing = requestedTrackId != null && playback.isPreparing,
                 playbackFailure = failure,
@@ -55,11 +64,11 @@ internal class CategoryViewModel(
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = Loadable.Loading,
+            initialValue = CategoryUiState.Loading,
         )
 
     fun toggleFavorite(trackId: TrackId) {
-        if ((state.value as? Loadable.Ready)?.value?.favoritesAvailable != true) return
+        if ((state.value as? CategoryUiState.Ready)?.value?.favoritesAvailable != true) return
         viewModelScope.launch {
             favoriteWriteFailed.value = favoritesPort.toggle(SOUND_FAVORITES_NAMESPACE, trackId.value) == FavoriteToggleResult.Unavailable
         }
@@ -67,7 +76,7 @@ internal class CategoryViewModel(
 
     /** Branches on the value the control renders, so the icon and the tap cannot disagree. */
     fun togglePlayback(trackId: TrackId) {
-        val current = (state.value as? Loadable.Ready)?.value ?: return
+        val current = (state.value as? CategoryUiState.Ready)?.value ?: return
         if (current.isRowPlaying(trackId)) {
             playbackPort.pause()
         } else {

@@ -32,8 +32,8 @@ destination routes.
 core reserves its public surface for ports, while UI components and reusable test fakes are not
 application capability ports.
 
-`designsystem` owns Material theme integration, stateless visual controls and shared UI-state
-types such as `Loadable`. Loading orchestration stays in features and the relevant core capabilities.
+`designsystem` owns Material theme integration and stateless visual controls.
+Each feature owns its screen state; core capabilities manage their own operation state.
 Designsystem is independent of application projects; core cannot depend on it or on the app shell.
 
 ## Core boundary

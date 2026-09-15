@@ -23,11 +23,11 @@ import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.designsystem.components.BackButton
 import com.xwab.app.designsystem.components.FavoriteButton
+import com.xwab.app.feature.category.domain.CategoryFavoritesReadStatus
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.PlayableRow
 import com.xwab.app.designsystem.components.SleepRelaxBackground
 import com.xwab.app.designsystem.format.formatDuration
-import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -52,8 +52,8 @@ internal fun CategoryScreenRoute(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     when (val content = state) {
-        Loadable.Loading -> LoadingContent()
-        is Loadable.Ready -> CategoryScreen(
+        CategoryUiState.Loading -> LoadingContent()
+        is CategoryUiState.Ready -> CategoryScreen(
             state = content.value,
             onTrackClick = onTrackClick,
             onFavoriteClick = viewModel::toggleFavorite,
@@ -114,9 +114,9 @@ internal fun CategoryScreen(
                 )
 
                 Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingHuge))
-                if (!state.favoritesAvailable || state.favoriteWriteFailed) {
+                if (state.favoritesReadStatus == CategoryFavoritesReadStatus.Unavailable || state.favoriteWriteFailed) {
                     Text(
-                        text = stringResource(if (!state.favoritesAvailable) UiRes.string.favorites_read_failed else UiRes.string.favorite_write_failed),
+                        text = stringResource(if (state.favoritesReadStatus == CategoryFavoritesReadStatus.Unavailable) UiRes.string.favorites_read_failed else UiRes.string.favorite_write_failed),
                         color = SleepRelaxTheme.colors.error,
                         style = SleepRelaxTheme.typography.bodyMedium,
                     )
@@ -145,6 +145,7 @@ internal fun CategoryScreen(
                                 FavoriteButton(
                                     isFavorite = state.isRowFavorite(track.id),
                                     enabled = state.favoritesAvailable,
+                                    isLoading = state.favoritesReadStatus == CategoryFavoritesReadStatus.Pending,
                                     onClick = { onFavoriteClick(track.id) },
                                 )
                             },
@@ -179,6 +180,7 @@ private fun CategoryScreenPreview() {
                     ),
                 ),
                 favoriteIds = setOf(TrackId("gentle-rain")),
+                favoritesReadStatus = CategoryFavoritesReadStatus.Available,
             ),
             onTrackClick = {},
             onFavoriteClick = {},

@@ -5,9 +5,11 @@ import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.sound.port.TrackId
-import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.feature.sound.domain.ObserveSoundContentUseCase
 import com.xwab.app.core.favorites.port.FavoriteToggleResult
+import com.xwab.app.core.favorites.port.FavoritesPort
+import com.xwab.app.core.favorites.port.FavoritesSnapshot
+import com.xwab.app.feature.sound.domain.SoundFavoriteReadStatus
 import com.xwab.app.testing.FakeFavorites
 import com.xwab.app.testing.FakeSoundCatalog
 import com.xwab.app.testing.FakePlaybackPort
@@ -23,12 +25,16 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -264,10 +270,87 @@ class SoundViewModelTest {
         advanceUntilIdle()
         assertFalse(readyState(viewModel).favoriteWriteFailed)
     }
+    @Test
+    fun contentAndPlaybackAreUsableBeforeTheFirstFavoriteRead() = runTest(mainDispatcher) {
+        val reads = MutableSharedFlow<FavoritesSnapshot>(replay = 1)
+        val writes = FakeFavorites()
+        val playback = FakePlaybackPort()
+        val viewModel = createViewModel(playback, favorites = favoritesReading(reads, writes))
+        collectState(viewModel)
+        runCurrent()
+
+        val pending = readyState(viewModel)
+        assertEquals(RAIN, pending.track?.id)
+        assertEquals(SoundFavoriteReadStatus.Pending, pending.favoriteReadStatus)
+        assertTrue(pending.canPlay)
+        assertTrue(pending.canConfigure)
+        assertFalse(pending.canFavorite)
+        viewModel.toggleFavorite()
+        viewModel.togglePlayback()
+        runCurrent()
+        assertTrue(writes.toggles.isEmpty())
+        assertEquals(RAIN_ITEM, playback.playedItemId)
+
+        reads.emit(FavoritesSnapshot(emptySet(), isAvailable = false))
+        runCurrent()
+        assertEquals(SoundFavoriteReadStatus.Unavailable, readyState(viewModel).favoriteReadStatus)
+        assertFalse(readyState(viewModel).canFavorite)
+
+        reads.emit(FavoritesSnapshot(setOf(RAIN.value)))
+        runCurrent()
+        assertTrue(readyState(viewModel).isFavorite)
+        assertTrue(readyState(viewModel).canFavorite)
+    }
+
+    @Test
+    fun favoriteMembershipSurvivesAStoppedSubscriptionAndFailedFirstRead() = runTest(mainDispatcher) {
+        val reads = MutableSharedFlow<FavoritesSnapshot>(replay = 1)
+        reads.emit(FavoritesSnapshot(setOf(RAIN.value)))
+        val viewModel = createViewModel(FakePlaybackPort(), favorites = favoritesReading(reads))
+        val firstCollection = collectState(viewModel)
+        runCurrent()
+        assertTrue(readyState(viewModel).isFavorite)
+
+        firstCollection.cancel()
+        advanceTimeBy(5_001)
+        runCurrent()
+        assertEquals(0, reads.subscriptionCount.value)
+        reads.resetReplayCache()
+        val secondCollection = collectState(viewModel)
+        runCurrent()
+        assertEquals(SoundFavoriteReadStatus.Pending, readyState(viewModel).favoriteReadStatus)
+        assertTrue(readyState(viewModel).isFavorite)
+
+        reads.emit(FavoritesSnapshot(emptySet(), isAvailable = false))
+        runCurrent()
+        assertEquals(SoundFavoriteReadStatus.Unavailable, readyState(viewModel).favoriteReadStatus)
+        assertTrue(readyState(viewModel).isFavorite)
+        assertFalse(readyState(viewModel).canFavorite)
+
+        reads.emit(FavoritesSnapshot(emptySet()))
+        runCurrent()
+        assertFalse(readyState(viewModel).isFavorite)
+        assertTrue(readyState(viewModel).canFavorite)
+
+        secondCollection.cancel()
+        advanceTimeBy(5_001)
+        runCurrent()
+        reads.emit(FavoritesSnapshot(emptySet(), isAvailable = false))
+        collectState(viewModel)
+        runCurrent()
+        assertFalse(readyState(viewModel).isFavorite)
+        assertFalse(readyState(viewModel).favoritesAvailable)
+    }
+
+    private fun favoritesReading(reads: Flow<FavoritesSnapshot>, writes: FakeFavorites = FakeFavorites()): FavoritesPort =
+        object : FavoritesPort by writes {
+            override fun observe(namespace: String): Flow<FavoritesSnapshot> = reads
+        }
+
     private fun createViewModel(
         port: FakePlaybackPort,
         catalogHasTrack: Boolean = true,
-        favorites: FakeFavorites = FakeFavorites(setOf(RAIN)),
+        favorites: FavoritesPort = FakeFavorites(setOf(RAIN)),
     ): SoundViewModel {
         val catalog = FakeSoundCatalog(
             tracks = if (catalogHasTrack) listOf(track(RAIN.value, categoryId = "rain")) else emptyList(),
@@ -284,11 +367,10 @@ class SoundViewModelTest {
     }
 
     private fun readyState(viewModel: SoundViewModel): SoundState =
-        assertIs<Loadable.Ready<SoundState>>(viewModel.state.value).value
+        assertIs<SoundUiState.Ready>(viewModel.state.value).value
 
-    private fun TestScope.collectState(viewModel: SoundViewModel) {
+    private fun TestScope.collectState(viewModel: SoundViewModel) =
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
-    }
 
     private companion object {
         val RAIN = TrackId("gentle-rain")

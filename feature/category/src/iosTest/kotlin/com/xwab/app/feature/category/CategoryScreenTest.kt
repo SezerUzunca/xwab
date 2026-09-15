@@ -4,6 +4,9 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.runComposeUiTest
 import com.xwab.app.core.session.port.PlaybackFailure
@@ -13,6 +16,7 @@ import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
+import com.xwab.app.feature.category.domain.CategoryFavoritesReadStatus
 import kotlin.test.Test
 
 /**
@@ -78,6 +82,28 @@ class CategoryScreenTest {
         onAllNodesWithText(GENTLE_RAIN_NAME).assertCountEquals(0)
     }
 
+    @Test
+    fun aPendingFavoriteReadKeepsTheRowsVisibleWithoutAnError() = runComposeUiTest {
+        show(state().copy(favoritesReadStatus = CategoryFavoritesReadStatus.Pending))
+
+        onNodeWithText(GENTLE_RAIN_NAME).assertExists()
+        onNodeWithText(HEAVY_RAIN_NAME).assertExists()
+        onAllNodesWithContentDescription(FAVORITES_LOADING).assertCountEquals(2)
+        onNodeWithText(FAVORITES_UNAVAILABLE).assertDoesNotExist()
+    }
+
+    @Test
+    fun anUnavailableFavoriteReadKeepsThePreviousHeartsAndShowsTheError() = runComposeUiTest {
+        show(state().copy(
+            favoriteIds = setOf(GENTLE_RAIN),
+            favoritesReadStatus = CategoryFavoritesReadStatus.Unavailable,
+        ))
+
+        onNodeWithContentDescription(REMOVE_FAVORITE).assertIsNotEnabled()
+        onAllNodesWithContentDescription(FAVORITES_LOADING).assertCountEquals(0)
+        onNodeWithText(FAVORITES_UNAVAILABLE).assertExists()
+    }
+
     private fun ComposeUiTest.show(state: CategoryState) {
         setContent {
             SleepRelaxTheme {
@@ -106,6 +132,7 @@ class CategoryScreenTest {
         playIntent = requestedTrackId != null,
         isPreparing = isPreparing,
         playbackFailure = playbackFailure,
+        favoritesReadStatus = CategoryFavoritesReadStatus.Available,
     )
 
     private companion object {
@@ -119,5 +146,8 @@ class CategoryScreenTest {
         const val PREPARING = "Loading\u2026"
         const val UNAVAILABLE = "Could not reach this sound. Tap play to try again."
         const val CATEGORY_NOT_FOUND = "This category is no longer in the catalog"
+        const val FAVORITES_LOADING = "Loading favorites"
+        const val FAVORITES_UNAVAILABLE = "Favorites are temporarily unavailable. Retrying\u2026"
+        const val REMOVE_FAVORITE = "Remove from favorites"
     }
 }

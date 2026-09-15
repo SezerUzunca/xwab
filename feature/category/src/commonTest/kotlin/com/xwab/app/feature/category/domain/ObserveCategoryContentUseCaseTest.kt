@@ -18,6 +18,7 @@ import kotlin.test.assertSame
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -33,7 +34,7 @@ class ObserveCategoryContentUseCaseTest {
         val emissions = mutableListOf<CategoryContent>()
         val useCase = ObserveCategoryContentUseCase(catalog, favorites, playback)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
-            useCase(CategoryId("ocean")).toList(emissions)
+            useCase(CategoryId("ocean")).filter { it.favoritesReadStatus != CategoryFavoritesReadStatus.Pending }.toList(emissions)
         }
         runCurrent()
         val favoriteIds = emissions.single().favoriteIds
@@ -45,12 +46,12 @@ class ObserveCategoryContentUseCaseTest {
 
         favorites.available.value = false
         runCurrent()
-        assertFalse(emissions.last().favoritesAvailable)
+        assertEquals(CategoryFavoritesReadStatus.Unavailable, emissions.last().favoritesReadStatus)
 
         favorites.available.value = true
         favorites.toggle(SOUND_FAVORITES_NAMESPACE, waves.id.value)
         runCurrent()
-        assertTrue(emissions.last().favoritesAvailable)
+        assertEquals(CategoryFavoritesReadStatus.Available, emissions.last().favoritesReadStatus)
         assertTrue(emissions.last().favoriteIds.isEmpty())
     }
 
@@ -64,10 +65,10 @@ class ObserveCategoryContentUseCaseTest {
 
     @Test
     fun aCategoryScreenSeesItsOwnTracksOnly() = runBlocking {
-        val favorites = FakeFavorites(setOf(TrackId("calm-waves")))
+        val favorites = FakeFavorites(setOf(TrackId("calm-waves"), rain.id, birds.id))
         val useCase = ObserveCategoryContentUseCase(catalog, favorites, FakePlaybackPort())
 
-        val content = useCase(CategoryId("ocean")).first()
+        val content = useCase(CategoryId("ocean")).first { it.favoritesReadStatus == CategoryFavoritesReadStatus.Available }
 
         assertEquals(CategoryId("ocean"), content.category?.id)
         assertEquals(listOf(waves), content.tracks)

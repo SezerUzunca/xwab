@@ -2,7 +2,6 @@ package com.xwab.app.feature.browse
 
 import com.xwab.app.testing.FakeSoundCatalog
 import com.xwab.app.testing.category
-import com.xwab.app.designsystem.state.Loadable
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -41,7 +40,7 @@ class BrowseViewModelTest {
         collectState(viewModel)
         advanceUntilIdle()
 
-        val state = assertIs<Loadable.Ready<BrowseState>>(viewModel.state.value).value
+        val state = assertIs<BrowseUiState.Ready>(viewModel.state.value).value
         assertEquals(categories, state.categories)
     }
 

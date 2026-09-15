@@ -21,7 +21,6 @@ import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.PlayableRow
 import com.xwab.app.designsystem.components.SleepRelaxBackground
 import com.xwab.app.designsystem.format.formatDuration
-import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res as UiRes
@@ -41,8 +40,8 @@ internal fun FavoritesScreenRoute(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     when (val content = state) {
-        Loadable.Loading -> LoadingContent()
-        is Loadable.Ready -> FavoritesScreen(content.value, onTrackClick, viewModel::togglePlayback)
+        FavoritesUiState.Loading -> LoadingContent()
+        is FavoritesUiState.Ready -> FavoritesScreen(content.value, onTrackClick, viewModel::togglePlayback)
     }
 }
 

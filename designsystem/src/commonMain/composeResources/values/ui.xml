@@ -4,6 +4,7 @@
     <string name="pause">Pause</string>
     <string name="add_favorite">Add to favorites</string>
     <string name="remove_favorite">Remove from favorites</string>
+    <string name="favorites_loading">Loading favorites</string>
     <string name="duration_public_domain">%1$s • Public Domain</string>
 
     <!--

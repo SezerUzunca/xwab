@@ -33,6 +33,7 @@ import com.xwab.app.designsystem.format.formatDuration
 import com.xwab.app.designsystem.format.formatRemaining
 import com.xwab.app.designsystem.components.BackButton
 import com.xwab.app.designsystem.components.FavoriteButton
+import com.xwab.app.feature.sound.domain.SoundFavoriteReadStatus
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.PlayPauseButton
 import com.xwab.app.designsystem.components.SleepRelaxBackground
@@ -41,7 +42,6 @@ import com.xwab.app.designsystem.components.SleepRelaxSwitch
 import com.xwab.app.designsystem.components.SleepRelaxTextButton
 import com.xwab.app.designsystem.components.glassCard
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
-import com.xwab.app.designsystem.state.Loadable
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res as UiRes
@@ -86,8 +86,8 @@ internal fun SoundScreenRoute(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     when (val content = state) {
-        Loadable.Loading -> LoadingContent()
-        is Loadable.Ready -> SoundScreen(
+        SoundUiState.Loading -> LoadingContent()
+        is SoundUiState.Ready -> SoundScreen(
             state = content.value,
             onBack = onBack,
             onFavoriteClick = viewModel::toggleFavorite,
@@ -134,12 +134,13 @@ internal fun SoundScreen(
                     isFavorite = state.isFavorite,
                     onClick = onFavoriteClick,
                     enabled = state.canFavorite,
+                    isLoading = state.favoriteReadStatus == SoundFavoriteReadStatus.Pending,
                 )
             }
 
-            if (!state.favoritesAvailable || state.favoriteWriteFailed) {
+            if (state.favoriteReadStatus == SoundFavoriteReadStatus.Unavailable || state.favoriteWriteFailed) {
                 Text(
-                    text = stringResource(if (!state.favoritesAvailable) UiRes.string.favorites_read_failed else UiRes.string.favorite_write_failed),
+                    text = stringResource(if (state.favoriteReadStatus == SoundFavoriteReadStatus.Unavailable) UiRes.string.favorites_read_failed else UiRes.string.favorite_write_failed),
                     color = SleepRelaxTheme.colors.error,
                     style = SleepRelaxTheme.typography.bodyMedium,
                 )
@@ -423,6 +424,7 @@ private fun SoundScreenPreview() {
                     durationSeconds = 286,
                 ),
                 isFavorite = true,
+                favoriteReadStatus = SoundFavoriteReadStatus.Available,
                 sleepTimerRemainingMs = 29L * MINUTE_MS + 42_000L,
             ),
             onBack = {},
