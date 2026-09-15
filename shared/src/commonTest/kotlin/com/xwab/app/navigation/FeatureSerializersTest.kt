@@ -6,6 +6,7 @@ import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -44,13 +45,14 @@ class FeatureSerializersTest {
         }
     }
 
+    @OptIn(ExperimentalSerializationApi::class)
     @Test
     fun everyRouteCanBeRestoredFromTheNameItWasSavedUnder() {
         routes.forEach { route ->
             val serialName = FEATURE_SERIALIZERS.serializerFor(route)?.descriptor?.serialName
             assertNotNull(serialName, "${route::class.simpleName} has no serializer")
             assertNotNull(
-                FEATURE_SERIALIZERS.getPolymorphic<NavKey>(NavKey::class, serialName),
+                FEATURE_SERIALIZERS.getPolymorphic(NavKey::class, serialName),
                 "$serialName cannot be read back, so restoring a back stack holding it throws",
             )
         }
@@ -75,4 +77,5 @@ class FeatureSerializersTest {
     }
 }
 
+@OptIn(ExperimentalSerializationApi::class)
 private fun SerializersModule.serializerFor(route: NavKey) = getPolymorphic(NavKey::class, route)

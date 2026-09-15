@@ -16,7 +16,6 @@ data class Story(
     val description: String,
     val narrator: String?,
     val durationSeconds: Int,
-    val artworkUrl: String?,
 ) {
     init {
         require(title.isNotBlank()) { "A story needs a title: ${id.value}" }
@@ -25,9 +24,6 @@ data class Story(
         require(durationSeconds > 0) { "A story needs a positive duration: ${id.value}" }
         require(narrator == null || narrator.isNotBlank()) {
             "A story's narrator is either absent or named, never blank: ${id.value}"
-        }
-        require(artworkUrl == null || artworkUrl.startsWith("https://")) {
-            "Story artwork must use HTTPS: ${id.value}"
         }
     }
 }

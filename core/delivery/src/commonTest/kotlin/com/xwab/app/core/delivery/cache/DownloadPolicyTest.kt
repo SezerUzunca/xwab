@@ -74,7 +74,6 @@ class DownloadPolicyTest {
 
     private class FakeNetworkPort(private val response: NetworkResponse, private val body: ByteArray = byteArrayOf(1, 2, 3)) : NetworkPort {
         var headers: Map<String, String> = emptyMap()
-        override suspend fun getText(httpsUrl: String, headers: Map<String, String>): String = error("unused")
         override suspend fun download(httpsUrl: String, headers: Map<String, String>, onResponse: (NetworkResponse) -> Unit, onChunk: (ByteArray, Int) -> Unit) {
             this.headers = headers
             onResponse(response)

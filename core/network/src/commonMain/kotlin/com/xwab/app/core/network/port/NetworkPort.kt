@@ -7,20 +7,11 @@ data class NetworkResponse(
     val contentLength: Long?,
 )
 
-/** A non-success response returned by an operation that expects a complete text document. */
-class NetworkHttpException(val statusCode: Int) :
-    IllegalStateException("Network request failed with HTTP $statusCode.")
-
-/** A request that did not finish inside the time allowed for it. */
-class NetworkTimeoutException(val timeoutMillis: Long) :
-    IllegalStateException("Network request did not complete within $timeoutMillis ms.")
-
 /**
  * A connection or response-stream failure, including transport-level timeouts.
  *
  * [cause] is diagnostic information; callers handle this port-owned type rather than inspecting
- * engine-specific exception types. The separate [NetworkTimeoutException] describes the port's
- * total text-request limit.
+ * engine-specific exception types.
  */
 class NetworkTransportException(cause: Throwable) :
     IllegalStateException("Network connection or response transfer failed.", cause)
@@ -36,12 +27,6 @@ class NetworkTransportException(cause: Throwable) :
  * [IllegalArgumentException].
  */
 interface NetworkPort {
-    /** Fetches a small UTF-8 document. */
-    suspend fun getText(
-        httpsUrl: String,
-        headers: Map<String, String> = emptyMap(),
-    ): String
-
     /**
      * Streams a response without retaining its body in memory.
      *

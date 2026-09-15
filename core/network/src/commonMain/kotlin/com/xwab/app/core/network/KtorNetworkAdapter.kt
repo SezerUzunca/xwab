@@ -1,9 +1,7 @@
 package com.xwab.app.core.network
 
-import com.xwab.app.core.network.port.NetworkHttpException
 import com.xwab.app.core.network.port.NetworkPort
 import com.xwab.app.core.network.port.NetworkResponse
-import com.xwab.app.core.network.port.NetworkTimeoutException
 import com.xwab.app.core.network.port.NetworkTransportException
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
@@ -14,61 +12,29 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.header
 import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
-import io.ktor.client.statement.bodyAsText
 import io.ktor.http.URLProtocol
 import io.ktor.http.Url
 import io.ktor.http.contentLength
 import io.ktor.http.contentType
 import io.ktor.utils.io.readAvailable
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.time.Duration.Companion.milliseconds
 
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
 internal class KtorNetworkAdapter : NetworkPort {
     private val client: HttpClient
-    private val textTimeoutMillis: Long
 
     @Inject
     constructor() {
         client = createNetworkHttpClient()
-        textTimeoutMillis = TEXT_TIMEOUT_MILLIS
     }
 
     internal constructor(
         client: HttpClient,
-        textTimeoutMillis: Long = TEXT_TIMEOUT_MILLIS,
     ) {
         this.client = client
-        this.textTimeoutMillis = textTimeoutMillis
-    }
-
-    /**
-     * The ceiling is applied here rather than on the client, because it must not apply to
-     * [download]: one setting covering both would cancel a healthy 25 MB transfer at the moment a
-     * catalog request is considered late.
-     *
-     * The timeout becomes a [NetworkTimeoutException] instead of propagating as a cancellation, so
-     * a caller cannot mistake "the server never answered" for "my reader went away".
-     */
-    override suspend fun getText(httpsUrl: String, headers: Map<String, String>): String {
-        requireHttps(httpsUrl)
-        return networkOperation {
-            withTimeoutOrNull(textTimeoutMillis.milliseconds) {
-                client.prepareGet(httpsUrl) {
-                    headers.forEach { (name, value) -> header(name, value) }
-                }.execute { response ->
-                    requireHttps(response.call.request.url.toString())
-                    if (response.status.value !in 200..299) {
-                        throw NetworkHttpException(response.status.value)
-                    }
-                    response.bodyAsText()
-                }
-            } ?: throw NetworkTimeoutException(textTimeoutMillis)
-        }
     }
 
     override suspend fun download(
@@ -108,10 +74,6 @@ private suspend inline fun <T> networkOperation(block: () -> T): T = try {
     throw callback.original
 } catch (cancellation: CancellationException) {
     throw cancellation
-} catch (failure: NetworkHttpException) {
-    throw failure
-} catch (failure: NetworkTimeoutException) {
-    throw failure
 } catch (failure: Exception) {
     // Ktor may unwrap a canceled request's cause. An inactive caller still owns cancellation.
     currentCoroutineContext().ensureActive()
@@ -136,7 +98,7 @@ private class DownloadCallbackFailure(val original: Throwable) : RuntimeExceptio
  * There is deliberately **no request timeout here**. It would apply to the whole call including the
  * body, so the same number would have to serve a catalog document and a 25 MB download — and 25 MB
  * inside two minutes needs a sustained 1.75 Mbit/s, which is exactly what a listener on a weak
- * connection does not have. `getText` sets its own ceiling instead.
+ * connection does not have.
  */
 private fun createNetworkHttpClient(): HttpClient = HttpClient {
     expectSuccess = false
@@ -161,6 +123,3 @@ private const val CONNECT_TIMEOUT_MILLIS = 10_000L
 
 /** Between two pieces of a transfer. A connection that stops sending fails; a slow one does not. */
 private const val SOCKET_TIMEOUT_MILLIS = 30_000L
-
-/** A whole catalog document. It is small, so if it is late it is not coming. */
-private const val TEXT_TIMEOUT_MILLIS = 15_000L

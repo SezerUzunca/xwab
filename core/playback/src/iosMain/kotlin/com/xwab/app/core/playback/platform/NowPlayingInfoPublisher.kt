@@ -14,10 +14,6 @@ internal class NowPlayingInfoPublisher {
     private val infoCenter = MPNowPlayingInfoCenter.defaultCenter()
 
     private var released = false
-    private var nowPlayingSource: AudioSource? = null
-    private var nowPlayingDurationMs: Long? = null
-    private var nowPlayingPositionMs: Long = 0L
-    private var nowPlayingIsPlaying = false
     private var lastPublishedKey: NowPlayingPublicationKey? = null
 
     fun publish(
@@ -41,11 +37,7 @@ internal class NowPlayingInfoPublisher {
         source ?: return
 
         lastPublishedKey = NowPlayingPublicationKey(source.id, phase, isPlaying)
-        nowPlayingSource = source
-        nowPlayingDurationMs = durationMs
-        nowPlayingPositionMs = positionMs
-        nowPlayingIsPlaying = isPlaying
-        publishNowPlaying()
+        publishNowPlaying(source, durationMs, positionMs, isPlaying)
     }
 
     fun release() {
@@ -55,22 +47,25 @@ internal class NowPlayingInfoPublisher {
     }
 
     private fun clearNowPlaying() {
-        nowPlayingSource = null
         lastPublishedKey = null
         infoCenter.nowPlayingInfo = null
     }
 
-    private fun publishNowPlaying() {
-        val source = nowPlayingSource ?: return
+    private fun publishNowPlaying(
+        source: AudioSource,
+        durationMs: Long?,
+        positionMs: Long,
+        isPlaying: Boolean,
+    ) {
         val nowPlayingInfo = mutableMapOf<Any?, Any?>()
 
         source.title?.let { nowPlayingInfo[MPMediaItemPropertyTitle] = it }
         source.artist?.let { nowPlayingInfo[MPMediaItemPropertyArtist] = it }
-        nowPlayingDurationMs?.let {
+        durationMs?.let {
             nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = it / 1_000.0
         }
-        nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = nowPlayingPositionMs / 1_000.0
-        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = if (nowPlayingIsPlaying) 1.0 else 0.0
+        nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = positionMs / 1_000.0
+        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = if (isPlaying) 1.0 else 0.0
 
         infoCenter.nowPlayingInfo = nowPlayingInfo
     }

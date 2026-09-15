@@ -238,8 +238,6 @@ class CachingContentFileStoreTest {
     ) : NetworkPort {
         var downloads = 0
 
-        override suspend fun getText(httpsUrl: String, headers: Map<String, String>): String =
-            error("not used")
 
         override suspend fun download(
             httpsUrl: String,
