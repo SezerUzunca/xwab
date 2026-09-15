@@ -2,6 +2,7 @@ package com.xwab.app.core.favorites
 
 import android.content.Context
 import com.xwab.app.core.favorites.port.FavoritesPort
+import com.xwab.app.core.favorites.port.FavoritesSnapshot
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -21,7 +22,7 @@ internal class AndroidFavoritesAdapter(
         },
     )
 
-    override fun observe(namespace: String): Flow<Set<String>> = delegate.observe(namespace)
+    override fun observe(namespace: String): Flow<FavoritesSnapshot> = delegate.observe(namespace)
 
     override suspend fun toggle(namespace: String, itemId: String) = delegate.toggle(namespace, itemId)
 }

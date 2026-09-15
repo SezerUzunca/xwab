@@ -11,6 +11,8 @@ internal enum class SoundError {
 
 /** Content available after the outer [com.xwab.app.designsystem.state.Loadable] becomes ready. */
 internal data class SoundState(
+    val favoriteWriteFailed: Boolean = false,
+    val favoritesAvailable: Boolean = true,
     val track: Track? = null,
     val isFavorite: Boolean = false,
     /**
@@ -38,7 +40,7 @@ internal data class SoundState(
     val canPlay: Boolean get() = track != null || playIntent
 
     /** Nothing to save while the catalog does not hold the sound. */
-    val canFavorite: Boolean get() = track != null
+    val canFavorite: Boolean get() = track != null && favoritesAvailable
 
     /** Looping, volume and the timer all need a sound to apply to. */
     val canConfigure: Boolean get() = track != null

@@ -9,7 +9,6 @@ import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.favorites.port.FavoritesPort
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
@@ -18,6 +17,7 @@ internal data class CategoryContent(
     val tracks: List<Track>,
     val favoriteIds: Set<TrackId>,
     val playback: PlaybackSummary,
+    val favoritesAvailable: Boolean = true,
 )
 
 /**
@@ -32,9 +32,9 @@ internal class ObserveCategoryContentUseCase(
     operator fun invoke(categoryId: CategoryId): Flow<CategoryContent> = combine(
         soundPort.observeCategory(categoryId),
         soundPort.observeTracksForCategory(categoryId),
-        favoritesPort.observe(SOUND_FAVORITES_NAMESPACE).map { ids -> ids.mapTo(mutableSetOf(), ::TrackId) },
+        favoritesPort.observe(SOUND_FAVORITES_NAMESPACE),
         playbackPort.playback,
-    ) { category, tracks, favoriteIds, playback ->
-        CategoryContent(category, tracks, favoriteIds, playback)
+    ) { category, tracks, favorites, playback ->
+        CategoryContent(category, tracks, favorites.ids.mapTo(mutableSetOf(), ::TrackId), playback, favorites.isAvailable)
     }
 }

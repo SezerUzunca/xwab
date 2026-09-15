@@ -28,6 +28,7 @@ internal class FavoritesViewModel(
             Loadable.Ready(
                 FavoritesState(
                     tracks = content.tracks,
+                    favoritesAvailable = content.favoritesAvailable,
                     requestedTrackId = requestedTrackId,
                     playIntent = requestedTrackId != null && playback.playIntent,
                     isPreparing = requestedTrackId != null && playback.isPreparing,

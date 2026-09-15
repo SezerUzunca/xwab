@@ -7,7 +7,6 @@ import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.favorites.port.FavoritesPort
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
@@ -16,6 +15,7 @@ internal data class SoundContent(
     val favoriteIds: Set<TrackId>,
     val playback: PlaybackSummary,
     val sleepTimerRemainingMs: Long?,
+    val favoritesAvailable: Boolean = true,
 )
 
 /**
@@ -30,13 +30,14 @@ internal class ObserveSoundContentUseCase(
 ) {
     operator fun invoke(trackId: TrackId): Flow<SoundContent> = combine(
         soundPort.observeTrack(trackId),
-        favoritesPort.observe(SOUND_FAVORITES_NAMESPACE).map { ids -> ids.mapTo(mutableSetOf(), ::TrackId) },
+        favoritesPort.observe(SOUND_FAVORITES_NAMESPACE),
         playbackPort.playback,
         playbackPort.sleepTimerRemainingMs,
-    ) { track, favoriteIds, playback, sleepTimerRemainingMs ->
+    ) { track, favorites, playback, sleepTimerRemainingMs ->
         SoundContent(
             track = track,
-            favoriteIds = favoriteIds,
+            favoriteIds = favorites.ids.mapTo(mutableSetOf(), ::TrackId),
+            favoritesAvailable = favorites.isAvailable,
             playback = playback,
             sleepTimerRemainingMs = sleepTimerRemainingMs,
         )

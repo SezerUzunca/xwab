@@ -5,7 +5,7 @@ project dependency on sound, story or another content module. Its only public in
 `com.xwab.app.core.favorites.port.FavoritesPort`; DataStore and platform adapters are internal.
 
 ```kotlin
-val storyIds = favoritesPort.observe("story") // Flow<Set<String>>
+val storyIds = favoritesPort.observe("story") // Flow<FavoritesSnapshot>
 favoritesPort.toggle(namespace = "story", itemId = "night-came-slowly")
 ```
 
@@ -19,3 +19,11 @@ Each namespace uses `favorite_<namespace>_ids`. Sound features pass `sound`, the
 `:core:sources` gives that content kind; the namespace is stated once, by `:core:sound`.
 Tests cover records written straight into the store, persistence, namespace isolation and invalid
 inputs.
+
+`FavoritesSnapshot` distinguishes a successful read from unavailable storage. During a read
+failure it retains the last known IDs (empty before the first read), sets `isAvailable` to false,
+and retries with exponential delay capped at 4.8 seconds while the flow is collected. Successful
+reads restore availability; cancelling the collector stops retries.
+
+`toggle` returns `FavoriteToggleResult.Updated` or `Unavailable`. Features display read/write
+failures and decide which controls remain enabled. Cancellation propagates unchanged.

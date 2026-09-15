@@ -117,10 +117,25 @@ class FavoritesViewModelTest {
         assertTrue(coordinator.pauses == 0)
     }
 
-    private fun createViewModel(coordinator: FakePlaybackPort): FavoritesViewModel {
+    @Test
+    fun unavailableFavoritesKeepTheirLastKnownRowsAndRecover() = runTest(mainDispatcher) {
+        val favorites = FakeFavorites(setOf(TrackId("rain")))
+        val viewModel = createViewModel(FakePlaybackPort(), favorites)
+        collectState(viewModel)
+        advanceUntilIdle()
+        favorites.available.value = false
+        advanceUntilIdle()
+        val unavailable = assertIs<Loadable.Ready<FavoritesState>>(viewModel.state.value).value
+        assertFalse(unavailable.favoritesAvailable)
+        assertEquals(listOf(TrackId("rain")), unavailable.tracks.map { it.id })
+        favorites.available.value = true
+        advanceUntilIdle()
+        assertTrue(assertIs<Loadable.Ready<FavoritesState>>(viewModel.state.value).value.favoritesAvailable)
+    }
+    private fun createViewModel(coordinator: FakePlaybackPort, favorites: FakeFavorites = FakeFavorites(setOf(TrackId("rain")))): FavoritesViewModel {
         val useCase = ObserveFavoritesContentUseCase(
             soundPort = FakeSoundCatalog(tracks = listOf(track("rain"))),
-            favoritesPort = FakeFavorites(setOf(TrackId("rain"))),
+            favoritesPort = favorites,
             playbackPort = coordinator,
         )
         return FavoritesViewModel(useCase, coordinator)

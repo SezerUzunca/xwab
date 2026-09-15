@@ -12,4 +12,6 @@
       identical text under two different keys.
     -->
     <string name="preparing">Loading…</string>
+    <string name="favorites_read_failed">Favorites are temporarily unavailable. Retrying…</string>
+    <string name="favorite_write_failed">Could not save your favorite. Please try again.</string>
 </resources>

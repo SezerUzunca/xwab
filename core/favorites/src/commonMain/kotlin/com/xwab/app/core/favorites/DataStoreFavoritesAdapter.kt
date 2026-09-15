@@ -3,15 +3,17 @@ package com.xwab.app.core.favorites
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import co.touchlab.kermit.Logger
 import com.xwab.app.core.favorites.port.FavoritesPort
+import com.xwab.app.core.favorites.port.FavoritesSnapshot
+import com.xwab.app.core.favorites.port.FavoriteToggleResult
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.retryWhen
 
@@ -20,40 +22,41 @@ internal class DataStoreFavoritesAdapter(
 ) : FavoritesPort {
     private val logger = Logger.withTag("FavoritesPort")
 
-    override fun observe(namespace: String): Flow<Set<String>> {
+    override fun observe(namespace: String): Flow<FavoritesSnapshot> {
         val favoriteIdsKey = idsKey(namespace)
-        return dataStore.data
-            .retryWhen { error, attempt ->
-                val willRetry = attempt < MAX_READ_RETRIES
-                if (willRetry) {
-                    logger.w(error) { "Could not read the favorites (attempt ${attempt + 1}); retrying." }
-                    delay(RETRY_DELAY_MS.milliseconds)
+        return flow {
+            var lastIds = emptySet<String>()
+            emitAll(dataStore.data
+                .map { preferences ->
+                    lastIds = preferences[favoriteIdsKey].orEmpty()
+                        .filterTo(mutableSetOf()) { it.isNotBlank() }
+                    FavoritesSnapshot(lastIds)
                 }
-                willRetry
-            }
-            .catch { error ->
-                logger.e(error) { "Could not read the favorites; falling back to an empty set." }
-                emit(emptyPreferences())
-            }
-            .map { preferences ->
-                preferences[favoriteIdsKey].orEmpty()
-                    .filterTo(mutableSetOf()) { it.isNotBlank() }
-            }
+                .retryWhen { error, attempt ->
+                    if (error is CancellationException || error !is Exception) throw error
+                    logger.w(error) { "Could not read the favorites; retrying." }
+                    emit(FavoritesSnapshot(lastIds, isAvailable = false))
+                    delay((RETRY_DELAY_MS shl attempt.coerceAtMost(5L).toInt()).milliseconds)
+                    true
+                })
+        }
     }
 
-    override suspend fun toggle(namespace: String, itemId: String) {
+    override suspend fun toggle(namespace: String, itemId: String): FavoriteToggleResult {
         val favoriteIdsKey = idsKey(namespace)
         require(itemId.isNotBlank()) { "Favorite IDs must not be blank." }
-        try {
+        return try {
             dataStore.edit { preferences ->
                 val current = preferences[favoriteIdsKey].orEmpty()
                 preferences[favoriteIdsKey] =
                     if (itemId in current) current - itemId else current + itemId
             }
+            FavoriteToggleResult.Updated
         } catch (cancellation: CancellationException) {
             throw cancellation
-        } catch (error: Throwable) {
+        } catch (error: Exception) {
             logger.e(error) { "Could not persist the favorite toggle for $namespace/$itemId." }
+            FavoriteToggleResult.Unavailable
         }
     }
 
@@ -63,7 +66,6 @@ internal class DataStoreFavoritesAdapter(
     }
 
     private companion object {
-        const val MAX_READ_RETRIES = 3L
         const val RETRY_DELAY_MS = 150L
     }
 }

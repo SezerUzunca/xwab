@@ -8,6 +8,8 @@ import com.xwab.app.core.sound.port.TrackId
 
 /** Content available after the outer [com.xwab.app.designsystem.state.Loadable] becomes ready. */
 internal data class CategoryState(
+    val favoriteWriteFailed: Boolean = false,
+    val favoritesAvailable: Boolean = true,
     /**
      * The category this screen is about, or null when the catalog holds no such category.
      *
