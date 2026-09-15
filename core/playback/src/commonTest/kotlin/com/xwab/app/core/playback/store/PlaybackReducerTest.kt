@@ -396,7 +396,7 @@ class PlaybackReducerTest {
         assertEquals(error, result.state.observed.error)
         assertFalse(result.state.desired.playRequested)
         assertEquals(false, result.state.pending.pendingPlayWhenReady)
-        assertTrue(result.sideEffects.any { it is PlaybackSideEffect.Pause })
+        assertTrue(result.sideEffects.any { it is PlaybackSideEffect.PauseForFailure })
         assertTrue(result.sideEffects.any { it is PlaybackSideEffect.CancelSleepTimer })
     }
 
