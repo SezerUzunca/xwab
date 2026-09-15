@@ -9,7 +9,10 @@ import androidx.navigation3.ui.NavDisplay
 import com.xwab.app.composition.appEntryProvider
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import com.xwab.app.di.AppGraph
-import com.xwab.app.navigation.rememberAppNavigationState
+import com.xwab.app.navigation.Navigator
+import com.xwab.app.navigation.TOP_LEVEL_DESTINATIONS
+import com.xwab.app.navigation.rememberNavigationState
+import com.xwab.app.navigation.toEntries
 import com.xwab.app.ui.AppNavigationBar
 
 /**
@@ -22,12 +25,13 @@ import com.xwab.app.ui.AppNavigationBar
 @Composable
 fun App(graph: AppGraph) {
     SleepRelaxTheme {
-        val navigationState = rememberAppNavigationState()
-        val entryProvider = remember(navigationState, graph) {
+        val navigationState = rememberNavigationState()
+        val navigator = remember(navigationState) { Navigator(navigationState) }
+        val entryProvider = remember(navigator, graph) {
             appEntryProvider(
                 graph = graph,
-                onNavigate = navigationState::navigate,
-                onBack = navigationState::goBack,
+                onNavigate = navigator::navigate,
+                onBack = navigator::goBack,
             )
         }
 
@@ -36,15 +40,15 @@ fun App(graph: AppGraph) {
             containerColor = SleepRelaxTheme.colors.backgroundBottom,
             bottomBar = {
                 AppNavigationBar(
-                    destinations = navigationState.destinations,
-                    selectedRoute = navigationState.selectedRoute,
-                    onSelect = navigationState::navigate,
+                    destinations = TOP_LEVEL_DESTINATIONS,
+                    selectedRoute = navigationState.topLevelRoute,
+                    onSelect = navigator::navigate,
                 )
             },
         ) { innerPadding ->
             NavDisplay(
-                entries = navigationState.entries(entryProvider),
-                onBack = navigationState::goBack,
+                entries = navigationState.toEntries(entryProvider),
+                onBack = navigator::goBack,
                 modifier = Modifier.padding(innerPadding),
             )
         }
