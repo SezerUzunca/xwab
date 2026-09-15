@@ -7,6 +7,7 @@ import com.xwab.app.core.session.port.PlaybackItemId
 
 /** Content available after the outer [com.xwab.app.designsystem.state.Loadable] becomes ready. */
 internal data class FavoritesState(
+    val favoritesAvailable: Boolean = true,
     val tracks: List<Track> = emptyList(),
     val requestedTrackId: TrackId? = null,
     /** What the row's play/pause control shows: the session's intent, not audible sound. */

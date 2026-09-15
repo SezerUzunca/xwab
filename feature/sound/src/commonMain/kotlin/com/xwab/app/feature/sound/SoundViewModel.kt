@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.favorites.port.FavoritesPort
+import com.xwab.app.core.favorites.port.FavoriteToggleResult
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
@@ -13,7 +14,8 @@ import com.xwab.app.feature.sound.domain.ObserveSoundContentUseCase
 import com.xwab.app.feature.sound.domain.SoundContent
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -23,11 +25,13 @@ internal class SoundViewModel(
     private val favoritesPort: FavoritesPort,
     private val playbackPort: PlaybackPort,
 ) : ViewModel() {
+    private val favoriteWriteFailed = MutableStateFlow(false)
     /** This screen is about one sound, so that is the item it recognises in the session. */
     private val itemId = PlaybackItemId.sound(trackId.value)
 
-    val state: StateFlow<Loadable<SoundState>> = observeSoundContentUseCase(trackId)
-        .map<SoundContent, Loadable<SoundState>> { content ->
+    val state: StateFlow<Loadable<SoundState>> = combine<SoundContent, Boolean, Loadable<SoundState>>(
+        observeSoundContentUseCase(trackId), favoriteWriteFailed,
+    ) { content, writeFailed ->
         val playback = content.playback
         val isRequested = playback.requestedItemId == itemId
         // Bound locally: `failure` is another module's property, so the null check below cannot
@@ -35,6 +39,8 @@ internal class SoundViewModel(
         val failure = playback.failure
         Loadable.Ready(SoundState(
             track = content.track,
+            favoritesAvailable = content.favoritesAvailable,
+            favoriteWriteFailed = writeFailed,
             isFavorite = trackId in content.favoriteIds,
             playIntent = isRequested && playback.playIntent,
             isPreparing = isRequested && playback.isPreparing,
@@ -62,7 +68,9 @@ internal class SoundViewModel(
 
     fun toggleFavorite() {
         if (readyState()?.canFavorite != true) return
-        viewModelScope.launch { favoritesPort.toggle(SOUND_FAVORITES_NAMESPACE, trackId.value) }
+        viewModelScope.launch {
+            favoriteWriteFailed.value = favoritesPort.toggle(SOUND_FAVORITES_NAMESPACE, trackId.value) == FavoriteToggleResult.Unavailable
+        }
     }
 
     /**

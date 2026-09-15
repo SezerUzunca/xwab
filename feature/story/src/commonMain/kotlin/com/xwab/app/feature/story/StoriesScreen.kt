@@ -160,7 +160,6 @@ private fun StoriesScreenPreview() {
                         description = "A quiet meditation on dusk.",
                         narrator = "Alan Davis Drake",
                         durationSeconds = 174,
-                        artworkUrl = null,
                     ),
                 ),
             ),

@@ -12,7 +12,6 @@ internal val storyManifest: List<Story> = listOf(
         description = "A quiet meditation on dusk, stars, and the stillness of night.",
         narrator = "Alan Davis Drake",
         durationSeconds = 174,
-        artworkUrl = null,
     ),
     Story(
         id = StoryId("an-idle-fellow"),
@@ -21,7 +20,6 @@ internal val storyManifest: List<Story> = listOf(
         description = "A brief character sketch about work, idleness, and how a life is judged.",
         narrator = "Alan Davis Drake",
         durationSeconds = 187,
-        artworkUrl = null,
     ),
     Story(
         id = StoryId("story-of-an-hour"),
@@ -30,7 +28,6 @@ internal val storyManifest: List<Story> = listOf(
         description = "A woman receives sudden news and discovers how much can change in one hour.",
         narrator = "Alan Davis Drake",
         durationSeconds = 479,
-        artworkUrl = null,
     ),
     Story(
         id = StoryId("doctor-chevaliers-lie"),
@@ -39,7 +36,6 @@ internal val storyManifest: List<Story> = listOf(
         description = "A doctor offers one compassionate untruth after a lonely patient's final night.",
         narrator = "Alan Davis Drake",
         durationSeconds = 201,
-        artworkUrl = null,
     ),
     Story(
         id = StoryId("a-tent-in-agony"),
@@ -48,6 +44,5 @@ internal val storyManifest: List<Story> = listOf(
         description = "Three friends trade an unsettling tale during a fishing trip.",
         narrator = "Alan Davis Drake",
         durationSeconds = 462,
-        artworkUrl = null,
     ),
 )

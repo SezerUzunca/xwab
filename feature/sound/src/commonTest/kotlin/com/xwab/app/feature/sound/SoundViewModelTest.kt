@@ -7,6 +7,7 @@ import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.feature.sound.domain.ObserveSoundContentUseCase
+import com.xwab.app.core.favorites.port.FavoriteToggleResult
 import com.xwab.app.testing.FakeFavorites
 import com.xwab.app.testing.FakeSoundCatalog
 import com.xwab.app.testing.FakePlaybackPort
@@ -235,6 +236,34 @@ class SoundViewModelTest {
         assertEquals(1, port.pauses)
     }
 
+    @Test
+    fun favoriteReadFailuresAreVisibleAndRecoverWithoutReopeningTheScreen() = runTest(mainDispatcher) {
+        val favorites = FakeFavorites()
+        val viewModel = createViewModel(FakePlaybackPort(), favorites = favorites)
+        collectState(viewModel)
+        advanceUntilIdle()
+        favorites.available.value = false
+        advanceUntilIdle()
+        assertFalse(readyState(viewModel).favoritesAvailable)
+        favorites.available.value = true
+        advanceUntilIdle()
+        assertTrue(readyState(viewModel).favoritesAvailable)
+    }
+
+    @Test
+    fun favoriteWriteFailuresAreVisibleUntilASuccessfulRetry() = runTest(mainDispatcher) {
+        val favorites = FakeFavorites().apply { toggleResult = FavoriteToggleResult.Unavailable }
+        val viewModel = createViewModel(FakePlaybackPort(), favorites = favorites)
+        collectState(viewModel)
+        advanceUntilIdle()
+        viewModel.toggleFavorite()
+        advanceUntilIdle()
+        assertTrue(readyState(viewModel).favoriteWriteFailed)
+        favorites.toggleResult = FavoriteToggleResult.Updated
+        viewModel.toggleFavorite()
+        advanceUntilIdle()
+        assertFalse(readyState(viewModel).favoriteWriteFailed)
+    }
     private fun createViewModel(
         port: FakePlaybackPort,
         catalogHasTrack: Boolean = true,

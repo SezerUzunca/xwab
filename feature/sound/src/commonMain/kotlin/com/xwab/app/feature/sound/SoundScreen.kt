@@ -49,6 +49,8 @@ import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res as UiRes
 import xwab.designsystem.generated.resources.duration_public_domain
 import xwab.designsystem.generated.resources.preparing
+import xwab.designsystem.generated.resources.favorites_read_failed
+import xwab.designsystem.generated.resources.favorite_write_failed
 import xwab.feature.sound.generated.resources.Res
 import xwab.feature.sound.generated.resources.cancel_timer
 import xwab.feature.sound.generated.resources.loop_sound
@@ -138,6 +140,13 @@ internal fun SoundScreen(
                     )
                 }
 
+                if (!state.favoritesAvailable || state.favoriteWriteFailed) {
+                    Text(
+                        text = stringResource(if (!state.favoritesAvailable) UiRes.string.favorites_read_failed else UiRes.string.favorite_write_failed),
+                        color = SleepRelaxTheme.colors.error,
+                        style = SleepRelaxTheme.typography.bodyMedium,
+                    )
+                }
                 if (isShortWindow) {
                     Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
                 } else {

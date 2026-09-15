@@ -23,8 +23,8 @@ internal class LocalFirstDeliveryAdapter(
         }
     } catch (cancellation: CancellationException) {
         throw cancellation
-    } catch (error: Throwable) {
-        logger.e(error) { "Could not resolve content for ${request.key}." }
-        DeliveryResult.Unavailable(error.message)
+    } catch (error: Exception) {
+        logger.w(error) { "Cache unavailable for ${request.key}; streaming from HTTPS." }
+        DeliveryResult.Resolved(request.httpsUrl)
     }
 }

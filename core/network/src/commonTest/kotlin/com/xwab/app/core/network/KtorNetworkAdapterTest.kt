@@ -1,9 +1,7 @@
 package com.xwab.app.core.network
 
-import com.xwab.app.core.network.port.NetworkHttpException
 import com.xwab.app.core.network.port.NetworkPort
 import com.xwab.app.core.network.port.NetworkResponse
-import com.xwab.app.core.network.port.NetworkTimeoutException
 import com.xwab.app.core.network.port.NetworkTransportException
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -22,9 +20,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.io.IOException
 import kotlin.time.Duration.Companion.milliseconds
@@ -33,53 +30,25 @@ class KtorNetworkAdapterTest {
     private val clients = mutableListOf<HttpClient>()
 
     @AfterTest
-    fun closeClients() {
-        clients.forEach(HttpClient::close)
-    }
+    fun closeClients() = clients.forEach(HttpClient::close)
 
     @Test
-    fun textResponsesAreReadThroughKtor() = runBlocking {
-        val client = client { request ->
-            assertEquals("https://example.test/catalog.json", request.url.toString())
-            respond("{\"revision\":2}")
-        }
-
-        assertEquals(
-            "{\"revision\":2}",
-            client.getText("https://example.test/catalog.json"),
-        )
-    }
-
-    @Test
-    fun textRequestsRejectNonSuccessResponses() = runBlocking {
-        val client = client { respond("missing", HttpStatusCode.NotFound) }
-
-        val failure = assertFailsWith<NetworkHttpException> {
-            client.getText("https://example.test/catalog.json")
-        }
-        assertEquals(404, failure.statusCode)
-    }
-
-    @Test
-    fun downloadsExposeMetadataAndStreamTheBody() = runBlocking {
-        val client = client {
-            respond(
-                content = "abcdef",
-                headers = headersOf(
-                    HttpHeaders.ContentType to listOf("audio/mpeg"),
-                    HttpHeaders.ContentLength to listOf("6"),
-                ),
-            )
+    fun downloadsExposeMetadataHeadersAndStreamTheBody() = runBlocking {
+        val port = client { request ->
+            assertEquals("Xwab", request.headers[HttpHeaders.UserAgent])
+            respond("abcdef", headers = headersOf(
+                HttpHeaders.ContentType to listOf("audio/mpeg"),
+                HttpHeaders.ContentLength to listOf("6"),
+            ))
         }
         var metadata: NetworkResponse? = null
         val received = mutableListOf<Byte>()
-
-        client.download(
+        port.download(
             "https://example.test/audio.mp3",
+            headers = mapOf(HttpHeaders.UserAgent to "Xwab"),
             onResponse = { metadata = it },
             onChunk = { bytes, count -> received += bytes.take(count) },
         )
-
         assertEquals(200, metadata?.statusCode)
         assertEquals("audio/mpeg", metadata?.contentType)
         assertEquals(6L, metadata?.contentLength)
@@ -87,148 +56,63 @@ class KtorNetworkAdapterTest {
     }
 
     @Test
-    fun cleartextIsRejectedBeforeAnEngineRuns() = runBlocking {
-        val client = client { error("the engine must not be called") }
-
-        assertFailsWith<IllegalArgumentException> {
-            client.getText("http://example.test/catalog.json")
+    fun invalidAndCleartextUrlsAreRejectedBeforeTheEngineRuns() = runBlocking {
+        val port = client { error("the engine must not be called") }
+        for (url in listOf("http://example.test/audio.mp3", "https://example.test:invalid")) {
+            assertFailsWith<IllegalArgumentException> {
+                port.download(url, onResponse = {}, onChunk = { _, _ -> })
+            }
         }
-        Unit
     }
 
-    /**
-     * A source answering an HTTPS request with a redirect to plain HTTP is asking for the
-     * connection to be downgraded. Ktor refuses on its own — `allowHttpsDowngrade` is false by
-     * default — so the redirect is never followed and arrives as its own response instead.
-     */
+    @Test
+    fun nonSuccessResponsesRemainTheCallersPolicy() = runBlocking {
+        val port = client { respond("missing", HttpStatusCode.NotFound) }
+        var status: Int? = null
+        port.download("https://example.test/audio.mp3", onResponse = { status = it.statusCode }, onChunk = { _, _ -> })
+        assertEquals(404, status)
+    }
+
     @Test
     fun aRedirectThatDowngradesToCleartextIsNotFollowed() = runBlocking {
         var requests = 0
         val port = client {
             requests++
-            respond(
-                content = "",
-                status = HttpStatusCode.Found,
-                headers = headersOf(HttpHeaders.Location, "http://example.test/catalog.json"),
-            )
+            respond("", HttpStatusCode.Found, headersOf(HttpHeaders.Location, "http://example.test/audio.mp3"))
         }
-
-        val failure = assertFailsWith<NetworkHttpException> {
-            port.getText("https://example.test/catalog.json")
-        }
-
-        assertEquals(302, failure.statusCode)
+        var status: Int? = null
+        port.download("https://example.test/audio.mp3", onResponse = { status = it.statusCode }, onChunk = { _, _ -> })
+        assertEquals(302, status)
         assertEquals(1, requests)
     }
 
-    /**
-     * The port checks the URL that was actually requested, not only the one it was handed. Ktor's
-     * own guard is what stops the case above, which leaves the port's guard with nothing to prove
-     * it still works — so this lets the downgrade through the client and drives it directly.
-     *
-     * It surfaces as a transport failure rather than the argument failure an unusable initial URL
-     * produces, because the check runs inside the request. Refused either way; only the type
-     * differs, and this test is where that choice is written down.
-     */
     @Test
     fun aCleartextUrlReachedByFollowingARedirectIsStillRefused() = runBlocking {
-        for (download in listOf(false, true)) {
-            val port = client(downgradeAllowed = true) { request ->
-                if (request.url.protocol.name == "https") {
-                    respond(
-                        content = "",
-                        status = HttpStatusCode.Found,
-                        headers = headersOf(HttpHeaders.Location, "http://example.test/audio.mp3"),
-                    )
-                } else {
-                    respond("the body a downgraded source would have served")
-                }
-            }
-
-            assertFailsWith<NetworkTransportException> { port.runOperation(download) }
-        }
-    }
-
-    /**
-     * A catalog that hangs must fail as a failure. If it surfaced as a cancellation, every caller
-     * that treats cancellation as "my reader went away" — catalog sync does — would neither log
-     * it nor back off, and a dead endpoint would be retried on every read forever.
-     */
-    @Test
-    fun aTextRequestThatHangsFailsAsATimeoutAndNotAsACancellation() = runBlocking {
-        val client = client(textTimeoutMillis = 30L) {
-            delay(Long.MAX_VALUE.milliseconds)
-            respond("never arrives")
-        }
-
-        val failure = assertFailsWith<NetworkTimeoutException> {
-            client.getText("https://example.test/catalog.json")
-        }
-        assertEquals(30L, failure.timeoutMillis)
-    }
-
-    @Test
-    fun aCallersTimeoutRemainsCancellation() = runBlocking {
-        val client = client(textTimeoutMillis = 10_000L) {
-            delay(Long.MAX_VALUE.milliseconds)
-            respond("never arrives")
-        }
-
-        assertFailsWith<TimeoutCancellationException> {
-            withTimeout(30L.milliseconds) {
-                client.getText("https://example.test/catalog.json")
+        val port = client(downgradeAllowed = true) { request ->
+            if (request.url.protocol.name == "https") {
+                respond("", HttpStatusCode.Found, headersOf(HttpHeaders.Location, "http://example.test/audio.mp3"))
+            } else {
+                respond("downgraded body")
             }
         }
+        assertFailsWith<NetworkTransportException> { port.download() }
         Unit
     }
 
     @Test
-    fun engineFailuresUseTheSamePortExceptionForTextAndDownloads() = runBlocking {
-        val failures = listOf(
+    fun engineFailuresUseThePortException() = runBlocking {
+        for (original in listOf(
             IOException("connection failed"),
             ConnectTimeoutException("connect timeout"),
             SocketTimeoutException("socket timeout"),
             HttpRequestTimeoutException("https://example.test/audio.mp3", 1L),
-        )
-        for (download in listOf(false, true)) {
-            for (original in failures) {
-                val port = client { throw original }
-                val failure = assertFailsWith<NetworkTransportException> {
-                    port.runOperation(download)
-                }
-                // Coroutine stack-trace recovery may copy the engine exception.
-                assertEquals(original::class, failure.cause?.let { it::class })
-                assertEquals(original.message, failure.cause?.message)
-            }
+        )) {
+            val port = client { throw original }
+            val failure = assertFailsWith<NetworkTransportException> { port.download() }
+            assertEquals(original::class, failure.cause?.let { it::class })
+            assertEquals(original.message, failure.cause?.message)
         }
     }
-    /*
-     * A body that fails part-way instead of ending was asserted here, and is not any more.
-     *
-     * Four arrangements were tried and all failed the same way on the Linux CI runner — the
-     * adapter "completed successfully", with no exception at all:
-     *
-     * - cancelling the channel from inside `onChunk`, three runs in five
-     * - a handshake making the writer wait for the chunk before throwing, twice
-     * - writing and throwing back to back, once
-     * - a writer that throws having written nothing, once
-     *
-     * The last one is what settles it. With no bytes in flight there is no interleaving left to
-     * arrange, so the remaining explanation is the harness: `MockEngine` does not reliably carry a
-     * body channel's closing cause across the copy the client hands the adapter, and this test
-     * cannot tell that apart from the product behaviour it means to assert. A test that cannot
-     * distinguish its subject from its mock is not evidence, and one that fails at random costs
-     * every pull request that follows it — this one blocked three.
-     *
-     * What remains covered: [downloadsExposeMetadataAndStreamTheBody] for a body's bytes reaching
-     * the caller, and [engineFailuresUseTheSamePortExceptionForTextAndDownloads] for an engine
-     * failure arriving as `NetworkTransportException`. What is not covered is the middle of those
-     * two — a transfer that starts and then breaks.
-     *
-     * Asserting it needs a real engine against a server that can cut a response short, which is an
-     * instrumented test rather than one of these. Worth doing the day a truncated download is
-     * suspected of being cached as a whole one; not worth a fifth arrangement of this.
-     */
 
     @Test
     fun responsePolicyAndSinkFailuresArePropagatedUnchanged() = runBlocking {
@@ -264,55 +148,21 @@ class KtorNetworkAdapterTest {
 
     @Test
     fun cancellationWhileWaitingForStreamBytesRemainsCancellation() = runBlocking {
-        val channel = ByteChannel(autoFlush = true)
-        val port = client { respond(channel) }
-
+        val port = client { respond(ByteChannel(autoFlush = true)) }
         assertFailsWith<TimeoutCancellationException> {
-            withTimeout(30L.milliseconds) {
-                port.runOperation(download = true)
-            }
+            withTimeout(30L.milliseconds) { port.download() }
         }
         Unit
     }
 
-    @Test
-    fun urlsRejectedByTheParserUseAStandardArgumentFailure() = runBlocking {
-        val port = client { error("the engine must not be called") }
-        for (download in listOf(false, true)) {
-            assertFailsWith<IllegalArgumentException> {
-                if (download) {
-                    port.download("https://example.test:invalid", onResponse = {}, onChunk = { _, _ -> })
-                } else {
-                    port.getText("https://example.test:invalid")
-                }
-            }
-        }
-    }
+    private suspend fun NetworkPort.download() =
+        download("https://example.test/audio.mp3", onResponse = {}, onChunk = { _, _ -> })
 
-    private suspend fun NetworkPort.runOperation(download: Boolean) {
-        if (download) {
-            download("https://example.test/audio.mp3", onResponse = {}, onChunk = { _, _ -> })
-        } else {
-            getText("https://example.test/audio.mp3")
-        }
-    }
-
-    /**
-     * [downgradeAllowed] only ever relaxes Ktor's own guard, so a test can reach the port's. The
-     * production client leaves it at Ktor's default.
-     */
     private fun client(
-        textTimeoutMillis: Long = 15_000L,
         downgradeAllowed: Boolean = false,
         handler: io.ktor.client.engine.mock.MockRequestHandler,
-    ): NetworkPort = KtorNetworkAdapter(
-        client = HttpClient(MockEngine(handler)) {
-            expectSuccess = false
-            // Installed only where a test needs Ktor's guard out of the way. Adding a Send phase
-            // to every client moves where an exception crosses a coroutine boundary, which was
-            // enough to turn the streaming test's cause into a stack-trace-recovery copy.
-            if (downgradeAllowed) install(HttpRedirect) { allowHttpsDowngrade = true }
-        }.also(clients::add),
-        textTimeoutMillis = textTimeoutMillis,
-    )
+    ): NetworkPort = KtorNetworkAdapter(HttpClient(MockEngine(handler)) {
+        expectSuccess = false
+        if (downgradeAllowed) install(HttpRedirect) { allowHttpsDowngrade = true }
+    }.also(clients::add))
 }

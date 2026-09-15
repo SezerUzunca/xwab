@@ -33,9 +33,22 @@ class LocalFirstDeliveryAdapterTest {
     }
 
     @Test
-    fun cacheFailuresBecomeUnavailable() = runBlocking {
+    fun cacheFailuresFallBackToHttps() = runBlocking {
         val adapter = LocalFirstDeliveryAdapter(FakeContentFileStore(failure = IllegalStateException("unreadable")), RecordingPrefetcher())
-        assertEquals("unreadable", assertIs<DeliveryResult.Unavailable>(adapter.resolve(request)).reason)
+        assertEquals(request.httpsUrl, assertIs<DeliveryResult.Resolved>(adapter.resolve(request)).uri)
+    }
+
+    @Test
+    fun prefetchFailuresDoNotPreventStreaming() = runBlocking {
+        val adapter = LocalFirstDeliveryAdapter(FakeContentFileStore(), RecordingPrefetcher(IllegalStateException("closed")))
+        assertEquals(request.httpsUrl, assertIs<DeliveryResult.Resolved>(adapter.resolve(request)).uri)
+    }
+
+    @Test
+    fun prefetchCancellationStillPropagates() = runBlocking {
+        val adapter = LocalFirstDeliveryAdapter(FakeContentFileStore(), RecordingPrefetcher(CancellationException()))
+        assertFailsWith<CancellationException> { adapter.resolve(request) }
+        Unit
     }
 
     @Test
@@ -50,9 +63,9 @@ class LocalFirstDeliveryAdapterTest {
         override suspend fun download(request: DeliveryRequest): Unit = fail("Only the prefetcher downloads.")
     }
 
-    private class RecordingPrefetcher : ContentPrefetcher {
+    private class RecordingPrefetcher(private val failure: Exception? = null) : ContentPrefetcher {
         val requests = mutableListOf<DeliveryRequest>()
-        override suspend fun prefetch(request: DeliveryRequest) { requests += request }
+        override suspend fun prefetch(request: DeliveryRequest) { failure?.let { throw it }; requests += request }
         override fun close() = Unit
     }
 }

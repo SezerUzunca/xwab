@@ -22,7 +22,6 @@ internal fun story(id: String, durationSeconds: Int = 180) = Story(
     description = "A test story.",
     narrator = "A narrator",
     durationSeconds = durationSeconds,
-    artworkUrl = null,
 )
 
 internal class FakeStoryCatalog(

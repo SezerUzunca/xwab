@@ -26,6 +26,7 @@ import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res as UiRes
 import xwab.designsystem.generated.resources.preparing
+import xwab.designsystem.generated.resources.favorites_read_failed
 import xwab.feature.favorites.generated.resources.Res
 import xwab.feature.favorites.generated.resources.favorites_empty
 import xwab.feature.favorites.generated.resources.favorites_title
@@ -71,7 +72,12 @@ internal fun FavoritesScreen(
                     modifier = Modifier.padding(bottom = SleepRelaxTheme.dimens.spacingLarge),
                 )
             }
-            if (state.tracks.isEmpty()) {
+            if (!state.favoritesAvailable) {
+                item {
+                    Text(stringResource(UiRes.string.favorites_read_failed), color = SleepRelaxTheme.colors.error)
+                }
+            }
+            if (state.tracks.isEmpty() && state.favoritesAvailable) {
                 item {
                     Text(
                         text = stringResource(Res.string.favorites_empty),

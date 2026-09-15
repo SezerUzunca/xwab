@@ -214,7 +214,7 @@ private fun reduceEngineFailed(
         pending = state.pending.copy(pendingPlayWhenReady = false),
         sleepTimerLifecycle = SleepTimerLifecycle.Cancelled,
     ),
-    listOf(PlaybackSideEffect.Pause, PlaybackSideEffect.CancelSleepTimer),
+    listOf(PlaybackSideEffect.PauseForFailure, PlaybackSideEffect.CancelSleepTimer),
 )
 
 private fun reduceEnginePlaybackEnded(state: PlaybackState): ReduceResult {

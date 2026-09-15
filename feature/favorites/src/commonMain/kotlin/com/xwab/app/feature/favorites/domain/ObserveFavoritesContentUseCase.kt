@@ -2,18 +2,17 @@ package com.xwab.app.feature.favorites.domain
 
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
-import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.favorites.port.FavoritesPort
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
 internal data class FavoritesContent(
     val tracks: List<Track>,
     val playback: PlaybackSummary,
+    val favoritesAvailable: Boolean = true,
 )
 
 /** Joins only the ports required by the user's saved-sounds capability. */
@@ -24,12 +23,13 @@ internal class ObserveFavoritesContentUseCase(
 ) {
     operator fun invoke(): Flow<FavoritesContent> = combine(
         soundPort.observeAllTracks(),
-        favoritesPort.observe(SOUND_FAVORITES_NAMESPACE).map { ids -> ids.mapTo(mutableSetOf(), ::TrackId) },
+        favoritesPort.observe(SOUND_FAVORITES_NAMESPACE),
         playbackPort.playback,
-    ) { tracks, favoriteIds, playback ->
+    ) { tracks, favorites, playback ->
         FavoritesContent(
-            tracks = tracks.filter { it.id in favoriteIds },
+            tracks = tracks.filter { it.id.value in favorites.ids },
             playback = playback,
+            favoritesAvailable = favorites.isAvailable,
         )
     }
 }

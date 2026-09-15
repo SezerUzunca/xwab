@@ -34,6 +34,8 @@ import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res as UiRes
 import xwab.designsystem.generated.resources.duration_public_domain
 import xwab.designsystem.generated.resources.preparing
+import xwab.designsystem.generated.resources.favorites_read_failed
+import xwab.designsystem.generated.resources.favorite_write_failed
 import xwab.feature.category.generated.resources.Res
 import xwab.feature.category.generated.resources.category_not_found
 import xwab.feature.category.generated.resources.category_track_count
@@ -112,6 +114,13 @@ internal fun CategoryScreen(
                 )
 
                 Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingHuge))
+                if (!state.favoritesAvailable || state.favoriteWriteFailed) {
+                    Text(
+                        text = stringResource(if (!state.favoritesAvailable) UiRes.string.favorites_read_failed else UiRes.string.favorite_write_failed),
+                        color = SleepRelaxTheme.colors.error,
+                        style = SleepRelaxTheme.typography.bodyMedium,
+                    )
+                }
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingSmall),
                 ) {
@@ -135,6 +144,7 @@ internal fun CategoryScreen(
                             trailingContent = {
                                 FavoriteButton(
                                     isFavorite = state.isRowFavorite(track.id),
+                                    enabled = state.favoritesAvailable,
                                     onClick = { onFavoriteClick(track.id) },
                                 )
                             },

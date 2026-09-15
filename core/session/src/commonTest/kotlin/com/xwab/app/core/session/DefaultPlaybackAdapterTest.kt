@@ -42,8 +42,26 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.withTimeout
 
 class DefaultPlaybackAdapterTest {
+    @Test
+    fun turningLoopOffBeforeLoadingNotifiesAnExistingCollector() = runBlocking {
+        val session = adapter(FakePlaybackEnginePort())
+        val values = Channel<Boolean>(Channel.UNLIMITED)
+        val collector = launch { session.playback.collect { values.send(it.isLooping) } }
+        try {
+            assertEquals(true, withTimeout(1_000) { values.receive() })
+            session.setLooping(false)
+            assertEquals(false, withTimeout(1_000) { values.receive() })
+        } finally {
+            collector.cancelAndJoin()
+            values.close()
+        }
+    }
+
     private val testContentResolver =
         DeliveryPort { trackId -> DeliveryResult.Resolved("test://$trackId") }
 
@@ -777,7 +795,6 @@ class DefaultPlaybackAdapterTest {
             description = "A literary short story.",
             narrator = "Alan Davis Drake",
             durationSeconds = 174,
-            artworkUrl = null,
         )
     }
 
