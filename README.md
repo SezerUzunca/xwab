@@ -32,6 +32,10 @@ destination routes.
 core reserves its public surface for ports, while UI components and reusable test fakes are not
 application capability ports.
 
+`designsystem` owns Material theme integration, stateless visual controls and shared UI-state
+types such as `Loadable`. Loading orchestration stays in features and the relevant core capabilities.
+Designsystem is independent of application projects; core cannot depend on it or on the app shell.
+
 ## Core boundary
 
 Every type crossing a core-module boundary lives in a `.port` package and is public. Kotlin's
@@ -141,8 +145,9 @@ internal Metro contributions behind `PlaybackEnginePort`.
 11. A feature exposes a declaration outside its navigation package or a DI `*Dependencies` class.
 12. Sound or story exposes more than one port interface or lacks its `SoundPort` / `StoryPort` contract.
 13. Favorites depends on another project, or delivery depends on a project other than itself or `:core:network`.
+14. Designsystem depends on another project, or core depends on designsystem or shared.
 
-Rules 5, 12 and 13 name modules by path, so each of those names is also checked against the modules
+Rules 5, 12, 13 and 14 name modules by path, so each of those names is also checked against the modules
 the build actually contains. Renaming one without updating its rule fails the build instead of
 leaving a rule that matches nothing and reports nothing.
 

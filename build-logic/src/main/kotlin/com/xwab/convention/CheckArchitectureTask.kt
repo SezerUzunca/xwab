@@ -35,6 +35,8 @@ import org.gradle.api.tasks.TaskAction
  *     are project-wide decisions.
  * 11. Features expose only navigation contracts and DI Dependencies classes; implementation
  *     declarations stay internal or private.
+ * 12. Designsystem has no application project dependencies; core cannot
+ *     depend on it or on the app shell.
  *
  * The rules themselves live in [FeatureFirstRules], where they are unit-tested from both sides.
  * This task is only their plumbing: it collects the dependency graph and source/configuration files.

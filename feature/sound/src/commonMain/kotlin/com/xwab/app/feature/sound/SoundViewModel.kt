@@ -41,7 +41,7 @@ internal class SoundViewModel(
             track = content.track,
             favoritesAvailable = content.favoritesAvailable,
             favoriteWriteFailed = writeFailed,
-            isFavorite = trackId in content.favoriteIds,
+            isFavorite = content.isFavorite,
             playIntent = isRequested && playback.playIntent,
             isPreparing = isRequested && playback.isPreparing,
             // Straight from the session, including before anything is loaded: the product default

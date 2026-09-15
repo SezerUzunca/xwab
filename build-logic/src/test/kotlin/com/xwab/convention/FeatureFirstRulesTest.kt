@@ -111,7 +111,7 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
-                mapOf(":core:session" to FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys.toList()),
+                mapOf(":core:session" to FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys.filter { it != ":shared" }),
             ),
         )
     }
@@ -311,6 +311,7 @@ class FeatureFirstRulesTest {
         // Kept per rule rather than flattened: `:core:delivery` is named by two of them, and each
         // has to report it, or one rule could go stale behind the other still holding the name.
         val referencesPerRule = listOf(
+            FeatureFirstRules.INDEPENDENT_SUPPORT_MODULES,
             FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys,
             FeatureFirstRules.CONTENT_MODULE_PORTS.keys,
             FeatureFirstRules.REUSABLE_MODULE_DEPENDENCIES.keys +
@@ -325,6 +326,7 @@ class FeatureFirstRulesTest {
         assertEquals(emptyList(), FeatureFirstRules.staleRuleViolations(everyNamedModule))
 
         listOf(
+            ":designsystem" to "INDEPENDENT_SUPPORT_MODULES",
             FeatureFirstRules.CONTENT_MODULE_PORTS.keys.first() to "CONTENT_MODULE_PORTS",
             FeatureFirstRules.REUSABLE_MODULE_DEPENDENCIES.keys.first() to "REUSABLE_MODULE_DEPENDENCIES",
         ).forEach { (renamed, constant) ->
@@ -773,6 +775,25 @@ class FeatureFirstRulesTest {
         assertEquals(emptyList(), FeatureFirstRules.staleRuleViolations(graph.keys))
         assertEquals(emptyList(), FeatureFirstRules.featureModuleShapeViolations(graph.keys))
         assertEquals(emptyList(), FeatureFirstRules.dependencyViolations(graph, apiEdges))
+    }
+
+    @Test
+    fun supportModulesCannotAcquireApplicationDependencies() {
+        for (module in listOf(":designsystem")) {
+            for (dependency in listOf(":feature:sound", ":core:sound", ":shared", ":testing")) {
+                assertTrue(FeatureFirstRules.dependencyViolations(mapOf(module to listOf(dependency)))
+                    .any { it.contains("must remain independent") })
+            }
+            assertEquals(emptyList(), FeatureFirstRules.dependencyViolations(mapOf(module to listOf(module))))
+        }
+    }
+
+    @Test
+    fun coreCannotDependOnUiOrTheShell() {
+        for (dependency in listOf(":designsystem", ":shared")) {
+            assertTrue(FeatureFirstRules.dependencyViolations(mapOf(":core:sound" to listOf(dependency)))
+                .any { it.contains("may not depend on UI") })
+        }
     }
 
     private fun coreSource(path: String, packageSuffix: String, declaration: String) =

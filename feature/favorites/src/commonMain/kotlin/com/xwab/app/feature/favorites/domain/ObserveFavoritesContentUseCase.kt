@@ -8,6 +8,7 @@ import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 internal data class FavoritesContent(
     val tracks: List<Track>,
@@ -21,15 +22,23 @@ internal class ObserveFavoritesContentUseCase(
     private val favoritesPort: FavoritesPort,
     private val playbackPort: PlaybackPort,
 ) {
-    operator fun invoke(): Flow<FavoritesContent> = combine(
+    private fun savedTracks(): Flow<SavedTracks> = combine(
         soundPort.observeAllTracks(),
         favoritesPort.observe(SOUND_FAVORITES_NAMESPACE),
+    ) { tracks, favorites ->
+        SavedTracks(tracks.filter { it.id.value in favorites.ids }, favorites.isAvailable)
+    }.distinctUntilChanged()
+
+    operator fun invoke(): Flow<FavoritesContent> = combine(
+        savedTracks(),
         playbackPort.playback,
-    ) { tracks, favorites, playback ->
+    ) { saved, playback ->
         FavoritesContent(
-            tracks = tracks.filter { it.id.value in favorites.ids },
+            tracks = saved.tracks,
             playback = playback,
-            favoritesAvailable = favorites.isAvailable,
+            favoritesAvailable = saved.isAvailable,
         )
     }
+
+    private data class SavedTracks(val tracks: List<Track>, val isAvailable: Boolean)
 }
