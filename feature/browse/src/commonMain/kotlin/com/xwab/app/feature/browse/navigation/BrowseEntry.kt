@@ -10,7 +10,7 @@ import com.xwab.app.feature.browse.di.BrowseDependencies
 
 /** Where this feature's routes turn into screens. */
 fun EntryProviderScope<NavKey>.browseEntry(
-    dependencies: BrowseDependencies,
+    dependencies: () -> BrowseDependencies,
     onCategoryClick: (CategoryId) -> Unit,
 ) {
     entry<BrowseRoute> {
@@ -18,7 +18,7 @@ fun EntryProviderScope<NavKey>.browseEntry(
             onCategoryClick = onCategoryClick,
             // Built here rather than pulled from the graph: the ViewModel is internal to this
             // module, and `viewModel` scopes it to the entry's own store.
-            viewModel = viewModel { BrowseViewModel(soundPort = dependencies.soundPort) },
+            viewModel = viewModel { BrowseViewModel(soundPort = dependencies().soundPort) },
         )
     }
 }

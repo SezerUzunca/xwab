@@ -12,7 +12,7 @@ import com.xwab.app.feature.category.domain.ObserveCategoryContentUseCase
 
 /** Where this feature's routes turn into screens. */
 fun EntryProviderScope<NavKey>.categoryEntry(
-    dependencies: CategoryDependencies,
+    dependencies: () -> CategoryDependencies,
     onTrackClick: (TrackId) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -23,15 +23,16 @@ fun EntryProviderScope<NavKey>.categoryEntry(
             // A route is a serialized wire format, so it carries the plain id and the wrapper goes
             // back on here — the one place this feature handles a bare category string.
             viewModel = viewModel {
+                val ports = dependencies()
                 CategoryViewModel(
                     categoryId = CategoryId(route.categoryId),
                     observeCategoryContentUseCase = ObserveCategoryContentUseCase(
-                        dependencies.soundPort,
-                        dependencies.favoritesPort,
-                        dependencies.playbackPort,
+                        ports.soundPort,
+                        ports.favoritesPort,
+                        ports.playbackPort,
                     ),
-                    favoritesPort = dependencies.favoritesPort,
-                    playbackPort = dependencies.playbackPort,
+                    favoritesPort = ports.favoritesPort,
+                    playbackPort = ports.playbackPort,
                 )
             },
         )

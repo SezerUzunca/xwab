@@ -60,7 +60,9 @@ compile time, so missing or ambiguous bindings fail compilation.
 
 Metro's generated public contribution providers return ports, keeping the concrete adapter types
 hidden. Feature `*Dependencies` classes are public DI contracts containing ports with internal
-properties; `shared.di` exposes these bags so the composition root can pass them to feature entries.
+properties; `shared.di` exposes `() -> Dependencies` providers so the composition root can register
+feature entries without initializing their ports. Each feature invokes its provider only inside
+the entry's ViewModel initializer.
 
 ```text
 core/

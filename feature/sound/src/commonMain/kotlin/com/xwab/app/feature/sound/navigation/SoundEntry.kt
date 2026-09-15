@@ -11,25 +11,26 @@ import com.xwab.app.feature.sound.domain.ObserveSoundContentUseCase
 
 /** Where this feature's routes turn into screens. */
 fun EntryProviderScope<NavKey>.soundEntry(
-    dependencies: SoundDependencies,
+    dependencies: () -> SoundDependencies,
     onBack: () -> Unit,
 ) {
     entry<SoundRoute> { route ->
         SoundScreenRoute(
             onBack = onBack,
             viewModel = viewModel {
+                val ports = dependencies()
                 SoundViewModel(
                     // A route is a serialized wire format, so it carries the plain id and the
                     // wrapper goes back on here — the one place this feature handles a bare
                     // track string.
                     trackId = TrackId(route.trackId),
                     observeSoundContentUseCase = ObserveSoundContentUseCase(
-                        dependencies.soundPort,
-                        dependencies.favoritesPort,
-                        dependencies.playbackPort,
+                        ports.soundPort,
+                        ports.favoritesPort,
+                        ports.playbackPort,
                     ),
-                    favoritesPort = dependencies.favoritesPort,
-                    playbackPort = dependencies.playbackPort,
+                    favoritesPort = ports.favoritesPort,
+                    playbackPort = ports.playbackPort,
                 )
             },
         )

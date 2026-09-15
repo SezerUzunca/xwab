@@ -12,12 +12,11 @@ import androidx.navigation3.runtime.NavKey
  * top-level destination keeps its own history and the shell renders the one that is selected.
  *
  * Deliberately free of Compose *composition* — it holds a [MutableState] so the shell recomposes,
- * but nothing here is `@Composable`. [NavigatorTest] drives the whole thing without a UI, which is
+ * but nothing here is `@Composable`. NavigatorTest drives the whole thing without a UI, which is
  * the only way the tab rules below are checked from both sides.
  *
- * Follows the multiple-back-stacks recipe in the Navigation 3 documentation, with one deviation:
- * the selected tab is persisted by the shell as an index rather than through a `NavKey` serializer,
- * because `navigation3-runtime` 1.1.1 publishes no such serializer for Kotlin Multiplatform.
+ * Follows the multiple-back-stacks recipe in the Navigation 3 documentation. The selected tab is
+ * persisted by the caller, with the same `NavKey` polymorphism the back stacks are saved with.
  *
  * @param startRoute the tab back falls through to, and the one the app exits from.
  * @param backStacks one stack per top-level route, each already holding that route as its root.

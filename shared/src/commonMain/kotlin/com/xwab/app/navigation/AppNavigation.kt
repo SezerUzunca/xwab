@@ -4,8 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material3.Icon
-import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation3.runtime.NavKey
 import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.browse.navigation.browseNavigationSerializers
@@ -16,17 +15,23 @@ import com.xwab.app.feature.sound.navigation.soundNavigationSerializers
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import com.xwab.app.feature.story.navigation.storiesNavigationSerializers
 import kotlinx.serialization.modules.SerializersModule
-import org.jetbrains.compose.resources.stringResource
+import org.jetbrains.compose.resources.StringResource
 import xwab.shared.generated.resources.Res
 import xwab.shared.generated.resources.tab_browse
 import xwab.shared.generated.resources.tab_favorites
 import xwab.shared.generated.resources.tab_stories
 
-/** App-owned metadata for one root destination in the navigation bar. */
+/**
+ * App-owned metadata for one root destination in the navigation bar.
+ *
+ * Which label and which icon belongs to a tab is application policy, so it is decided here. How
+ * either one is drawn is not: this class carries the resource and the vector, and
+ * [com.xwab.app.ui.AppNavigationBar] is the only place that emits a composable from them.
+ */
 internal class TopLevelDestination(
     val route: NavKey,
-    val label: @Composable () -> String,
-    val icon: @Composable () -> Unit,
+    val label: StringResource,
+    val icon: ImageVector,
 )
 
 /**
@@ -38,22 +43,27 @@ internal class TopLevelDestination(
 internal val TOP_LEVEL_DESTINATIONS: List<TopLevelDestination> = listOf(
     TopLevelDestination(
         route = BrowseRoute,
-        label = { stringResource(Res.string.tab_browse) },
-        icon = { Icon(Icons.Filled.Home, contentDescription = null) },
+        label = Res.string.tab_browse,
+        icon = Icons.Filled.Home,
     ),
     TopLevelDestination(
         route = FavoritesRoute,
-        label = { stringResource(Res.string.tab_favorites) },
-        icon = { Icon(Icons.Filled.Favorite, contentDescription = null) },
+        label = Res.string.tab_favorites,
+        icon = Icons.Filled.Favorite,
     ),
     TopLevelDestination(
         route = StoriesRoute,
-        label = { stringResource(Res.string.tab_stories) },
-        icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
+        label = Res.string.tab_stories,
+        icon = Icons.AutoMirrored.Filled.List,
     ),
 )
 
-/** The app explicitly assembles the route serializers exported by feature navigation packages. */
+/**
+ * The app explicitly assembles the route serializers exported by feature navigation packages.
+ *
+ * A route registered with `appEntryProvider` but missing here fails only when a saved back stack is
+ * restored, which is why FeatureSerializersTest checks both directions of every route.
+ */
 internal val FEATURE_SERIALIZERS: SerializersModule = SerializersModule {
     include(browseNavigationSerializers)
     include(favoritesNavigationSerializers)

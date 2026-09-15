@@ -169,7 +169,7 @@ import com.xwab.app.feature.${pkg}.${Pascal}ViewModel
 import com.xwab.app.feature.${pkg}.di.${Pascal}Dependencies
 
 /** Converts this feature's route into its internal UI. */
-fun EntryProviderScope<NavKey>.${camel}Entry(dependencies: ${Pascal}Dependencies) {
+fun EntryProviderScope<NavKey>.${camel}Entry(dependencies: () -> ${Pascal}Dependencies) {
     entry<${Pascal}Route> {
         ${Pascal}ScreenRoute(viewModel = viewModel { ${Pascal}ViewModel() })
     }
@@ -193,8 +193,8 @@ class ${Pascal}ViewModelTest {
 Write-Host ""
 Write-Host "Done. Wire the feature in the app shell:" -ForegroundColor Green
 Write-Host "  1. Add implementation(projects.feature.${camel}) to shared/build.gradle.kts."
-Write-Host "  2. Expose ${camel}Dependencies from shared/.../di/AppGraph.kt."
-Write-Host "  3. Register ${camel}Entry and ${camel}NavigationSerializers in AppNavigation.kt."
+Write-Host "  2. Expose ${camel}Dependencies as () -> ${Pascal}Dependencies in shared/.../di/AppGraph.kt."
+Write-Host "  3. Register ${camel}Entry in AppEntryProvider.kt and ${camel}NavigationSerializers in AppNavigation.kt."
 Write-Host "  4. Add ${Pascal}Route as a top-level route or connect it to an existing intent."
 Write-Host ""
 Write-Host "Then: ./gradlew :feature:${Name}:compileCommonMainKotlinMetadata checkArchitecture"

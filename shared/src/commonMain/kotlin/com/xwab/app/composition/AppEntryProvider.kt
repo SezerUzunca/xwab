@@ -15,8 +15,8 @@ import com.xwab.app.feature.story.navigation.storiesEntry
 /**
  * Connects feature entry providers to the navigation actions owned by the application root.
  *
- * Each feature is handed exactly two things: the ports it reads, resolved by [graph], and where its
- * intents go, which stays this module's decision.
+ * Each feature receives a provider for its ports and callbacks for its navigation intents.
+ * Providers are invoked inside feature ViewModel initializers, not while registering entries.
  */
 internal fun appEntryProvider(
     graph: AppGraph,

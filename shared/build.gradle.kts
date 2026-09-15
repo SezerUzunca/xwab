@@ -1,11 +1,12 @@
+import dev.zacsweers.metro.gradle.DiagnosticSeverity
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 /**
  * The composition root configures its own targets rather than applying `xwab.kmp.compose`.
  *
- * It is the only module that produces an iOS framework binary, and the only one whose host tests
- * need Android resources. It owns application wiring and the app shell; feature UI lives in the
- * feature modules it assembles.
+ * It is the only module that produces an iOS framework binary, and the only one that declares the
+ * application graph. It owns application wiring and the app shell; feature UI lives in the feature
+ * modules it assembles.
  */
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -15,6 +16,13 @@ plugins {
     // Declared here rather than inherited: this module skips `xwab.kmp.library`, which is what
     // applies Metro everywhere else, and the application graph is generated in this module.
     alias(libs.plugins.metro)
+}
+
+// Mirrors what `xwab.kmp.library` configures for every other module, so the module that merges the
+// contributions is not the one module Metro is configured differently in.
+metro {
+    generateContributionProviders.set(true)
+    nonPublicContributionSeverity.set(DiagnosticSeverity.ERROR)
 }
 
 compose.resources {
@@ -42,12 +50,12 @@ kotlin {
         compilerOptions {
             jvmTarget = JvmTarget.JVM_11
         }
+        // Compose resources ship as Android assets, so the tab labels need this even though no
+        // host test reads one.
         androidResources {
             enable = true
         }
-        withHostTest {
-            isIncludeAndroidResources = true
-        }
+        withHostTest { }
     }
 
     sourceSets {
@@ -74,6 +82,8 @@ kotlin {
             implementation(libs.compose.ui)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
+            // The tab icons are this module's own, not something it borrows from `:designsystem`.
+            implementation(libs.compose.material.icons.extended)
             implementation(libs.compose.components.resources)
             implementation(libs.navigation3.runtime)
             implementation(libs.navigation3.ui)
@@ -82,9 +92,6 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
-            implementation(projects.testing)
-            // The root's navigation contract tests deliberately assert that every public
-            // route can be restored and rendered.
         }
     }
 }

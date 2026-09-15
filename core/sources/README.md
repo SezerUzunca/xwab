@@ -20,4 +20,5 @@ Sound and story addresses live in separate internal manifests, while `ManifestSo
 the module's single Metro binding. This module is a dependency-free leaf: it knows no sound, story,
 delivery, or playback types. Source rows validate HTTPS, safe cache filenames, non-blank headers,
 unique item IDs, unique cache names, and unique URLs in tests. Metadata/source completeness is
-checked from `:shared`, the one module whose test graph can see all three ports.
+checked from `:core:session`, the module that makes the same lookup at runtime and already depends
+on all three ports.
