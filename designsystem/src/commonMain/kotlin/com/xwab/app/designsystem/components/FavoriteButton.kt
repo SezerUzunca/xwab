@@ -30,13 +30,25 @@ fun FavoriteButton(
     enabled: Boolean = true,
     isLoading: Boolean = false,
 ) {
-    IconButton(onClick = onClick, modifier = modifier, enabled = enabled && !isLoading) {
+    val loadingDescription = stringResource(Res.string.favorites_loading)
+    IconButton(
+        onClick = onClick,
+        // A waiting favorite is described on the button, not on the spinner inside it. Material's
+        // indeterminate indicator carries `progressSemantics`, which merges its own descendants and
+        // therefore stands as a node of its own instead of folding into the button. Described
+        // there, the label named a node with no enabled state to announce: a reader found the
+        // spinner and never the control it was disabling, and an assertion about the control being
+        // refused had nothing to assert on.
+        modifier = if (isLoading) {
+            modifier.semantics { contentDescription = loadingDescription }
+        } else {
+            modifier
+        },
+        enabled = enabled && !isLoading,
+    ) {
         if (isLoading) {
-            val loadingDescription = stringResource(Res.string.favorites_loading)
             CircularProgressIndicator(
-                modifier = Modifier
-                    .size(SleepRelaxTheme.dimens.iconSmall)
-                    .semantics { contentDescription = loadingDescription },
+                modifier = Modifier.size(SleepRelaxTheme.dimens.iconSmall),
                 color = SleepRelaxTheme.colors.textSecondary,
             )
         } else Icon(

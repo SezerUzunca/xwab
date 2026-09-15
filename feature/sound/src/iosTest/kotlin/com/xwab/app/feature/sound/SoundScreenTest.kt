@@ -108,39 +108,17 @@ class SoundScreenTest {
     }
 
     /**
-     * The pending favourite read is asserted as four tests rather than four lines.
-     *
-     * Kotlin/Native reports every simulator failure as a bare `kotlin.AssertionError at null:-1`
-     * with no message, and CI uploads no report, so the only thing a failing run names is the
-     * *test*. Splitting the assertions across lines told us nothing; splitting them across names
-     * does. Fold them back into one once the answer is in.
+     * A pending read waits at the heart and nowhere else, and the waiting heart is still the thing
+     * a tap is refused by — asserted on the control, which is where the design system now puts the
+     * description.
      */
     @Test
-    fun aPendingFavoriteReadStillDrawsTheSound() = runComposeUiTest {
+    fun aPendingFavoriteReadOnlyWaitsAtTheFavoriteControl() = runComposeUiTest {
         show(SoundState(track = TRACK, favoriteReadStatus = SoundFavoriteReadStatus.Pending))
 
         onNodeWithText(TRACK_NAME).assertExists()
-    }
-
-    @Test
-    fun aPendingFavoriteReadLeavesTheTransportEnabled() = runComposeUiTest {
-        show(SoundState(track = TRACK, favoriteReadStatus = SoundFavoriteReadStatus.Pending))
-
         onNodeWithContentDescription(PLAY).assertIsEnabled()
-    }
-
-    @Test
-    fun aPendingFavoriteReadReplacesTheHeartWithADescribedSpinner() = runComposeUiTest {
-        show(SoundState(track = TRACK, favoriteReadStatus = SoundFavoriteReadStatus.Pending))
-
         onNodeWithContentDescription(ADD_FAVORITE).assertDoesNotExist()
-        onNodeWithContentDescription(FAVORITES_LOADING).assertExists()
-    }
-
-    @Test
-    fun aPendingFavoriteReadRefusesTheFavoriteControl() = runComposeUiTest {
-        show(SoundState(track = TRACK, favoriteReadStatus = SoundFavoriteReadStatus.Pending))
-
         onNodeWithContentDescription(FAVORITES_LOADING).assertIsNotEnabled()
         onNodeWithText(FAVORITES_UNAVAILABLE).assertDoesNotExist()
     }
