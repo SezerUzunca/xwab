@@ -80,6 +80,9 @@ internal object FeatureFirstRules {
         ":core:delivery" to setOf(":core:network"),
     )
 
+    /** UI primitives and presentation models have no application project dependencies. */
+    val INDEPENDENT_SUPPORT_MODULES = setOf(":designsystem")
+
     /**
      * Every rule that names a module by path, and the constant holding those names.
      *
@@ -89,6 +92,7 @@ internal object FeatureFirstRules {
      * thing that breaks the build, rather than the next mistake the rule was meant to catch.
      */
     private val RULE_MODULE_REFERENCES: List<Triple<String, String, Set<String>>> = listOf(
+        Triple("independent-support rule", "INDEPENDENT_SUPPORT_MODULES", INDEPENDENT_SUPPORT_MODULES),
         Triple(
             "adapter-boundary rule",
             "MODULES_OFF_LIMITS_TO_FEATURES",
@@ -178,6 +182,15 @@ internal object FeatureFirstRules {
                 }
                 if (module.startsWith(CORE_PREFIX) && dependency.startsWith(FEATURE_PREFIX)) {
                     violations += "$module depends on $dependency. A core module may not depend on a feature."
+                }
+
+                if (module in INDEPENDENT_SUPPORT_MODULES && dependency != module) {
+                    violations += "$module depends on $dependency. Support modules must remain independent of application projects."
+                }
+                if (module.startsWith(CORE_PREFIX) &&
+                    (dependency == ":shared" || dependency in INDEPENDENT_SUPPORT_MODULES)
+                ) {
+                    violations += "$module depends on $dependency. Core capabilities may not depend on UI or the app shell."
                 }
 
                 if (

@@ -24,12 +24,8 @@ data class SleepRelaxDimens(
     
     val playIconCircleSize: Dp = 38.dp,
     val largePlayCircleSize: Dp = 68.dp,
-    val albumArtSize: Dp = 220.dp,
-    val albumArtInnerSize: Dp = 100.dp,
 
     val contentMaxWidth: Dp = 600.dp,
-    val categoryCardMinWidth: Dp = 150.dp,
-    val shortWindowMaxHeight: Dp = 900.dp,
 )
 
 val LocalSleepRelaxDimens = staticCompositionLocalOf { SleepRelaxDimens() }

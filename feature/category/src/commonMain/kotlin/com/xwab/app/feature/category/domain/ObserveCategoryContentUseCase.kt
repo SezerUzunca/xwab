@@ -11,6 +11,8 @@ import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
 internal data class CategoryContent(
     val category: Category?,
@@ -32,9 +34,13 @@ internal class ObserveCategoryContentUseCase(
     operator fun invoke(categoryId: CategoryId): Flow<CategoryContent> = combine(
         soundPort.observeCategory(categoryId),
         soundPort.observeTracksForCategory(categoryId),
-        favoritesPort.observe(SOUND_FAVORITES_NAMESPACE),
+        favoritesPort.observe(SOUND_FAVORITES_NAMESPACE)
+            .map { FavoriteStatus(it.ids.mapTo(mutableSetOf(), ::TrackId), it.isAvailable) }
+            .distinctUntilChanged(),
         playbackPort.playback,
     ) { category, tracks, favorites, playback ->
-        CategoryContent(category, tracks, favorites.ids.mapTo(mutableSetOf(), ::TrackId), playback, favorites.isAvailable)
+        CategoryContent(category, tracks, favorites.ids, playback, favorites.isAvailable)
     }
+
+    private data class FavoriteStatus(val ids: Set<TrackId>, val isAvailable: Boolean)
 }

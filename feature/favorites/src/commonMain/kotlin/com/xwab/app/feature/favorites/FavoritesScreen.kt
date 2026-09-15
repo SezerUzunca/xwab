@@ -74,7 +74,11 @@ internal fun FavoritesScreen(
             }
             if (!state.favoritesAvailable) {
                 item {
-                    Text(stringResource(UiRes.string.favorites_read_failed), color = SleepRelaxTheme.colors.error)
+                    Text(
+                        stringResource(UiRes.string.favorites_read_failed),
+                        color = SleepRelaxTheme.colors.error,
+                        style = SleepRelaxTheme.typography.bodyMedium,
+                    )
                 }
             }
             if (state.tracks.isEmpty() && state.favoritesAvailable) {
@@ -87,7 +91,14 @@ internal fun FavoritesScreen(
                 }
             } else {
                 items(state.tracks, key = { it.id.value }) { track ->
-                    FavoriteRow(track, state, onTrackClick, onPlaybackClick)
+                    FavoriteRow(
+                        track = track,
+                        isPlaying = state.isRowPlaying(track.id),
+                        isPreparing = state.isRowPreparing(track.id),
+                        failure = state.rowFailure(track.id),
+                        onTrackClick = onTrackClick,
+                        onPlaybackClick = onPlaybackClick,
+                    )
                 }
             }
         }
@@ -97,7 +108,9 @@ internal fun FavoritesScreen(
 @Composable
 private fun FavoriteRow(
     track: Track,
-    state: FavoritesState,
+    isPlaying: Boolean,
+    isPreparing: Boolean,
+    failure: PlaybackFailure?,
     onTrackClick: (TrackId) -> Unit,
     onPlaybackClick: (TrackId) -> Unit,
 ) {
@@ -105,12 +118,12 @@ private fun FavoriteRow(
     PlayableRow(
         title = track.name,
         subtitle = formatDuration(track.durationSeconds),
-        isPlaying = state.isRowPlaying(track.id),
+        isPlaying = isPlaying,
         onClick = { onTrackClick(track.id) },
         onPlayPauseClick = { onPlaybackClick(track.id) },
         statusMessage = stringResource(UiRes.string.preparing)
-            .takeIf { state.isRowPreparing(track.id) },
-        errorMessage = state.rowFailure(track.id)?.let { stringResource(it.messageResource()) },
+            .takeIf { isPreparing },
+        errorMessage = failure?.let { stringResource(it.messageResource()) },
     )
 }
 

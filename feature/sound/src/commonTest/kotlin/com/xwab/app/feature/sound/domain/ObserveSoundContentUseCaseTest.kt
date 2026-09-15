@@ -1,6 +1,7 @@
 package com.xwab.app.feature.sound.domain
 
 import com.xwab.app.core.sound.port.TrackId
+import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.testing.FakeFavorites
@@ -11,10 +12,50 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
 class ObserveSoundContentUseCaseTest {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun unrelatedFavoritesDoNotRepublishButTimerAndAvailabilityChangesDo() = runTest {
+        val favorites = FakeFavorites(setOf(rain.id))
+        val playback = FakePlaybackPort()
+        val emissions = mutableListOf<SoundContent>()
+        val useCase = ObserveSoundContentUseCase(catalog, favorites, playback)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            useCase(rain.id).toList(emissions)
+        }
+        runCurrent()
+        assertTrue(emissions.single().isFavorite)
+
+        favorites.toggle(SOUND_FAVORITES_NAMESPACE, "other-sound")
+        runCurrent()
+        assertEquals(1, emissions.size)
+
+        playback.publishSleepTimer(59_000L)
+        runCurrent()
+        assertEquals(59_000L, emissions.last().sleepTimerRemainingMs)
+        assertTrue(emissions.last().isFavorite)
+
+        favorites.available.value = false
+        runCurrent()
+        assertFalse(emissions.last().favoritesAvailable)
+
+        favorites.available.value = true
+        favorites.toggle(SOUND_FAVORITES_NAMESPACE, rain.id.value)
+        runCurrent()
+        assertTrue(emissions.last().favoritesAvailable)
+        assertFalse(emissions.last().isFavorite)
+    }
+
     private val rain = track("gentle-rain", categoryId = "rain")
     private val catalog = FakeSoundCatalog(tracks = listOf(rain))
 
@@ -34,7 +75,7 @@ class ObserveSoundContentUseCaseTest {
         val content = useCase(TrackId("gentle-rain")).first()
 
         assertEquals(rain, content.track)
-        assertEquals(setOf(TrackId("gentle-rain")), content.favoriteIds)
+        assertTrue(content.isFavorite)
         assertTrue(content.playback.isPlaying)
         assertEquals(90_000L, content.sleepTimerRemainingMs)
     }

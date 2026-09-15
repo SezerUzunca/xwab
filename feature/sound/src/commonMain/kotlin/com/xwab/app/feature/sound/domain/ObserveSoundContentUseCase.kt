@@ -9,10 +9,12 @@ import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
 internal data class SoundContent(
     val track: Track?,
-    val favoriteIds: Set<TrackId>,
+    val isFavorite: Boolean,
     val playback: PlaybackSummary,
     val sleepTimerRemainingMs: Long?,
     val favoritesAvailable: Boolean = true,
@@ -30,16 +32,20 @@ internal class ObserveSoundContentUseCase(
 ) {
     operator fun invoke(trackId: TrackId): Flow<SoundContent> = combine(
         soundPort.observeTrack(trackId),
-        favoritesPort.observe(SOUND_FAVORITES_NAMESPACE),
+        favoritesPort.observe(SOUND_FAVORITES_NAMESPACE)
+            .map { FavoriteStatus(trackId.value in it.ids, it.isAvailable) }
+            .distinctUntilChanged(),
         playbackPort.playback,
         playbackPort.sleepTimerRemainingMs,
     ) { track, favorites, playback, sleepTimerRemainingMs ->
         SoundContent(
             track = track,
-            favoriteIds = favorites.ids.mapTo(mutableSetOf(), ::TrackId),
+            isFavorite = favorites.isFavorite,
             favoritesAvailable = favorites.isAvailable,
             playback = playback,
             sleepTimerRemainingMs = sleepTimerRemainingMs,
         )
     }
+
+    private data class FavoriteStatus(val isFavorite: Boolean, val isAvailable: Boolean)
 }

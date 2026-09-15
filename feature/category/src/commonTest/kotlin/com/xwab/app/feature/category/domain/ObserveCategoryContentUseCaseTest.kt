@@ -2,6 +2,8 @@ package com.xwab.app.feature.category.domain
 
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.TrackId
+import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
+import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.testing.FakeFavorites
 import com.xwab.app.testing.FakeSoundCatalog
 import com.xwab.app.testing.FakePlaybackPort
@@ -11,10 +13,47 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
+import kotlin.test.assertSame
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
 class ObserveCategoryContentUseCaseTest {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun playbackReusesFavoriteIdsWhileAvailabilityAndMembershipStillUpdate() = runTest {
+        val favorites = FakeFavorites(setOf(waves.id))
+        val playback = FakePlaybackPort()
+        val emissions = mutableListOf<CategoryContent>()
+        val useCase = ObserveCategoryContentUseCase(catalog, favorites, playback)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            useCase(CategoryId("ocean")).toList(emissions)
+        }
+        runCurrent()
+        val favoriteIds = emissions.single().favoriteIds
+
+        playback.publish(PlaybackSummary(volume = 0.5f))
+        runCurrent()
+        assertEquals(0.5f, emissions.last().playback.volume)
+        assertSame(favoriteIds, emissions.last().favoriteIds)
+
+        favorites.available.value = false
+        runCurrent()
+        assertFalse(emissions.last().favoritesAvailable)
+
+        favorites.available.value = true
+        favorites.toggle(SOUND_FAVORITES_NAMESPACE, waves.id.value)
+        runCurrent()
+        assertTrue(emissions.last().favoritesAvailable)
+        assertTrue(emissions.last().favoriteIds.isEmpty())
+    }
+
     private val rain = track("gentle-rain", categoryId = "rain")
     private val waves = track("calm-waves", categoryId = "ocean")
     private val birds = track("forest-birds", categoryId = "forest")
