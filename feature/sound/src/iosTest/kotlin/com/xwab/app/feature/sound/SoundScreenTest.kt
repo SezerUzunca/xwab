@@ -112,7 +112,15 @@ class SoundScreenTest {
         show(SoundState(track = TRACK, favoriteReadStatus = SoundFavoriteReadStatus.Pending))
 
         onNodeWithText(TRACK_NAME).assertExists()
+        onNodeWithContentDescription(PLAY).assertExists()
         onNodeWithContentDescription(PLAY).assertIsEnabled()
+        // Split deliberately. The spinner carries its description through a `semantics` block
+        // rather than an `Icon` parameter, so "not described at all" and "described, but on a node
+        // that carries no enabled state" are different failures — and asserted in one line they
+        // read the same. The simulator report that would tell them apart is not uploaded by CI, so
+        // the assertions have to name the difference themselves.
+        onNodeWithContentDescription(ADD_FAVORITE).assertDoesNotExist()
+        onNodeWithContentDescription(FAVORITES_LOADING).assertExists()
         onNodeWithContentDescription(FAVORITES_LOADING).assertIsNotEnabled()
         onNodeWithText(FAVORITES_UNAVAILABLE).assertDoesNotExist()
     }
