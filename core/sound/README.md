@@ -15,7 +15,8 @@ of their own, outside this one, and are named in rule 13 to keep them that way.
 Add track metadata in
 [CatalogManifest.kt](src/commonMain/kotlin/com/xwab/app/core/sound/CatalogManifest.kt), and add its
 physical source in `:core:sources` in the same change. Tests validate unique IDs, valid categories,
-positive durations and at least four tracks per category. A composition-root consistency test
-ensures every published track has a source before it can ship.
+positive durations and at least four tracks per category. A consistency test in `:core:session`,
+the module that pairs a track with its address at runtime, ensures every published track has a
+source before it can ship.
 
 The catalog is local application data. This module has no HTTP client or cache implementation.

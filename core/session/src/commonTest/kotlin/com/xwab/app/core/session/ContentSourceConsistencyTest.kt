@@ -1,4 +1,4 @@
-package com.xwab.app.composition
+package com.xwab.app.core.session
 
 import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.sources.port.SOUND_NAMESPACE
@@ -13,7 +13,13 @@ import kotlin.test.assertNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
-/** Replaces the compile-time coupling lost when metadata and physical addresses were separated. */
+/**
+ * Replaces the compile-time coupling lost when metadata and physical addresses were separated.
+ *
+ * It belongs to this module because pairing published content with the address it plays from is
+ * what the session does: [SoundPlaybackResolver] and [StoryPlaybackResolver] make exactly this
+ * lookup at runtime, and the three ports the check needs are already this module's dependencies.
+ */
 class ContentSourceConsistencyTest {
     @Test
     fun everyPublishedContentItemHasAPhysicalSource() = runBlocking {
@@ -34,6 +40,14 @@ class ContentSourceConsistencyTest {
     }
 }
 
+/**
+ * The three catalog ports, and nothing else.
+ *
+ * The scope's other contributions — the delivery, playback and platform adapters this module also
+ * depends on — are on the classpath but unreachable from these three accessors, and Metro drops
+ * bindings no accessor reaches. That is what lets a test graph ask for a slice of `AppScope`
+ * without providing the platform values the rest of it is built from.
+ */
 @DependencyGraph(AppScope::class)
 internal interface ContentSourceConsistencyGraph {
     val soundPort: SoundPort

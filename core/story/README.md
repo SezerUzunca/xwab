@@ -10,8 +10,9 @@ manifest files live separately in `com.xwab.app.core.story` and remain internal.
 `checkArchitecture` enforces the single port. Screens play stories through `PlaybackPort`.
 
 Story audio streams directly through the platform player, without the sound cache. This module
-has no network client, source address, database or platform storage implementation. A
-composition-root consistency test ensures every published story has a source before it can ship.
+has no network client, source address, database or platform storage implementation. A consistency
+test in `:core:session`, the module that pairs a story with its address at runtime, ensures every
+published story has a source before it can ship.
 
 Metadata lives in [StoryManifest.kt](src/commonMain/kotlin/com/xwab/app/core/story/StoryManifest.kt).
 Add the corresponding physical address in `:core:sources` in the same change.
