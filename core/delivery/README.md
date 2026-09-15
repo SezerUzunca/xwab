@@ -19,7 +19,7 @@ val result = deliveryPort.resolve(
 A cache hit returns an absolute local path. A miss returns HTTPS immediately and starts a
 background download; it does not wait for a local file. Supported content types and the download
 size ceiling are caller-owned. The defaults accept any content type and limit downloads to 25 MiB.
-Change the cache filename when the bytes behind an item change.
+Change the cache filename when the bytes behind an item change. Cache access or prefetch startup failures are logged and fall back to HTTPS; cancellation still propagates.
 
 Request headers are caller-owned too, because this module knows nothing about the host it fetches
 from — and some hosts, Wikimedia among them, refuse a request that does not identify its client.
