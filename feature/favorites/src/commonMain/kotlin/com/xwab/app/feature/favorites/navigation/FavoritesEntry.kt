@@ -11,20 +11,21 @@ import com.xwab.app.feature.favorites.domain.ObserveFavoritesContentUseCase
 
 /** Where this feature's routes turn into screens. */
 fun EntryProviderScope<NavKey>.favoritesEntry(
-    dependencies: FavoritesDependencies,
+    dependencies: () -> FavoritesDependencies,
     onTrackClick: (TrackId) -> Unit,
 ) {
     entry<FavoritesRoute> {
         FavoritesScreenRoute(
             onTrackClick = onTrackClick,
             viewModel = viewModel {
+                val ports = dependencies()
                 FavoritesViewModel(
                     observeFavoritesContentUseCase = ObserveFavoritesContentUseCase(
-                        dependencies.soundPort,
-                        dependencies.favoritesPort,
-                        dependencies.playbackPort,
+                        ports.soundPort,
+                        ports.favoritesPort,
+                        ports.playbackPort,
                     ),
-                    playbackPort = dependencies.playbackPort,
+                    playbackPort = ports.playbackPort,
                 )
             },
         )

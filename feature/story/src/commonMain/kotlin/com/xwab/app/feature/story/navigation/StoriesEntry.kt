@@ -9,16 +9,17 @@ import com.xwab.app.feature.story.di.StoriesDependencies
 import com.xwab.app.feature.story.domain.ObserveStoriesContentUseCase
 
 /** Where this feature's routes turn into screens. */
-fun EntryProviderScope<NavKey>.storiesEntry(dependencies: StoriesDependencies) {
+fun EntryProviderScope<NavKey>.storiesEntry(dependencies: () -> StoriesDependencies) {
     entry<StoriesRoute> {
         StoriesScreenRoute(
             viewModel = viewModel {
+                val ports = dependencies()
                 StoriesViewModel(
                     observeStoriesContentUseCase = ObserveStoriesContentUseCase(
-                        dependencies.storyPort,
-                        dependencies.playbackPort,
+                        ports.storyPort,
+                        ports.playbackPort,
                     ),
-                    playbackPort = dependencies.playbackPort,
+                    playbackPort = ports.playbackPort,
                 )
             },
         )
