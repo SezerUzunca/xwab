@@ -297,6 +297,45 @@ internal object FeatureFirstRules {
             }
         }.sorted()
 
+    private val DECLARED_TYPE_KINDS = setOf("class", "interface", "object", "typealias")
+
+    /** How a two-state presentation wrapper spells itself, whatever the enclosing type is named. */
+    private val PRESENTATION_STATE_NAMES = setOf("Loading", "Ready", "Loadable")
+
+    /**
+     * Whether a screen has anything to draw yet is that screen's own state.
+     *
+     * `Loadable<T>` used to live in `:designsystem` and all five features imported it. That put a
+     * presentation type — and one all-or-nothing answer to "is there content yet?" — in a module
+     * that owns no screen, so changing how one screen waits meant changing how all five did. Each
+     * feature states it in its own module now, and they are free to disagree: a screen whose only
+     * source is an in-memory list has no wait to describe, while one joining a disk read does.
+     *
+     * Deliberately narrow, for the same reason [lazyListKeyViolations] is: it flags a `Loading`,
+     * `Ready` or `Loadable` *type* declared outside `feature/`, which is how this shape spells
+     * itself whatever the enclosing type is called. Enum entries are untouched — `PlaybackPhase`
+     * has `Loading` and `Ready` entries, and an engine phase is a real capability state that
+     * belongs in core.
+     *
+     * This rule is one half of a pair and only guards the half that has no other guard. A feature's
+     * own state type is already required to be internal by [featureVisibilityViolations]. Nothing
+     * requires a feature to declare one at all: a screen with nothing to wait for should give its
+     * state a default value and drop the wrapper entirely.
+     */
+    fun featureStateViolations(sources: Map<String, String>): List<String> =
+        sources.flatMap { (path, source) ->
+            declarations(source, includeNested = true).mapNotNull { parsed ->
+                val declaration = parsed.match
+                if (declaration.groupValues[2] !in DECLARED_TYPE_KINDS) return@mapNotNull null
+                val name = declaration.groupValues[3].removeSurrounding("`").substringAfterLast('.')
+                if (name !in PRESENTATION_STATE_NAMES) return@mapNotNull null
+
+                "$path:${parsed.lineNumber} declares $name outside a feature module. Whether a " +
+                    "screen has content yet is that screen's own state: declare it in the feature " +
+                    "that asks, not in a module every feature has to share."
+            }
+        }.sorted()
+
     /**
      * A lazy list key is an identity, not a value class.
      *

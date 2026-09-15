@@ -5,11 +5,19 @@ import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.sound.port.Category
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.TrackId
+import com.xwab.app.feature.category.domain.CategoryFavoritesReadStatus
 
-/** Content available after the outer [com.xwab.app.designsystem.state.Loadable] becomes ready. */
+/** Loading and content states owned by this feature. */
+internal sealed interface CategoryUiState {
+    data object Loading : CategoryUiState
+
+    data class Ready(val value: CategoryState) : CategoryUiState
+}
+
+/** Content available in [CategoryUiState.Ready]. */
 internal data class CategoryState(
     val favoriteWriteFailed: Boolean = false,
-    val favoritesAvailable: Boolean = true,
+    val favoritesReadStatus: CategoryFavoritesReadStatus = CategoryFavoritesReadStatus.Pending,
     /**
      * The category this screen is about, or null when the catalog holds no such category.
      *
@@ -35,6 +43,8 @@ internal data class CategoryState(
      */
     val playbackFailure: PlaybackFailure? = null,
 ) {
+    val favoritesAvailable: Boolean get() = favoritesReadStatus == CategoryFavoritesReadStatus.Available
+
     /**
      * What one row shows. Answered here rather than at the call site that draws it, so that the
      * question and the fields it reads stay in one file.

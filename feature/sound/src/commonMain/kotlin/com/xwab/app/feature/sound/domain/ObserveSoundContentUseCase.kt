@@ -11,13 +11,20 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+
+internal enum class SoundFavoriteReadStatus {
+    Pending,
+    Available,
+    Unavailable,
+}
 
 internal data class SoundContent(
     val track: Track?,
     val isFavorite: Boolean,
     val playback: PlaybackSummary,
     val sleepTimerRemainingMs: Long?,
-    val favoritesAvailable: Boolean = true,
+    val favoriteReadStatus: SoundFavoriteReadStatus,
 )
 
 /**
@@ -33,7 +40,13 @@ internal class ObserveSoundContentUseCase(
     operator fun invoke(trackId: TrackId): Flow<SoundContent> = combine(
         soundPort.observeTrack(trackId),
         favoritesPort.observe(SOUND_FAVORITES_NAMESPACE)
-            .map { FavoriteStatus(trackId.value in it.ids, it.isAvailable) }
+            .map {
+                FavoriteStatus(
+                    trackId.value in it.ids,
+                    if (it.isAvailable) SoundFavoriteReadStatus.Available else SoundFavoriteReadStatus.Unavailable,
+                )
+            }
+            .onStart { emit(FavoriteStatus(false, SoundFavoriteReadStatus.Pending)) }
             .distinctUntilChanged(),
         playbackPort.playback,
         playbackPort.sleepTimerRemainingMs,
@@ -41,11 +54,11 @@ internal class ObserveSoundContentUseCase(
         SoundContent(
             track = track,
             isFavorite = favorites.isFavorite,
-            favoritesAvailable = favorites.isAvailable,
+            favoriteReadStatus = favorites.readStatus,
             playback = playback,
             sleepTimerRemainingMs = sleepTimerRemainingMs,
         )
     }
 
-    private data class FavoriteStatus(val isFavorite: Boolean, val isAvailable: Boolean)
+    private data class FavoriteStatus(val isFavorite: Boolean, val readStatus: SoundFavoriteReadStatus)
 }

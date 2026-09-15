@@ -7,7 +7,6 @@ import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackKind
 import com.xwab.app.core.session.port.requestedValueOf
 import com.xwab.app.core.story.port.StoryId
-import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.feature.story.domain.ObserveStoriesContentUseCase
 import com.xwab.app.feature.story.domain.StoriesContent
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,8 +19,8 @@ internal class StoriesViewModel(
     observeStoriesContentUseCase: ObserveStoriesContentUseCase,
     private val playbackPort: PlaybackPort,
 ) : ViewModel() {
-    val state: StateFlow<Loadable<StoriesState>> = observeStoriesContentUseCase()
-        .map<StoriesContent, Loadable<StoriesState>> { content ->
+    val state: StateFlow<StoriesUiState> = observeStoriesContentUseCase()
+        .map<StoriesContent, StoriesUiState> { content ->
             val playback = content.playback
             // This screen lists stories, so the session being on a sound is the same to it as the
             // session being on nothing: no row here is the current item.
@@ -30,7 +29,7 @@ internal class StoriesViewModel(
             // smart-cast it in place.
             val failure = playback.failure?.takeIf { it.itemId.kind == PlaybackKind.STORY }
 
-            Loadable.Ready(StoriesState(
+            StoriesUiState.Ready(StoriesState(
                 stories = content.stories,
                 requestedStoryId = requestedStoryId,
                 playIntent = requestedStoryId != null && playback.playIntent,
@@ -40,12 +39,12 @@ internal class StoriesViewModel(
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = Loadable.Loading,
+            initialValue = StoriesUiState.Loading,
         )
 
     /** Branches on the value the control renders, so the icon and the tap cannot disagree. */
     fun togglePlayback(storyId: StoryId) {
-        val current = (state.value as? Loadable.Ready)?.value ?: return
+        val current = (state.value as? StoriesUiState.Ready)?.value ?: return
         if (current.isRowPlaying(storyId)) {
             playbackPort.pause()
         } else {

@@ -4,7 +4,6 @@ import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.core.story.port.StoryId
-import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.feature.story.domain.ObserveStoriesContentUseCase
 import com.xwab.app.testing.FakePlaybackPort
 import kotlin.test.AfterTest
@@ -149,7 +148,7 @@ class StoriesViewModelTest {
     }
 
     private fun readyState(viewModel: StoriesViewModel): StoriesState =
-        assertIs<Loadable.Ready<StoriesState>>(viewModel.state.value).value
+        assertIs<StoriesUiState.Ready>(viewModel.state.value).value
 
     private fun TestScope.collectState(viewModel: StoriesViewModel) {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }

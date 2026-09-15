@@ -303,6 +303,71 @@ class FeatureFirstRulesTest {
     }
 
     /**
+     * The type just removed from `:designsystem`, and the shape of its return: a two-state wrapper
+     * in a module that owns no screen, which every feature then has to import.
+     */
+    @Test
+    fun aSharedLoadingStateOutsideAFeatureIsReported() {
+        val offenders = mapOf(
+            "designsystem/src/commonMain/kotlin/Loadable.kt" to """
+                package com.xwab.app.designsystem.state
+
+                sealed interface Loadable<out T> {
+                    data object Loading : Loadable<Nothing>
+
+                    data class Ready<T>(val value: T) : Loadable<T>
+                }
+            """.trimIndent(),
+            "shared/src/commonMain/kotlin/ScreenState.kt" to """
+                package com.xwab.app.state
+
+                internal sealed interface ScreenState {
+                    data object Loading : ScreenState
+                }
+            """.trimIndent(),
+        )
+
+        val reported = FeatureFirstRules.featureStateViolations(offenders)
+
+        assertEquals(4, reported.size)
+        assertTrue(
+            reported.all { it.contains("that screen's own state") },
+            "the message has to say where the state belongs",
+        )
+    }
+
+    /**
+     * An engine phase is a real capability state that happens to use the same two words.
+     *
+     * Feature sources are not exercised here because they never reach this rule: the task hands it
+     * only the production sources outside `feature/`.
+     */
+    @Test
+    fun capabilityStatesThatMerelyShareTheNameAreLeftAlone() {
+        val safe = mapOf(
+            "core/playback/src/commonMain/kotlin/AudioPlayerState.kt" to """
+                package com.xwab.app.core.playback.port
+
+                enum class PlaybackPhase {
+                    Idle,
+                    Loading,
+                    Ready,
+                }
+            """.trimIndent(),
+            "core/session/src/commonMain/kotlin/PlaybackSummary.kt" to """
+                package com.xwab.app.core.session.port
+
+                data class PlaybackSummary(
+                    val playWhenReady: Boolean = false,
+                    val isPreparing: Boolean = false,
+                )
+            """.trimIndent(),
+        )
+
+        assertEquals(emptyList(), FeatureFirstRules.featureStateViolations(safe))
+    }
+
+    /**
      * Each registry is checked on its own, so a rule that starts naming a module nobody builds any
      * more is reported by name rather than disappearing into the total.
      */

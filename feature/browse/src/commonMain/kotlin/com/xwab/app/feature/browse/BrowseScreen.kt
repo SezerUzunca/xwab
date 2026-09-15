@@ -31,7 +31,6 @@ import com.xwab.app.core.sound.port.Category
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.SleepRelaxBackground
-import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -50,8 +49,8 @@ internal fun BrowseScreenRoute(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     when (val content = state) {
-        Loadable.Loading -> LoadingContent()
-        is Loadable.Ready -> BrowseScreen(content.value, onCategoryClick)
+        BrowseUiState.Loading -> LoadingContent()
+        is BrowseUiState.Ready -> BrowseScreen(content.value, onCategoryClick)
     }
 }
 

@@ -16,6 +16,7 @@ import kotlin.test.assertFalse
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -31,7 +32,7 @@ class ObserveSoundContentUseCaseTest {
         val emissions = mutableListOf<SoundContent>()
         val useCase = ObserveSoundContentUseCase(catalog, favorites, playback)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
-            useCase(rain.id).toList(emissions)
+            useCase(rain.id).filter { it.favoriteReadStatus != SoundFavoriteReadStatus.Pending }.toList(emissions)
         }
         runCurrent()
         assertTrue(emissions.single().isFavorite)
@@ -47,12 +48,12 @@ class ObserveSoundContentUseCaseTest {
 
         favorites.available.value = false
         runCurrent()
-        assertFalse(emissions.last().favoritesAvailable)
+        assertEquals(SoundFavoriteReadStatus.Unavailable, emissions.last().favoriteReadStatus)
 
         favorites.available.value = true
         favorites.toggle(SOUND_FAVORITES_NAMESPACE, rain.id.value)
         runCurrent()
-        assertTrue(emissions.last().favoritesAvailable)
+        assertEquals(SoundFavoriteReadStatus.Available, emissions.last().favoriteReadStatus)
         assertFalse(emissions.last().isFavorite)
     }
 
@@ -72,7 +73,7 @@ class ObserveSoundContentUseCaseTest {
             coordinator,
         )
 
-        val content = useCase(TrackId("gentle-rain")).first()
+        val content = useCase(TrackId("gentle-rain")).first { it.favoriteReadStatus == SoundFavoriteReadStatus.Available }
 
         assertEquals(rain, content.track)
         assertTrue(content.isFavorite)
