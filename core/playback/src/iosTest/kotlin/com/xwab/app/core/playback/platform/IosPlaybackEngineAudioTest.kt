@@ -50,6 +50,33 @@ class IosPlaybackEngineAudioTest {
     }
 
     @Test
+    fun loadingAnItemAttachesItToThePlayerAtOnce() {
+        // Separates "the item never became ready" from "there was never an item": the queue is
+        // populated synchronously, so this needs no waiting at all.
+        val engine = engine()
+
+        engine.load(writeSilentWav(seconds = 1.0), looping = false, operationId = 1L)
+
+        assertTrue(engine.hasCurrentItem, "load() attached nothing. ${diagnosis(engine)}")
+        engine.release()
+    }
+
+    @Test
+    fun aPlainItemBecomesReady() {
+        // The looping path has a second gate in front of readiness. This one has none, so a failure
+        // here is about the asset or the player, and a failure only over there is about the looper.
+        val engine = engine()
+
+        engine.load(writeSilentWav(seconds = 1.0), looping = false, operationId = 1L)
+
+        assertTrue(
+            spinUntil { engine.isReadyToPlay },
+            "A non-looping item never became ready. ${diagnosis(engine)}",
+        )
+        engine.release()
+    }
+
+    @Test
     fun aLoopingItemBecomesReadyWithoutBlockingTheCaller() {
         val engine = engine()
         val path = writeSilentWav(seconds = 1.0)
