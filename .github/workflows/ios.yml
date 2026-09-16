@@ -98,9 +98,13 @@ jobs:
       - name: Report what broke
         if: failure()
         run: |
-          detail=$(grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference|Could not (resolve|find|determine)" gradle-output.log | head -12)
+          if [ ! -f gradle-output.log ]; then
+            echo "::error::The step failed before Gradle produced any output."
+            exit 0
+          fi
+          detail=$(grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference|Could not (resolve|find|determine)" gradle-output.log | head -12 || true)
           if [ -z "$detail" ]; then
-            detail=$(tail -12 gradle-output.log)
+            detail=$(tail -12 gradle-output.log || true)
           fi
           printf '%s\n' "$detail" | while IFS= read -r line; do
             echo "::error::${line}"

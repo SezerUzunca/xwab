@@ -70,9 +70,13 @@ jobs:
       - name: Report what broke
         if: failure()
         run: |
-          detail=$(grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference|Could not (resolve|find|determine)" gradle-output.log | head -12)
+          if [ ! -f gradle-output.log ]; then
+            echo "::error::The step failed before Gradle produced any output."
+            exit 0
+          fi
+          detail=$(grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference|Could not (resolve|find|determine)" gradle-output.log | head -12 || true)
           if [ -z "$detail" ]; then
-            detail=$(tail -12 gradle-output.log)
+            detail=$(tail -12 gradle-output.log || true)
           fi
           printf '%s\n' "$detail" | while IFS= read -r line; do
             echo "::error::${line}"
@@ -106,14 +110,20 @@ jobs:
           api-level: 35
           arch: x86_64
           disable-animations: true
-          script: set -o pipefail; ./gradlew :core:playback:connectedAndroidTest --stacktrace 2>&1 | tee -a gradle-output.log
+          # The runner hands this to `sh`, so it has to stay POSIX: no pipefail, and the exit
+          # status has to be carried across the redirect by hand rather than through a pipe.
+          script: ./gradlew :core:playback:connectedAndroidTest --stacktrace > gradle-output.log 2>&1; status=$?; cat gradle-output.log; exit $status
 
       - name: Report what broke
         if: failure()
         run: |
-          detail=$(grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference|Could not (resolve|find|determine)" gradle-output.log | head -12)
+          if [ ! -f gradle-output.log ]; then
+            echo "::error::The step failed before Gradle produced any output."
+            exit 0
+          fi
+          detail=$(grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference|Could not (resolve|find|determine)" gradle-output.log | head -12 || true)
           if [ -z "$detail" ]; then
-            detail=$(tail -12 gradle-output.log)
+            detail=$(tail -12 gradle-output.log || true)
           fi
           printf '%s\n' "$detail" | while IFS= read -r line; do
             echo "::error::${line}"

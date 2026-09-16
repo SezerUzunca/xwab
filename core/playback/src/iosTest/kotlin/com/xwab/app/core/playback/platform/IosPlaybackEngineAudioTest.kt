@@ -133,7 +133,9 @@ class IosPlaybackEngineAudioTest {
             if (startedAt.elapsedNow().inWholeMilliseconds > (timeoutSeconds * 1_000).toLong()) {
                 return false
             }
-            NSRunLoop.mainRunLoop.runUntilDate(NSDate(timeIntervalSinceNow = RUN_LOOP_SLICE_SECONDS))
+            NSRunLoop.mainRunLoop.runUntilDate(
+                NSDate().dateByAddingTimeInterval(RUN_LOOP_SLICE_SECONDS),
+            )
         }
         return true
     }
