@@ -21,10 +21,33 @@ import platform.Foundation.*
  *
  * Kotlin/Native tests own the main thread, and every engine callback arrives through the main run
  * loop — notifications and the observation timer alike — so waiting means spinning that run loop
- * rather than blocking it. A simulator failure reports no message, only a test name, which is why
- * each expectation below is its own test.
+ * rather than blocking it. A failure here is read back from the JUnit report the workflow turns
+ * into annotations, so each expectation is its own test and carries what the engine could see.
  */
 class IosPlaybackEngineAudioTest {
+
+    @Test
+    fun theFixtureIsAFileOnDiskOfTheExpectedSize() {
+        val path = writeSilentWav(seconds = 1.0)
+
+        assertTrue(
+            NSFileManager.defaultManager.fileExistsAtPath(path),
+            "The fixture was never written: $path",
+        )
+        val size = NSFileManager.defaultManager.contentsAtPath(path)?.length
+        assertTrue(
+            size == (WAV_HEADER_BYTES + 8_000 * BYTES_PER_FRAME).toULong(),
+            "The fixture is $size bytes, not a 1-second 8kHz mono PCM WAV.",
+        )
+    }
+
+    @Test
+    fun theTestRunsWhereTheEngineDeliversItsCallbacks() {
+        // Every engine callback is posted to the main queue, and its observation timer is scheduled
+        // on the run loop of whichever thread loaded the item. Both only turn if this test owns the
+        // main thread, so the rest of this class is meaningless without it.
+        assertTrue(NSThread.isMainThread, "Simulator tests are not running on the main thread.")
+    }
 
     @Test
     fun aLoopingItemBecomesReadyWithoutBlockingTheCaller() {
@@ -36,7 +59,7 @@ class IosPlaybackEngineAudioTest {
         assertTrue(accepted, "The engine refused a file URL it should accept.")
         assertTrue(
             spinUntil { engine.isReadyToPlay },
-            "A looping item never became ready.",
+            "A looping item never became ready. ${diagnosis(engine)}",
         )
         engine.release()
     }
@@ -63,7 +86,7 @@ class IosPlaybackEngineAudioTest {
 
         assertTrue(
             spinUntil { engine.loopErrorMessage != null || engine.hasItemFailure },
-            "Zero-duration looping media neither failed nor became ready.",
+            "Zero-duration looping media neither failed nor became ready. ${diagnosis(engine)}",
         )
         engine.release()
     }
@@ -80,7 +103,7 @@ class IosPlaybackEngineAudioTest {
 
         assertTrue(
             spinUntil(timeoutSeconds = 20.0) { endedOperationId != null },
-            "Playback never reported reaching the end of the item.",
+            "Playback never reported reaching the end of the item. ${diagnosis(engine)}",
         )
         engine.release()
     }
@@ -103,7 +126,7 @@ class IosPlaybackEngineAudioTest {
 
         assertTrue(
             spinUntil(timeoutSeconds = 20.0) { restarted && engine.hasCurrentItem },
-            "A finished item could not be queued again.",
+            "A finished item could not be queued again. ${diagnosis(engine)}",
         )
         engine.release()
     }
@@ -116,6 +139,23 @@ class IosPlaybackEngineAudioTest {
         onPlaybackFailed = { _, _ -> },
         onReadinessTimedOut = {},
     )
+
+    /**
+     * What the engine could see when an expectation ran out of patience. Nothing here is an
+     * expectation of its own; it is what turns "never became ready" into something a run that
+     * cannot be attached to can still be read from.
+     */
+    private fun diagnosis(engine: IosPlaybackEngine): String = listOf(
+        "mainThread=${NSThread.isMainThread}",
+        "hasCurrentItem=${engine.hasCurrentItem}",
+        "isReadyToPlay=${engine.isReadyToPlay}",
+        "isWaitingToPlay=${engine.isWaitingToPlay}",
+        "isPlaying=${engine.isPlaying}",
+        "hasItemFailure=${engine.hasItemFailure}",
+        "itemError=${engine.itemErrorMessage}",
+        "loopError=${engine.loopErrorMessage}",
+        "durationMs=${engine.durationMs()}",
+    ).joinToString(separator = " ")
 
     private fun activateAudioSession() {
         val session = AVAudioSession.sharedInstance()
