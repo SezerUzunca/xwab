@@ -49,6 +49,46 @@ class IosPlaybackEngineAudioTest {
         assertTrue(NSThread.isMainThread, "Simulator tests are not running on the main thread.")
     }
 
+    /**
+     * Asks AVFoundation about the fixture without the engine in the way. The engine reports item
+     * trouble through booleans derived from `player.currentItem`, so once a queue empties there is
+     * nothing left to read; holding the item directly keeps `status` and `error` legible.
+     */
+    @Test
+    fun aPlainPlayerCanReadTheFixture() {
+        val item = AVPlayerItem(uRL = NSURL.fileURLWithPath(writeSilentWav(seconds = 1.0)))
+        val player = AVPlayer(playerItem = item)
+
+        spinUntil { item.status != AVPlayerItemStatusUnknown }
+
+        assertTrue(
+            item.status == AVPlayerItemStatusReadyToPlay,
+            "status=${item.status} error=${item.error?.localizedDescription} " +
+                "rate=${player.rate} itemAttached=${player.currentItem != null}",
+        )
+    }
+
+    /**
+     * The same item under the queue player the engine actually uses. A queue player drops an item
+     * it cannot play and advances, which empties the queue — so if this diverges from the plain
+     * player above, the difference is the queue and not the asset.
+     */
+    @Test
+    fun aQueuePlayerKeepsTheFixtureAttached() {
+        val item = AVPlayerItem(uRL = NSURL.fileURLWithPath(writeSilentWav(seconds = 1.0)))
+        val player = AVQueuePlayer()
+        player.replaceCurrentItemWithPlayerItem(item)
+        val attachedImmediately = player.currentItem != null
+
+        spinUntil { item.status != AVPlayerItemStatusUnknown && player.currentItem == null }
+
+        assertTrue(
+            player.currentItem != null,
+            "The queue player let go of the item. attachedImmediately=$attachedImmediately " +
+                "status=${item.status} error=${item.error?.localizedDescription}",
+        )
+    }
+
     @Test
     fun loadingAnItemAttachesItToThePlayerAtOnce() {
         // Separates "the item never became ready" from "there was never an item": the queue is
