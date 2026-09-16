@@ -5,6 +5,8 @@ package com.xwab.app.core.playback.platform
 import com.xwab.app.core.playback.store.LatestOperationGate
 import com.xwab.app.core.playback.store.PLAYBACK_READINESS_TIMEOUT_MS
 import kotlin.native.ref.WeakReference
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 import kotlinx.cinterop.readValue
 import platform.AVFoundation.*
 import platform.CoreMedia.*
@@ -19,14 +21,19 @@ internal class IosPlaybackEngine(
     private val onPlaybackFailed: (Long, String?) -> Unit,
     private val onReadinessTimedOut: (Long) -> Unit,
 ) {
-    private val player = AVQueuePlayer()
+    private var player = AVQueuePlayer()
     private val notificationCenter = NSNotificationCenter.defaultCenter
 
     private var looper: AVPlayerLooper? = null
     private var activeAsset: AVAsset? = null
     private var activeUrl: NSURL? = null
     private var readinessOperationId: Long? = null
-    private var readinessElapsedSeconds = 0.0
+    private var readinessStartedAt: TimeMark? = null
+    private var loopPreparationPending = false
+    private var loopPreparationErrorMessage: String? = null
+    private var loopPreparationPositionMs = 0L
+    private var loopPreparationVersion: Long? = null
+    private var loopPreparationCompletion: ((Boolean) -> Unit)? = null
     private var stateObservationTimer: NSTimer? = null
     private var stateObservationIntervalSeconds: Double? = null
     private var minimumObservationTicks = 0
@@ -42,7 +49,8 @@ internal class IosPlaybackEngine(
         get() = player.currentItem != null
 
     val isReadyToPlay: Boolean
-        get() = player.currentItem?.status == AVPlayerItemStatusReadyToPlay
+        get() = !loopPreparationPending &&
+            player.currentItem?.status == AVPlayerItemStatusReadyToPlay
 
     val isWaitingToPlay: Boolean
         get() = player.timeControlStatus == AVPlayerTimeControlStatusWaitingToPlayAtSpecifiedRate
@@ -57,7 +65,7 @@ internal class IosPlaybackEngine(
         get() = player.currentItem?.error?.localizedDescription
 
     val loopErrorMessage: String?
-        get() = looper?.error?.localizedDescription
+        get() = loopPreparationErrorMessage ?: looper?.error?.localizedDescription
 
     var volume: Float
         get() = player.volume
@@ -107,6 +115,7 @@ internal class IosPlaybackEngine(
         clearReadinessObservation()
         stopNativeStateObservation()
         lastObservedState = null
+        loopPreparationErrorMessage = null
         player.pause()
         clearQueue()
 
@@ -118,15 +127,7 @@ internal class IosPlaybackEngine(
         val item = AVPlayerItem(uRL = url)
         activeUrl = url
         activeAsset = item.asset
-        if (looping) {
-            looper = AVPlayerLooper(
-                player = player,
-                templateItem = item,
-                timeRange = kCMTimeRangeInvalid.readValue(),
-            )
-        } else {
-            player.replaceCurrentItemWithPlayerItem(item)
-        }
+        attachItem(item, looping)
         observeReadiness()
         observeNativeState()
         publishObservedStateIfChanged(force = true)
@@ -219,28 +220,46 @@ internal class IosPlaybackEngine(
         stopNativeStateObservation()
     }
 
-    private fun observeReadiness(operationId: Long = currentOperationId) {
+    /** Recreates native playback objects after AVAudioSession media services reset. */
+    fun resetAfterMediaServicesWereReset() {
+        operationGate.begin()
+        minimumObservationTicks = 0
         clearReadinessObservation()
+        stopNativeStateObservation()
+        player.pause()
+        clearQueue()
+        player = AVQueuePlayer()
+        lastObservedState = null
+        observationSuspendedForFailure = false
+        onStateChanged()
+    }
+
+    private fun observeReadiness(operationId: Long = currentOperationId) {
         if (observationSuspendedForFailure) return
-        if (player.currentItem?.status == AVPlayerItemStatusUnknown) {
-            readinessOperationId = operationId
-            readinessElapsedSeconds = 0.0
+        if (loopPreparationPending || player.currentItem?.status == AVPlayerItemStatusUnknown) {
+            if (readinessOperationId != operationId) {
+                readinessOperationId = operationId
+                readinessStartedAt = TimeSource.Monotonic.markNow()
+            }
+        } else {
+            clearReadinessObservation()
         }
     }
 
     private fun clearReadinessObservation() {
         readinessOperationId = null
-        readinessElapsedSeconds = 0.0
+        readinessStartedAt = null
     }
 
-    private fun updateReadinessObservation(intervalSeconds: Double) {
+    private fun updateReadinessObservation() {
         val operationId = readinessOperationId ?: return
-        if (released || player.currentItem?.status != AVPlayerItemStatusUnknown) {
+        completeLoopPreparationIfReady()
+        if (released || isReadyToPlay || hasItemFailure || loopErrorMessage != null) {
             clearReadinessObservation()
             return
         }
-        readinessElapsedSeconds += intervalSeconds
-        if (readinessElapsedSeconds >= READINESS_TIMEOUT_SECONDS) {
+        val elapsedMs = readinessStartedAt?.elapsedNow()?.inWholeMilliseconds ?: return
+        if (elapsedMs >= PLAYBACK_READINESS_TIMEOUT_MS) {
             clearReadinessObservation()
             onReadinessTimedOut(operationId)
         }
@@ -249,6 +268,11 @@ internal class IosPlaybackEngine(
     private fun clearQueue() {
         looper?.disableLooping()
         looper = null
+        loopPreparationPending = false
+        loopPreparationErrorMessage = null
+        loopPreparationPositionMs = 0L
+        loopPreparationVersion = null
+        loopPreparationCompletion = null
         activeAsset = null
         activeUrl = null
         player.removeAllItems()
@@ -271,20 +295,79 @@ internal class IosPlaybackEngine(
         val item = AVPlayerItem(uRL = url)
         activeUrl = url
         activeAsset = item.asset
-        if (looping) {
-            looper = AVPlayerLooper(
-                player = player,
-                templateItem = item,
-                timeRange = kCMTimeRangeInvalid.readValue(),
-            )
-        } else {
-            player.replaceCurrentItemWithPlayerItem(item)
-        }
+        attachItem(
+            item = item,
+            looping = looping,
+            positionMs = positionMs,
+            version = version,
+            completion = completion,
+        )
         observeReadiness()
         observeNativeState()
-        seekNative(positionMs, version) { finished ->
-            completion(finished)
-            publishObservedStateIfChanged(force = true)
+        if (!looping) {
+            seekNative(positionMs, version) { finished ->
+                completion(finished)
+                publishObservedStateIfChanged(force = true)
+            }
+        }
+    }
+
+    /**
+     * A looping item is first allowed to become ready as a normal queue item. This guarantees its
+     * asset duration is known before AVPlayerLooper is created, avoiding the documented blocking
+     * initializer and allowing zero-duration media to fail through the normal engine error path.
+     */
+    private fun attachItem(
+        item: AVPlayerItem,
+        looping: Boolean,
+        positionMs: Long = 0L,
+        version: Long? = null,
+        completion: ((Boolean) -> Unit)? = null,
+    ) {
+        if (looping) {
+            loopPreparationPending = true
+            loopPreparationPositionMs = positionMs
+            loopPreparationVersion = version
+            loopPreparationCompletion = completion
+        }
+        player.replaceCurrentItemWithPlayerItem(item)
+    }
+
+    private fun completeLoopPreparationIfReady() {
+        if (!loopPreparationPending) return
+        val item = player.currentItem ?: return
+        if (item.status != AVPlayerItemStatusReadyToPlay) return
+
+        val durationSeconds = CMTimeGetSeconds(item.duration)
+        if (!durationSeconds.isFinite() || durationSeconds <= 0.0) {
+            loopPreparationPending = false
+            loopPreparationErrorMessage = "Looping audio must have a finite, positive duration."
+            loopPreparationCompletion?.invoke(false)
+            loopPreparationCompletion = null
+            return
+        }
+
+        val positionMs = loopPreparationPositionMs
+        val version = loopPreparationVersion
+        val completion = loopPreparationCompletion
+        player.pause()
+        player.removeAllItems()
+        looper = AVPlayerLooper(
+            player = player,
+            templateItem = item,
+            timeRange = kCMTimeRangeInvalid.readValue(),
+        )
+        loopPreparationPending = false
+        loopPreparationPositionMs = 0L
+        loopPreparationVersion = null
+        loopPreparationCompletion = null
+        observeReadiness()
+
+        if (completion != null && version != null) {
+            seekNative(positionMs, version) { finished ->
+                completion(finished)
+                publishObservedStateIfChanged(force = true)
+            }
         }
     }
 
@@ -341,11 +424,8 @@ internal class IosPlaybackEngine(
                 if (released) {
                     stopNativeStateObservation()
                 } else {
-                    updateReadinessObservation(requiredInterval)
-                    if (
-                        dynamicNativeStateObservationInterval() == null &&
-                        minimumObservationTicks > 0
-                    ) {
+                    updateReadinessObservation()
+                    if (minimumObservationTicks > 0) {
                         minimumObservationTicks -= 1
                     }
                     publishObservedStateIfChanged()
@@ -361,10 +441,11 @@ internal class IosPlaybackEngine(
     }
 
     private fun requiredNativeStateObservationInterval(): Double? =
-        dynamicNativeStateObservationInterval()
-            ?: FAST_STATE_OBSERVATION_INTERVAL_SECONDS.takeIf {
-                minimumObservationTicks > 0
-            }
+        if (minimumObservationTicks > 0) {
+            FAST_STATE_OBSERVATION_INTERVAL_SECONDS
+        } else {
+            dynamicNativeStateObservationInterval()
+        }
 
     private fun dynamicNativeStateObservationInterval(): Double? = when {
         !hasCurrentItem || hasItemFailure || loopErrorMessage != null -> null
@@ -378,6 +459,7 @@ internal class IosPlaybackEngine(
 
     private fun publishObservedStateIfChanged(force: Boolean = false) {
         if (released) return
+        completeLoopPreparationIfReady()
         val observedState = EngineObservation(
             hasCurrentItem = hasCurrentItem,
             isReadyToPlay = isReadyToPlay,
@@ -420,7 +502,6 @@ internal class IosPlaybackEngine(
     )
 
     private companion object {
-        const val READINESS_TIMEOUT_SECONDS = PLAYBACK_READINESS_TIMEOUT_MS / 1_000.0
         const val FAST_STATE_OBSERVATION_INTERVAL_SECONDS = 0.2
         const val PLAYING_STATE_OBSERVATION_INTERVAL_SECONDS = 1.0
         const val PAUSED_READY_STATE_OBSERVATION_INTERVAL_SECONDS = 5.0

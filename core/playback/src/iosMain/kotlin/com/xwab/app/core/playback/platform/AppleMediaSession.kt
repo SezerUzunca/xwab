@@ -17,6 +17,7 @@ internal class AppleMediaSession(
     private val onPauseRequested: () -> Unit,
     private val onToggleRequested: () -> Unit,
     private val onInterruptionBegan: () -> Unit,
+    private val onMediaServicesReset: () -> Unit,
 ) {
     private val audioSession = AVAudioSession.sharedInstance()
     private val notificationCenter = NSNotificationCenter.defaultCenter
@@ -49,6 +50,17 @@ internal class AppleMediaSession(
             queue = NSOperationQueue.mainQueue,
         ) { notification ->
             notification?.let { weakThis.get()?.handleRouteChange(it) }
+        }
+    }
+
+    private val mediaServicesResetObserver = run {
+        val weakThis = WeakReference(this)
+        notificationCenter.addObserverForName(
+            name = AVAudioSessionMediaServicesWereResetNotification,
+            `object` = audioSession,
+            queue = NSOperationQueue.mainQueue,
+        ) {
+            weakThis.get()?.onMediaServicesReset?.invoke()
         }
     }
 
@@ -90,6 +102,7 @@ internal class AppleMediaSession(
         resumeAfterInterruption = false
         notificationCenter.removeObserver(interruptionObserver)
         notificationCenter.removeObserver(routeChangeObserver)
+        notificationCenter.removeObserver(mediaServicesResetObserver)
         teardownRemoteCommands()
         deactivate()
     }

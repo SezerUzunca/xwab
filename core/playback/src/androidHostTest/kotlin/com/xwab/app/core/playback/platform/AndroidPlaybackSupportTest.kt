@@ -1,7 +1,10 @@
 package com.xwab.app.core.playback.platform
 
 import androidx.media3.common.Player
+import com.xwab.app.core.playback.port.PlaybackError
+import com.xwab.app.core.playback.port.PlaybackErrorCode
 import com.xwab.app.core.playback.port.PlaybackPhase
+import com.xwab.app.core.playback.store.PlaybackMessage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -56,6 +59,34 @@ class AndroidPlaybackSupportTest {
         assertFalse(Player.COMMAND_CHANGE_MEDIA_ITEMS in commands)
         assertFalse(Player.COMMAND_SET_REPEAT_MODE in commands)
         assertFalse(Player.COMMAND_SET_VOLUME in commands)
+    }
+
+    @Test
+    fun reducerErrorClassificationWinsOverTheNativeFallback() {
+        val invalidSource = PlaybackError(PlaybackErrorCode.InvalidSource, "bad URI")
+
+        assertEquals(
+            invalidSource,
+            androidPlaybackError(invalidSource, "native decoder failure"),
+        )
+        assertEquals(
+            PlaybackErrorCode.PlaybackFailed,
+            androidPlaybackError(null, "native decoder failure")?.code,
+        )
+    }
+
+    @Test
+    fun disconnectedTerminalSnapshotBecomesAReducerEvent() {
+        assertEquals(
+            PlaybackMessage.EnginePlaybackEnded(7L),
+            androidTerminalPlaybackMessage(Player.STATE_ENDED, 7L, null),
+        )
+        assertEquals(
+            PlaybackErrorCode.PlaybackFailed,
+            (androidTerminalPlaybackMessage(Player.STATE_IDLE, 8L, "decoder") as
+                PlaybackMessage.EngineFailed).error.code,
+        )
+        assertEquals(null, androidTerminalPlaybackMessage(Player.STATE_READY, 9L, null))
     }
 
 }

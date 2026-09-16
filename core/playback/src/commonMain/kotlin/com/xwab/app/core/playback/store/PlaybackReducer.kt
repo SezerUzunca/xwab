@@ -129,6 +129,9 @@ private fun reducePause(state: PlaybackState): ReduceResult = ReduceResult(
 )
 
 private fun reduceSetLooping(state: PlaybackState, enabled: Boolean): ReduceResult {
+    if (state.desired.isLooping == enabled && state.pending.pendingLooping == null) {
+        return ReduceResult(state)
+    }
     val loopMode = if (enabled) LoopMode.One else LoopMode.Off
     return ReduceResult(
         state.copy(

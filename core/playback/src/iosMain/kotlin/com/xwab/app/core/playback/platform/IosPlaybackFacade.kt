@@ -5,6 +5,7 @@ package com.xwab.app.core.playback.platform
 import co.touchlab.kermit.Logger
 import com.xwab.app.core.playback.port.AudioPlayerState
 import com.xwab.app.core.playback.port.AudioSource
+import com.xwab.app.core.playback.port.LoopMode
 import com.xwab.app.core.playback.port.PlaybackCommand
 import com.xwab.app.core.playback.port.PlaybackEnginePort
 import com.xwab.app.core.playback.port.PlaybackError
@@ -104,6 +105,7 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
         onInterruptionBegan = {
             dispatch(PlaybackMessage.EngineInterrupted)
         },
+        onMediaServicesReset = ::recoverAfterMediaServicesReset,
     )
     private val nowPlayingInfoPublisher: NowPlayingInfoPublisher = NowPlayingInfoPublisher()
 
@@ -149,9 +151,14 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
                     mediaSession.deactivate()
                 }
                 PlaybackSideEffect.SeekToStartThenPlay -> {
-                    if (!activatedForPlayback()) continue
                     engine.seekTo(0L) { finished ->
-                        if (finished && playbackState.desired.playRequested) engine.play()
+                        if (
+                            finished &&
+                            playbackState.desired.playRequested &&
+                            activatedForPlayback()
+                        ) {
+                            engine.play()
+                        }
                         publishState(forceNowPlayingUpdate = true)
                     }
                 }
@@ -240,6 +247,22 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
         } else {
             submit(PlaybackCommand.Play)
         }
+    }
+
+    private fun recoverAfterMediaServicesReset() {
+        if (playbackState.released) return
+        val desired = playbackState.desired
+        engine.resetAfterMediaServicesWereReset()
+        val request = desired.request ?: return
+        dispatch(
+            PlaybackMessage.Load(
+                request.copy(
+                    autoplay = desired.playRequested,
+                    loopMode = if (desired.isLooping) LoopMode.One else LoopMode.Off,
+                    volume = desired.volume,
+                ),
+            ),
+        )
     }
 
     private fun publishState(forceNowPlayingUpdate: Boolean = false) {
