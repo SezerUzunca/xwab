@@ -93,15 +93,15 @@ jobs:
         run: set -o pipefail; ./gradlew -PenableIos=true :shared:linkDebugFrameworkIosArm64 --stacktrace 2>&1 | tee -a gradle-output.log
 
       # The kept results above only exist once a test has run, and they download from the same
-      # blob storage a job log does. A step summary belongs to the check run itself, so a failure
-      # that happens while compiling — before any test — is still readable.
-      - name: Summarise what broke
+      # blob storage a job log does. Annotations come back from the API itself, so a failure that
+      # happens while compiling — before any test — is still readable.
+      - name: Report what broke
         if: failure()
         run: |
-          {
-            echo '### Failure'
-            echo
-            echo '```'
-            grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference" gradle-output.log | head -80 || true
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          detail=$(grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference|Could not (resolve|find|determine)" gradle-output.log | head -12)
+          if [ -z "$detail" ]; then
+            detail=$(tail -12 gradle-output.log)
+          fi
+          printf '%s\n' "$detail" | while IFS= read -r line; do
+            echo "::error::${line}"
+          done

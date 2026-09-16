@@ -62,20 +62,21 @@ jobs:
           fi
 
       # A job log is only reachable through a redirect to blob storage, and an uploaded artifact
-      # comes from the same place — networks that filter it leave a failed run unreadable. A step
-      # summary belongs to the check run itself, so what broke survives wherever the run can be
-      # listed at all. Same motivation as printing the JUnit reports above rather than uploading
-      # them; this one catches the failures that happen before any test runs.
-      - name: Summarise what broke
+      # and a step summary both come from the same place — a network that filters it leaves a
+      # failed run completely opaque. Annotations are part of the check run and come back from the
+      # API itself, so what broke stays readable wherever the run can be listed at all. Same
+      # motivation as printing the JUnit reports above rather than uploading them; this one catches
+      # the failures that happen before any test runs.
+      - name: Report what broke
         if: failure()
         run: |
-          {
-            echo '### Failure'
-            echo
-            echo '```'
-            grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference" gradle-output.log | head -80 || true
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          detail=$(grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference|Could not (resolve|find|determine)" gradle-output.log | head -12)
+          if [ -z "$detail" ]; then
+            detail=$(tail -12 gradle-output.log)
+          fi
+          printf '%s\n' "$detail" | while IFS= read -r line; do
+            echo "::error::${line}"
+          done
 
       - name: Assemble debug APK
         run: set -o pipefail; ./gradlew :androidApp:assembleDebug --stacktrace 2>&1 | tee -a gradle-output.log
@@ -107,13 +108,13 @@ jobs:
           disable-animations: true
           script: set -o pipefail; ./gradlew :core:playback:connectedAndroidTest --stacktrace 2>&1 | tee -a gradle-output.log
 
-      - name: Summarise what broke
+      - name: Report what broke
         if: failure()
         run: |
-          {
-            echo '### Failure'
-            echo
-            echo '```'
-            grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference" gradle-output.log | head -80 || true
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          detail=$(grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference|Could not (resolve|find|determine)" gradle-output.log | head -12)
+          if [ -z "$detail" ]; then
+            detail=$(tail -12 gradle-output.log)
+          fi
+          printf '%s\n' "$detail" | while IFS= read -r line; do
+            echo "::error::${line}"
+          done
