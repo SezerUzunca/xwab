@@ -8,17 +8,8 @@ import kotlin.test.assertTrue
 import kotlin.time.TimeSource
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
-import platform.AVFAudio.AVAudioSession
-import platform.AVFAudio.AVAudioSessionCategoryPlayback
-import platform.Foundation.NSData
-import platform.Foundation.NSDate
-import platform.Foundation.NSFileManager
-import platform.Foundation.NSRunLoop
-import platform.Foundation.NSTemporaryDirectory
-import platform.Foundation.NSUUID
-import platform.Foundation.create
-import platform.Foundation.dateWithTimeIntervalSinceNow
-import platform.Foundation.runUntilDate
+import platform.AVFAudio.*
+import platform.Foundation.*
 
 /**
  * Drives [IosPlaybackEngine] against a real asset on the simulator.
@@ -142,7 +133,7 @@ class IosPlaybackEngineAudioTest {
             if (startedAt.elapsedNow().inWholeMilliseconds > (timeoutSeconds * 1_000).toLong()) {
                 return false
             }
-            NSRunLoop.mainRunLoop.runUntilDate(NSDate.dateWithTimeIntervalSinceNow(0.02))
+            NSRunLoop.mainRunLoop.runUntilDate(NSDate(timeIntervalSinceNow = RUN_LOOP_SLICE_SECONDS))
         }
         return true
     }
@@ -191,5 +182,6 @@ class IosPlaybackEngineAudioTest {
     private companion object {
         const val WAV_HEADER_BYTES = 44
         const val BYTES_PER_FRAME = 2
+        const val RUN_LOOP_SLICE_SECONDS = 0.02
     }
 }
