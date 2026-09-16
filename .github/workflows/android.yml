@@ -37,7 +37,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Check architecture, test its rules, and run Android host tests
-        run: ./gradlew :check testAndroidHostTest --stacktrace
+        run: set -o pipefail; ./gradlew :check testAndroidHostTest --stacktrace 2>&1 | tee -a gradle-output.log
 
       # Gradle's console reports a failed test as a class, a method and a line number, which is the
       # line of the test function rather than of the expectation that broke. For a test that fails
@@ -61,8 +61,24 @@ jobs:
             echo "No JUnit report recorded a failure; the build failed before or outside the tests."
           fi
 
+      # A job log is only reachable through a redirect to blob storage, and an uploaded artifact
+      # comes from the same place — networks that filter it leave a failed run unreadable. A step
+      # summary belongs to the check run itself, so what broke survives wherever the run can be
+      # listed at all. Same motivation as printing the JUnit reports above rather than uploading
+      # them; this one catches the failures that happen before any test runs.
+      - name: Summarise what broke
+        if: failure()
+        run: |
+          {
+            echo '### Failure'
+            echo
+            echo '```'
+            grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference" gradle-output.log | head -80 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Assemble debug APK
-        run: ./gradlew :androidApp:assembleDebug --stacktrace
+        run: set -o pipefail; ./gradlew :androidApp:assembleDebug --stacktrace 2>&1 | tee -a gradle-output.log
 
   device-test:
     name: Run playback service device tests
@@ -89,4 +105,15 @@ jobs:
           api-level: 35
           arch: x86_64
           disable-animations: true
-          script: ./gradlew :core:playback:connectedAndroidTest --stacktrace
+          script: set -o pipefail; ./gradlew :core:playback:connectedAndroidTest --stacktrace 2>&1 | tee -a gradle-output.log
+
+      - name: Summarise what broke
+        if: failure()
+        run: |
+          {
+            echo '### Failure'
+            echo
+            echo '```'
+            grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference" gradle-output.log | head -80 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

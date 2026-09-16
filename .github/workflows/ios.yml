@@ -67,7 +67,7 @@ jobs:
       # file: core:sound:catalog, core:sound:manifest, core:sound:delivery, core:sound:favorites,
       # core:story:catalog, core:story:manifest, core:session, core:playback, shared.
       - name: Run Simulator ARM64 tests
-        run: ./gradlew -PenableIos=true iosSimulatorArm64Test --stacktrace
+        run: set -o pipefail; ./gradlew -PenableIos=true iosSimulatorArm64Test --stacktrace 2>&1 | tee -a gradle-output.log
 
       # Kotlin/Native reports a failing simulator test as a bare `kotlin.AssertionError at null:-1`.
       # The message never reaches the Gradle log, whichever assertion was false, so a red run says
@@ -90,4 +90,18 @@ jobs:
       # The device target is a separate compilation; linking the framework the iOS app
       # actually consumes is what proves every module builds for real hardware.
       - name: Link the iPhone ARM64 framework
-        run: ./gradlew -PenableIos=true :shared:linkDebugFrameworkIosArm64 --stacktrace
+        run: set -o pipefail; ./gradlew -PenableIos=true :shared:linkDebugFrameworkIosArm64 --stacktrace 2>&1 | tee -a gradle-output.log
+
+      # The kept results above only exist once a test has run, and they download from the same
+      # blob storage a job log does. A step summary belongs to the check run itself, so a failure
+      # that happens while compiling — before any test — is still readable.
+      - name: Summarise what broke
+        if: failure()
+        run: |
+          {
+            echo '### Failure'
+            echo
+            echo '```'
+            grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference" gradle-output.log | head -80 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

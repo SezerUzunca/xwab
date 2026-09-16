@@ -67,6 +67,28 @@ class PlaybackServiceDeviceTest {
         })
     }
 
+    /**
+     * The service owns the countdown, and a controller asking for timer state is one of the two
+     * moments the service reconciles its uptime-based Handler against the elapsed-realtime
+     * deadline. A deadline that has run out must therefore read back as no timer at all, whichever
+     * of the two got there first.
+     */
+    @Test
+    fun aDeadlineThatHasRunOutReadsBackAsNoTimer() {
+        val deadline = SystemClock.elapsedRealtime() + 1_500L
+        assertEquals(deadline, awaitClientResult { success, failure ->
+            client.start(controller, deadline, success, failure)
+        })
+
+        // Waiting happens on the test thread; blocking the main thread would stop the very
+        // callbacks this is waiting for.
+        Thread.sleep(2_500L)
+
+        assertNull(awaitClientResult { success, failure ->
+            client.restore(controller, success, failure)
+        })
+    }
+
     @Test
     fun serviceRejectsAnOverflowingRawDeadline() {
         val result = sendCustomCommand(
