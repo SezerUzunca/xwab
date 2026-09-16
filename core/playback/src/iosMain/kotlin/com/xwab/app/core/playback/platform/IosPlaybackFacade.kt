@@ -66,7 +66,7 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
     private var pendingLoad: PendingLoad? = null
 
     private val engine: IosPlaybackEngine = IosPlaybackEngine(
-        onStateChanged = { publishState() },
+        onStateChanged = { onEngineStateChanged() },
         onPlaybackEnded = { operationId ->
             dispatch(PlaybackMessage.EnginePlaybackEnded(operationId))
             publishState(forceNowPlayingUpdate = true)
@@ -143,6 +143,12 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
                 }
                 PlaybackSideEffect.Pause -> {
                     engine.pause()
+                    mediaSession.clearInterruptionState()
+                    mediaSession.deactivate()
+                }
+                PlaybackSideEffect.PauseForFailure -> {
+                    engine.suspendObservationForFailure()
+                    engine.pause(notify = false)
                     mediaSession.clearInterruptionState()
                     mediaSession.deactivate()
                 }
@@ -265,7 +271,8 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
         )
     }
 
-    private fun publishState(forceNowPlayingUpdate: Boolean = false) {
+    /** Translate native observations into events before publishing the resulting state. */
+    private fun onEngineStateChanged() {
         if (playbackState.released) return
 
         pendingLoad
@@ -274,10 +281,6 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
                 pendingLoad = null
                 dispatch(PlaybackMessage.EngineSourceLoaded(loaded.operationId, loaded.source))
             }
-
-        if (playbackState.observed.error != null) {
-            engine.suspendObservationForFailure()
-        }
 
         if (playbackState.observed.error == null) {
             engine.loopErrorMessage?.let { msg ->
@@ -305,6 +308,11 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
             }
         }
 
+        publishState()
+    }
+
+    private fun publishState(forceNowPlayingUpdate: Boolean = false) {
+        if (playbackState.released) return
         logNewErrorIfNeeded()
 
         val phase = playbackPhase(

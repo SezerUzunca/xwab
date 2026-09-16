@@ -111,7 +111,7 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             FeatureFirstRules.dependencyViolations(
-                mapOf(":core:session" to FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys.toList()),
+                mapOf(":core:session" to FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys.filter { it != ":shared" }),
             ),
         )
     }
@@ -303,6 +303,71 @@ class FeatureFirstRulesTest {
     }
 
     /**
+     * The type just removed from `:designsystem`, and the shape of its return: a two-state wrapper
+     * in a module that owns no screen, which every feature then has to import.
+     */
+    @Test
+    fun aSharedLoadingStateOutsideAFeatureIsReported() {
+        val offenders = mapOf(
+            "designsystem/src/commonMain/kotlin/Loadable.kt" to """
+                package com.xwab.app.designsystem.state
+
+                sealed interface Loadable<out T> {
+                    data object Loading : Loadable<Nothing>
+
+                    data class Ready<T>(val value: T) : Loadable<T>
+                }
+            """.trimIndent(),
+            "shared/src/commonMain/kotlin/ScreenState.kt" to """
+                package com.xwab.app.state
+
+                internal sealed interface ScreenState {
+                    data object Loading : ScreenState
+                }
+            """.trimIndent(),
+        )
+
+        val reported = FeatureFirstRules.featureStateViolations(offenders)
+
+        assertEquals(4, reported.size)
+        assertTrue(
+            reported.all { it.contains("that screen's own state") },
+            "the message has to say where the state belongs",
+        )
+    }
+
+    /**
+     * An engine phase is a real capability state that happens to use the same two words.
+     *
+     * Feature sources are not exercised here because they never reach this rule: the task hands it
+     * only the production sources outside `feature/`.
+     */
+    @Test
+    fun capabilityStatesThatMerelyShareTheNameAreLeftAlone() {
+        val safe = mapOf(
+            "core/playback/src/commonMain/kotlin/AudioPlayerState.kt" to """
+                package com.xwab.app.core.playback.port
+
+                enum class PlaybackPhase {
+                    Idle,
+                    Loading,
+                    Ready,
+                }
+            """.trimIndent(),
+            "core/session/src/commonMain/kotlin/PlaybackSummary.kt" to """
+                package com.xwab.app.core.session.port
+
+                data class PlaybackSummary(
+                    val playWhenReady: Boolean = false,
+                    val isPreparing: Boolean = false,
+                )
+            """.trimIndent(),
+        )
+
+        assertEquals(emptyList(), FeatureFirstRules.featureStateViolations(safe))
+    }
+
+    /**
      * Each registry is checked on its own, so a rule that starts naming a module nobody builds any
      * more is reported by name rather than disappearing into the total.
      */
@@ -311,6 +376,7 @@ class FeatureFirstRulesTest {
         // Kept per rule rather than flattened: `:core:delivery` is named by two of them, and each
         // has to report it, or one rule could go stale behind the other still holding the name.
         val referencesPerRule = listOf(
+            FeatureFirstRules.INDEPENDENT_SUPPORT_MODULES,
             FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys,
             FeatureFirstRules.CONTENT_MODULE_PORTS.keys,
             FeatureFirstRules.REUSABLE_MODULE_DEPENDENCIES.keys +
@@ -325,6 +391,7 @@ class FeatureFirstRulesTest {
         assertEquals(emptyList(), FeatureFirstRules.staleRuleViolations(everyNamedModule))
 
         listOf(
+            ":designsystem" to "INDEPENDENT_SUPPORT_MODULES",
             FeatureFirstRules.CONTENT_MODULE_PORTS.keys.first() to "CONTENT_MODULE_PORTS",
             FeatureFirstRules.REUSABLE_MODULE_DEPENDENCIES.keys.first() to "REUSABLE_MODULE_DEPENDENCIES",
         ).forEach { (renamed, constant) ->
@@ -773,6 +840,25 @@ class FeatureFirstRulesTest {
         assertEquals(emptyList(), FeatureFirstRules.staleRuleViolations(graph.keys))
         assertEquals(emptyList(), FeatureFirstRules.featureModuleShapeViolations(graph.keys))
         assertEquals(emptyList(), FeatureFirstRules.dependencyViolations(graph, apiEdges))
+    }
+
+    @Test
+    fun supportModulesCannotAcquireApplicationDependencies() {
+        for (module in listOf(":designsystem")) {
+            for (dependency in listOf(":feature:sound", ":core:sound", ":shared", ":testing")) {
+                assertTrue(FeatureFirstRules.dependencyViolations(mapOf(module to listOf(dependency)))
+                    .any { it.contains("must remain independent") })
+            }
+            assertEquals(emptyList(), FeatureFirstRules.dependencyViolations(mapOf(module to listOf(module))))
+        }
+    }
+
+    @Test
+    fun coreCannotDependOnUiOrTheShell() {
+        for (dependency in listOf(":designsystem", ":shared")) {
+            assertTrue(FeatureFirstRules.dependencyViolations(mapOf(":core:sound" to listOf(dependency)))
+                .any { it.contains("may not depend on UI") })
+        }
     }
 
     private fun coreSource(path: String, packageSuffix: String, declaration: String) =

@@ -9,15 +9,24 @@ import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.favorites.port.FavoritesPort
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+
+internal enum class CategoryFavoritesReadStatus {
+    Pending,
+    Available,
+    Unavailable,
+}
 
 internal data class CategoryContent(
     val category: Category?,
     val tracks: List<Track>,
     val favoriteIds: Set<TrackId>,
     val playback: PlaybackSummary,
+    val favoritesReadStatus: CategoryFavoritesReadStatus,
 )
 
 /**
@@ -29,12 +38,40 @@ internal class ObserveCategoryContentUseCase(
     private val favoritesPort: FavoritesPort,
     private val playbackPort: PlaybackPort,
 ) {
-    operator fun invoke(categoryId: CategoryId): Flow<CategoryContent> = combine(
+    private fun categoryTracks(categoryId: CategoryId): Flow<CategoryTracks> = combine(
         soundPort.observeCategory(categoryId),
         soundPort.observeTracksForCategory(categoryId),
-        favoritesPort.observe(SOUND_FAVORITES_NAMESPACE).map { ids -> ids.mapTo(mutableSetOf(), ::TrackId) },
+        favoritesPort.observe(SOUND_FAVORITES_NAMESPACE)
+            .map {
+                FavoriteStatus(
+                    it.ids.mapTo(mutableSetOf(), ::TrackId),
+                    if (it.isAvailable) CategoryFavoritesReadStatus.Available else CategoryFavoritesReadStatus.Unavailable,
+                )
+            }
+            .onStart { emit(FavoriteStatus(emptySet(), CategoryFavoritesReadStatus.Pending)) }
+            .distinctUntilChanged(),
+    ) { category, tracks, favorites ->
+        CategoryTracks(
+            category = category,
+            tracks = tracks,
+            favoriteIds = tracks.mapNotNullTo(mutableSetOf()) { it.id.takeIf(favorites.ids::contains) },
+            favoritesReadStatus = favorites.readStatus,
+        )
+    }.distinctUntilChanged()
+
+    operator fun invoke(categoryId: CategoryId): Flow<CategoryContent> = combine(
+        categoryTracks(categoryId),
         playbackPort.playback,
-    ) { category, tracks, favoriteIds, playback ->
-        CategoryContent(category, tracks, favoriteIds, playback)
+    ) { category, playback ->
+        CategoryContent(category.category, category.tracks, category.favoriteIds, playback, category.favoritesReadStatus)
     }
+
+    private data class FavoriteStatus(val ids: Set<TrackId>, val readStatus: CategoryFavoritesReadStatus)
+
+    private data class CategoryTracks(
+        val category: Category?,
+        val tracks: List<Track>,
+        val favoriteIds: Set<TrackId>,
+        val favoritesReadStatus: CategoryFavoritesReadStatus,
+    )
 }

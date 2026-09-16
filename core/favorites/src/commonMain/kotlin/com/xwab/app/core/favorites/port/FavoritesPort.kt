@@ -10,7 +10,17 @@ import kotlinx.coroutines.flow.Flow
  * already hold on disk: renaming one then drops every favorite saved under it.
  */
 interface FavoritesPort {
-    fun observe(namespace: String): Flow<Set<String>>
+    /** Reports read failures with the last known IDs and retries while collected. */
+    fun observe(namespace: String): Flow<FavoritesSnapshot>
 
-    suspend fun toggle(namespace: String, itemId: String)
+    /** Storage failures are returned to the caller; cancellation still propagates. */
+    suspend fun toggle(namespace: String, itemId: String): FavoriteToggleResult
+}
+
+/** IDs are the last successful read, or empty before the first successful read. */
+data class FavoritesSnapshot(val ids: Set<String>, val isAvailable: Boolean = true)
+
+enum class FavoriteToggleResult {
+    Updated,
+    Unavailable,
 }

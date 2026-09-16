@@ -3,11 +3,11 @@ package com.xwab.app.feature.favorites
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xwab.app.core.sound.port.TrackId
+import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackKind
 import com.xwab.app.core.session.port.requestedValueOf
-import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.feature.favorites.domain.FavoritesContent
 import com.xwab.app.feature.favorites.domain.ObserveFavoritesContentUseCase
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,14 +20,23 @@ internal class FavoritesViewModel(
     observeFavoritesContentUseCase: ObserveFavoritesContentUseCase,
     private val playbackPort: PlaybackPort,
 ) : ViewModel() {
-    val state: StateFlow<Loadable<FavoritesState>> = observeFavoritesContentUseCase()
-        .map<FavoritesContent, Loadable<FavoritesState>> { content ->
+    // The port's per-collection fallback may be empty after an upstream restart.
+    private var lastKnownTracks: List<Track>? = null
+
+    val state: StateFlow<FavoritesUiState> = observeFavoritesContentUseCase()
+        .map<FavoritesContent, FavoritesUiState> { content ->
+            if (content.favoritesAvailable) lastKnownTracks = content.tracks
+            val tracks = lastKnownTracks ?: content.tracks
             val playback = content.playback
             val requestedTrackId = playback.requestedValueOf(PlaybackKind.SOUND)?.let(::TrackId)
-            val failure = playback.failure?.takeIf { it.itemId.kind == PlaybackKind.SOUND }
-            Loadable.Ready(
+                ?.takeIf { id -> tracks.any { it.id == id } }
+            val failure = playback.failure?.takeIf { failure ->
+                failure.itemId.kind == PlaybackKind.SOUND && tracks.any { it.id.value == failure.itemId.value }
+            }
+            FavoritesUiState.Ready(
                 FavoritesState(
-                    tracks = content.tracks,
+                    tracks = tracks,
+                    favoritesAvailable = content.favoritesAvailable,
                     requestedTrackId = requestedTrackId,
                     playIntent = requestedTrackId != null && playback.playIntent,
                     isPreparing = requestedTrackId != null && playback.isPreparing,
@@ -38,11 +47,11 @@ internal class FavoritesViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = Loadable.Loading,
+            initialValue = FavoritesUiState.Loading,
         )
 
     fun togglePlayback(trackId: TrackId) {
-        val current = (state.value as? Loadable.Ready)?.value ?: return
+        val current = (state.value as? FavoritesUiState.Ready)?.value ?: return
         if (current.isRowPlaying(trackId)) {
             playbackPort.pause()
         } else {

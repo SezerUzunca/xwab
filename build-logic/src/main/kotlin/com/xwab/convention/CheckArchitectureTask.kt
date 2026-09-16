@@ -35,6 +35,10 @@ import org.gradle.api.tasks.TaskAction
  *     are project-wide decisions.
  * 11. Features expose only navigation contracts and DI Dependencies classes; implementation
  *     declarations stay internal or private.
+ * 12. Designsystem has no application project dependencies; core cannot
+ *     depend on it or on the app shell.
+ * 13. Loading/Ready state types stay inside feature modules. Whether a screen has content yet is
+ *     that screen's own question, not a vocabulary every feature has to share.
  *
  * The rules themselves live in [FeatureFirstRules], where they are unit-tested from both sides.
  * This task is only their plumbing: it collects the dependency graph and source/configuration files.
@@ -73,6 +77,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
             leakedUseCaseViolations(root, graph.keys) +
             FeatureFirstRules.sharedFeatureReferenceViolations(productionSources(root, "shared")) +
             FeatureFirstRules.featureVisibilityViolations(productionSources(root, "feature")) +
+            FeatureFirstRules.featureStateViolations(nonFeatureProductionSources(root)) +
             FeatureFirstRules.lazyListKeyViolations(
                 productionSources(root, "feature") + productionSources(root, "shared"),
             ) +
@@ -155,6 +160,17 @@ abstract class CheckArchitectureTask : DefaultTask() {
             }
             .associate { file ->
                 file.relativeTo(root).invariantSeparatorsPath to file.readText()
+            }
+
+    /**
+     * Every production source outside `feature/` — the modules a screen's own state must not
+     * move into. `androidApp` is included because it is a place a shared presentation type could
+     * land without any other rule noticing.
+     */
+    private fun nonFeatureProductionSources(root: File): Map<String, String> =
+        listOf("androidApp", "core", "designsystem", "shared", "testing")
+            .fold(emptyMap<String, String>()) { sources, directory ->
+                sources + productionSources(root, directory)
             }
 
     private fun legacySplitDirectories(root: File): List<String> =

@@ -21,13 +21,12 @@ class StoryTest {
         assertEquals(174, story.durationSeconds)
     }
 
-    /** A narrator and artwork are genuinely optional; blank strings are not the way to say so. */
+    /** A narrator is optional; blank strings are not the way to say so. */
     @Test
-    fun anAbsentNarratorAndArtworkAreFine() {
-        val story = story(narrator = null, artworkUrl = null)
+    fun anAbsentNarratorIsFine() {
+        val story = story(narrator = null)
 
         assertNull(story.narrator)
-        assertNull(story.artworkUrl)
     }
 
     @Test
@@ -53,12 +52,6 @@ class StoryTest {
         assertFailsWith<IllegalArgumentException> { story(narrator = " ") }
     }
 
-    @Test
-    fun artworkThatIsNotHttpsIsRejected() {
-        assertFailsWith<IllegalArgumentException> {
-            story(artworkUrl = "http://example.test/night-came-slowly.jpg")
-        }
-    }
 
     private fun story(
         title: String = "The Night Came Slowly",
@@ -66,7 +59,6 @@ class StoryTest {
         description: String = "A quiet meditation on dusk.",
         narrator: String? = "Alan Davis Drake",
         durationSeconds: Int = 174,
-        artworkUrl: String? = "https://example.test/night-came-slowly.jpg",
     ) = Story(
         id = StoryId("night-came-slowly"),
         title = title,
@@ -74,6 +66,5 @@ class StoryTest {
         description = description,
         narrator = narrator,
         durationSeconds = durationSeconds,
-        artworkUrl = artworkUrl,
     )
 }

@@ -6,8 +6,11 @@ import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.sound.port.TrackId
-import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.feature.category.domain.ObserveCategoryContentUseCase
+import com.xwab.app.core.favorites.port.FavoriteToggleResult
+import com.xwab.app.core.favorites.port.FavoritesPort
+import com.xwab.app.core.favorites.port.FavoritesSnapshot
+import com.xwab.app.feature.category.domain.CategoryFavoritesReadStatus
 import com.xwab.app.testing.FakeFavorites
 import com.xwab.app.testing.FakeSoundCatalog
 import com.xwab.app.testing.FakePlaybackPort
@@ -24,12 +27,17 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -199,9 +207,138 @@ class CategoryViewModelTest {
         assertNull(readyState(viewModel).rowFailure(GENTLE_RAIN))
     }
 
+    @Test
+    fun favoriteReadFailuresAreVisibleAndRecoverWithoutReopeningTheScreen() = runTest(mainDispatcher) {
+        val favorites = FakeFavorites()
+        val viewModel = createViewModel(FakePlaybackPort(), favorites = favorites)
+        collectState(viewModel)
+        advanceUntilIdle()
+        favorites.available.value = false
+        advanceUntilIdle()
+        assertFalse(readyState(viewModel).favoritesAvailable)
+        favorites.available.value = true
+        advanceUntilIdle()
+        assertTrue(readyState(viewModel).favoritesAvailable)
+    }
+
+    @Test
+    fun favoriteWriteFailuresAreVisibleUntilASuccessfulRetry() = runTest(mainDispatcher) {
+        val favorites = FakeFavorites().apply { toggleResult = FavoriteToggleResult.Unavailable }
+        val viewModel = createViewModel(FakePlaybackPort(), favorites = favorites)
+        collectState(viewModel)
+        advanceUntilIdle()
+        viewModel.toggleFavorite(HEAVY_RAIN)
+        advanceUntilIdle()
+        assertTrue(readyState(viewModel).favoriteWriteFailed)
+        favorites.toggleResult = FavoriteToggleResult.Updated
+        viewModel.toggleFavorite(HEAVY_RAIN)
+        advanceUntilIdle()
+        assertFalse(readyState(viewModel).favoriteWriteFailed)
+    }
+    @Test
+    fun categoryAndPlaybackAreUsableBeforeTheFirstFavoriteRead() = runTest(mainDispatcher) {
+        val reads = MutableSharedFlow<FavoritesSnapshot>(replay = 1)
+        val writes = FakeFavorites()
+        val playback = FakePlaybackPort()
+        val viewModel = createViewModel(playback, favoritesReading(reads, writes))
+        collectState(viewModel)
+        runCurrent()
+
+        val pending = readyState(viewModel)
+        assertEquals(RAIN, pending.category?.id)
+        assertEquals(listOf(GENTLE_RAIN, HEAVY_RAIN), pending.tracks.map { it.id })
+        assertEquals(CategoryFavoritesReadStatus.Pending, pending.favoritesReadStatus)
+        assertFalse(pending.favoritesAvailable)
+        viewModel.toggleFavorite(GENTLE_RAIN)
+        viewModel.togglePlayback(GENTLE_RAIN)
+        runCurrent()
+        assertTrue(writes.toggles.isEmpty())
+        assertEquals(PlaybackItemId.sound(GENTLE_RAIN.value), playback.playedItemId)
+
+        reads.emit(FavoritesSnapshot(emptySet(), isAvailable = false))
+        runCurrent()
+        assertEquals(CategoryFavoritesReadStatus.Unavailable, readyState(viewModel).favoritesReadStatus)
+
+        reads.emit(FavoritesSnapshot(setOf(GENTLE_RAIN.value)))
+        runCurrent()
+        assertTrue(readyState(viewModel).isRowFavorite(GENTLE_RAIN))
+        assertTrue(readyState(viewModel).favoritesAvailable)
+    }
+
+    @Test
+    fun favoriteMembershipSurvivesAStoppedSubscriptionAndFailedFirstRead() = runTest(mainDispatcher) {
+        val reads = MutableSharedFlow<FavoritesSnapshot>(replay = 1)
+        reads.emit(FavoritesSnapshot(setOf(GENTLE_RAIN.value)))
+        val viewModel = createViewModel(FakePlaybackPort(), favoritesReading(reads))
+        val firstCollection = collectState(viewModel)
+        runCurrent()
+        assertEquals(setOf(GENTLE_RAIN), readyState(viewModel).favoriteIds)
+
+        firstCollection.cancel()
+        advanceTimeBy(5_001)
+        runCurrent()
+        assertEquals(0, reads.subscriptionCount.value)
+        reads.resetReplayCache()
+        val secondCollection = collectState(viewModel)
+        runCurrent()
+        assertEquals(CategoryFavoritesReadStatus.Pending, readyState(viewModel).favoritesReadStatus)
+        assertEquals(setOf(GENTLE_RAIN), readyState(viewModel).favoriteIds)
+
+        reads.emit(FavoritesSnapshot(emptySet(), isAvailable = false))
+        runCurrent()
+        assertFalse(readyState(viewModel).favoritesAvailable)
+        assertEquals(setOf(GENTLE_RAIN), readyState(viewModel).favoriteIds)
+
+        reads.emit(FavoritesSnapshot(emptySet()))
+        runCurrent()
+        assertTrue(readyState(viewModel).favoriteIds.isEmpty())
+        assertTrue(readyState(viewModel).favoritesAvailable)
+
+        secondCollection.cancel()
+        advanceTimeBy(5_001)
+        runCurrent()
+        reads.emit(FavoritesSnapshot(emptySet(), isAvailable = false))
+        collectState(viewModel)
+        runCurrent()
+        assertTrue(readyState(viewModel).favoriteIds.isEmpty())
+        assertFalse(readyState(viewModel).favoritesAvailable)
+    }
+
+    @Test
+    fun favoritesAndPlaybackOutsideThisCategoryDoNotChangeTheScreenState() = runTest(mainDispatcher) {
+        val favorites = FakeFavorites(setOf(GENTLE_RAIN, TrackId("waves")))
+        val playback = FakePlaybackPort()
+        val viewModel = createViewModel(playback, favorites)
+        val emissions = mutableListOf<CategoryUiState>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.toList(emissions) }
+        runCurrent()
+        val before = emissions.size
+        assertEquals(setOf(GENTLE_RAIN), readyState(viewModel).favoriteIds)
+
+        favorites.toggle(SOUND_FAVORITES_NAMESPACE, "birds")
+        runCurrent()
+        playback.publish(PlaybackSummary(
+            requestedItemId = PlaybackItemId.sound("waves"),
+            playIntent = true,
+            isPreparing = true,
+            failure = PlaybackFailure.SourceUnavailable(PlaybackItemId.sound("birds")),
+        ))
+        runCurrent()
+        assertEquals(before, emissions.size)
+
+        favorites.toggle(SOUND_FAVORITES_NAMESPACE, HEAVY_RAIN.value)
+        runCurrent()
+        assertTrue(readyState(viewModel).isRowFavorite(HEAVY_RAIN))
+    }
+
+    private fun favoritesReading(reads: Flow<FavoritesSnapshot>, writes: FakeFavorites = FakeFavorites()): FavoritesPort =
+        object : FavoritesPort by writes {
+            override fun observe(namespace: String): Flow<FavoritesSnapshot> = reads
+        }
+
     private fun createViewModel(
         port: FakePlaybackPort,
-        favorites: FakeFavorites = FakeFavorites(setOf(GENTLE_RAIN)),
+        favorites: FavoritesPort = FakeFavorites(setOf(GENTLE_RAIN)),
     ): CategoryViewModel {
         val catalog = FakeSoundCatalog(
             categories = listOf(category("rain", trackCount = 2)),
@@ -216,11 +353,10 @@ class CategoryViewModelTest {
     }
 
     private fun readyState(viewModel: CategoryViewModel): CategoryState =
-        assertIs<Loadable.Ready<CategoryState>>(viewModel.state.value).value
+        assertIs<CategoryUiState.Ready>(viewModel.state.value).value
 
-    private fun TestScope.collectState(viewModel: CategoryViewModel) {
+    private fun TestScope.collectState(viewModel: CategoryViewModel) =
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
-    }
 
     private companion object {
         val RAIN = CategoryId("rain")

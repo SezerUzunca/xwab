@@ -3,6 +3,7 @@ package com.xwab.app.feature.sound
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.runComposeUiTest
@@ -10,6 +11,7 @@ import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
+import com.xwab.app.feature.sound.domain.SoundFavoriteReadStatus
 import kotlin.test.Test
 
 /**
@@ -80,7 +82,11 @@ class SoundScreenTest {
      */
     @Test
     fun aSoundTheCatalogDoesNotHoldOffersNothingToTap() = runComposeUiTest {
-        show(SoundState(track = null, error = SoundError.SoundNotFound))
+        show(SoundState(
+            track = null,
+            error = SoundError.SoundNotFound,
+            favoriteReadStatus = SoundFavoriteReadStatus.Available,
+        ))
 
         onNodeWithText(NOT_FOUND).assertExists()
         onNodeWithContentDescription(PLAY).assertIsNotEnabled()
@@ -99,6 +105,35 @@ class SoundScreenTest {
         show(SoundState(track = TRACK, volume = 1.0f))
 
         onNodeWithText(FULL_VOLUME).assertExists()
+    }
+
+    /**
+     * A pending read waits at the heart and nowhere else, and the waiting heart is still the thing
+     * a tap is refused by — asserted on the control, which is where the design system now puts the
+     * description.
+     */
+    @Test
+    fun aPendingFavoriteReadOnlyWaitsAtTheFavoriteControl() = runComposeUiTest {
+        show(SoundState(track = TRACK, favoriteReadStatus = SoundFavoriteReadStatus.Pending))
+
+        onNodeWithText(TRACK_NAME).assertExists()
+        onNodeWithContentDescription(PLAY).assertIsEnabled()
+        onNodeWithContentDescription(ADD_FAVORITE).assertDoesNotExist()
+        onNodeWithContentDescription(FAVORITES_LOADING).assertIsNotEnabled()
+        onNodeWithText(FAVORITES_UNAVAILABLE).assertDoesNotExist()
+    }
+
+    @Test
+    fun anUnavailableFavoriteReadKeepsThePreviousHeartAndShowsTheError() = runComposeUiTest {
+        show(SoundState(
+            track = TRACK,
+            isFavorite = true,
+            favoriteReadStatus = SoundFavoriteReadStatus.Unavailable,
+        ))
+
+        onNodeWithContentDescription(REMOVE_FAVORITE).assertIsNotEnabled()
+        onNodeWithContentDescription(FAVORITES_LOADING).assertDoesNotExist()
+        onNodeWithText(FAVORITES_UNAVAILABLE).assertExists()
     }
 
     private fun ComposeUiTest.show(state: SoundState) {
@@ -136,5 +171,8 @@ class SoundScreenTest {
         /** What a screen reader announces for the two controls, from the design system. */
         const val PLAY = "Play"
         const val ADD_FAVORITE = "Add to favorites"
+        const val REMOVE_FAVORITE = "Remove from favorites"
+        const val FAVORITES_LOADING = "Loading favorites"
+        const val FAVORITES_UNAVAILABLE = "Favorites are temporarily unavailable. Retrying\u2026"
     }
 }

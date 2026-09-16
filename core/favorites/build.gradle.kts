@@ -19,5 +19,8 @@ kotlin {
         }
         androidMain.dependencies {
         }
+        commonTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
+        }
     }
 }

@@ -23,7 +23,6 @@ import com.xwab.app.designsystem.format.formatDuration
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.SleepRelaxBackground
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
-import com.xwab.app.designsystem.state.Loadable
 import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res as UiRes
 import xwab.designsystem.generated.resources.preparing
@@ -41,8 +40,8 @@ internal fun StoriesScreenRoute(viewModel: StoriesViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     when (val content = state) {
-        Loadable.Loading -> LoadingContent()
-        is Loadable.Ready -> StoriesScreen(
+        StoriesUiState.Loading -> LoadingContent()
+        is StoriesUiState.Ready -> StoriesScreen(
             state = content.value,
             onPlaybackClick = viewModel::togglePlayback,
         )
@@ -160,7 +159,6 @@ private fun StoriesScreenPreview() {
                         description = "A quiet meditation on dusk.",
                         narrator = "Alan Davis Drake",
                         durationSeconds = 174,
-                        artworkUrl = null,
                     ),
                 ),
             ),

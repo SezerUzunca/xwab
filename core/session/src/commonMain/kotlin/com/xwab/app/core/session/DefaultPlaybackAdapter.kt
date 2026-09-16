@@ -97,7 +97,7 @@ internal class DefaultPlaybackAdapter internal constructor(
      * the session's [DEFAULT_LOOPING], or the item's own — stops applying because a real preference
      * exists to read.
      */
-    private var loopPreferenceEstablished = false
+    private val loopPreferenceEstablished: Boolean get() = intent.value.loopPreferenceEstablished
 
     /**
      * The loop value this adapter itself last sent as part of a [PlaybackCommand.Load], or `null`
@@ -162,8 +162,8 @@ internal class DefaultPlaybackAdapter internal constructor(
     }
 
     override fun setLooping(enabled: Boolean) {
-        loopPreferenceEstablished = true
         enginePort.submit(PlaybackCommand.SetLooping(enabled))
+        intent.update { it.copy(loopPreferenceEstablished = true) }
     }
 
     override fun setVolume(volume: Float) {
@@ -232,7 +232,7 @@ internal class DefaultPlaybackAdapter internal constructor(
             loopPreferenceEstablished -> currentLooping
             lastAppliedLooping != null && currentLooping != lastAppliedLooping -> {
                 // Nothing this adapter did changed it since the last load — a remote controller did.
-                loopPreferenceEstablished = true
+                intent.update { it.copy(loopPreferenceEstablished = true) }
                 currentLooping
             }
             else -> defaultLooping
@@ -258,7 +258,7 @@ internal class DefaultPlaybackAdapter internal constructor(
             isPreparing = playIntent &&
                 (requested != active || !engine.isPlaying) &&
                 engine.phase != PlaybackPhase.Failed,
-            isLooping = engine.effectiveLooping(),
+            isLooping = engine.effectiveLooping(wanted.loopPreferenceEstablished),
             // Clamped on the way out as well as in. Everything this adapter sends the engine is
             // already inside the range, so this only catches an engine reporting its own idea of
             // loudness — but the published range is a promise to every reader, and a promise kept
@@ -275,7 +275,7 @@ internal class DefaultPlaybackAdapter internal constructor(
     /**
      * What the summary should show as the current loop state, before or after anything has loaded.
      *
-     * Called with no argument from [summaryOf]. Once anything is attached or requested, the screen
+     * Uses the same session snapshot as [summaryOf]. Once anything is attached or requested, the screen
      * shows the engine's real, reconciled [AudioPlayerState.isLooping] instead of a re-derived
      * default — [AudioPlayerState.activeSource], not `source`, is the test for that: a dropped
      * service connection clears only the *attached* source while the session's reconciled settings
@@ -285,8 +285,8 @@ internal class DefaultPlaybackAdapter internal constructor(
      * a previous item merely being attached is not a listener preference, and must not leak into
      * whatever plays next.
      */
-    private fun AudioPlayerState.effectiveLooping(defaultLooping: Boolean = DEFAULT_LOOPING): Boolean =
-        if (loopPreferenceEstablished || activeSource != null) isLooping else defaultLooping
+    private fun AudioPlayerState.effectiveLooping(preferenceEstablished: Boolean): Boolean =
+        if (preferenceEstablished || activeSource != null) isLooping else DEFAULT_LOOPING
 
     private fun AudioPlayerState.engineFailure(): PlaybackFailure? =
         if (phase == PlaybackPhase.Failed) {
@@ -302,6 +302,7 @@ internal class DefaultPlaybackAdapter internal constructor(
      *   engine is.
      */
     private data class SessionIntent(
+        val loopPreferenceEstablished: Boolean = false,
         val generation: Long = 0L,
         val pendingItemId: PlaybackItemId? = null,
         val failure: PlaybackFailure? = null,

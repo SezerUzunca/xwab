@@ -5,8 +5,16 @@ import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 
-/** Content available after the outer [com.xwab.app.designsystem.state.Loadable] becomes ready. */
+/** Loading and content states owned by this feature. */
+internal sealed interface FavoritesUiState {
+    data object Loading : FavoritesUiState
+
+    data class Ready(val value: FavoritesState) : FavoritesUiState
+}
+
+/** Content available in [FavoritesUiState.Ready]. */
 internal data class FavoritesState(
+    val favoritesAvailable: Boolean = true,
     val tracks: List<Track> = emptyList(),
     val requestedTrackId: TrackId? = null,
     /** What the row's play/pause control shows: the session's intent, not audible sound. */

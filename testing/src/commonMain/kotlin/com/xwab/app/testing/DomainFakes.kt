@@ -7,10 +7,12 @@ import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.favorites.port.FavoritesPort
+import com.xwab.app.core.favorites.port.FavoritesSnapshot
+import com.xwab.app.core.favorites.port.FavoriteToggleResult
+import kotlinx.coroutines.flow.combine
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -60,13 +62,19 @@ class FakeFavorites(favoriteIds: Set<TrackId> = emptySet()) : FavoritesPort {
         mapOf(SOUND_FAVORITES_NAMESPACE to favoriteIds.mapTo(mutableSetOf()) { it.value }),
     )
     val toggles = mutableListOf<Pair<String, String>>()
+    val available = MutableStateFlow(true)
+    var toggleResult = FavoriteToggleResult.Updated
 
-    override fun observe(namespace: String): Flow<Set<String>> = state.map { it[namespace].orEmpty() }
+    override fun observe(namespace: String): Flow<FavoritesSnapshot> = combine(state, available) { ids, readable ->
+        FavoritesSnapshot(ids[namespace].orEmpty(), readable)
+    }
 
-    override suspend fun toggle(namespace: String, itemId: String) {
+    override suspend fun toggle(namespace: String, itemId: String): FavoriteToggleResult {
+        if (toggleResult == FavoriteToggleResult.Unavailable) return toggleResult
         toggles += namespace to itemId
         val current = state.value[namespace].orEmpty()
         state.value += (namespace to if (itemId in current) current - itemId else current + itemId)
+        return FavoriteToggleResult.Updated
     }
 }
 class FakePlaybackPort : PlaybackPort {

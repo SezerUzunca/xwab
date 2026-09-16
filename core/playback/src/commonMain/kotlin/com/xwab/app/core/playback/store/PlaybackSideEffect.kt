@@ -26,6 +26,9 @@ internal sealed interface PlaybackSideEffect {
     /** Pause the native engine. */
     data object Pause : PlaybackSideEffect
 
+    /** Pause after an engine failure and stop readiness/state observation until recovery. */
+    data object PauseForFailure : PlaybackSideEffect
+
     /**
      * Pause caused by an audio-session interruption (e.g. an incoming call).
      *

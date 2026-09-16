@@ -3,7 +3,6 @@ package com.xwab.app.feature.sound
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -16,13 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -31,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Track
@@ -39,16 +33,22 @@ import com.xwab.app.designsystem.format.formatDuration
 import com.xwab.app.designsystem.format.formatRemaining
 import com.xwab.app.designsystem.components.BackButton
 import com.xwab.app.designsystem.components.FavoriteButton
+import com.xwab.app.feature.sound.domain.SoundFavoriteReadStatus
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.PlayPauseButton
 import com.xwab.app.designsystem.components.SleepRelaxBackground
+import com.xwab.app.designsystem.components.SleepRelaxSlider
+import com.xwab.app.designsystem.components.SleepRelaxSwitch
+import com.xwab.app.designsystem.components.SleepRelaxTextButton
+import com.xwab.app.designsystem.components.glassCard
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
-import com.xwab.app.designsystem.state.Loadable
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res as UiRes
 import xwab.designsystem.generated.resources.duration_public_domain
 import xwab.designsystem.generated.resources.preparing
+import xwab.designsystem.generated.resources.favorites_read_failed
+import xwab.designsystem.generated.resources.favorite_write_failed
 import xwab.feature.sound.generated.resources.Res
 import xwab.feature.sound.generated.resources.cancel_timer
 import xwab.feature.sound.generated.resources.loop_sound
@@ -67,6 +67,8 @@ import xwab.feature.sound.generated.resources.volume
 import xwab.feature.sound.generated.resources.volume_percentage
 
 private const val MINUTE_MS = 60_000L
+private val ALBUM_ART_SIZE = 220.dp
+private val ALBUM_ART_INNER_SIZE = 100.dp
 
 /** The presets the timer row offers, in the order they are shown. */
 private val SLEEP_TIMER_PRESETS: List<Pair<Long, StringResource>> = listOf(
@@ -84,8 +86,8 @@ internal fun SoundScreenRoute(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     when (val content = state) {
-        Loadable.Loading -> LoadingContent()
-        is Loadable.Ready -> SoundScreen(
+        SoundUiState.Loading -> LoadingContent()
+        is SoundUiState.Ready -> SoundScreen(
             state = content.value,
             onBack = onBack,
             onFavoriteClick = viewModel::toggleFavorite,
@@ -110,109 +112,105 @@ internal fun SoundScreen(
     onTimerCancel: () -> Unit,
 ) {
     SleepRelaxBackground {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val isShortWindow = maxHeight < SleepRelaxTheme.dimens.shortWindowMaxHeight
-            Column(
-                modifier = Modifier
-                    .widthIn(max = SleepRelaxTheme.dimens.contentMaxWidth)
-                    .fillMaxSize()
-                    .align(Alignment.Center)
-                    .then(
-                        if (isShortWindow) Modifier.verticalScroll(rememberScrollState()) else Modifier,
-                    )
-                    .padding(
-                        horizontal = SleepRelaxTheme.dimens.paddingScreenHorizontal,
-                        vertical = SleepRelaxTheme.dimens.paddingScreenVertical,
-                    ),
-                horizontalAlignment = Alignment.CenterHorizontally,
+        // Content can outgrow a tall window too when text scales or status lines appear.
+        Column(
+            modifier = Modifier
+                .widthIn(max = SleepRelaxTheme.dimens.contentMaxWidth)
+                .fillMaxSize()
+                .align(Alignment.Center)
+                .verticalScroll(rememberScrollState())
+                .padding(
+                    horizontal = SleepRelaxTheme.dimens.paddingScreenHorizontal,
+                    vertical = SleepRelaxTheme.dimens.paddingScreenVertical,
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    BackButton(onClick = onBack)
-                    FavoriteButton(
-                        isFavorite = state.isFavorite,
-                        onClick = onFavoriteClick,
-                        enabled = state.canFavorite,
-                    )
-                }
-
-                if (isShortWindow) {
-                    Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
-                } else {
-                    Spacer(Modifier.weight(1f))
-                }
-                AlbumArt()
-
-                Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingHuge))
-                Text(
-                    text = state.track?.name.orEmpty(),
-                    style = SleepRelaxTheme.typography.headlineSmall,
-                    color = SleepRelaxTheme.colors.textPrimary,
-                    textAlign = TextAlign.Center,
+                BackButton(onClick = onBack)
+                FavoriteButton(
+                    isFavorite = state.isFavorite,
+                    onClick = onFavoriteClick,
+                    enabled = state.canFavorite,
+                    isLoading = state.favoriteReadStatus == SoundFavoriteReadStatus.Pending,
                 )
+            }
+
+            if (state.favoriteReadStatus == SoundFavoriteReadStatus.Unavailable || state.favoriteWriteFailed) {
+                Text(
+                    text = stringResource(if (state.favoriteReadStatus == SoundFavoriteReadStatus.Unavailable) UiRes.string.favorites_read_failed else UiRes.string.favorite_write_failed),
+                    color = SleepRelaxTheme.colors.error,
+                    style = SleepRelaxTheme.typography.bodyMedium,
+                )
+            }
+            Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
+            AlbumArt()
+
+            Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingHuge))
+            Text(
+                text = state.track?.name.orEmpty(),
+                style = SleepRelaxTheme.typography.headlineSmall,
+                color = SleepRelaxTheme.colors.textPrimary,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraSmall))
+            Text(
+                text = state.track?.let {
+                    stringResource(UiRes.string.duration_public_domain, formatDuration(it.durationSeconds))
+                } ?: stringResource(Res.string.offline_public_domain),
+                style = SleepRelaxTheme.typography.labelMedium,
+                color = SleepRelaxTheme.colors.textSecondary,
+                textAlign = TextAlign.Center,
+            )
+
+            Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
+            PlayPauseButton(
+                isPlaying = state.playIntent,
+                onClick = onPlaybackClick,
+                large = true,
+                enabled = state.canPlay,
+            )
+
+            // The same line every list draws under a row that is wanted but not audible yet.
+            // This screen worked the state out and then drew nothing with it, so a source that
+            // took a moment to resolve looked like a button that had missed the tap.
+            if (state.isPreparing) {
                 Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraSmall))
                 Text(
-                    text = state.track?.let {
-                        stringResource(UiRes.string.duration_public_domain, formatDuration(it.durationSeconds))
-                    } ?: stringResource(Res.string.offline_public_domain),
+                    text = stringResource(UiRes.string.preparing),
                     style = SleepRelaxTheme.typography.labelMedium,
                     color = SleepRelaxTheme.colors.textSecondary,
                     textAlign = TextAlign.Center,
                 )
-
-                Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
-                PlayPauseButton(
-                    isPlaying = state.playIntent,
-                    onClick = onPlaybackClick,
-                    large = true,
-                    enabled = state.canPlay,
-                )
-
-                // The same line every list draws under a row that is wanted but not audible yet.
-                // This screen worked the state out and then drew nothing with it, so a source that
-                // took a moment to resolve looked like a button that had missed the tap.
-                if (state.isPreparing) {
-                    Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraSmall))
-                    Text(
-                        text = stringResource(UiRes.string.preparing),
-                        style = SleepRelaxTheme.typography.labelMedium,
-                        color = SleepRelaxTheme.colors.textSecondary,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-
-                Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
-                PlaybackControls(
-                    state = state,
-                    onLoopingChange = onLoopingChange,
-                    onVolumeChange = onVolumeChange,
-                    onTimerStart = onTimerStart,
-                    onTimerCancel = onTimerCancel,
-                )
-
-                state.error?.let { error ->
-                    Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
-                    Text(
-                        text = stringResource(
-                            when (error) {
-                                SoundError.SoundNotFound -> Res.string.sound_not_found
-                                SoundError.SoundCouldNotOpen -> Res.string.sound_could_not_open
-                                SoundError.SoundUnavailable -> Res.string.sound_unavailable
-                            },
-                        ),
-                        color = SleepRelaxTheme.colors.error,
-                        style = SleepRelaxTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-                if (isShortWindow) {
-                    Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
-                } else {
-                    Spacer(Modifier.weight(1f))
-                }
             }
+
+            Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
+            PlaybackControls(
+                state = state,
+                onLoopingChange = onLoopingChange,
+                onVolumeChange = onVolumeChange,
+                onTimerStart = onTimerStart,
+                onTimerCancel = onTimerCancel,
+            )
+
+            state.error?.let { error ->
+                Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
+                Text(
+                    text = stringResource(
+                        when (error) {
+                            SoundError.SoundNotFound -> Res.string.sound_not_found
+                            SoundError.SoundCouldNotOpen -> Res.string.sound_could_not_open
+                            SoundError.SoundUnavailable -> Res.string.sound_unavailable
+                        },
+                    ),
+                    color = SleepRelaxTheme.colors.error,
+                    style = SleepRelaxTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
         }
     }
 }
@@ -222,7 +220,7 @@ internal fun SoundScreen(
 private fun AlbumArt() {
     Box(
         modifier = Modifier
-            .size(SleepRelaxTheme.dimens.albumArtSize)
+            .size(ALBUM_ART_SIZE)
             .clip(SleepRelaxTheme.shapes.full)
             .background(
                 Brush.radialGradient(
@@ -236,7 +234,7 @@ private fun AlbumArt() {
     ) {
         Box(
             modifier = Modifier
-                .size(SleepRelaxTheme.dimens.albumArtInnerSize)
+                .size(ALBUM_ART_INNER_SIZE)
                 .clip(SleepRelaxTheme.shapes.full)
                 .background(SleepRelaxTheme.colors.surface.copy(alpha = 0.85f)),
             contentAlignment = Alignment.Center,
@@ -265,8 +263,7 @@ private fun PlaybackControls(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(SleepRelaxTheme.shapes.medium)
-            .background(SleepRelaxTheme.colors.glassWhite)
+            .glassCard()
             .padding(SleepRelaxTheme.dimens.spacingLarge),
     ) {
         VolumeControl(
@@ -313,16 +310,11 @@ private fun VolumeControl(
             style = SleepRelaxTheme.typography.labelMedium,
         )
     }
-    Slider(
+    SleepRelaxSlider(
         value = volume,
         onValueChange = onVolumeChange,
         modifier = Modifier.fillMaxWidth(),
         enabled = enabled,
-        colors = SliderDefaults.colors(
-            thumbColor = SleepRelaxTheme.colors.accent,
-            activeTrackColor = SleepRelaxTheme.colors.primary,
-            inactiveTrackColor = SleepRelaxTheme.colors.glassWhiteOverlay,
-        ),
     )
 }
 
@@ -342,17 +334,10 @@ private fun LoopingControl(
             color = SleepRelaxTheme.colors.textPrimary,
             style = SleepRelaxTheme.typography.titleSmall,
         )
-        Switch(
+        SleepRelaxSwitch(
             checked = isLooping,
             onCheckedChange = onLoopingChange,
             enabled = enabled,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = SleepRelaxTheme.colors.onSurface,
-                checkedTrackColor = SleepRelaxTheme.colors.primary,
-                uncheckedThumbColor = SleepRelaxTheme.colors.textSecondary,
-                uncheckedTrackColor = SleepRelaxTheme.colors.glassWhiteOverlay,
-                uncheckedBorderColor = SleepRelaxTheme.colors.glassWhite,
-            ),
         )
     }
 }
@@ -396,12 +381,9 @@ private fun ColumnScope.SleepTimerControl(
         }
     }
     if (remainingMs != null) {
-        TextButton(
+        SleepRelaxTextButton(
             onClick = onTimerCancel,
             modifier = Modifier.align(Alignment.End),
-            colors = ButtonDefaults.textButtonColors(
-                contentColor = SleepRelaxTheme.colors.accent,
-            ),
         ) {
             Text(stringResource(Res.string.cancel_timer))
         }
@@ -416,13 +398,10 @@ private fun TimerPresetButton(
     onTimerStart: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    TextButton(
+    SleepRelaxTextButton(
         onClick = { onTimerStart(durationMs) },
         modifier = modifier,
         enabled = enabled,
-        colors = ButtonDefaults.textButtonColors(
-            contentColor = SleepRelaxTheme.colors.accent,
-        ),
     ) {
         Text(
             text = text,
@@ -445,6 +424,7 @@ private fun SoundScreenPreview() {
                     durationSeconds = 286,
                 ),
                 isFavorite = true,
+                favoriteReadStatus = SoundFavoriteReadStatus.Available,
                 sleepTimerRemainingMs = 29L * MINUTE_MS + 42_000L,
             ),
             onBack = {},

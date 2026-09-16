@@ -56,6 +56,5 @@ class ManifestStoryCatalogAdapterTest {
         description = "A literary short story.",
         narrator = "Alan Davis Drake",
         durationSeconds = 600,
-        artworkUrl = null,
     )
 }

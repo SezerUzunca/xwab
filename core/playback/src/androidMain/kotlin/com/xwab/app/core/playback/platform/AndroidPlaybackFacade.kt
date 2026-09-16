@@ -128,7 +128,8 @@ internal class AndroidPlaybackFacade(
                     )
                 }
                 is PlaybackSideEffect.Play -> ensureConnectedOrApply { controller -> applyPlay(controller) }
-                is PlaybackSideEffect.Pause -> ensureConnectedOrApply { controller -> controller.pause() }
+                PlaybackSideEffect.Pause,
+                PlaybackSideEffect.PauseForFailure -> ensureConnectedOrApply { controller -> controller.pause() }
                 // Android's audio-session interruptions are handled natively by the
                 // media session; a soft pause behaves like a normal pause here.
                 is PlaybackSideEffect.PauseForInterruption -> ensureConnectedOrApply { controller -> controller.pause() }

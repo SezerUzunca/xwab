@@ -5,15 +5,17 @@ import androidx.lifecycle.viewModelScope
 import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.favorites.port.FavoritesPort
+import com.xwab.app.core.favorites.port.FavoriteToggleResult
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
-import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.feature.sound.domain.ObserveSoundContentUseCase
 import com.xwab.app.feature.sound.domain.SoundContent
+import com.xwab.app.feature.sound.domain.SoundFavoriteReadStatus
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -23,19 +25,28 @@ internal class SoundViewModel(
     private val favoritesPort: FavoritesPort,
     private val playbackPort: PlaybackPort,
 ) : ViewModel() {
+    private val favoriteWriteFailed = MutableStateFlow(false)
+    // Survives an upstream restart while this ViewModel is still on the back stack.
+    private var lastKnownFavorite: Boolean? = null
     /** This screen is about one sound, so that is the item it recognises in the session. */
     private val itemId = PlaybackItemId.sound(trackId.value)
 
-    val state: StateFlow<Loadable<SoundState>> = observeSoundContentUseCase(trackId)
-        .map<SoundContent, Loadable<SoundState>> { content ->
+    val state: StateFlow<SoundUiState> = combine<SoundContent, Boolean, SoundUiState>(
+        observeSoundContentUseCase(trackId), favoriteWriteFailed,
+    ) { content, writeFailed ->
+        if (content.favoriteReadStatus == SoundFavoriteReadStatus.Available) {
+            lastKnownFavorite = content.isFavorite
+        }
         val playback = content.playback
         val isRequested = playback.requestedItemId == itemId
         // Bound locally: `failure` is another module's property, so the null check below cannot
         // smart-cast it in place.
         val failure = playback.failure
-        Loadable.Ready(SoundState(
+        SoundUiState.Ready(SoundState(
             track = content.track,
-            isFavorite = trackId in content.favoriteIds,
+            favoriteReadStatus = content.favoriteReadStatus,
+            favoriteWriteFailed = writeFailed,
+            isFavorite = lastKnownFavorite ?: content.isFavorite,
             playIntent = isRequested && playback.playIntent,
             isPreparing = isRequested && playback.isPreparing,
             // Straight from the session, including before anything is loaded: the product default
@@ -57,12 +68,14 @@ internal class SoundViewModel(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = Loadable.Loading,
+        initialValue = SoundUiState.Loading,
     )
 
     fun toggleFavorite() {
         if (readyState()?.canFavorite != true) return
-        viewModelScope.launch { favoritesPort.toggle(SOUND_FAVORITES_NAMESPACE, trackId.value) }
+        viewModelScope.launch {
+            favoriteWriteFailed.value = favoritesPort.toggle(SOUND_FAVORITES_NAMESPACE, trackId.value) == FavoriteToggleResult.Unavailable
+        }
     }
 
     /**
@@ -107,7 +120,7 @@ internal class SoundViewModel(
     fun cancelSleepTimer() = playbackPort.cancelSleepTimer()
 
     /** What the screen is showing, or null while the first content has not arrived. */
-    private fun readyState(): SoundState? = (state.value as? Loadable.Ready)?.value
+    private fun readyState(): SoundState? = (state.value as? SoundUiState.Ready)?.value
 }
 
 /**

@@ -11,6 +11,12 @@ import com.xwab.app.testing.track
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
+import kotlin.test.assertSame
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -19,6 +25,37 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 
 class ObserveFavoritesContentUseCaseTest {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun playbackReusesSavedTracksWhileFavoriteAndAvailabilityChangesStillPropagate() = runTest {
+        val favorites = FakeFavorites(setOf(rain.id))
+        val playback = FakePlaybackPort()
+        val emissions = mutableListOf<FavoritesContent>()
+        val useCase = ObserveFavoritesContentUseCase(catalog, favorites, playback)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            useCase().toList(emissions)
+        }
+        runCurrent()
+        val savedTracks = emissions.single().tracks
+        val playing = PlaybackSummary(requestedItemId = PlaybackItemId.sound(rain.id.value), playIntent = true)
+
+        playback.publish(playing)
+        runCurrent()
+        assertEquals(playing, emissions.last().playback)
+        assertSame(savedTracks, emissions.last().tracks)
+
+        favorites.available.value = false
+        runCurrent()
+        assertFalse(emissions.last().favoritesAvailable)
+
+        favorites.available.value = true
+        favorites.toggle(SOUND_FAVORITES_NAMESPACE, waves.id.value)
+        runCurrent()
+        assertTrue(emissions.last().favoritesAvailable)
+        assertEquals(listOf(rain, waves), emissions.last().tracks)
+        assertEquals(playing, emissions.last().playback)
+    }
+
     private val rain = track("gentle-rain", categoryId = "rain")
     private val waves = track("calm-waves", categoryId = "ocean")
     private val catalog = FakeSoundCatalog(tracks = listOf(rain, waves))

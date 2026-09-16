@@ -69,6 +69,24 @@ jobs:
       - name: Run Simulator ARM64 tests
         run: ./gradlew -PenableIos=true iosSimulatorArm64Test --stacktrace
 
+      # Kotlin/Native reports a failing simulator test as a bare `kotlin.AssertionError at null:-1`.
+      # The message never reaches the Gradle log, whichever assertion was false, so a red run says
+      # which *test* failed and nothing more. The detail exists only in what the test task writes
+      # to disk, and the job used to throw that away: narrowing one failure took three pushes,
+      # splitting assertions across test names until a name identified the line. Keeping the
+      # results makes the next one readable on the first run instead. Only on failure — a green
+      # run has nothing worth storing.
+      - name: Keep the simulator test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-simulator-test-results
+          path: |
+            **/build/test-results/iosSimulatorArm64Test/**
+            **/build/reports/tests/iosSimulatorArm64Test/**
+          if-no-files-found: ignore
+          retention-days: 7
+
       # The device target is a separate compilation; linking the framework the iOS app
       # actually consumes is what proves every module builds for real hardware.
       - name: Link the iPhone ARM64 framework

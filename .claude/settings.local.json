@@ -28,5 +28,11 @@
       "Bash(git branch *)",
       "Bash(awk '/^## 4\\\\./,/^## 5\\\\./' PLAYBACK_COORDINATOR_PLAN.md)"
     ]
+  },
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Merging a pull request with `gh pr merge` once its CI checks have passed, including when it has no review approval: this is a single-maintainer repository where CI is the review gate."
+    ]
   }
 }

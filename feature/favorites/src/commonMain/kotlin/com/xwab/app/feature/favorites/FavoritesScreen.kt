@@ -21,11 +21,11 @@ import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.PlayableRow
 import com.xwab.app.designsystem.components.SleepRelaxBackground
 import com.xwab.app.designsystem.format.formatDuration
-import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res as UiRes
 import xwab.designsystem.generated.resources.preparing
+import xwab.designsystem.generated.resources.favorites_read_failed
 import xwab.feature.favorites.generated.resources.Res
 import xwab.feature.favorites.generated.resources.favorites_empty
 import xwab.feature.favorites.generated.resources.favorites_title
@@ -40,8 +40,8 @@ internal fun FavoritesScreenRoute(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     when (val content = state) {
-        Loadable.Loading -> LoadingContent()
-        is Loadable.Ready -> FavoritesScreen(content.value, onTrackClick, viewModel::togglePlayback)
+        FavoritesUiState.Loading -> LoadingContent()
+        is FavoritesUiState.Ready -> FavoritesScreen(content.value, onTrackClick, viewModel::togglePlayback)
     }
 }
 
@@ -71,7 +71,16 @@ internal fun FavoritesScreen(
                     modifier = Modifier.padding(bottom = SleepRelaxTheme.dimens.spacingLarge),
                 )
             }
-            if (state.tracks.isEmpty()) {
+            if (!state.favoritesAvailable) {
+                item {
+                    Text(
+                        stringResource(UiRes.string.favorites_read_failed),
+                        color = SleepRelaxTheme.colors.error,
+                        style = SleepRelaxTheme.typography.bodyMedium,
+                    )
+                }
+            }
+            if (state.tracks.isEmpty() && state.favoritesAvailable) {
                 item {
                     Text(
                         text = stringResource(Res.string.favorites_empty),
@@ -81,7 +90,14 @@ internal fun FavoritesScreen(
                 }
             } else {
                 items(state.tracks, key = { it.id.value }) { track ->
-                    FavoriteRow(track, state, onTrackClick, onPlaybackClick)
+                    FavoriteRow(
+                        track = track,
+                        isPlaying = state.isRowPlaying(track.id),
+                        isPreparing = state.isRowPreparing(track.id),
+                        failure = state.rowFailure(track.id),
+                        onTrackClick = onTrackClick,
+                        onPlaybackClick = onPlaybackClick,
+                    )
                 }
             }
         }
@@ -91,7 +107,9 @@ internal fun FavoritesScreen(
 @Composable
 private fun FavoriteRow(
     track: Track,
-    state: FavoritesState,
+    isPlaying: Boolean,
+    isPreparing: Boolean,
+    failure: PlaybackFailure?,
     onTrackClick: (TrackId) -> Unit,
     onPlaybackClick: (TrackId) -> Unit,
 ) {
@@ -99,12 +117,12 @@ private fun FavoriteRow(
     PlayableRow(
         title = track.name,
         subtitle = formatDuration(track.durationSeconds),
-        isPlaying = state.isRowPlaying(track.id),
+        isPlaying = isPlaying,
         onClick = { onTrackClick(track.id) },
         onPlayPauseClick = { onPlaybackClick(track.id) },
         statusMessage = stringResource(UiRes.string.preparing)
-            .takeIf { state.isRowPreparing(track.id) },
-        errorMessage = state.rowFailure(track.id)?.let { stringResource(it.messageResource()) },
+            .takeIf { isPreparing },
+        errorMessage = failure?.let { stringResource(it.messageResource()) },
     )
 }
 

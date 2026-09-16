@@ -56,7 +56,7 @@ include(":core:session")
 
 // Crosscutting transport capability, tied to no content type.
 include(":core:network")
-// UI and test support are outside core because they are not application capability ports.
+// UI and test support are outside core: they are not application capability ports.
 include(":designsystem")
 include(":testing")
 include(":shared")

@@ -6,7 +6,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -24,12 +25,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xwab.app.core.sound.port.Category
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.SleepRelaxBackground
-import com.xwab.app.designsystem.state.Loadable
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -39,6 +40,8 @@ import xwab.feature.browse.generated.resources.app_title
 import xwab.feature.browse.generated.resources.categories_title
 import xwab.feature.browse.generated.resources.track_count
 
+private val CATEGORY_CARD_MIN_WIDTH = 150.dp
+
 @Composable
 internal fun BrowseScreenRoute(
     onCategoryClick: (CategoryId) -> Unit,
@@ -46,8 +49,8 @@ internal fun BrowseScreenRoute(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     when (val content = state) {
-        Loadable.Loading -> LoadingContent()
-        is Loadable.Ready -> BrowseScreen(content.value, onCategoryClick)
+        BrowseUiState.Loading -> LoadingContent()
+        is BrowseUiState.Ready -> BrowseScreen(content.value, onCategoryClick)
     }
 }
 
@@ -58,7 +61,7 @@ internal fun BrowseScreen(
 ) {
     SleepRelaxBackground {
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(SleepRelaxTheme.dimens.categoryCardMinWidth),
+            columns = GridCells.Adaptive(CATEGORY_CARD_MIN_WIDTH),
             modifier = Modifier
                 .widthIn(max = SleepRelaxTheme.dimens.contentMaxWidth)
                 .fillMaxSize()
@@ -85,7 +88,7 @@ internal fun BrowseScreen(
                         style = SleepRelaxTheme.typography.bodyLarge,
                         color = SleepRelaxTheme.colors.textSecondary,
                     )
-                    Spacer(Modifier.height(SleepRelaxTheme.dimens.playIconCircleSize))
+                    Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingHuge))
                     Text(
                         text = stringResource(Res.string.categories_title),
                         style = SleepRelaxTheme.typography.bodySmall,
@@ -106,9 +109,10 @@ internal fun BrowseScreen(
 
 @Composable
 private fun CategoryCard(category: Category, onClick: () -> Unit) {
-    Box(
+    Column(
         modifier = Modifier
-            .aspectRatio(1f)
+            .fillMaxWidth()
+            .heightIn(min = CATEGORY_CARD_MIN_WIDTH)
             .clip(SleepRelaxTheme.shapes.large)
             .background(
                 Brush.linearGradient(
@@ -120,10 +124,10 @@ private fun CategoryCard(category: Category, onClick: () -> Unit) {
             )
             .clickable(onClick = onClick)
             .padding(SleepRelaxTheme.dimens.spacingLarge),
+        verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingLarge),
     ) {
         Box(
             modifier = Modifier
-                .align(Alignment.TopStart)
                 .size(SleepRelaxTheme.dimens.minimumTouchTarget)
                 .clip(SleepRelaxTheme.shapes.small)
                 .background(SleepRelaxTheme.colors.glassWhiteOverlay),
@@ -135,7 +139,7 @@ private fun CategoryCard(category: Category, onClick: () -> Unit) {
                 style = SleepRelaxTheme.typography.titleLarge,
             )
         }
-        Column(modifier = Modifier.align(Alignment.BottomStart)) {
+        Column {
             Text(category.name, style = SleepRelaxTheme.typography.titleSmall, color = SleepRelaxTheme.colors.textPrimary)
             Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraSmall))
             Text(

@@ -4,6 +4,7 @@
     <string name="pause">Pause</string>
     <string name="add_favorite">Add to favorites</string>
     <string name="remove_favorite">Remove from favorites</string>
+    <string name="favorites_loading">Loading favorites</string>
     <string name="duration_public_domain">%1$s • Public Domain</string>
 
     <!--
@@ -12,4 +13,6 @@
       identical text under two different keys.
     -->
     <string name="preparing">Loading…</string>
+    <string name="favorites_read_failed">Favorites are temporarily unavailable. Retrying…</string>
+    <string name="favorite_write_failed">Could not save your favorite. Please try again.</string>
 </resources>

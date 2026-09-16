@@ -5,7 +5,14 @@ import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.story.port.Story
 import com.xwab.app.core.story.port.StoryId
 
-/** Content available after the outer [com.xwab.app.designsystem.state.Loadable] becomes ready. */
+/** Loading and content states owned by this feature. */
+internal sealed interface StoriesUiState {
+    data object Loading : StoriesUiState
+
+    data class Ready(val value: StoriesState) : StoriesUiState
+}
+
+/** Content available in [StoriesUiState.Ready]. */
 internal data class StoriesState(
     val stories: List<Story> = emptyList(),
     /** The story the session was last asked for, or null when it is on a sound or on nothing. */

@@ -7,15 +7,24 @@ import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.favorites.port.FavoritesPort
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+
+internal enum class SoundFavoriteReadStatus {
+    Pending,
+    Available,
+    Unavailable,
+}
 
 internal data class SoundContent(
     val track: Track?,
-    val favoriteIds: Set<TrackId>,
+    val isFavorite: Boolean,
     val playback: PlaybackSummary,
     val sleepTimerRemainingMs: Long?,
+    val favoriteReadStatus: SoundFavoriteReadStatus,
 )
 
 /**
@@ -30,15 +39,26 @@ internal class ObserveSoundContentUseCase(
 ) {
     operator fun invoke(trackId: TrackId): Flow<SoundContent> = combine(
         soundPort.observeTrack(trackId),
-        favoritesPort.observe(SOUND_FAVORITES_NAMESPACE).map { ids -> ids.mapTo(mutableSetOf(), ::TrackId) },
+        favoritesPort.observe(SOUND_FAVORITES_NAMESPACE)
+            .map {
+                FavoriteStatus(
+                    trackId.value in it.ids,
+                    if (it.isAvailable) SoundFavoriteReadStatus.Available else SoundFavoriteReadStatus.Unavailable,
+                )
+            }
+            .onStart { emit(FavoriteStatus(false, SoundFavoriteReadStatus.Pending)) }
+            .distinctUntilChanged(),
         playbackPort.playback,
         playbackPort.sleepTimerRemainingMs,
-    ) { track, favoriteIds, playback, sleepTimerRemainingMs ->
+    ) { track, favorites, playback, sleepTimerRemainingMs ->
         SoundContent(
             track = track,
-            favoriteIds = favoriteIds,
+            isFavorite = favorites.isFavorite,
+            favoriteReadStatus = favorites.readStatus,
             playback = playback,
             sleepTimerRemainingMs = sleepTimerRemainingMs,
         )
     }
+
+    private data class FavoriteStatus(val isFavorite: Boolean, val readStatus: SoundFavoriteReadStatus)
 }
