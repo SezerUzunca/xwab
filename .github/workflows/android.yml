@@ -37,7 +37,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Check architecture, test its rules, and run Android host tests
-        run: ./gradlew :check testAndroidHostTest --stacktrace
+        run: set -o pipefail; ./gradlew :check testAndroidHostTest --stacktrace 2>&1 | tee -a gradle-output.log
 
       # Gradle's console reports a failed test as a class, a method and a line number, which is the
       # line of the test function rather than of the expectation that broke. For a test that fails
@@ -61,5 +61,101 @@ jobs:
             echo "No JUnit report recorded a failure; the build failed before or outside the tests."
           fi
 
+      # A job log is only reachable through a redirect to blob storage, and an uploaded artifact
+      # and a step summary both come from the same place — a network that filters it leaves a
+      # failed run completely opaque. Annotations are part of the check run and come back from the
+      # API itself, so what broke stays readable wherever the run can be listed at all. Same
+      # motivation as printing the JUnit reports above rather than uploading them; this one catches
+      # the failures that happen before any test runs.
+      - name: Report what broke
+        if: failure()
+        run: |
+          if [ ! -f gradle-output.log ]; then
+            echo "::error::The step failed before Gradle produced any output."
+            exit 0
+          fi
+          detail=$(grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference|Could not (resolve|find|determine)" gradle-output.log | head -12 || true)
+          if [ -z "$detail" ]; then
+            detail=$(tail -12 gradle-output.log || true)
+          fi
+          printf '%s\n' "$detail" | while IFS= read -r line; do
+            echo "::error::${line}"
+          done
+
       - name: Assemble debug APK
-        run: ./gradlew :androidApp:assembleDebug --stacktrace
+        run: set -o pipefail; ./gradlew :androidApp:assembleDebug --stacktrace 2>&1 | tee -a gradle-output.log
+
+  device-test:
+    name: Run playback service device tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Run Android device tests on an emulator
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          disable-animations: true
+          # The runner hands this to `sh`, so it has to stay POSIX: no pipefail, and the exit
+          # status has to be carried across the redirect by hand rather than through a pipe.
+          script: ./gradlew :core:playback:connectedAndroidTest --stacktrace > gradle-output.log 2>&1; status=$?; cat gradle-output.log; exit $status
+
+      - name: Report what broke
+        if: failure()
+        run: |
+          if [ ! -f gradle-output.log ]; then
+            echo "::error::The step failed before Gradle produced any output."
+            exit 0
+          fi
+          detail=$(grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference|Could not (resolve|find|determine)" gradle-output.log | head -12 || true)
+          if [ -z "$detail" ]; then
+            detail=$(tail -12 gradle-output.log || true)
+          fi
+          printf '%s\n' "$detail" | while IFS= read -r line; do
+            echo "::error::${line}"
+          done
+
+      # Gradle names the HTML report and nothing else, and that report is a file on a runner nobody
+      # can attach to. The instrumentation XML beside it names the test and carries the message its
+      # assertion was given, so read it here.
+      - name: Report the failing device tests
+        if: failure()
+        run: |
+          : > failing-tests.txt
+          while IFS= read -r report; do
+            grep -q '<failure\|<error' "$report" || continue
+            awk '
+              /<testcase /{
+                split($0, parts, "name=\"")
+                split(parts[2], quoted, "\"")
+                name = quoted[1]
+              }
+              /<failure|<error/{
+                if (name != "") {
+                  printf "%s -- %s\n", name, substr($0, 1, 300)
+                  name = ""
+                }
+              }
+            ' "$report" >> failing-tests.txt
+          done < <(find . -path '*androidTest-results*' -name '*.xml')
+          if [ -s failing-tests.txt ]; then
+            head -10 failing-tests.txt | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+          else
+            echo "::error::No instrumentation report recorded a failure; the build broke outside the tests."
+          fi

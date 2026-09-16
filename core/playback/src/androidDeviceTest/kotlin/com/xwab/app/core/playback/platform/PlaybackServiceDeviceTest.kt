@@ -41,7 +41,10 @@ class PlaybackServiceDeviceTest {
             // Pin the application thread instead of relying on "current or main".
             .setApplicationLooper(Looper.getMainLooper())
             .buildAsync()
-            .get(10, TimeUnit.SECONDS)
+            // A test that lets a timer run out leaves the service stopping itself, and the next
+            // connection has to wait for it to come back. Ten seconds was enough on some emulator
+            // runs and not others, which is the whole of the flakiness this job showed.
+            .get(45, TimeUnit.SECONDS)
         client = SleepTimerClient(ContextCompat.getMainExecutor(context))
     }
 
@@ -64,6 +67,28 @@ class PlaybackServiceDeviceTest {
         })
         assertNull(awaitClientResult { success, failure ->
             client.cancel(controller, success, failure)
+        })
+    }
+
+    /**
+     * The service owns the countdown, and a controller asking for timer state is one of the two
+     * moments the service reconciles its uptime-based Handler against the elapsed-realtime
+     * deadline. A deadline that has run out must therefore read back as no timer at all, whichever
+     * of the two got there first.
+     */
+    @Test
+    fun aDeadlineThatHasRunOutReadsBackAsNoTimer() {
+        val deadline = SystemClock.elapsedRealtime() + 1_500L
+        assertEquals(deadline, awaitClientResult { success, failure ->
+            client.start(controller, deadline, success, failure)
+        })
+
+        // Waiting happens on the test thread; blocking the main thread would stop the very
+        // callbacks this is waiting for.
+        Thread.sleep(2_500L)
+
+        assertNull(awaitClientResult { success, failure ->
+            client.restore(controller, success, failure)
         })
     }
 

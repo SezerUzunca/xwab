@@ -243,10 +243,11 @@ internal class AndroidPlaybackFacade(
     }
 
     override fun onEvents(player: Player, events: Player.Events) {
+        val source = readSource(player)
         dispatch(
             PlaybackMessage.EnginePlaybackObserved(
                 operationId = currentOperationId(player),
-                source = readSource(player),
+                source = source,
                 playWhenReady = player.playWhenReady,
                 looping = player.repeatMode == Player.REPEAT_MODE_ONE,
                 volume = player.volume,
@@ -256,7 +257,7 @@ internal class AndroidPlaybackFacade(
             dispatch(PlaybackMessage.EnginePlaybackEnded(currentOperationId(player)))
         }
         pendingLoad
-            ?.takeIf { it.source == readSource(player) && player.playbackState == Player.STATE_READY }
+            ?.takeIf { it.source == source && player.playbackState == Player.STATE_READY }
             ?.let { loaded ->
                 clearPendingLoad()
                 dispatch(PlaybackMessage.EngineSourceLoaded(loaded.operationId, loaded.source))
@@ -280,14 +281,25 @@ internal class AndroidPlaybackFacade(
 
     private fun onControllerConnected(controller: MediaController) {
         controller.addListener(this)
+        val attachedSource = readSource(controller)
         dispatch(PlaybackMessage.ControllerConnected(
-            attachedSource = readSource(controller),
+            attachedSource = attachedSource,
             attachedOperationId = readAttachedOperationId(controller),
             attachedOperationOwnedByClient = isAttachedOperationOwnedByClient(controller),
             controllerLooping = controller.repeatMode == Player.REPEAT_MODE_ONE,
             controllerVolume = controller.volume,
             controllerPlayWhenReady = controller.playWhenReady,
         ))
+
+        // A MediaController listener is not guaranteed to replay the terminal event that happened
+        // while this client was disconnected. Reconcile the snapshot explicitly after adopting it.
+        if (attachedSource != null && playbackState.observed.source == attachedSource) {
+            androidTerminalPlaybackMessage(
+                playbackState = controller.playbackState,
+                operationId = currentOperationId(controller),
+                playerErrorMessage = controller.playerError?.message,
+            )?.let(::dispatch)
+        }
     }
 
     private fun onControllerDisconnected(controller: MediaController) {
@@ -408,9 +420,8 @@ internal class AndroidPlaybackFacade(
             )
             return
         }
-        val error = p.playerError
-            ?.let { PlaybackError(PlaybackErrorCode.PlaybackFailed, it.message) }
-            ?: playbackState.observed.error
+        // Preserve the reducer's more specific classification (for example InvalidSource).
+        val error = androidPlaybackError(playbackState.observed.error, p.playerError?.message)
         val phase = androidPlaybackPhase(
             hasError = error != null,
             isLoadPending = pendingLoad != null,

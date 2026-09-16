@@ -2,9 +2,12 @@
 
 package com.xwab.app.core.playback.platform
 
+import com.xwab.app.core.playback.projection.shouldObserveEngineTransition
 import com.xwab.app.core.playback.store.LatestOperationGate
 import com.xwab.app.core.playback.store.PLAYBACK_READINESS_TIMEOUT_MS
 import kotlin.native.ref.WeakReference
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 import kotlinx.cinterop.readValue
 import platform.AVFoundation.*
 import platform.CoreMedia.*
@@ -19,16 +22,20 @@ internal class IosPlaybackEngine(
     private val onPlaybackFailed: (Long, String?) -> Unit,
     private val onReadinessTimedOut: (Long) -> Unit,
 ) {
-    private val player = AVQueuePlayer()
+    private var player = AVQueuePlayer()
     private val notificationCenter = NSNotificationCenter.defaultCenter
 
     private var looper: AVPlayerLooper? = null
     private var activeAsset: AVAsset? = null
     private var activeUrl: NSURL? = null
     private var readinessOperationId: Long? = null
-    private var readinessElapsedSeconds = 0.0
+    private var readinessStartedAt: TimeMark? = null
+    private var loopPreparationPending = false
+    private var loopPreparationErrorMessage: String? = null
+    private var loopPreparationPositionMs = 0L
+    private var loopPreparationVersion: Long? = null
+    private var loopPreparationCompletion: ((Boolean) -> Unit)? = null
     private var stateObservationTimer: NSTimer? = null
-    private var stateObservationIntervalSeconds: Double? = null
     private var minimumObservationTicks = 0
     private var lastObservedState: EngineObservation? = null
     private val operationGate = LatestOperationGate()
@@ -42,7 +49,8 @@ internal class IosPlaybackEngine(
         get() = player.currentItem != null
 
     val isReadyToPlay: Boolean
-        get() = player.currentItem?.status == AVPlayerItemStatusReadyToPlay
+        get() = !loopPreparationPending &&
+            player.currentItem?.status == AVPlayerItemStatusReadyToPlay
 
     val isWaitingToPlay: Boolean
         get() = player.timeControlStatus == AVPlayerTimeControlStatusWaitingToPlayAtSpecifiedRate
@@ -57,7 +65,7 @@ internal class IosPlaybackEngine(
         get() = player.currentItem?.error?.localizedDescription
 
     val loopErrorMessage: String?
-        get() = looper?.error?.localizedDescription
+        get() = loopPreparationErrorMessage ?: looper?.error?.localizedDescription
 
     var volume: Float
         get() = player.volume
@@ -98,6 +106,46 @@ internal class IosPlaybackEngine(
         }
     }
 
+    /**
+     * A stall is the one way a player that was playing starts waiting again without a command from
+     * this engine. Observing it is what lets [updateNativeStateObservation] stop watching
+     * `timeControlStatus` for as long as playback runs normally.
+     */
+    private val stallObserver = run {
+        val weakThis = WeakReference(this)
+        notificationCenter.addObserverForName(
+            name = AVPlayerItemPlaybackStalledNotification,
+            `object` = null,
+            queue = NSOperationQueue.mainQueue,
+        ) { notification ->
+            weakThis.get()?.let { self ->
+                if (self.activeItemFrom(notification) != null) {
+                    self.publishObservedStateIfChanged()
+                }
+            }
+        }
+    }
+
+    /**
+     * An item can fail while the engine is awaiting nothing — a ready, paused item whose resource
+     * read was interrupted. AVFoundation logs that before it would surface as a failed status, so
+     * this is the signal that replaces watching `status` for the whole paused period.
+     */
+    private val errorLogObserver = run {
+        val weakThis = WeakReference(this)
+        notificationCenter.addObserverForName(
+            name = AVPlayerItemNewErrorLogEntryNotification,
+            `object` = null,
+            queue = NSOperationQueue.mainQueue,
+        ) { notification ->
+            weakThis.get()?.let { self ->
+                if (self.activeItemFrom(notification) != null) {
+                    self.publishObservedStateIfChanged()
+                }
+            }
+        }
+    }
+
     fun load(uri: String, looping: Boolean, operationId: Long): Boolean {
         require(operationId > 0L) { "Playback operation id must be positive." }
         operationGate.begin()
@@ -107,6 +155,7 @@ internal class IosPlaybackEngine(
         clearReadinessObservation()
         stopNativeStateObservation()
         lastObservedState = null
+        loopPreparationErrorMessage = null
         player.pause()
         clearQueue()
 
@@ -118,15 +167,7 @@ internal class IosPlaybackEngine(
         val item = AVPlayerItem(uRL = url)
         activeUrl = url
         activeAsset = item.asset
-        if (looping) {
-            looper = AVPlayerLooper(
-                player = player,
-                templateItem = item,
-                timeRange = kCMTimeRangeInvalid.readValue(),
-            )
-        } else {
-            player.replaceCurrentItemWithPlayerItem(item)
-        }
+        attachItem(item, looping)
         observeReadiness()
         observeNativeState()
         publishObservedStateIfChanged(force = true)
@@ -208,6 +249,8 @@ internal class IosPlaybackEngine(
         operationGate.begin()
         notificationCenter.removeObserver(endObserver)
         notificationCenter.removeObserver(failureObserver)
+        notificationCenter.removeObserver(stallObserver)
+        notificationCenter.removeObserver(errorLogObserver)
         player.pause()
         clearQueue()
     }
@@ -219,28 +262,46 @@ internal class IosPlaybackEngine(
         stopNativeStateObservation()
     }
 
-    private fun observeReadiness(operationId: Long = currentOperationId) {
+    /** Recreates native playback objects after AVAudioSession media services reset. */
+    fun resetAfterMediaServicesWereReset() {
+        operationGate.begin()
+        minimumObservationTicks = 0
         clearReadinessObservation()
+        stopNativeStateObservation()
+        player.pause()
+        clearQueue()
+        player = AVQueuePlayer()
+        lastObservedState = null
+        observationSuspendedForFailure = false
+        onStateChanged()
+    }
+
+    private fun observeReadiness(operationId: Long = currentOperationId) {
         if (observationSuspendedForFailure) return
-        if (player.currentItem?.status == AVPlayerItemStatusUnknown) {
-            readinessOperationId = operationId
-            readinessElapsedSeconds = 0.0
+        if (loopPreparationPending || player.currentItem?.status == AVPlayerItemStatusUnknown) {
+            if (readinessOperationId != operationId) {
+                readinessOperationId = operationId
+                readinessStartedAt = TimeSource.Monotonic.markNow()
+            }
+        } else {
+            clearReadinessObservation()
         }
     }
 
     private fun clearReadinessObservation() {
         readinessOperationId = null
-        readinessElapsedSeconds = 0.0
+        readinessStartedAt = null
     }
 
-    private fun updateReadinessObservation(intervalSeconds: Double) {
+    private fun updateReadinessObservation() {
         val operationId = readinessOperationId ?: return
-        if (released || player.currentItem?.status != AVPlayerItemStatusUnknown) {
+        completeLoopPreparationIfReady()
+        if (released || isReadyToPlay || hasItemFailure || loopErrorMessage != null) {
             clearReadinessObservation()
             return
         }
-        readinessElapsedSeconds += intervalSeconds
-        if (readinessElapsedSeconds >= READINESS_TIMEOUT_SECONDS) {
+        val elapsedMs = readinessStartedAt?.elapsedNow()?.inWholeMilliseconds ?: return
+        if (elapsedMs >= PLAYBACK_READINESS_TIMEOUT_MS) {
             clearReadinessObservation()
             onReadinessTimedOut(operationId)
         }
@@ -249,6 +310,11 @@ internal class IosPlaybackEngine(
     private fun clearQueue() {
         looper?.disableLooping()
         looper = null
+        loopPreparationPending = false
+        loopPreparationErrorMessage = null
+        loopPreparationPositionMs = 0L
+        loopPreparationVersion = null
+        loopPreparationCompletion = null
         activeAsset = null
         activeUrl = null
         player.removeAllItems()
@@ -271,20 +337,79 @@ internal class IosPlaybackEngine(
         val item = AVPlayerItem(uRL = url)
         activeUrl = url
         activeAsset = item.asset
-        if (looping) {
-            looper = AVPlayerLooper(
-                player = player,
-                templateItem = item,
-                timeRange = kCMTimeRangeInvalid.readValue(),
-            )
-        } else {
-            player.replaceCurrentItemWithPlayerItem(item)
-        }
+        attachItem(
+            item = item,
+            looping = looping,
+            positionMs = positionMs,
+            version = version,
+            completion = completion,
+        )
         observeReadiness()
         observeNativeState()
-        seekNative(positionMs, version) { finished ->
-            completion(finished)
-            publishObservedStateIfChanged(force = true)
+        if (!looping) {
+            seekNative(positionMs, version) { finished ->
+                completion(finished)
+                publishObservedStateIfChanged(force = true)
+            }
+        }
+    }
+
+    /**
+     * A looping item is first allowed to become ready as a normal queue item. This guarantees its
+     * asset duration is known before AVPlayerLooper is created, avoiding the documented blocking
+     * initializer and allowing zero-duration media to fail through the normal engine error path.
+     */
+    private fun attachItem(
+        item: AVPlayerItem,
+        looping: Boolean,
+        positionMs: Long = 0L,
+        version: Long? = null,
+        completion: ((Boolean) -> Unit)? = null,
+    ) {
+        if (looping) {
+            loopPreparationPending = true
+            loopPreparationPositionMs = positionMs
+            loopPreparationVersion = version
+            loopPreparationCompletion = completion
+        }
+        player.replaceCurrentItemWithPlayerItem(item)
+    }
+
+    private fun completeLoopPreparationIfReady() {
+        if (!loopPreparationPending) return
+        val item = player.currentItem ?: return
+        if (item.status != AVPlayerItemStatusReadyToPlay) return
+
+        val durationSeconds = CMTimeGetSeconds(item.duration)
+        if (!durationSeconds.isFinite() || durationSeconds <= 0.0) {
+            loopPreparationPending = false
+            loopPreparationErrorMessage = "Looping audio must have a finite, positive duration."
+            loopPreparationCompletion?.invoke(false)
+            loopPreparationCompletion = null
+            return
+        }
+
+        val positionMs = loopPreparationPositionMs
+        val version = loopPreparationVersion
+        val completion = loopPreparationCompletion
+        player.pause()
+        player.removeAllItems()
+        looper = AVPlayerLooper(
+            player = player,
+            templateItem = item,
+            timeRange = kCMTimeRangeInvalid.readValue(),
+        )
+        loopPreparationPending = false
+        loopPreparationPositionMs = 0L
+        loopPreparationVersion = null
+        loopPreparationCompletion = null
+        observeReadiness()
+
+        if (completion != null && version != null) {
+            seekNative(positionMs, version) { finished ->
+                completion(finished)
+                publishObservedStateIfChanged(force = true)
+            }
         }
     }
 
@@ -319,33 +444,38 @@ internal class IosPlaybackEngine(
         updateNativeStateObservation()
     }
 
+    /**
+     * Runs only while [shouldObserveEngineTransition] says a transition is outstanding, which is
+     * what keeps a settled player — playing, or ready and paused — from being watched at all. Every
+     * way out of a settled state reaches the engine as a notification instead: the item ended,
+     * failed, stalled, logged an error, the audio session was interrupted or its route went away,
+     * or this engine itself issued the command.
+     */
     private fun updateNativeStateObservation() {
-        val requiredInterval = requiredNativeStateObservationInterval()
-        if (released || observationSuspendedForFailure || requiredInterval == null) {
+        val shouldObserve = !released &&
+            !observationSuspendedForFailure &&
+            shouldObserveEngineTransition(
+                hasCurrentItem = hasCurrentItem,
+                hasFailure = hasItemFailure || loopErrorMessage != null,
+                isReadyToPlay = isReadyToPlay,
+                isWaitingToPlay = isWaitingToPlay,
+                playTransitionTicksRemaining = minimumObservationTicks,
+            )
+        if (!shouldObserve) {
             stopNativeStateObservation()
             return
         }
-        if (
-            stateObservationTimer != null &&
-            stateObservationIntervalSeconds == requiredInterval
-        ) {
-            return
-        }
+        if (stateObservationTimer != null) return
 
-        stopNativeStateObservation()
-        stateObservationIntervalSeconds = requiredInterval
         stateObservationTimer = NSTimer.scheduledTimerWithTimeInterval(
-            interval = requiredInterval,
+            interval = TRANSITION_OBSERVATION_INTERVAL_SECONDS,
             repeats = true,
             block = {
                 if (released) {
                     stopNativeStateObservation()
                 } else {
-                    updateReadinessObservation(requiredInterval)
-                    if (
-                        dynamicNativeStateObservationInterval() == null &&
-                        minimumObservationTicks > 0
-                    ) {
+                    updateReadinessObservation()
+                    if (minimumObservationTicks > 0) {
                         minimumObservationTicks -= 1
                     }
                     publishObservedStateIfChanged()
@@ -357,27 +487,11 @@ internal class IosPlaybackEngine(
     private fun stopNativeStateObservation() {
         stateObservationTimer?.invalidate()
         stateObservationTimer = null
-        stateObservationIntervalSeconds = null
-    }
-
-    private fun requiredNativeStateObservationInterval(): Double? =
-        dynamicNativeStateObservationInterval()
-            ?: FAST_STATE_OBSERVATION_INTERVAL_SECONDS.takeIf {
-                minimumObservationTicks > 0
-            }
-
-    private fun dynamicNativeStateObservationInterval(): Double? = when {
-        !hasCurrentItem || hasItemFailure || loopErrorMessage != null -> null
-        !isReadyToPlay || isWaitingToPlay -> FAST_STATE_OBSERVATION_INTERVAL_SECONDS
-        isPlaying -> PLAYING_STATE_OBSERVATION_INTERVAL_SECONDS
-        // A ready, paused item can still transition to failed (for example,
-        // after an interrupted resource read). Poll it infrequently so that
-        // this failure is surfaced without retaining the former 1 Hz cost.
-        else -> PAUSED_READY_STATE_OBSERVATION_INTERVAL_SECONDS
     }
 
     private fun publishObservedStateIfChanged(force: Boolean = false) {
         if (released) return
+        completeLoopPreparationIfReady()
         val observedState = EngineObservation(
             hasCurrentItem = hasCurrentItem,
             isReadyToPlay = isReadyToPlay,
@@ -420,10 +534,7 @@ internal class IosPlaybackEngine(
     )
 
     private companion object {
-        const val READINESS_TIMEOUT_SECONDS = PLAYBACK_READINESS_TIMEOUT_MS / 1_000.0
-        const val FAST_STATE_OBSERVATION_INTERVAL_SECONDS = 0.2
-        const val PLAYING_STATE_OBSERVATION_INTERVAL_SECONDS = 1.0
-        const val PAUSED_READY_STATE_OBSERVATION_INTERVAL_SECONDS = 5.0
+        const val TRANSITION_OBSERVATION_INTERVAL_SECONDS = 0.2
         const val PLAY_TRANSITION_OBSERVATION_TICKS = 10
     }
 }

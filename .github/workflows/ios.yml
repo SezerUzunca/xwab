@@ -67,7 +67,7 @@ jobs:
       # file: core:sound:catalog, core:sound:manifest, core:sound:delivery, core:sound:favorites,
       # core:story:catalog, core:story:manifest, core:session, core:playback, shared.
       - name: Run Simulator ARM64 tests
-        run: ./gradlew -PenableIos=true iosSimulatorArm64Test --stacktrace
+        run: set -o pipefail; ./gradlew -PenableIos=true iosSimulatorArm64Test --stacktrace 2>&1 | tee -a gradle-output.log
 
       # Kotlin/Native reports a failing simulator test as a bare `kotlin.AssertionError at null:-1`.
       # The message never reaches the Gradle log, whichever assertion was false, so a red run says
@@ -87,7 +87,56 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      # The kept results are only reachable by downloading them, which the annotation steps exist
+      # to avoid. The same XML names the failing test and carries whatever message the assertion
+      # was given, so read it here and say so where the API can reach it.
+      - name: Report the failing simulator tests
+        if: failure()
+        run: |
+          : > failing-tests.txt
+          while IFS= read -r report; do
+            grep -q '<failure\|<error' "$report" || continue
+            awk '
+              /<testcase /{
+                split($0, parts, "name=\"")
+                split(parts[2], quoted, "\"")
+                name = quoted[1]
+              }
+              /<failure|<error/{
+                if (name != "") {
+                  printf "%s -- %s\n", name, substr($0, 1, 300)
+                  name = ""
+                }
+              }
+            ' "$report" >> failing-tests.txt
+          done < <(find . -path '*iosSimulatorArm64Test*' -name '*.xml')
+          if [ -s failing-tests.txt ]; then
+            head -10 failing-tests.txt | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+          else
+            echo "::error::No simulator test report recorded a failure; the build broke outside the tests."
+          fi
+
       # The device target is a separate compilation; linking the framework the iOS app
       # actually consumes is what proves every module builds for real hardware.
       - name: Link the iPhone ARM64 framework
-        run: ./gradlew -PenableIos=true :shared:linkDebugFrameworkIosArm64 --stacktrace
+        run: set -o pipefail; ./gradlew -PenableIos=true :shared:linkDebugFrameworkIosArm64 --stacktrace 2>&1 | tee -a gradle-output.log
+
+      # The kept results above only exist once a test has run, and they download from the same
+      # blob storage a job log does. Annotations come back from the API itself, so a failure that
+      # happens while compiling — before any test — is still readable.
+      - name: Report what broke
+        if: failure()
+        run: |
+          if [ ! -f gradle-output.log ]; then
+            echo "::error::The step failed before Gradle produced any output."
+            exit 0
+          fi
+          detail=$(grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference|Could not (resolve|find|determine)" gradle-output.log | head -12 || true)
+          if [ -z "$detail" ]; then
+            detail=$(tail -12 gradle-output.log || true)
+          fi
+          printf '%s\n' "$detail" | while IFS= read -r line; do
+            echo "::error::${line}"
+          done

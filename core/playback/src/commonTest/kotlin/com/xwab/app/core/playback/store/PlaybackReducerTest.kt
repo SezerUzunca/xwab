@@ -235,6 +235,19 @@ class PlaybackReducerTest {
         assertTrue(eff.enabled)
     }
 
+    @Test
+    fun settingAnAlreadyReconciledLoopValueIsANoOp() {
+        val state = playbackState(
+            request = PlaybackRequest(sourceA, loopMode = LoopMode.One),
+            isLooping = true,
+        )
+
+        val result = reducePlayback(state, PlaybackMessage.SetLooping(true))
+
+        assertEquals(state, result.state)
+        assertTrue(result.sideEffects.isEmpty())
+    }
+
     // ── SetVolume ────────────────────────────────────────────────────────
 
     @Test

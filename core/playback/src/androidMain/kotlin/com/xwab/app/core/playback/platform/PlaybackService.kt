@@ -66,6 +66,15 @@ internal class PlaybackService : MediaSessionService() {
                         cancelSleepTimer()
                     }
                 }
+
+                override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                    if (playWhenReady) {
+                        // Handler delays use uptimeMillis and therefore stop advancing in deep
+                        // sleep, while timer deadlines use elapsedRealtime. Reconcile before audio
+                        // resumes so a deadline that passed while the device slept cannot play on.
+                        sleepTimer.reconcileDeadline()
+                    }
+                }
             },
         )
 
@@ -125,10 +134,15 @@ internal class PlaybackService : MediaSessionService() {
         return sleepTimerResult()
     }
 
-    private fun sleepTimerResult(): SessionResult = SessionResult(
-        SessionResult.RESULT_SUCCESS,
-        SleepTimerProtocol.stateArguments(sleepTimer.deadlineElapsedRealtimeMs),
-    )
+    private fun sleepTimerResult(): SessionResult {
+        // A controller reconnect is another opportunity to repair a Handler callback delayed by
+        // deep sleep and return the actual service-owned state.
+        sleepTimer.reconcileDeadline()
+        return SessionResult(
+            SessionResult.RESULT_SUCCESS,
+            SleepTimerProtocol.stateArguments(sleepTimer.deadlineElapsedRealtimeMs),
+        )
+    }
 
     private inner class SleepTimerSessionCallback : MediaSession.Callback {
 
@@ -210,17 +224,7 @@ private class SleepTimer(
 
     private val expiration = object : Runnable {
         override fun run() {
-            val deadline = deadlineElapsedRealtimeMs ?: return
-
-            val remainingMs = deadline - SystemClock.elapsedRealtime()
-
-            if (remainingMs > 0L) {
-                handler.postDelayed(this, remainingMs)
-                return
-            }
-
-            deadlineElapsedRealtimeMs = null
-            onExpired()
+            reconcileDeadline()
         }
     }
 
@@ -232,6 +236,22 @@ private class SleepTimer(
         this.deadlineElapsedRealtimeMs = deadlineElapsedRealtimeMs
         handler.removeCallbacks(expiration)
         handler.postDelayed(expiration, remainingMs)
+    }
+
+    /**
+     * Re-arms the uptime-based Handler from the elapsed-realtime deadline, or expires immediately.
+     * This is called whenever playback resumes and whenever a controller reads timer state.
+     */
+    fun reconcileDeadline() {
+        val deadline = deadlineElapsedRealtimeMs ?: return
+        val remainingMs = remainingDurationUntil(deadline, SystemClock.elapsedRealtime())
+        handler.removeCallbacks(expiration)
+        if (remainingMs == null) {
+            deadlineElapsedRealtimeMs = null
+            onExpired()
+        } else {
+            handler.postDelayed(expiration, remainingMs)
+        }
     }
 
     fun cancel() {
