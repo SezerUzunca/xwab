@@ -53,11 +53,12 @@ class IosPlaybackEngineAudioTest {
     fun loadingAnItemAttachesItToThePlayerAtOnce() {
         // Separates "the item never became ready" from "there was never an item": the queue is
         // populated synchronously, so this needs no waiting at all.
-        val engine = engine()
+        val report = Report()
+        val engine = engine(report)
 
         engine.load(writeSilentWav(seconds = 1.0), looping = false, operationId = 1L)
 
-        assertTrue(engine.hasCurrentItem, "load() attached nothing. ${diagnosis(engine)}")
+        assertTrue(engine.hasCurrentItem, "load() attached nothing. ${diagnosis(engine, report)}")
         engine.release()
     }
 
@@ -65,20 +66,22 @@ class IosPlaybackEngineAudioTest {
     fun aPlainItemBecomesReady() {
         // The looping path has a second gate in front of readiness. This one has none, so a failure
         // here is about the asset or the player, and a failure only over there is about the looper.
-        val engine = engine()
+        val report = Report()
+        val engine = engine(report)
 
         engine.load(writeSilentWav(seconds = 1.0), looping = false, operationId = 1L)
 
         assertTrue(
             spinUntil { engine.isReadyToPlay },
-            "A non-looping item never became ready. ${diagnosis(engine)}",
+            "A non-looping item never became ready. ${diagnosis(engine, report)}",
         )
         engine.release()
     }
 
     @Test
     fun aLoopingItemBecomesReadyWithoutBlockingTheCaller() {
-        val engine = engine()
+        val report = Report()
+        val engine = engine(report)
         val path = writeSilentWav(seconds = 1.0)
 
         val accepted = engine.load(path, looping = true, operationId = 1L)
@@ -86,14 +89,15 @@ class IosPlaybackEngineAudioTest {
         assertTrue(accepted, "The engine refused a file URL it should accept.")
         assertTrue(
             spinUntil { engine.isReadyToPlay },
-            "A looping item never became ready. ${diagnosis(engine)}",
+            "A looping item never became ready. ${diagnosis(engine, report)}",
         )
         engine.release()
     }
 
     @Test
     fun aLoopingItemReportsNoLoopFailureOnceItIsReady() {
-        val engine = engine()
+        val report = Report()
+        val engine = engine(report)
 
         engine.load(writeSilentWav(seconds = 1.0), looping = true, operationId = 1L)
         spinUntil { engine.isReadyToPlay }
@@ -107,21 +111,22 @@ class IosPlaybackEngineAudioTest {
 
     @Test
     fun aZeroDurationLoopingItemFailsInsteadOfReachingTheLooper() {
-        val engine = engine()
+        val report = Report()
+        val engine = engine(report)
 
         engine.load(writeSilentWav(seconds = 0.0), looping = true, operationId = 1L)
 
         assertTrue(
             spinUntil { engine.loopErrorMessage != null || engine.hasItemFailure },
-            "Zero-duration looping media neither failed nor became ready. ${diagnosis(engine)}",
+            "Zero-duration looping media neither failed nor became ready. ${diagnosis(engine, report)}",
         )
         engine.release()
     }
 
     @Test
     fun playingAShortItemToItsEndIsReported() {
-        var endedOperationId: Long? = null
-        val engine = engine(onPlaybackEnded = { endedOperationId = it })
+        val report = Report()
+        val engine = engine(report)
         activateAudioSession()
 
         engine.load(writeSilentWav(seconds = 0.4), looping = false, operationId = 7L)
@@ -129,22 +134,22 @@ class IosPlaybackEngineAudioTest {
         engine.play()
 
         assertTrue(
-            spinUntil(timeoutSeconds = 20.0) { endedOperationId != null },
-            "Playback never reported reaching the end of the item. ${diagnosis(engine)}",
+            spinUntil(timeoutSeconds = 20.0) { report.endedOperationId != null },
+            "Playback never reported reaching the end of the item. ${diagnosis(engine, report)}",
         )
         engine.release()
     }
 
     @Test
     fun aFinishedItemIsQueuedAgainWhenPlaybackRestarts() {
-        var ended = false
-        val engine = engine(onPlaybackEnded = { ended = true })
+        val report = Report()
+        val engine = engine(report)
         activateAudioSession()
 
         engine.load(writeSilentWav(seconds = 0.4), looping = false, operationId = 7L)
         spinUntil { engine.isReadyToPlay }
         engine.play()
-        spinUntil(timeoutSeconds = 20.0) { ended }
+        spinUntil(timeoutSeconds = 20.0) { report.endedOperationId != null }
 
         // The queue may already be empty here: AVQueuePlayer removes an item it has played to the
         // end. Restarting has to rebuild it from the source rather than seek within nothing.
@@ -153,18 +158,31 @@ class IosPlaybackEngineAudioTest {
 
         assertTrue(
             spinUntil(timeoutSeconds = 20.0) { restarted && engine.hasCurrentItem },
-            "A finished item could not be queued again. ${diagnosis(engine)}",
+            "A finished item could not be queued again. ${diagnosis(engine, report)}",
         )
         engine.release()
     }
 
-    private fun engine(
-        onPlaybackEnded: (Long) -> Unit = {},
-    ) = IosPlaybackEngine(
-        onStateChanged = {},
-        onPlaybackEnded = onPlaybackEnded,
-        onPlaybackFailed = { _, _ -> },
-        onReadinessTimedOut = {},
+    /**
+     * Everything the engine reported while a test waited. The engine says why it gave up through
+     * these callbacks and nowhere else, so discarding them is what made the first runs unreadable.
+     */
+    private class Report {
+        var endedOperationId: Long? = null
+        var failure: String? = null
+        var failed = false
+        var readinessTimedOut = false
+        var stateChanges = 0
+    }
+
+    private fun engine(report: Report = Report()) = IosPlaybackEngine(
+        onStateChanged = { report.stateChanges += 1 },
+        onPlaybackEnded = { report.endedOperationId = it },
+        onPlaybackFailed = { _, message ->
+            report.failed = true
+            report.failure = message
+        },
+        onReadinessTimedOut = { report.readinessTimedOut = true },
     )
 
     /**
@@ -172,7 +190,12 @@ class IosPlaybackEngineAudioTest {
      * expectation of its own; it is what turns "never became ready" into something a run that
      * cannot be attached to can still be read from.
      */
-    private fun diagnosis(engine: IosPlaybackEngine): String = listOf(
+    private fun diagnosis(engine: IosPlaybackEngine, report: Report): String = listOf(
+        "ended=${report.endedOperationId}",
+        "engineFailed=${report.failed}",
+        "engineFailure=${report.failure}",
+        "readinessTimedOut=${report.readinessTimedOut}",
+        "stateChanges=${report.stateChanges}",
         "mainThread=${NSThread.isMainThread}",
         "hasCurrentItem=${engine.hasCurrentItem}",
         "isReadyToPlay=${engine.isReadyToPlay}",
