@@ -35,10 +35,33 @@ class IosPlaybackEngineAudioTest {
             NSFileManager.defaultManager.fileExistsAtPath(path),
             "The fixture was never written: $path",
         )
-        val size = NSFileManager.defaultManager.contentsAtPath(path)?.length
+        val contents = NSFileManager.defaultManager.contentsAtPath(path)
+        val size = contents?.length
         assertTrue(
             size == (WAV_HEADER_BYTES + 8_000 * BYTES_PER_FRAME).toULong(),
             "The fixture is $size bytes, not a 1-second 8kHz mono PCM WAV.",
+        )
+    }
+
+    @Test
+    fun theFixtureReadsBackAsAWavHeader() {
+        // The size being right says the bytes arrived; this says they are the bytes that were
+        // written. It is the last thing between "this file is malformed" and "this environment
+        // cannot open audio at all".
+        val path = writeSilentWav(seconds = 1.0)
+        val contents = NSFileManager.defaultManager.contentsAtPath(path)
+        val header = ByteArray(WAV_HEADER_BYTES)
+        header.usePinned { pinned ->
+            contents?.getBytes(pinned.addressOf(0), length = WAV_HEADER_BYTES.toULong())
+        }
+
+        assertTrue(
+            header.decodeToString(0, 4) == "RIFF" &&
+                header.decodeToString(8, 12) == "WAVE" &&
+                header[20].toInt() == 1,
+            "The fixture does not read back as PCM WAV: " +
+                "riff=${header.decodeToString(0, 4)} wave=${header.decodeToString(8, 12)} " +
+                "format=${header[20]} channels=${header[22]} bits=${header[34]}",
         )
     }
 
