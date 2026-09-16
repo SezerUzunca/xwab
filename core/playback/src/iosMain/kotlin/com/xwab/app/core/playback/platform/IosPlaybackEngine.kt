@@ -2,6 +2,7 @@
 
 package com.xwab.app.core.playback.platform
 
+import com.xwab.app.core.playback.projection.shouldObserveEngineTransition
 import com.xwab.app.core.playback.store.LatestOperationGate
 import com.xwab.app.core.playback.store.PLAYBACK_READINESS_TIMEOUT_MS
 import kotlin.native.ref.WeakReference
@@ -35,7 +36,6 @@ internal class IosPlaybackEngine(
     private var loopPreparationVersion: Long? = null
     private var loopPreparationCompletion: ((Boolean) -> Unit)? = null
     private var stateObservationTimer: NSTimer? = null
-    private var stateObservationIntervalSeconds: Double? = null
     private var minimumObservationTicks = 0
     private var lastObservedState: EngineObservation? = null
     private val operationGate = LatestOperationGate()
@@ -101,6 +101,46 @@ internal class IosPlaybackEngine(
                         self.currentOperationId,
                         failedItem.error?.localizedDescription ?: self.itemErrorMessage,
                     )
+                }
+            }
+        }
+    }
+
+    /**
+     * A stall is the one way a player that was playing starts waiting again without a command from
+     * this engine. Observing it is what lets [updateNativeStateObservation] stop watching
+     * `timeControlStatus` for as long as playback runs normally.
+     */
+    private val stallObserver = run {
+        val weakThis = WeakReference(this)
+        notificationCenter.addObserverForName(
+            name = AVPlayerItemPlaybackStalledNotification,
+            `object` = null,
+            queue = NSOperationQueue.mainQueue,
+        ) { notification ->
+            weakThis.get()?.let { self ->
+                if (self.activeItemFrom(notification) != null) {
+                    self.publishObservedStateIfChanged()
+                }
+            }
+        }
+    }
+
+    /**
+     * An item can fail while the engine is awaiting nothing — a ready, paused item whose resource
+     * read was interrupted. AVFoundation logs that before it would surface as a failed status, so
+     * this is the signal that replaces watching `status` for the whole paused period.
+     */
+    private val errorLogObserver = run {
+        val weakThis = WeakReference(this)
+        notificationCenter.addObserverForName(
+            name = AVPlayerItemNewErrorLogEntryNotification,
+            `object` = null,
+            queue = NSOperationQueue.mainQueue,
+        ) { notification ->
+            weakThis.get()?.let { self ->
+                if (self.activeItemFrom(notification) != null) {
+                    self.publishObservedStateIfChanged()
                 }
             }
         }
@@ -209,6 +249,8 @@ internal class IosPlaybackEngine(
         operationGate.begin()
         notificationCenter.removeObserver(endObserver)
         notificationCenter.removeObserver(failureObserver)
+        notificationCenter.removeObserver(stallObserver)
+        notificationCenter.removeObserver(errorLogObserver)
         player.pause()
         clearQueue()
     }
@@ -402,23 +444,31 @@ internal class IosPlaybackEngine(
         updateNativeStateObservation()
     }
 
+    /**
+     * Runs only while [shouldObserveEngineTransition] says a transition is outstanding, which is
+     * what keeps a settled player — playing, or ready and paused — from being watched at all. Every
+     * way out of a settled state reaches the engine as a notification instead: the item ended,
+     * failed, stalled, logged an error, the audio session was interrupted or its route went away,
+     * or this engine itself issued the command.
+     */
     private fun updateNativeStateObservation() {
-        val requiredInterval = requiredNativeStateObservationInterval()
-        if (released || observationSuspendedForFailure || requiredInterval == null) {
+        val shouldObserve = !released &&
+            !observationSuspendedForFailure &&
+            shouldObserveEngineTransition(
+                hasCurrentItem = hasCurrentItem,
+                hasFailure = hasItemFailure || loopErrorMessage != null,
+                isReadyToPlay = isReadyToPlay,
+                isWaitingToPlay = isWaitingToPlay,
+                playTransitionTicksRemaining = minimumObservationTicks,
+            )
+        if (!shouldObserve) {
             stopNativeStateObservation()
             return
         }
-        if (
-            stateObservationTimer != null &&
-            stateObservationIntervalSeconds == requiredInterval
-        ) {
-            return
-        }
+        if (stateObservationTimer != null) return
 
-        stopNativeStateObservation()
-        stateObservationIntervalSeconds = requiredInterval
         stateObservationTimer = NSTimer.scheduledTimerWithTimeInterval(
-            interval = requiredInterval,
+            interval = TRANSITION_OBSERVATION_INTERVAL_SECONDS,
             repeats = true,
             block = {
                 if (released) {
@@ -437,24 +487,6 @@ internal class IosPlaybackEngine(
     private fun stopNativeStateObservation() {
         stateObservationTimer?.invalidate()
         stateObservationTimer = null
-        stateObservationIntervalSeconds = null
-    }
-
-    private fun requiredNativeStateObservationInterval(): Double? =
-        if (minimumObservationTicks > 0) {
-            FAST_STATE_OBSERVATION_INTERVAL_SECONDS
-        } else {
-            dynamicNativeStateObservationInterval()
-        }
-
-    private fun dynamicNativeStateObservationInterval(): Double? = when {
-        !hasCurrentItem || hasItemFailure || loopErrorMessage != null -> null
-        !isReadyToPlay || isWaitingToPlay -> FAST_STATE_OBSERVATION_INTERVAL_SECONDS
-        isPlaying -> PLAYING_STATE_OBSERVATION_INTERVAL_SECONDS
-        // A ready, paused item can still transition to failed (for example,
-        // after an interrupted resource read). Poll it infrequently so that
-        // this failure is surfaced without retaining the former 1 Hz cost.
-        else -> PAUSED_READY_STATE_OBSERVATION_INTERVAL_SECONDS
     }
 
     private fun publishObservedStateIfChanged(force: Boolean = false) {
@@ -502,9 +534,7 @@ internal class IosPlaybackEngine(
     )
 
     private companion object {
-        const val FAST_STATE_OBSERVATION_INTERVAL_SECONDS = 0.2
-        const val PLAYING_STATE_OBSERVATION_INTERVAL_SECONDS = 1.0
-        const val PAUSED_READY_STATE_OBSERVATION_INTERVAL_SECONDS = 5.0
+        const val TRANSITION_OBSERVATION_INTERVAL_SECONDS = 0.2
         const val PLAY_TRANSITION_OBSERVATION_TICKS = 10
     }
 }
