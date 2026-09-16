@@ -77,6 +77,9 @@ kotlin {
             implementation(projects.feature.category)
             implementation(projects.feature.sound)
             implementation(projects.feature.story)
+            // Chrome rather than a destination, so it is last: the shell places it in its
+            // scaffold instead of registering a route for it.
+            implementation(projects.feature.nowplaying)
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.ui)
@@ -88,10 +91,6 @@ kotlin {
             implementation(libs.navigation3.runtime)
             implementation(libs.navigation3.ui)
             implementation(libs.androidx.lifecycle.viewmodelNavigation3)
-            // `collectAsStateWithLifecycle`, for the shell's own now-playing bar. Declared rather
-            // than inherited through navigation3: features get it from the same artifact via
-            // `xwab.kmp.feature`, and this module configures its own dependencies.
-            implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.kotlinx.serialization.core)
         }
         commonTest.dependencies {

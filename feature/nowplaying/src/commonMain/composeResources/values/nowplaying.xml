@@ -1,0 +1,4 @@
+<resources>
+    <!-- Shown while the session is on something it has not yet got a name for. -->
+    <string name="now_playing">Now playing</string>
+</resources>
