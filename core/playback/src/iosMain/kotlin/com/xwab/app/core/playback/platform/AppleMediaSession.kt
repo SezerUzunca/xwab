@@ -66,6 +66,7 @@ internal class AppleMediaSession(
 
     init {
         setupRemoteCommands()
+        disableUnsupportedCommands()
         setCommandsEnabled(false)
     }
 
@@ -120,6 +121,36 @@ internal class AppleMediaSession(
             dispatchWhenEnabled(onToggleRequested)
             MPRemoteCommandHandlerStatusSuccess
         }
+    }
+
+    /**
+     * Turns off every control this session cannot answer for.
+     *
+     * `MPRemoteCommandCenter` is a process-wide singleton and hands back every command already
+     * enabled, and iOS draws the Lock Screen and Control Center from those flags rather than from
+     * whether anything is listening. Left alone, a session that holds one item and offers no
+     * timeline still showed skip, seek and scrub controls — each of them doing nothing when
+     * pressed, because [setupRemoteCommands] registers a handler for three commands and no more.
+     *
+     * Run once, at construction: [setCommandsEnabled] only ever touches play, pause and toggle, so
+     * nothing later switches these back on.
+     */
+    private fun disableUnsupportedCommands() {
+        val unsupported: List<MPRemoteCommand> = listOf(
+            commandCenter.nextTrackCommand,
+            commandCenter.previousTrackCommand,
+            commandCenter.skipForwardCommand,
+            commandCenter.skipBackwardCommand,
+            commandCenter.seekForwardCommand,
+            commandCenter.seekBackwardCommand,
+            commandCenter.changePlaybackPositionCommand,
+            commandCenter.changePlaybackRateCommand,
+            commandCenter.changeRepeatModeCommand,
+            commandCenter.changeShuffleModeCommand,
+            // Distinct from pause, and unimplemented: the session pauses and keeps its item.
+            commandCenter.stopCommand,
+        )
+        unsupported.forEach { it.enabled = false }
     }
 
     private fun dispatchWhenEnabled(action: () -> Unit) {

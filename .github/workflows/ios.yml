@@ -1,8 +1,9 @@
 name: iOS
 
-# No `paths` allowlist on purpose: it used to name `core/media/**` only, so the
-# core:data / core:playback split would have skipped iOS entirely.
-# An ignore list cannot go stale the same way — a new module is covered by default.
+# No `paths` allowlist on purpose: one used to name a single module's directory, and the first
+# time that module was split the iOS job stopped running on the half that moved — silently, since
+# a workflow that never triggers reports nothing. An ignore list cannot go stale the same way: a
+# module added or renamed tomorrow is covered by default.
 on:
   pull_request:
     paths-ignore:
@@ -24,8 +25,8 @@ jobs:
     name: Compile and test the iOS targets
     # macos-15 (Xcode 16.4, iOS 18.5 SDK) cannot link a test binary that pulls in
     # compose.ui:ui-uikit: its CMPLayoutRegion references UIViewLayoutRegion, a UIKit
-    # class that only exists in the iOS 26 SDK. This never showed up while the workflow
-    # only built core:media, which has no Compose dependency.
+    # class that only exists in the iOS 26 SDK. This stayed hidden while the workflow built
+    # only playback code, which has no Compose dependency; the feature screen tests brought it out.
     runs-on: macos-26
     timeout-minutes: 45
 
@@ -63,9 +64,11 @@ jobs:
           restore-keys: |
             konan-${{ runner.os }}-
 
-      # Covers every module that has iOS tests, so a new one is picked up without touching this
-      # file: core:sound:catalog, core:sound:manifest, core:sound:delivery, core:sound:favorites,
-      # core:story:catalog, core:story:manifest, core:session, core:playback, shared.
+      # One task across the whole build, so a new module is picked up without touching this file.
+      # It runs every module's `commonTest` on the simulator, plus the `iosTest` source sets that
+      # exist only here: the AVFoundation engine in core:playback, and the screen tests in
+      # feature:sound and feature:category, whose composables are common code with no second
+      # harness on the Android side.
       - name: Run Simulator ARM64 tests
         run: set -o pipefail; ./gradlew -PenableIos=true iosSimulatorArm64Test --stacktrace 2>&1 | tee -a gradle-output.log
 

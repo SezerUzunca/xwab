@@ -74,11 +74,16 @@ class SourceManifestTest {
     /**
      * Wikimedia refuses a request that does not identify its client; that requirement is declared
      * on the source itself, not left for `:core:session` to know about the host it is fetching from.
+     *
+     * The contact URL is asserted rather than left to the string, because a product name on its own
+     * is what the policy rejects — and dropping it would leave a header that still looks filled in.
      */
     @Test
     fun everySoundSourceCarriesTheHostsRequiredUserAgent() {
         soundSourceManifest.forEach { entry ->
-            assertEquals("SleepSounds/1.0 (audio cache)", entry.source.headers["User-Agent"])
+            val userAgent = entry.source.headers["User-Agent"]
+            assertEquals("SleepSounds/1.0 (https://github.com/SezerUzunca/xwab)", userAgent)
+            assertTrue(userAgent.orEmpty().contains("https://"), "the policy asks for contact details")
         }
     }
 

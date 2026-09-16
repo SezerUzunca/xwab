@@ -40,10 +40,15 @@ internal fun soundSource(itemId: String, httpsUrl: String, version: Int = 1): Ma
 /**
  * Identifies this client to Wikimedia, which every shipped sound source streams from today.
  *
- * Wikimedia's user-agent policy refuses a request that does not say who is making it. That
- * refusal arrives as a 4xx, which delivery classifies as a source that will never work: no retry,
- * and the file is not cached. Playback would keep streaming over HTTPS through the platform
- * player, so the only visible effect would be a cache that quietly never fills — which is why this
- * header travels with the source itself rather than being guessed by whatever resolves it.
+ * Wikimedia's user-agent policy refuses a request that does not say who is making it, and asks for
+ * a way to reach whoever is making it — a URL or an address, not just a product name. That refusal
+ * arrives as a 4xx, which delivery classifies as a source that will never work: no retry, and the
+ * file is not cached. Playback would keep streaming over HTTPS through the platform player, so the
+ * only visible effect would be a cache that quietly never fills — which is why this header travels
+ * with the source itself rather than being guessed by whatever resolves it.
+ *
+ * Reaches the *download*, and only the download. On a cache miss delivery hands playback the HTTPS
+ * URL and the platform player opens it directly, under its own user agent, with nothing here
+ * applying — see `AudioSource`, which carries no headers to give it.
  */
-private const val WIKIMEDIA_USER_AGENT = "SleepSounds/1.0 (audio cache)"
+private const val WIKIMEDIA_USER_AGENT = "SleepSounds/1.0 (https://github.com/SezerUzunca/xwab)"

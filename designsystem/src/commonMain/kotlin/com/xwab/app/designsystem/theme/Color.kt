@@ -45,6 +45,11 @@ val darkColors = SleepRelaxColors(
     glassWhite = Color(0x14FFFFFF), // ~8% opaque white
     glassWhiteOverlay = Color(0x26FFFFFF), // ~15% opaque white
     textPrimary = Color.White,
-    textSecondary = Color.White.copy(alpha = 0.45f),
+    // 0.60, not the 0.45 this started at. Over the backgrounds this app actually draws, 0.45 came
+    // out between 4.2:1 and 4.4:1 — under the 4.5:1 WCAG AA asks for text this size, and this is
+    // the colour every duration, status line, sleep-timer countdown and unselected tab label is
+    // drawn in. The tightest case was a [glassWhite] card, which lightens the gradient beneath it.
+    // ContrastTest measures all of them, so the next adjustment cannot quietly drop back under.
+    textSecondary = Color.White.copy(alpha = 0.60f),
     error = Color(0xFFFFB4AB)
 )
