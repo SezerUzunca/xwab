@@ -88,6 +88,10 @@ kotlin {
             implementation(libs.navigation3.runtime)
             implementation(libs.navigation3.ui)
             implementation(libs.androidx.lifecycle.viewmodelNavigation3)
+            // `collectAsStateWithLifecycle`, for the shell's own now-playing bar. Declared rather
+            // than inherited through navigation3: features get it from the same artifact via
+            // `xwab.kmp.feature`, and this module configures its own dependencies.
+            implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.kotlinx.serialization.core)
         }
         commonTest.dependencies {

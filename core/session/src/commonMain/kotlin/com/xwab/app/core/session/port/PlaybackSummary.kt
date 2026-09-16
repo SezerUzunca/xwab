@@ -85,6 +85,23 @@ data class PlaybackSummary(
     val isPlaying: Boolean = false,
     /** The requested item is wanted but not audible yet: being resolved, loaded or buffered. */
     val isPreparing: Boolean = false,
+    /**
+     * What [requestedItemId] calls itself, or `null` while the session does not yet know.
+     *
+     * Published because the app shell draws a now-playing bar on every screen, and the shell has no
+     * other honest way to name what is playing: a [PlaybackItemId] is a kind and a raw string, so
+     * turning one into a title outside this module would mean a `when` over content kinds in the
+     * shell and a dependency on both catalogs — which is the coupling this summary exists to
+     * remove. The session already resolves the title on its way to the engine; it just used to
+     * throw it away.
+     *
+     * Never a title belonging to some *other* item. During a switch the engine still holds the
+     * outgoing item while [requestedItemId] names the incoming one, so the title is published only
+     * while the two agree; until then it is null and a screen shows [isPreparing] instead. A bar
+     * that named the previous sound while preparing the next one would be worse than a bar with no
+     * name at all.
+     */
+    val title: String? = null,
     val isLooping: Boolean = DEFAULT_LOOPING,
     /**
      * How loud the session is, always within [VOLUME_RANGE].

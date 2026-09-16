@@ -118,6 +118,14 @@ sharing the content-neutral playback port.
 kind and value, keeping sound and story identifiers distinct. Its internal adapter resolves
 metadata and content through ports, then drives `PlaybackEnginePort`.
 
+`PlaybackSummary` carries the title of the item it names, so the app shell can draw a now-playing
+bar on every destination without asking either catalog what a `PlaybackItemId` means. The title is
+published only while the engine holds the item the summary names as requested; mid-switch it is
+absent and `isPreparing` says so instead. That bar is shell chrome beside the navigation bar rather
+than a feature: a feature publishes a Navigation 3 route and nothing else, and this is drawn outside
+`NavDisplay` whatever destination is showing. It offers play and pause only — "open this item" has a
+different answer per content kind, and stories have no screen of their own to open.
+
 Sound playback reads metadata through `SoundPort`, resolves its physical address through
 `SourcePort`, then gives a request to `DeliveryPort`.
 The session owns the sound namespace, MPEG policy and current cache inventory. Cached files are preferred; otherwise

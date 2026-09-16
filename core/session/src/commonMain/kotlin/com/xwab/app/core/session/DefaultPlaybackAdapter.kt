@@ -244,7 +244,8 @@ internal class DefaultPlaybackAdapter internal constructor(
     private fun summaryOf(engine: AudioPlayerState, wanted: SessionIntent): PlaybackSummary {
         // What was asked for, and what is actually attached. They differ for the whole of a switch:
         // the listener has picked B while A is still the sound in the room.
-        val requested = wanted.pendingItemId ?: itemOf(engine.activeSource)
+        val held = itemOf(engine.activeSource)
+        val requested = wanted.pendingItemId ?: held
         val active = itemOf(engine.source)
         val playIntent = wanted.pendingItemId != null || engine.playRequested
 
@@ -252,6 +253,10 @@ internal class DefaultPlaybackAdapter internal constructor(
             requestedItemId = requested,
             activeItemId = active,
             playIntent = playIntent,
+            // Only while the engine is holding the item that was asked for. Mid-switch the two are
+            // different things, and the title beside the outgoing source is not the incoming
+            // item's name — see `PlaybackSummary.title`.
+            title = engine.activeSource?.title?.takeIf { held == requested },
             isPlaying = engine.isPlaying,
             // About the *requested* item: a different sound being audible does not make the one
             // that was asked for ready.

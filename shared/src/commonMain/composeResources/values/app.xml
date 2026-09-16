@@ -2,4 +2,7 @@
     <string name="tab_browse">Browse</string>
     <string name="tab_favorites">Favorites</string>
     <string name="tab_stories">Stories</string>
+
+    <!-- The now-playing bar before the session has a name for what it is on. -->
+    <string name="now_playing">Now playing</string>
 </resources>

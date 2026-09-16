@@ -1,5 +1,6 @@
 package com.xwab.app.di
 
+import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.feature.browse.di.BrowseDependencies
 import com.xwab.app.feature.category.di.CategoryDependencies
 import com.xwab.app.feature.favorites.di.FavoritesDependencies
@@ -21,6 +22,19 @@ import com.xwab.app.feature.story.di.StoriesDependencies
  * can only expose what the module it is generated in can name.
  */
 interface AppGraph {
+    /**
+     * The one thing the shell reads for itself rather than on a screen's behalf: the now-playing
+     * bar is chrome, drawn beside the navigation bar on every destination, so it is the shell's
+     * to wire.
+     *
+     * A port and not a `() -> Dependencies`, because there is nothing to defer — the bar is in
+     * composition from the first frame, so a provider would be invoked immediately anyway. Worth
+     * knowing that this moves the session's creation to app start: on Android that is when the
+     * MediaController now binds to the playback service, where it used to wait for the first
+     * screen that reads playback.
+     */
+    val playbackPort: PlaybackPort
+
     val browseDependencies: () -> BrowseDependencies
     val favoritesDependencies: () -> FavoritesDependencies
     val categoryDependencies: () -> CategoryDependencies
