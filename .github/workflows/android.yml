@@ -128,3 +128,34 @@ jobs:
           printf '%s\n' "$detail" | while IFS= read -r line; do
             echo "::error::${line}"
           done
+
+      # Gradle names the HTML report and nothing else, and that report is a file on a runner nobody
+      # can attach to. The instrumentation XML beside it names the test and carries the message its
+      # assertion was given, so read it here.
+      - name: Report the failing device tests
+        if: failure()
+        run: |
+          : > failing-tests.txt
+          while IFS= read -r report; do
+            grep -q '<failure\|<error' "$report" || continue
+            awk '
+              /<testcase /{
+                split($0, parts, "name=\"")
+                split(parts[2], quoted, "\"")
+                name = quoted[1]
+              }
+              /<failure|<error/{
+                if (name != "") {
+                  printf "%s -- %s\n", name, substr($0, 1, 300)
+                  name = ""
+                }
+              }
+            ' "$report" >> failing-tests.txt
+          done < <(find . -path '*androidTest-results*' -name '*.xml')
+          if [ -s failing-tests.txt ]; then
+            head -10 failing-tests.txt | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+          else
+            echo "::error::No instrumentation report recorded a failure; the build broke outside the tests."
+          fi
