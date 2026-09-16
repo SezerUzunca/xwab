@@ -1,0 +1,9 @@
+<resources>
+    <!--
+      The top of the gradient every screen paints, repeated here because the launch window is drawn
+      by the platform before a single Compose frame exists. Keep it in step with
+      `SleepRelaxColors.backgroundTop`: the two cannot share a value across Compose Multiplatform
+      and Android resources, and a mismatch shows up as a flash of the wrong colour on cold start.
+    -->
+    <color name="window_background">#FF0D1135</color>
+</resources>

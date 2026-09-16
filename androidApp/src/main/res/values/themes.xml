@@ -1,0 +1,12 @@
+<resources>
+    <!--
+      The launch window, not the app's theme — Compose owns everything after the first frame.
+
+      A dark platform parent, because this app has no light theme: every screen paints
+      `SleepRelaxTheme`'s dark gradient whatever the device is set to. It used to inherit
+      `Theme.Material.Light.NoActionBar`, so a cold start flashed white before Compose drew.
+    -->
+    <style name="Theme.Xwab" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+</resources>
