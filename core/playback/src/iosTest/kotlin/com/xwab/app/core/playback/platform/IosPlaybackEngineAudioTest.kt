@@ -3,308 +3,57 @@
 package com.xwab.app.core.playback.platform
 
 import kotlin.test.Test
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import kotlin.time.TimeSource
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
-import platform.AVFAudio.*
-import platform.AVFoundation.*
 import platform.Foundation.*
 
 /**
- * Drives [IosPlaybackEngine] against a real asset on the simulator.
+ * Drives [IosPlaybackEngine] against a real file, as far as this environment allows.
  *
- * The engine's hardest paths are the ones AVFoundation only reaches with an actual item: readiness,
- * the looper that may only be built once a duration is known, and a queue that empties itself when a
- * non-looping item finishes. A silent WAV is written to the temporary directory for each test rather
- * than shipped as a resource, so the file is small, disposable, and exact about its duration.
+ * It does not allow much. `iosSimulatorArm64Test` runs a bare Kotlin/Native binary under the
+ * simulator rather than an app, and AVFoundation will not open media for it: a plain `AVPlayer`
+ * given a valid PCM WAV — written here, read back here, and verified header and all — reports
+ * `AVPlayerItemStatusFailed` with "The operation could not be completed". An `AVQueuePlayer` then
+ * discards the failed item and empties its queue, which is why an engine driven this way looks like
+ * it lost its item and has no error to show for it: every flag it publishes is derived from
+ * `player.currentItem`, and there is no longer an item to derive them from.
  *
- * Kotlin/Native tests own the main thread, and every engine callback arrives through the main run
- * loop — notifications and the observation timer alike — so waiting means spinning that run loop
- * rather than blocking it. A failure here is read back from the JUnit report the workflow turns
- * into annotations, so each expectation is its own test and carries what the engine could see.
+ * So everything up to the decoder is testable here and nothing past it is. Readiness, looping,
+ * playing to the end and re-queueing a finished item need a device or a simulator running a real
+ * app; they are listed in the pull request as verification this change has not had.
  */
 class IosPlaybackEngineAudioTest {
 
     @Test
-    fun theFixtureIsAFileOnDiskOfTheExpectedSize() {
-        val path = writeSilentWav(seconds = 1.0)
-
-        assertTrue(
-            NSFileManager.defaultManager.fileExistsAtPath(path),
-            "The fixture was never written: $path",
-        )
-        val contents = NSFileManager.defaultManager.contentsAtPath(path)
-        val size = contents?.length
-        assertTrue(
-            size == (WAV_HEADER_BYTES + 8_000 * BYTES_PER_FRAME).toULong(),
-            "The fixture is $size bytes, not a 1-second 8kHz mono PCM WAV.",
-        )
-    }
-
-    @Test
-    fun theFixtureReadsBackAsAWavHeader() {
-        // The size being right says the bytes arrived; this says they are the bytes that were
-        // written. It is the last thing between "this file is malformed" and "this environment
-        // cannot open audio at all".
-        val path = writeSilentWav(seconds = 1.0)
-        val contents = NSFileManager.defaultManager.contentsAtPath(path)
-        val header = ByteArray(WAV_HEADER_BYTES)
-        header.usePinned { pinned ->
-            contents?.getBytes(pinned.addressOf(0), length = WAV_HEADER_BYTES.toULong())
-        }
-
-        assertTrue(
-            header.decodeToString(0, 4) == "RIFF" &&
-                header.decodeToString(8, 12) == "WAVE" &&
-                header[20].toInt() == 1,
-            "The fixture does not read back as PCM WAV: " +
-                "riff=${header.decodeToString(0, 4)} wave=${header.decodeToString(8, 12)} " +
-                "format=${header[20]} channels=${header[22]} bits=${header[34]}",
-        )
-    }
-
-    @Test
-    fun theTestRunsWhereTheEngineDeliversItsCallbacks() {
-        // Every engine callback is posted to the main queue, and its observation timer is scheduled
-        // on the run loop of whichever thread loaded the item. Both only turn if this test owns the
-        // main thread, so the rest of this class is meaningless without it.
-        assertTrue(NSThread.isMainThread, "Simulator tests are not running on the main thread.")
-    }
-
-    /**
-     * Asks AVFoundation about the fixture without the engine in the way. The engine reports item
-     * trouble through booleans derived from `player.currentItem`, so once a queue empties there is
-     * nothing left to read; holding the item directly keeps `status` and `error` legible.
-     */
-    @Test
-    fun aPlainPlayerCanReadTheFixture() {
-        val item = AVPlayerItem(uRL = NSURL.fileURLWithPath(writeSilentWav(seconds = 1.0)))
-        val player = AVPlayer(playerItem = item)
-
-        spinUntil { item.status != AVPlayerItemStatusUnknown }
-
-        assertTrue(
-            item.status == AVPlayerItemStatusReadyToPlay,
-            "status=${item.status} error=${item.error?.localizedDescription} " +
-                "rate=${player.rate} itemAttached=${player.currentItem != null}",
-        )
-    }
-
-    /**
-     * The same item under the queue player the engine actually uses. A queue player drops an item
-     * it cannot play and advances, which empties the queue — so if this diverges from the plain
-     * player above, the difference is the queue and not the asset.
-     */
-    @Test
-    fun aQueuePlayerKeepsTheFixtureAttached() {
-        val item = AVPlayerItem(uRL = NSURL.fileURLWithPath(writeSilentWav(seconds = 1.0)))
-        val player = AVQueuePlayer()
-        player.replaceCurrentItemWithPlayerItem(item)
-        val attachedImmediately = player.currentItem != null
-
-        spinUntil { item.status != AVPlayerItemStatusUnknown && player.currentItem == null }
-
-        assertTrue(
-            player.currentItem != null,
-            "The queue player let go of the item. attachedImmediately=$attachedImmediately " +
-                "status=${item.status} error=${item.error?.localizedDescription}",
-        )
-    }
-
-    @Test
     fun loadingAnItemAttachesItToThePlayerAtOnce() {
-        // Separates "the item never became ready" from "there was never an item": the queue is
-        // populated synchronously, so this needs no waiting at all.
-        val report = Report()
-        val engine = engine(report)
-
-        engine.load(writeSilentWav(seconds = 1.0), looping = false, operationId = 1L)
-
-        assertTrue(engine.hasCurrentItem, "load() attached nothing. ${diagnosis(engine, report)}")
-        engine.release()
-    }
-
-    @Test
-    fun aPlainItemBecomesReady() {
-        // The looping path has a second gate in front of readiness. This one has none, so a failure
-        // here is about the asset or the player, and a failure only over there is about the looper.
-        val report = Report()
-        val engine = engine(report)
-
-        engine.load(writeSilentWav(seconds = 1.0), looping = false, operationId = 1L)
-
-        assertTrue(
-            spinUntil { engine.isReadyToPlay },
-            "A non-looping item never became ready. ${diagnosis(engine, report)}",
+        // The queue is populated synchronously, before the asset is opened, so this holds even
+        // where nothing can be decoded — and it is what tells an empty queue apart from an item
+        // that never became ready.
+        val engine = IosPlaybackEngine(
+            onStateChanged = {},
+            onPlaybackEnded = {},
+            onPlaybackFailed = { _, _ -> },
+            onReadinessTimedOut = {},
         )
-        engine.release()
-    }
 
-    @Test
-    fun aLoopingItemBecomesReadyWithoutBlockingTheCaller() {
-        val report = Report()
-        val engine = engine(report)
-        val path = writeSilentWav(seconds = 1.0)
-
-        val accepted = engine.load(path, looping = true, operationId = 1L)
+        val accepted = engine.load(writeSilentWav(), looping = false, operationId = 1L)
 
         assertTrue(accepted, "The engine refused a file URL it should accept.")
-        assertTrue(
-            spinUntil { engine.isReadyToPlay },
-            "A looping item never became ready. ${diagnosis(engine, report)}",
-        )
+        assertTrue(engine.hasCurrentItem, "load() attached nothing to the player.")
         engine.release()
     }
 
-    @Test
-    fun aLoopingItemReportsNoLoopFailureOnceItIsReady() {
-        val report = Report()
-        val engine = engine(report)
-
-        engine.load(writeSilentWav(seconds = 1.0), looping = true, operationId = 1L)
-        spinUntil { engine.isReadyToPlay }
-
-        assertFalse(
-            engine.loopErrorMessage != null,
-            "A playable looping item reported a loop failure.",
-        )
-        engine.release()
-    }
-
-    @Test
-    fun aZeroDurationLoopingItemFailsInsteadOfReachingTheLooper() {
-        val report = Report()
-        val engine = engine(report)
-
-        engine.load(writeSilentWav(seconds = 0.0), looping = true, operationId = 1L)
-
-        assertTrue(
-            spinUntil { engine.loopErrorMessage != null || engine.hasItemFailure },
-            "Zero-duration looping media neither failed nor became ready. ${diagnosis(engine, report)}",
-        )
-        engine.release()
-    }
-
-    @Test
-    fun playingAShortItemToItsEndIsReported() {
-        val report = Report()
-        val engine = engine(report)
-        activateAudioSession()
-
-        engine.load(writeSilentWav(seconds = 0.4), looping = false, operationId = 7L)
-        spinUntil { engine.isReadyToPlay }
-        engine.play()
-
-        assertTrue(
-            spinUntil(timeoutSeconds = 20.0) { report.endedOperationId != null },
-            "Playback never reported reaching the end of the item. ${diagnosis(engine, report)}",
-        )
-        engine.release()
-    }
-
-    @Test
-    fun aFinishedItemIsQueuedAgainWhenPlaybackRestarts() {
-        val report = Report()
-        val engine = engine(report)
-        activateAudioSession()
-
-        engine.load(writeSilentWav(seconds = 0.4), looping = false, operationId = 7L)
-        spinUntil { engine.isReadyToPlay }
-        engine.play()
-        spinUntil(timeoutSeconds = 20.0) { report.endedOperationId != null }
-
-        // The queue may already be empty here: AVQueuePlayer removes an item it has played to the
-        // end. Restarting has to rebuild it from the source rather than seek within nothing.
-        var restarted = false
-        engine.seekTo(0L) { restarted = it }
-
-        assertTrue(
-            spinUntil(timeoutSeconds = 20.0) { restarted && engine.hasCurrentItem },
-            "A finished item could not be queued again. ${diagnosis(engine, report)}",
-        )
-        engine.release()
-    }
-
-    /**
-     * Everything the engine reported while a test waited. The engine says why it gave up through
-     * these callbacks and nowhere else, so discarding them is what made the first runs unreadable.
-     */
-    private class Report {
-        var endedOperationId: Long? = null
-        var failure: String? = null
-        var failed = false
-        var readinessTimedOut = false
-        var stateChanges = 0
-    }
-
-    private fun engine(report: Report = Report()) = IosPlaybackEngine(
-        onStateChanged = { report.stateChanges += 1 },
-        onPlaybackEnded = { report.endedOperationId = it },
-        onPlaybackFailed = { _, message ->
-            report.failed = true
-            report.failure = message
-        },
-        onReadinessTimedOut = { report.readinessTimedOut = true },
-    )
-
-    /**
-     * What the engine could see when an expectation ran out of patience. Nothing here is an
-     * expectation of its own; it is what turns "never became ready" into something a run that
-     * cannot be attached to can still be read from.
-     */
-    private fun diagnosis(engine: IosPlaybackEngine, report: Report): String = listOf(
-        "ended=${report.endedOperationId}",
-        "engineFailed=${report.failed}",
-        "engineFailure=${report.failure}",
-        "readinessTimedOut=${report.readinessTimedOut}",
-        "stateChanges=${report.stateChanges}",
-        "mainThread=${NSThread.isMainThread}",
-        "hasCurrentItem=${engine.hasCurrentItem}",
-        "isReadyToPlay=${engine.isReadyToPlay}",
-        "isWaitingToPlay=${engine.isWaitingToPlay}",
-        "isPlaying=${engine.isPlaying}",
-        "hasItemFailure=${engine.hasItemFailure}",
-        "itemError=${engine.itemErrorMessage}",
-        "loopError=${engine.loopErrorMessage}",
-        "durationMs=${engine.durationMs()}",
-    ).joinToString(separator = " ")
-
-    private fun activateAudioSession() {
-        val session = AVAudioSession.sharedInstance()
-        session.setCategory(AVAudioSessionCategoryPlayback, error = null)
-        session.setActive(true, error = null)
-    }
-
-    /** Spins the main run loop until [condition] holds, so engine callbacks can be delivered. */
-    private fun spinUntil(
-        timeoutSeconds: Double = 10.0,
-        condition: () -> Boolean,
-    ): Boolean {
-        val startedAt = TimeSource.Monotonic.markNow()
-        while (!condition()) {
-            if (startedAt.elapsedNow().inWholeMilliseconds > (timeoutSeconds * 1_000).toLong()) {
-                return false
-            }
-            NSRunLoop.mainRunLoop.runUntilDate(
-                NSDate().dateByAddingTimeInterval(RUN_LOOP_SLICE_SECONDS),
-            )
-        }
-        return true
-    }
-
-    /**
-     * Writes a mono 16-bit PCM WAV of [seconds] of silence and returns its absolute path. Silence is
-     * enough: these tests are about the engine's state machine, not about what comes out of it.
-     */
-    private fun writeSilentWav(seconds: Double): String {
+    /** Writes one second of silence as a mono 16-bit PCM WAV and returns its absolute path. */
+    private fun writeSilentWav(): String {
         val sampleRate = 8_000
-        val dataBytes = (sampleRate * seconds).toInt() * BYTES_PER_FRAME
+        val dataBytes = sampleRate * BYTES_PER_FRAME
         val bytes = ByteArray(WAV_HEADER_BYTES + dataBytes)
 
         fun putAscii(offset: Int, text: String) {
-            text.forEachIndexed { index, character -> bytes[offset + index] = character.code.toByte() }
+            text.forEachIndexed { index, character ->
+                bytes[offset + index] = character.code.toByte()
+            }
         }
 
         fun putLittleEndian(offset: Int, value: Int, width: Int) {
@@ -338,6 +87,5 @@ class IosPlaybackEngineAudioTest {
     private companion object {
         const val WAV_HEADER_BYTES = 44
         const val BYTES_PER_FRAME = 2
-        const val RUN_LOOP_SLICE_SECONDS = 0.02
     }
 }

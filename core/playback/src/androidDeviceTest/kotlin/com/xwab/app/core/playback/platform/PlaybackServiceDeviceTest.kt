@@ -41,7 +41,10 @@ class PlaybackServiceDeviceTest {
             // Pin the application thread instead of relying on "current or main".
             .setApplicationLooper(Looper.getMainLooper())
             .buildAsync()
-            .get(10, TimeUnit.SECONDS)
+            // A test that lets a timer run out leaves the service stopping itself, and the next
+            // connection has to wait for it to come back. Ten seconds was enough on some emulator
+            // runs and not others, which is the whole of the flakiness this job showed.
+            .get(45, TimeUnit.SECONDS)
         client = SleepTimerClient(ContextCompat.getMainExecutor(context))
     }
 
