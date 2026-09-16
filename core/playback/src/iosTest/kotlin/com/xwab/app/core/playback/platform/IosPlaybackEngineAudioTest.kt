@@ -9,6 +9,7 @@ import kotlin.time.TimeSource
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import platform.AVFAudio.*
+import platform.AVFoundation.*
 import platform.Foundation.*
 
 /**
