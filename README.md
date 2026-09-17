@@ -114,11 +114,26 @@ intent callbacks and does not name destination features.
 Category and Sound are nested destinations. Story remains a separate content feature while
 sharing the content-neutral playback port.
 
-`feature:nowplaying` is the one feature with no route. It is chrome rather than a destination: the
-shell places it in its scaffold, outside `NavDisplay`, so that it survives every destination change
-and every tab switch. Its public contract is still a single declaration in its `.navigation`
-package, and the composition root is still the only module allowed to name it — a composable the
-shell places, where the others hand back an entry the shell registers. No feature knows it exists.
+`feature:nowplaying` is the one feature with no route. It is chrome rather than a destination, and
+reaches the screen as a `NavDisplay` scene decorator: `NavDisplay` draws it around whichever scene
+is showing, so it survives every destination change and every tab switch. Its public contract is
+still a single declaration in its `.navigation` package, and the composition root is still the only
+module allowed to name it — a composable the shell decorates scenes with, where the others hand
+back an entry the shell registers. No feature knows it exists.
+
+A scaffold slot would be simpler, and is what Google's Common UI recipe uses for the tab bar, which
+stays there. The bar is inside the navigation area instead because that is the only place it can
+reach `NavDisplay`'s `SharedTransitionScope` — a bar that expands into the screen for what it is
+playing has to hand its content to that screen, and shared elements only match within one
+`SharedTransitionLayout`. Nothing uses that yet; the bar is not tappable.
+
+`NavDisplay` animates between *decorated* scenes, so during a navigation the outgoing and incoming
+scenes both draw a bar. One shared-element key matches the two, which moves the bar rather than
+cross-fading it. Google's `navscenedecorator` recipe goes further — one `movableContentOf` carried
+between scenes, plus a size-caching modifier for the vacated space — because its navigation bar owns
+animation state that must not be duplicated. This bar owns none: its state is a ViewModel on the
+root store, so both compositions read the same instance. Give the bar state of its own and the
+recipe's version becomes the right one again.
 
 ## Playback and delivery
 
