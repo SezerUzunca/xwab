@@ -9,6 +9,18 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Xwab">
+        <!--
+          How this app identifies itself when the player streams a sound that is not cached yet.
+
+          Wikimedia, which every shipped source comes from, asks a client to say who it is and how
+          to reach it, and refuses requests that do not. The same string is attached to the download
+          requests `:core:sources` makes — the two have to agree, because they are the same client
+          talking to the same host over two different paths.
+        -->
+        <meta-data
+            android:name="com.xwab.app.core.playback.USER_AGENT"
+            android:value="SleepSounds/1.0 (https://github.com/SezerUzunca/xwab)" />
+
         <activity
             android:exported="true"
             android:name=".MainActivity">

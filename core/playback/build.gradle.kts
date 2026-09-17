@@ -18,6 +18,8 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.androidx.core.ktx)
             implementation(libs.androidx.media3.exoplayer)
+            // The HTTP data source the service hands ExoPlayer, so requests can identify the app.
+            implementation(libs.androidx.media3.datasource)
             implementation(libs.androidx.media3.session)
         }
         getByName("androidDeviceTest").dependencies {
