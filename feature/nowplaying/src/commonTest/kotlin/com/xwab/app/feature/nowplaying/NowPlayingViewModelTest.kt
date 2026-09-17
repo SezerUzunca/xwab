@@ -1,5 +1,6 @@
 package com.xwab.app.feature.nowplaying
 
+import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.testing.FakePlaybackPort
@@ -128,6 +129,46 @@ class NowPlayingViewModelTest {
 
         assertNull(port.playedItemId)
         assertEquals(0, port.pauses)
+    }
+
+    /**
+     * The bar can start playback, so it owes an answer when that fails — it is the one control in
+     * this app with no screen behind it to explain.
+     */
+    @Test
+    fun aFailureOnThisItemIsReported() = runTest {
+        val port = playing(
+            PlaybackSummary(
+                requestedItemId = RAIN,
+                title = "Gentle Rain",
+                failure = PlaybackFailure.SourceUnavailable(RAIN),
+            ),
+        )
+        val viewModel = NowPlayingViewModel(port)
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        assertEquals(PlaybackFailure.SourceUnavailable(RAIN), viewModel.state.value.failure)
+    }
+
+    /**
+     * Another screen's row fails into the same session. A bar holding one item has nothing to say
+     * about a different item's failure, and saying it would blame the wrong thing.
+     */
+    @Test
+    fun aFailureOnSomethingElseIsNotThisBarsToReport() = runTest {
+        val port = playing(
+            PlaybackSummary(
+                requestedItemId = RAIN,
+                title = "Gentle Rain",
+                failure = PlaybackFailure.SourceUnavailable(WAVES),
+            ),
+        )
+        val viewModel = NowPlayingViewModel(port)
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        assertNull(viewModel.state.value.failure)
     }
 
     private fun playing(summary: PlaybackSummary) = FakePlaybackPort().apply { publish(summary) }

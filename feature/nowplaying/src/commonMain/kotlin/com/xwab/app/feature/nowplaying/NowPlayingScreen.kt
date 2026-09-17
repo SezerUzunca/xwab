@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.designsystem.components.PlayPauseButton
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
@@ -20,6 +21,9 @@ import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res as UiRes
 import xwab.designsystem.generated.resources.preparing
 import xwab.feature.nowplaying.generated.resources.Res
+import xwab.feature.nowplaying.generated.resources.item_could_not_open
+import xwab.feature.nowplaying.generated.resources.item_not_found
+import xwab.feature.nowplaying.generated.resources.item_unavailable
 import xwab.feature.nowplaying.generated.resources.now_playing
 
 /**
@@ -62,10 +66,26 @@ internal fun NowPlayingScreen(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                // The same word every list in this app uses for the same state, taken from the
-                // design system rather than spelled again here.
-                if (state.isPreparing) {
-                    Text(
+                // One second line, and a failure outranks a status: an item that will not play is
+                // not still loading, and saying both would be saying one of them wrongly.
+                val failure = state.failure
+                when {
+                    failure != null -> Text(
+                        text = stringResource(
+                            when (failure) {
+                                is PlaybackFailure.ItemNotFound -> Res.string.item_not_found
+                                is PlaybackFailure.SourceUnavailable -> Res.string.item_unavailable
+                                is PlaybackFailure.EngineFailed -> Res.string.item_could_not_open
+                            },
+                        ),
+                        style = SleepRelaxTheme.typography.labelMedium,
+                        color = SleepRelaxTheme.colors.error,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    // The same word every list in this app uses for the same state, taken from the
+                    // design system rather than spelled again here.
+                    state.isPreparing -> Text(
                         text = stringResource(UiRes.string.preparing),
                         style = SleepRelaxTheme.typography.labelMedium,
                         color = SleepRelaxTheme.colors.textSecondary,
