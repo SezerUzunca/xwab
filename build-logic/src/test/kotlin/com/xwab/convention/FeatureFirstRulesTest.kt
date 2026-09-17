@@ -161,6 +161,29 @@ class FeatureFirstRulesTest {
         assertTrue(violations.single().contains("Sleep/1.0"))
     }
 
+    /**
+     * The three things the first version of this rule reported and should not have: its own test
+     * fixtures, and the constant naming the manifest entry a user agent is *read from*.
+     */
+    @Test
+    fun theUserAgentCheckIgnoresTestDataAndTheKeyItIsStoredUnder() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.userAgentAgreementViolations(
+                mapOf(
+                    "core/sources/src/commonMain/kotlin/SoundSourceManifest.kt" to
+                        """private const val WIKIMEDIA_USER_AGENT = "Sleep/1.0"""",
+                    "core/playback/src/androidMain/kotlin/PlaybackService.kt" to
+                        """private const val USER_AGENT_METADATA_KEY = "com.example.USER_AGENT"""",
+                    "build-logic/src/test/kotlin/FeatureFirstRulesTest.kt" to
+                        """private const val WIKIMEDIA_USER_AGENT = "Sleep/9.9"""",
+                    "feature/sound/src/commonTest/kotlin/SoundScreenTest.kt" to
+                        """private const val USER_AGENT = "Sleep/8.8"""",
+                ),
+            ),
+        )
+    }
+
     /** A comment is not a declaration, and neither is metadata about something else. */
     @Test
     fun theUserAgentCheckReadsDeclarationsAndNotProseOrOtherMetadata() {

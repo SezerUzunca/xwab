@@ -156,8 +156,17 @@ internal object FeatureFirstRules {
                     "contracts from its port package."
             }
 
+    /**
+     * A constant whose name *ends* in `USER_AGENT`, which is what a user agent is called, rather
+     * than one that merely contains it. `USER_AGENT_METADATA_KEY` holds the name of the manifest
+     * entry a user agent is read from — the label on the box, not what is in it — and the first
+     * version of this rule reported it as a third, disagreeing declaration.
+     */
     private val KOTLIN_USER_AGENT =
-        Regex("""\bconst\s+val\s+\w*USER_AGENT\w*\s*(?::\s*\w+\s*)?=\s*"([^"]*)"""")
+        Regex("""\bconst\s+val\s+\w*USER_AGENT\s*(?::\s*\w+\s*)?=\s*"([^"]*)"""")
+
+    /** `/src/test/`, `/src/commonTest/`, `/src/iosTest/` — every source set that is not shipped. */
+    private val TEST_SOURCE_SET = Regex("""/src/[^/]*[Tt]est[^/]*/""")
 
     private val META_DATA_ELEMENT = Regex("""<meta-data\b[^>]*>""")
 
@@ -193,6 +202,10 @@ internal object FeatureFirstRules {
     }
 
     private fun userAgentsIn(path: String, source: String): List<Pair<String, String>> = when {
+        // A rule that reads its own test data reports it. The first version of this one found the
+        // three fixtures below in `FeatureFirstRulesTest` and called them a disagreement.
+        TEST_SOURCE_SET.containsMatchIn(path) -> emptyList()
+
         path.endsWith(".kt") ->
             KOTLIN_USER_AGENT.findAll(commentsRemoved(source))
                 .map { path to it.groupValues[1] }
