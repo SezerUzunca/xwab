@@ -16,7 +16,8 @@ iosApp ─────┘        │
                      ├── feature:favorites
                      ├── feature:category
                      ├── feature:sound
-                     └── feature:story
+                     ├── feature:story
+                     └── feature:nowplaying
                               │
                               └── public core ports
                                       │
@@ -85,6 +86,7 @@ feature/
 ├── browse
 ├── category
 ├── favorites
+├── nowplaying
 ├── sound
 └── story
 ```
@@ -112,11 +114,28 @@ intent callbacks and does not name destination features.
 Category and Sound are nested destinations. Story remains a separate content feature while
 sharing the content-neutral playback port.
 
+`feature:nowplaying` is the one feature with no route. It is chrome rather than a destination: the
+shell places it in its scaffold, outside `NavDisplay`, so that it survives every destination change
+and every tab switch. Its public contract is still a single declaration in its `.navigation`
+package, and the composition root is still the only module allowed to name it — a composable the
+shell places, where the others hand back an entry the shell registers. No feature knows it exists.
+
 ## Playback and delivery
 
 `PlaybackPort` controls the single app-wide session. It accepts a `PlaybackItemId` containing a
 kind and value, keeping sound and story identifiers distinct. Its internal adapter resolves
 metadata and content through ports, then drives `PlaybackEnginePort`.
+
+`PlaybackSummary` carries the title of the item it names, so `feature:nowplaying` can draw a bar
+over whatever is playing without asking either catalog what a `PlaybackItemId` means. The title is
+published only while the engine holds the item the summary names as requested; mid-switch it is
+absent and `isPreparing` says so instead.
+
+That bar offers play and pause only — "open this item" has a different answer per content kind, and
+stories have no screen of their own to open. Its ViewModel is the one in this app not scoped to a
+navigation entry: chrome drawn outside `NavDisplay` has no entry, so `viewModel` resolves the root
+owner — which `rememberViewModelStoreNavEntryDecorator` requires of every screen anyway, and which
+is the right lifetime for a bar that is present from the first frame to the last.
 
 Sound playback reads metadata through `SoundPort`, resolves its physical address through
 `SourcePort`, then gives a request to `DeliveryPort`.

@@ -1,0 +1,13 @@
+<resources>
+    <!-- Shown while the session is on something it has not yet got a name for. -->
+    <string name="now_playing">Now playing</string>
+
+    <!--
+      The same three answers every list gives, with the noun taken out: this bar is content-neutral
+      by design and does not know whether it is holding a sound or a story. Each one sits directly
+      under the title, which is what it refers to.
+    -->
+    <string name="item_not_found">No longer in the catalog</string>
+    <string name="item_unavailable">Could not reach it. Tap play to try again.</string>
+    <string name="item_could_not_open">Could not play it</string>
+</resources>

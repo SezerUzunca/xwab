@@ -170,6 +170,61 @@ class DefaultPlaybackAdapterTest {
         firstTap.join()
     }
 
+    /**
+     * The name travels with the source the engine was handed, so the session does not have to ask
+     * a catalog a second time — and the app shell, which draws the now-playing bar, never has to
+     * ask one at all.
+     */
+    @Test
+    fun theSummaryNamesTheItemTheEngineIsHolding() = runBlocking {
+        val player = FakePlaybackEnginePort()
+        val adapter = adapter(player)
+
+        adapter.play(sound("gentle-rain"))
+        player.attachRequestedSource()
+
+        assertEquals("Gentle Rain", adapter.playback.first().title)
+    }
+
+    /**
+     * The whole reason the title is gated rather than published raw: for the length of a switch the
+     * engine still holds A while the session has been asked for B. Publishing the engine's title
+     * unconditionally would put "Gentle Rain" under a bar that is preparing Calm Waves.
+     */
+    @Test
+    fun noTitleIsPublishedWhileTheSessionIsSwitchingToAnotherItem() = runBlocking {
+        val lookupStarted = CompletableDeferred<Unit>()
+        val lookupResult = CompletableDeferred<String>()
+        val player = FakePlaybackEnginePort()
+        val adapter = adapter(player) { request ->
+            if (request.key.fileName.startsWith("calm-waves")) {
+                lookupStarted.complete(Unit)
+                DeliveryResult.Resolved(lookupResult.await())
+            } else {
+                DeliveryResult.Resolved("test://${request.key.fileName}")
+            }
+        }
+
+        adapter.play(sound("gentle-rain"))
+        player.attachRequestedSource()
+        assertEquals("Gentle Rain", adapter.playback.first().title)
+
+        val switch = launch { adapter.play(sound("calm-waves")) }
+        lookupStarted.await()
+
+        val whileSwitching = adapter.playback.first()
+        assertEquals(sound("calm-waves"), whileSwitching.requestedItemId)
+        assertTrue(whileSwitching.isPreparing)
+        assertNull(
+            whileSwitching.title,
+            "the outgoing item's name must not stand in for the incoming one",
+        )
+
+        lookupResult.complete("test://calm-waves")
+        switch.join()
+        assertEquals("Calm Waves", adapter.playback.first().title)
+    }
+
     @Test
     fun pauseAbandonsASourceLookupStillInFlight() = runBlocking {
         val lookupStarted = CompletableDeferred<Unit>()

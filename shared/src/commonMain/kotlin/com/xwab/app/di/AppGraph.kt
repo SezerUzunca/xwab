@@ -3,6 +3,7 @@ package com.xwab.app.di
 import com.xwab.app.feature.browse.di.BrowseDependencies
 import com.xwab.app.feature.category.di.CategoryDependencies
 import com.xwab.app.feature.favorites.di.FavoritesDependencies
+import com.xwab.app.feature.nowplaying.di.NowPlayingDependencies
 import com.xwab.app.feature.sound.di.SoundDependencies
 import com.xwab.app.feature.story.di.StoriesDependencies
 
@@ -26,4 +27,14 @@ interface AppGraph {
     val categoryDependencies: () -> CategoryDependencies
     val soundDependencies: () -> SoundDependencies
     val storiesDependencies: () -> StoriesDependencies
+
+    /**
+     * The now-playing bar, which is chrome rather than a destination — so unlike the five above,
+     * this one is invoked on the first frame rather than when a route is opened.
+     *
+     * Worth knowing that this moves the session's creation to app start: on Android that is when
+     * the MediaController binds to the playback service, where it used to wait for the first screen
+     * that reads playback.
+     */
+    val nowPlayingDependencies: () -> NowPlayingDependencies
 }

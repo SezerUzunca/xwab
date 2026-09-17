@@ -77,6 +77,9 @@ kotlin {
             implementation(projects.feature.category)
             implementation(projects.feature.sound)
             implementation(projects.feature.story)
+            // Chrome rather than a destination, so it is last: the shell places it in its
+            // scaffold instead of registering a route for it.
+            implementation(projects.feature.nowplaying)
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.ui)

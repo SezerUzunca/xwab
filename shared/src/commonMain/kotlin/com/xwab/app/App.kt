@@ -1,11 +1,13 @@
 package com.xwab.app
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation3.ui.NavDisplay
+import com.xwab.app.composition.AppNowPlayingBar
 import com.xwab.app.composition.appEntryProvider
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import com.xwab.app.di.AppGraph
@@ -39,11 +41,17 @@ fun App(graph: AppGraph) {
             // Feature screens paint their own gradient; this is only what shows behind the bar.
             containerColor = SleepRelaxTheme.colors.backgroundBottom,
             bottomBar = {
-                AppNavigationBar(
-                    destinations = TOP_LEVEL_DESTINATIONS,
-                    selectedRoute = navigationState.topLevelRoute,
-                    onSelect = navigator::navigate,
-                )
+                Column {
+                    // Placed unconditionally, and above the tabs: whether there is anything to show
+                    // is the feature's own question, and the shell does not know what an idle
+                    // session looks like.
+                    AppNowPlayingBar(graph)
+                    AppNavigationBar(
+                        destinations = TOP_LEVEL_DESTINATIONS,
+                        selectedRoute = navigationState.topLevelRoute,
+                        onSelect = navigator::navigate,
+                    )
+                }
             },
         ) { innerPadding ->
             NavDisplay(

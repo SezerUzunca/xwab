@@ -10,6 +10,7 @@ import com.xwab.app.feature.category.di.CategoryDependencies
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.di.FavoritesDependencies
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
+import com.xwab.app.feature.nowplaying.di.NowPlayingDependencies
 import com.xwab.app.feature.sound.di.SoundDependencies
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.di.StoriesDependencies
@@ -90,4 +91,11 @@ private object UnopenedFeaturesGraph : AppGraph {
     override val categoryDependencies: () -> CategoryDependencies = { error("Category initialized before rendering") }
     override val soundDependencies: () -> SoundDependencies = { error("Sound initialized before rendering") }
     override val storiesDependencies: () -> StoriesDependencies = { error("Stories initialized before rendering") }
+
+    /**
+     * Chrome, not a destination — so this one holds the stronger claim: `appEntryProvider` never
+     * reaches for it at all, whether it is rendering or registering. The app shell places the bar
+     * itself, and nothing about navigation should be able to open it.
+     */
+    override val nowPlayingDependencies: () -> NowPlayingDependencies = { error("Now playing initialized by navigation") }
 }
