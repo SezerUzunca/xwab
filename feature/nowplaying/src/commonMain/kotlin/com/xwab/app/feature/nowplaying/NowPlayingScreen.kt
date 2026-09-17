@@ -39,7 +39,7 @@ internal fun NowPlayingScreen(
     onPlayPauseClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (state.idle) return
+    if (state.isIdle) return
 
     Column(modifier = modifier.fillMaxWidth()) {
         HorizontalDivider(color = SleepRelaxTheme.colors.glassWhiteOverlay)

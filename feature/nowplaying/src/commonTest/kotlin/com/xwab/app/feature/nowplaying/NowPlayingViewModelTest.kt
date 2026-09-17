@@ -43,7 +43,7 @@ class NowPlayingViewModelTest {
         collectState(viewModel)
         advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.idle)
+        assertTrue(viewModel.state.value.isIdle)
     }
 
     @Test
@@ -56,7 +56,7 @@ class NowPlayingViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.state.value
-        assertFalse(state.idle)
+        assertFalse(state.isIdle)
         assertEquals("Gentle Rain", state.title)
         assertTrue(state.playIntent)
     }
@@ -80,7 +80,7 @@ class NowPlayingViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.state.value
-        assertFalse(state.idle, "the bar stays up across a switch")
+        assertFalse(state.isIdle, "the bar stays up across a switch")
         assertNull(state.title)
         assertTrue(state.isPreparing)
     }

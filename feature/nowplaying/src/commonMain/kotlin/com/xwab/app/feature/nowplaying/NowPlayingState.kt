@@ -9,7 +9,7 @@ import com.xwab.app.core.session.port.PlaybackSummary
  *
  * No `Loading` / `Ready` wrapper, on the same reasoning the architecture rule states: a screen with
  * nothing to wait for gives its state a default and drops the wrapper. This one has nothing to wait
- * for — a session that has never been asked for anything is not loading, it is [idle], and the bar
+ * for — a session that has never been asked for anything is not loading, it is [isIdle], and the bar
  * draws nothing at all.
  */
 internal data class NowPlayingState(
@@ -32,7 +32,7 @@ internal data class NowPlayingState(
     val failure: PlaybackFailure? = null,
 ) {
     /** Nothing has been asked for, so there is nothing to show and nothing to control. */
-    val idle: Boolean get() = itemId == null
+    val isIdle: Boolean get() = itemId == null
 }
 
 /**
