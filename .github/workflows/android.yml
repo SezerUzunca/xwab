@@ -82,6 +82,29 @@ jobs:
             echo "::error::${line}"
           done
 
+      # Android Lint had never run against this project. `checkArchitecture` guards the shape of the
+      # build and the tests guard behaviour, but nothing was reading the manifest, the resources or
+      # the merged APK for the class of mistake lint is for — and two of those, a light launch theme
+      # and a status bar that followed the device instead of the app, reached a device before anyone
+      # noticed. Reports rather than uploads its findings, for the reason the steps below give.
+      - name: Lint the Android application
+        run: set -o pipefail; ./gradlew :androidApp:lintDebug --stacktrace 2>&1 | tee -a gradle-output.log
+
+      - name: Report the lint findings
+        if: failure()
+        run: |
+          report=androidApp/build/reports/lint-results-debug.xml
+          if [ ! -f "$report" ]; then
+            echo "::error::Lint produced no report; it failed before analysing."
+            exit 0
+          fi
+          grep -oE 'id="[^"]*"|message="[^"]*"|file="[^"]*"' "$report" \
+            | paste - - - 2>/dev/null \
+            | head -20 \
+            | while IFS= read -r finding; do
+                echo "::error::${finding}"
+              done
+
       - name: Assemble debug APK
         run: set -o pipefail; ./gradlew :androidApp:assembleDebug --stacktrace 2>&1 | tee -a gradle-output.log
 
