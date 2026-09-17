@@ -127,10 +127,13 @@ reach `NavDisplay`'s `SharedTransitionScope` — a bar that expands into the scr
 playing has to hand its content to that screen, and shared elements only match within one
 `SharedTransitionLayout`. Nothing uses that yet; the bar is not tappable.
 
-The arrangement follows Google's `navscenedecorator` recipe, including the two parts that make no
-sense alone: both the outgoing and incoming scenes are composed during a transition, so the bar is
-`movableContentOf` carried between them, only the incoming scene calls it, and the outgoing one
-holds its space with a `cacheSize` modifier.
+`NavDisplay` animates between *decorated* scenes, so during a navigation the outgoing and incoming
+scenes both draw a bar. One shared-element key matches the two, which moves the bar rather than
+cross-fading it. Google's `navscenedecorator` recipe goes further — one `movableContentOf` carried
+between scenes, plus a size-caching modifier for the vacated space — because its navigation bar owns
+animation state that must not be duplicated. This bar owns none: its state is a ViewModel on the
+root store, so both compositions read the same instance. Give the bar state of its own and the
+recipe's version becomes the right one again.
 
 ## Playback and delivery
 
