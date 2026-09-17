@@ -85,6 +85,13 @@ jobs:
       - name: Assemble debug APK
         run: set -o pipefail; ./gradlew :androidApp:assembleDebug --stacktrace 2>&1 | tee -a gradle-output.log
 
+      # The release variant was never built here, so nothing that only breaks in it — a packaging
+      # rule, a resource the debug manifest happens to supply, the shrinker once it is switched on —
+      # could be caught before someone tried to cut a release. It produces an unsigned APK today;
+      # signing needs a keystore this repository does not hold.
+      - name: Assemble release APK
+        run: set -o pipefail; ./gradlew :androidApp:assembleRelease --stacktrace 2>&1 | tee -a gradle-output.log
+
   device-test:
     name: Run playback service device tests
     runs-on: ubuntu-latest
