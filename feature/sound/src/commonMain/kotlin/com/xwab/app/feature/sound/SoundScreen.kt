@@ -52,7 +52,6 @@ import xwab.designsystem.generated.resources.favorite_write_failed
 import xwab.feature.sound.generated.resources.Res
 import xwab.feature.sound.generated.resources.cancel_timer
 import xwab.feature.sound.generated.resources.loop_sound
-import xwab.feature.sound.generated.resources.offline_public_domain
 import xwab.feature.sound.generated.resources.sleep_timer
 import xwab.feature.sound.generated.resources.sleep_timer_off
 import xwab.feature.sound.generated.resources.sleep_timer_stops_in
@@ -155,15 +154,23 @@ internal fun SoundScreen(
                 color = SleepRelaxTheme.colors.textPrimary,
                 textAlign = TextAlign.Center,
             )
-            Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraSmall))
-            Text(
-                text = state.track?.let {
-                    stringResource(UiRes.string.duration_public_domain, formatDuration(it.durationSeconds))
-                } ?: stringResource(Res.string.offline_public_domain),
-                style = SleepRelaxTheme.typography.labelMedium,
-                color = SleepRelaxTheme.colors.textSecondary,
-                textAlign = TextAlign.Center,
-            )
+            // Only when there is a sound to describe. This used to fall back to
+            // "Offline • Public Domain", which said two things about a track the catalog does not
+            // hold: that it is available without a network, and that its licence is known. Neither
+            // is knowable about something that is not there — and the error below already says
+            // what actually happened.
+            state.track?.let { track ->
+                Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraSmall))
+                Text(
+                    text = stringResource(
+                        UiRes.string.duration_public_domain,
+                        formatDuration(track.durationSeconds),
+                    ),
+                    style = SleepRelaxTheme.typography.labelMedium,
+                    color = SleepRelaxTheme.colors.textSecondary,
+                    textAlign = TextAlign.Center,
+                )
+            }
 
             Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
             PlayPauseButton(
