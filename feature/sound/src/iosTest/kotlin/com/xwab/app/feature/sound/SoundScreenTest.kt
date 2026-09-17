@@ -93,6 +93,30 @@ class SoundScreenTest {
         onNodeWithContentDescription(ADD_FAVORITE).assertIsNotEnabled()
     }
 
+    @Test
+    fun aSoundTheCatalogHoldsIsDescribedByItsDurationAndLicence() = runComposeUiTest {
+        show(SoundState(track = TRACK))
+
+        onNodeWithText(LICENCE, substring = true).assertExists()
+    }
+
+    /**
+     * Nothing is knowable about a sound that is not there, and this line used to claim two things
+     * anyway: it fell back to "Offline • Public Domain", saying both that the track plays without a
+     * network — which is untrue even for the sounds the catalog does hold, until one has been
+     * downloaded — and that its licence is known.
+     *
+     * Matched on the licence rather than on the old sentence, so any future line describing a track
+     * that is not there fails this too.
+     */
+    @Test
+    fun aSoundTheCatalogDoesNotHoldIsNotDescribedAtAll() = runComposeUiTest {
+        show(SoundState(track = null, error = SoundError.SoundNotFound))
+
+        onNodeWithText(NOT_FOUND).assertExists()
+        onNodeWithText(LICENCE, substring = true).assertDoesNotExist()
+    }
+
     /**
      * The volume label formats a number into a resource, and the sign it ends in is the part that
      * went wrong: the string escaped its percent the way an Android XML string would, and Compose
@@ -167,6 +191,9 @@ class SoundScreenTest {
         const val UNAVAILABLE = "Could not reach this sound. Tap play to try again."
         const val NOT_FOUND = "This sound is no longer in the catalog"
         const val FULL_VOLUME = "100%"
+
+        /** The tail of the line that describes a track, and only a track this app actually holds. */
+        const val LICENCE = "Public Domain"
 
         /** What a screen reader announces for the two controls, from the design system. */
         const val PLAY = "Play"

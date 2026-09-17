@@ -34,6 +34,8 @@ internal class StoryPlaybackResolver(
         return ItemResolution.Resolved(
             uri = source.httpsUrl,
             title = story.title,
+            // A story is listed and announced under the same name; it has no second one.
+            displayName = story.title,
             artist = story.narrator,
             policy = STORY_POLICY,
         )

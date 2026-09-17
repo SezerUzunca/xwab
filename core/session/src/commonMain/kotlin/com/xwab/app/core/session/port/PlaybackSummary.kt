@@ -95,6 +95,12 @@ data class PlaybackSummary(
      * remove. The session already resolves the title on its way to the engine; it just used to
      * throw it away.
      *
+     * This is the name the app's own lists use, which is not always the one the platform is given:
+     * a sound listed as "Rain on the Window" is announced in the notification as "Gentle Rain", and
+     * one lullaby has it the other way round. A screen must show what the screen before it showed.
+     * After a reconnect to a service that outlived the process the session no longer holds that
+     * name, and the platform's is published instead — a notification's name beats no name.
+     *
      * Never a title belonging to some *other* item. During a switch the engine still holds the
      * outgoing item while [requestedItemId] names the incoming one, so the title is published only
      * while the two agree; until then it is null and a screen shows [isPreparing] instead. A bar

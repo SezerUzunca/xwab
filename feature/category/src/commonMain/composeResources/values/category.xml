@@ -1,7 +1,16 @@
 <resources>
+    <!--
+      The count and nothing else, the way the browse grid states it.
+
+      This used to read "%1$d tracks • offline". Nothing shipped inside the app: a sound streams
+      from Wikimedia the first time it is played and only then downloads into the cache, and the
+      download can fail — a 4xx, a size limit, no network. So the claim was false for every sound
+      nobody had played yet, which on a first run is all of them. Saying it truthfully would take a
+      per-track "is this cached" state the app does not keep and this header could not show anyway.
+    -->
     <plurals name="category_track_count">
-        <item quantity="one">%1$d track • offline</item>
-        <item quantity="other">%1$d tracks • offline</item>
+        <item quantity="one">%1$d track</item>
+        <item quantity="other">%1$d tracks</item>
     </plurals>
 
     <!--

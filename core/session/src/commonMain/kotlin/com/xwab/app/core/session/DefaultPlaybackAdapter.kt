@@ -137,7 +137,7 @@ internal class DefaultPlaybackAdapter internal constructor(
                     // state is the current one, and loading now would undo what was last asked for.
                     if (intent.value.generation != generation) return
                     enginePort.submit(PlaybackCommand.Load(loadRequest(itemId, resolution)))
-                    settle(generation, failure = null)
+                    settle(generation, failure = null, named = itemId to resolution.displayName)
                 }
                 ItemResolution.NotFound ->
                     settle(generation, PlaybackFailure.ItemNotFound(itemId))
@@ -179,10 +179,27 @@ internal class DefaultPlaybackAdapter internal constructor(
         enginePort.submit(PlaybackCommand.CancelSleepTimer)
     }
 
-    /** Releases the pending claim and records the outcome, unless a newer request has taken over. */
-    private fun settle(generation: Long, failure: PlaybackFailure?) {
+    /**
+     * Releases the pending claim and records the outcome, unless a newer request has taken over.
+     *
+     * @param named the item that was just resolved and the name this app lists it under, when the
+     *   outcome is a successful resolution. Null on every failing path, which leaves whatever name
+     *   was already held: a failed lookup falls back to the item that is still loaded, and that
+     *   item's name is still the right one to show.
+     */
+    private fun settle(
+        generation: Long,
+        failure: PlaybackFailure?,
+        named: Pair<PlaybackItemId, String>? = null,
+    ) {
         intent.update {
-            if (it.generation == generation) it.copy(pendingItemId = null, failure = failure) else it
+            if (it.generation != generation) return@update it
+            it.copy(
+                pendingItemId = null,
+                failure = failure,
+                namedItemId = named?.first ?: it.namedItemId,
+                displayName = named?.second ?: it.displayName,
+            )
         }
     }
 
@@ -253,10 +270,14 @@ internal class DefaultPlaybackAdapter internal constructor(
             requestedItemId = requested,
             activeItemId = active,
             playIntent = playIntent,
-            // Only while the engine is holding the item that was asked for. Mid-switch the two are
-            // different things, and the title beside the outgoing source is not the incoming
-            // item's name — see `PlaybackSummary.title`.
-            title = engine.activeSource?.title?.takeIf { held == requested },
+            // The name this app lists the item under, which is not the one it hands the platform:
+            // a screen showing "Gentle Rain" two rows under a list that says "Rain on the Window"
+            // is naming the same sound twice. The engine's title is the fallback rather than the
+            // answer — it is all that survives a reconnect to a service that outlived the process,
+            // and a notification's name beats no name. Both are gated on the engine actually
+            // holding what was asked for; mid-switch neither belongs to the incoming item.
+            title = wanted.nameOf(requested)
+                ?: engine.activeSource?.title?.takeIf { held == requested },
             isPlaying = engine.isPlaying,
             // About the *requested* item: a different sound being audible does not make the one
             // that was asked for ready.
@@ -311,9 +332,20 @@ internal class DefaultPlaybackAdapter internal constructor(
         val generation: Long = 0L,
         val pendingItemId: PlaybackItemId? = null,
         val failure: PlaybackFailure? = null,
+        /** The item [displayName] belongs to, so a stale name cannot be shown against a new one. */
+        val namedItemId: PlaybackItemId? = null,
+        val displayName: String? = null,
     ) {
-        /** A new listener action: whatever was in flight no longer counts, and neither does a failure. */
+        /**
+         * A new listener action: whatever was in flight no longer counts, and neither does a
+         * failure. The name survives — it belongs to whatever is loaded, not to the request that
+         * was abandoned, and pausing does not rename what is paused.
+         */
         fun superseded(): SessionIntent =
             copy(generation = generation + 1, pendingItemId = null, failure = null)
+
+        /** The name held for [itemId], or null when the one held is for something else. */
+        fun nameOf(itemId: PlaybackItemId?): String? =
+            displayName?.takeIf { itemId != null && itemId == namedItemId }
     }
 }

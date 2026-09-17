@@ -35,10 +35,17 @@ internal sealed interface ItemResolution {
     /**
      * @param title what the platform media session should publish, read beside the source rather than
      *   handed in by a screen, so a stale title cannot be paired with a fresh source.
+     * @param displayName what this app calls the item on its own screens, which is not always
+     *   [title]. A sound's catalog name is the recording's — "Rain on the Window" — while the
+     *   notification gets the plainer "Gentle Rain", and one lullaby has it the other way round:
+     *   listed in English, announced as "Egwu Nwa". Both are deliberate, and the session has to
+     *   carry both, because a now-playing bar two rows below the list that named it cannot call it
+     *   something else.
      */
     data class Resolved(
         val uri: String,
         val title: String?,
+        val displayName: String,
         val artist: String?,
         val policy: PlaybackPolicy,
     ) : ItemResolution

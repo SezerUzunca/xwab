@@ -1,5 +1,4 @@
 <resources>
-    <string name="offline_public_domain">Offline • Public Domain</string>
 
     <!--
       The same three messages the favorites and category lists show, word for word: one broken sound
