@@ -48,6 +48,10 @@ internal class SoundPlaybackResolver(
             is DeliveryResult.Resolved -> ItemResolution.Resolved(
                 uri = resolution.uri,
                 title = track.playbackTitle,
+                // The name the lists show. It differs from the playback title often enough to
+                // matter — the row a listener taps says "Rain on the Window" where the
+                // notification says "Gentle Rain".
+                displayName = track.name,
                 artist = track.playbackArtist,
                 policy = SOUND_POLICY,
             )

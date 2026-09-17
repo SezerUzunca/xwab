@@ -175,21 +175,47 @@ class DefaultPlaybackAdapterTest {
      * a catalog a second time — and the app shell, which draws the now-playing bar, never has to
      * ask one at all.
      */
+    /**
+     * The catalog's name, not the platform's. `gentle-rain` is listed as "Rain on the Window" and
+     * announced in the notification as "Gentle Rain"; a now-playing bar two rows under the list
+     * that named it has to agree with the list.
+     */
     @Test
-    fun theSummaryNamesTheItemTheEngineIsHolding() = runBlocking {
+    fun theSummaryNamesTheItemTheWayTheCatalogDoes() = runBlocking {
         val player = FakePlaybackEnginePort()
         val adapter = adapter(player)
 
         adapter.play(sound("gentle-rain"))
         player.attachRequestedSource()
 
-        assertEquals("Gentle Rain", adapter.playback.first().title)
+        assertEquals("Rain on the Window", adapter.playback.first().title)
+        assertEquals(
+            "Gentle Rain",
+            player.lastLoadRequest?.source?.title,
+            "the platform still gets the playback title",
+        )
+    }
+
+    /**
+     * A service that outlived the app comes back holding a source and nothing else. The session has
+     * no name of its own for it, and the one the notification is already showing beats none.
+     */
+    @Test
+    fun aReconnectedSourceIsNamedByWhatThePlatformKept() = runBlocking {
+        val player = FakePlaybackEnginePort().apply {
+            mutableState.value = AudioPlayerState(
+                source = AudioSource(id = "sound:gentle-rain", uri = "file.mp3", title = "Gentle Rain"),
+                phase = PlaybackPhase.Ready,
+            )
+        }
+
+        assertEquals("Gentle Rain", adapter(player).playback.first().title)
     }
 
     /**
      * The whole reason the title is gated rather than published raw: for the length of a switch the
      * engine still holds A while the session has been asked for B. Publishing the engine's title
-     * unconditionally would put "Gentle Rain" under a bar that is preparing Calm Waves.
+     * unconditionally would put "Rain on the Window" under a bar that is preparing Ontario Waves.
      */
     @Test
     fun noTitleIsPublishedWhileTheSessionIsSwitchingToAnotherItem() = runBlocking {
@@ -207,7 +233,7 @@ class DefaultPlaybackAdapterTest {
 
         adapter.play(sound("gentle-rain"))
         player.attachRequestedSource()
-        assertEquals("Gentle Rain", adapter.playback.first().title)
+        assertEquals("Rain on the Window", adapter.playback.first().title)
 
         val switch = launch { adapter.play(sound("calm-waves")) }
         lookupStarted.await()
@@ -222,7 +248,7 @@ class DefaultPlaybackAdapterTest {
 
         lookupResult.complete("test://calm-waves")
         switch.join()
-        assertEquals("Calm Waves", adapter.playback.first().title)
+        assertEquals("Ontario Waves", adapter.playback.first().title)
     }
 
     @Test
