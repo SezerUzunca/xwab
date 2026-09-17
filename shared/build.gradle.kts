@@ -77,14 +77,16 @@ kotlin {
             implementation(projects.feature.category)
             implementation(projects.feature.sound)
             implementation(projects.feature.story)
-            // Chrome rather than a destination, so it is last: the shell places it in its
-            // scaffold instead of registering a route for it.
+            // Chrome rather than a destination, so it is last: it has no route, and reaches the
+            // screen as a NavDisplay scene decorator instead of an entry.
             implementation(projects.feature.nowplaying)
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.ui)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
+            // SharedTransitionLayout, for the now-playing scene decorator.
+            implementation(libs.compose.animation)
             // The tab icons are this module's own, not something it borrows from `:designsystem`.
             implementation(libs.compose.material.icons.extended)
             implementation(libs.compose.components.resources)
