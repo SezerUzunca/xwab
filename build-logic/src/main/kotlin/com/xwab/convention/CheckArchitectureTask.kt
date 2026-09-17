@@ -73,6 +73,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
             FeatureFirstRules.featureModuleShapeViolations(graph.keys) +
             FeatureFirstRules.legacySplitDirectoryViolations(legacySplitDirectories(root)) +
             FeatureFirstRules.koinUsageViolations(architectureTextSources(root)) +
+            FeatureFirstRules.userAgentAgreementViolations(clientIdentitySources(root)) +
             FeatureFirstRules.dependencyViolations(graph, moduleApiDependencies.get()) +
             leakedUseCaseViolations(root, graph.keys) +
             FeatureFirstRules.sharedFeatureReferenceViolations(productionSources(root, "shared")) +
@@ -183,7 +184,18 @@ abstract class CheckArchitectureTask : DefaultTask() {
                 .toList()
         }
 
+    /**
+     * Kotlin and Android manifests together, because the two halves of this app's identity live
+     * one in each: a constant a download reads, and a manifest entry the playback service reads.
+     */
+    private fun clientIdentitySources(root: File): Map<String, String> =
+        textSourcesIn(root, setOf("kt", "xml"))
+
     private fun architectureTextSources(root: File): Map<String, String> =
+        textSourcesIn(root, setOf("kt", "kts", "toml"))
+
+    /** Every file of the given kinds under the repository, minus the directories nothing authors. */
+    private fun textSourcesIn(root: File, extensions: Set<String>): Map<String, String> =
         root.walkTopDown()
             .onEnter { directory ->
                 directory == root || directory.name !in setOf(
@@ -195,9 +207,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
                     "build",
                 )
             }
-            .filter { file ->
-                file.isFile && file.extension in setOf("kt", "kts", "toml")
-            }
+            .filter { file -> file.isFile && file.extension in extensions }
             .associate { file ->
                 file.relativeTo(root).invariantSeparatorsPath to file.readText()
             }

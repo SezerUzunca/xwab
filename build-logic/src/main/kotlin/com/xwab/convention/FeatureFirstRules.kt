@@ -156,6 +156,65 @@ internal object FeatureFirstRules {
                     "contracts from its port package."
             }
 
+    private val KOTLIN_USER_AGENT =
+        Regex("""\bconst\s+val\s+\w*USER_AGENT\w*\s*(?::\s*\w+\s*)?=\s*"([^"]*)"""")
+
+    private val META_DATA_ELEMENT = Regex("""<meta-data\b[^>]*>""")
+
+    private val META_DATA_ATTRIBUTE = Regex("""android:(name|value)\s*=\s*"([^"]*)"""")
+
+    /**
+     * Everywhere this app says who it is, saying the same thing.
+     *
+     * Two paths reach the same host with the same client's requests, and they are fed from
+     * different places: a sound downloads through common Kotlin, and streams — before it has
+     * downloaded — through a service Android constructs, which can only be given a value through
+     * manifest metadata. Neither can read the other, so the string is written twice.
+     *
+     * A divergence fails in the worst available way: one path keeps working. A listener would hear
+     * sounds that stream and never cache, or cache and never stream, and nothing would say why. So
+     * the build refuses it instead.
+     *
+     * Deliberately not keyed on file paths. Anything that declares a user agent joins the check by
+     * declaring one, rather than by being added to a list someone has to remember.
+     */
+    fun userAgentAgreementViolations(sources: Map<String, String>): List<String> {
+        val declarations = sources.entries
+            .sortedBy { it.key }
+            .flatMap { (path, source) -> userAgentsIn(path, source) }
+        if (declarations.map { it.second }.distinct().size < 2) return emptyList()
+
+        return listOf(
+            "This app states its user agent in more than one place and they disagree: " +
+                declarations.joinToString { (path, value) -> "$path says \"$value\"" } +
+                ". The download and the playback paths identify the same client to the same host; " +
+                "when they drift, one of them keeps working and the failure is invisible.",
+        )
+    }
+
+    private fun userAgentsIn(path: String, source: String): List<Pair<String, String>> = when {
+        path.endsWith(".kt") ->
+            KOTLIN_USER_AGENT.findAll(commentsRemoved(source))
+                .map { path to it.groupValues[1] }
+                .toList()
+
+        path.endsWith(".xml") ->
+            META_DATA_ELEMENT.findAll(source)
+                .mapNotNull { element ->
+                    val attributes = META_DATA_ATTRIBUTE.findAll(element.value)
+                        .associate { it.groupValues[1] to it.groupValues[2] }
+                    val value = attributes["value"]
+                    if (attributes["name"].orEmpty().contains("USER_AGENT") && value != null) {
+                        path to value
+                    } else {
+                        null
+                    }
+                }
+                .toList()
+
+        else -> emptyList()
+    }
+
     /** Metro is the only DI runtime in this project. */
     fun koinUsageViolations(sources: Map<String, String>): List<String> =
         sources.filter { (path, source) ->
