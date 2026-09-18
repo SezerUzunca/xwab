@@ -4,6 +4,7 @@ import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.core.story.port.StoryId
+import com.xwab.app.core.story.port.Story
 import com.xwab.app.feature.story.domain.ObserveStoriesContentUseCase
 import com.xwab.app.testing.FakePlaybackPort
 import kotlin.test.AfterTest
@@ -139,9 +140,77 @@ class StoriesViewModelTest {
         assertEquals(0, port.pauses)
     }
 
-    private fun createViewModel(port: FakePlaybackPort): StoriesViewModel {
+    @Test
+    fun theTimerFollowsTheSessionEvenWhenASoundIsPlaying() = runTest(mainDispatcher) {
+        val port = FakePlaybackPort().apply {
+            publish(PlaybackSummary(requestedItemId = PlaybackItemId.sound("bedtime")))
+            publishSleepTimer(60_000L)
+        }
+        val viewModel = createViewModel(port)
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        assertEquals(60_000L, readyState(viewModel).sleepTimerRemainingMs)
+        port.publishSleepTimer(59_000L)
+        advanceUntilIdle()
+        assertEquals(59_000L, readyState(viewModel).sleepTimerRemainingMs)
+        port.publishSleepTimer(null)
+        advanceUntilIdle()
+        assertNull(readyState(viewModel).sleepTimerRemainingMs)
+    }
+
+    @Test
+    fun timerCommandsReachTheSessionWithoutChangingPlaybackOrLooping() = runTest(mainDispatcher) {
+        val port = FakePlaybackPort()
+        val viewModel = createViewModel(port)
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        viewModel.startSleepTimer(15 * 60_000L)
+        viewModel.cancelSleepTimer()
+
+        assertEquals(15 * 60_000L, port.startedTimerMs)
+        assertEquals(1, port.cancelledTimers)
+        assertNull(port.playedItemId)
+        assertNull(port.looping)
+        assertEquals(0, port.pauses)
+    }
+
+    @Test
+    fun anEmptyCatalogCannotStartATimerButCanStillCancelOne() = runTest(mainDispatcher) {
+        val port = FakePlaybackPort().apply { publishSleepTimer(60_000L) }
+        val viewModel = createViewModel(port, stories = emptyList())
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        assertFalse(readyState(viewModel).canStartSleepTimer)
+        assertEquals(60_000L, readyState(viewModel).sleepTimerRemainingMs)
+        viewModel.startSleepTimer(15 * 60_000L)
+        viewModel.cancelSleepTimer()
+
+        assertNull(port.startedTimerMs)
+        assertEquals(1, port.cancelledTimers)
+    }
+
+    @Test
+    fun startingATimerWaitsForContentButCancellingDoesNot() = runTest(mainDispatcher) {
+        val port = FakePlaybackPort()
+        val viewModel = createViewModel(port)
+
+        viewModel.startSleepTimer(15 * 60_000L)
+        viewModel.cancelSleepTimer()
+
+        assertIs<StoriesUiState.Loading>(viewModel.state.value)
+        assertNull(port.startedTimerMs)
+        assertEquals(1, port.cancelledTimers)
+    }
+
+    private fun createViewModel(
+        port: FakePlaybackPort,
+        stories: List<Story> = listOf(story("bedtime"), story("moonlight")),
+    ): StoriesViewModel {
         val useCase = ObserveStoriesContentUseCase(
-            storyPort = FakeStoryCatalog(listOf(story("bedtime"), story("moonlight"))),
+            storyPort = FakeStoryCatalog(stories),
             playbackPort = port,
         )
         return StoriesViewModel(useCase, port)

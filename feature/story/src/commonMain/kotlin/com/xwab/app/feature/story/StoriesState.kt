@@ -21,6 +21,8 @@ internal data class StoriesState(
     val playIntent: Boolean = false,
     /** The requested story is wanted but not audible yet. */
     val isPreparing: Boolean = false,
+    /** The one app-wide timer, including when it was started from a sound screen. */
+    val sleepTimerRemainingMs: Long? = null,
     /**
      * The session's failure, carried as the session reports it.
      *
@@ -32,6 +34,9 @@ internal data class StoriesState(
      */
     val playbackFailure: PlaybackFailure? = null,
 ) {
+    /** A catalog item to play is needed to start a timer, but never to cancel one. */
+    val canStartSleepTimer: Boolean get() = stories.isNotEmpty()
+
     /**
      * What one row shows. Answered here rather than at the call site that draws it, so that the
      * question and the fields it reads stay in one file.

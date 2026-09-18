@@ -143,7 +143,7 @@ private fun CategoryCard(category: Category, onClick: () -> Unit) {
             Text(
                 pluralStringResource(Res.plurals.track_count, category.trackCount, category.trackCount),
                 style = SleepRelaxTheme.typography.labelMedium,
-                color = SleepRelaxTheme.colors.accent.copy(alpha = 0.55f),
+                color = SleepRelaxTheme.colors.accent,
             )
         }
     }

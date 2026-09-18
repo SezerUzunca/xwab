@@ -1,14 +1,26 @@
 package com.xwab.app.feature.category
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasScrollToIndexAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.sound.port.Category
@@ -104,16 +116,40 @@ class CategoryScreenTest {
         onNodeWithText(FAVORITES_UNAVAILABLE).assertExists()
     }
 
-    private fun ComposeUiTest.show(state: CategoryState) {
+    @Test
+    fun tracksRemainReachableBelowALargeHeaderInAShortViewport() = runComposeUiTest {
+        val content = state().copy(
+            category = state().category?.copy(name = "A long category heading that wraps"),
+            favoritesReadStatus = CategoryFavoritesReadStatus.Unavailable,
+        )
+        show(content, shortViewport = true)
+
+        // Unlike a fixed header above a nested list, one list can scroll even when its header
+        // alone is taller than the available height (landscape, split screen or player chrome).
+        onNode(hasScrollToIndexAction()).performScrollToNode(hasText(HEAVY_RAIN_NAME))
+        onNodeWithText(HEAVY_RAIN_NAME).assertIsDisplayed()
+
+        onNode(hasScrollToIndexAction()).performScrollToIndex(0)
+        onNodeWithContentDescription("Back").assertIsDisplayed()
+    }
+
+    private fun ComposeUiTest.show(state: CategoryState, shortViewport: Boolean = false) {
         setContent {
             SleepRelaxTheme {
-                CategoryScreen(
-                    state = state,
-                    onTrackClick = {},
-                    onFavoriteClick = {},
-                    onPlaybackClick = {},
-                    onBack = {},
-                )
+                val density = LocalDensity.current
+                CompositionLocalProvider(
+                    LocalDensity provides Density(density.density, if (shortViewport) 2f else density.fontScale),
+                ) {
+                    Box(if (shortViewport) Modifier.size(width = 360.dp, height = 240.dp) else Modifier) {
+                        CategoryScreen(
+                            state = state,
+                            onTrackClick = {},
+                            onFavoriteClick = {},
+                            onPlaybackClick = {},
+                            onBack = {},
+                        )
+                    }
+                }
             }
         }
     }

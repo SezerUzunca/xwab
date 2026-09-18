@@ -172,13 +172,16 @@ internal object FeatureFirstRules {
 
     private val META_DATA_ATTRIBUTE = Regex("""android:(name|value)\s*=\s*"([^"]*)"""")
 
+    private val PLIST_STRING = Regex("""<key>\s*([^<]+?)\s*</key>\s*<string>([^<]*)</string>""")
+
     /**
      * Everywhere this app says who it is, saying the same thing.
      *
-     * Two paths reach the same host with the same client's requests, and they are fed from
+     * Download and platform playback paths reach the same host, and they are fed from
      * different places: a sound downloads through common Kotlin, and streams — before it has
      * downloaded — through a service Android constructs, which can only be given a value through
-     * manifest metadata. Neither can read the other, so the string is written twice.
+     * manifest metadata. iOS reads its application bundle's Info.plist. These platform entry
+     * points cannot read the internal source manifest, so every declaration is checked here.
      *
      * A divergence fails in the worst available way: one path keeps working. A listener would hear
      * sounds that stream and never cache, or cache and never stream, and nothing would say why. So
@@ -209,6 +212,12 @@ internal object FeatureFirstRules {
         path.endsWith(".kt") ->
             KOTLIN_USER_AGENT.findAll(commentsRemoved(source))
                 .map { path to it.groupValues[1] }
+                .toList()
+
+        path.endsWith(".plist") ->
+            PLIST_STRING.findAll(source.replace(Regex("<!--[\\s\\S]*?-->"), ""))
+                .filter { it.groupValues[1].endsWith("USER_AGENT") }
+                .map { path to it.groupValues[2] }
                 .toList()
 
         path.endsWith(".xml") ->

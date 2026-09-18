@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
@@ -71,80 +70,79 @@ internal fun CategoryScreen(
     onBack: () -> Unit,
 ) {
     ScreenContainer {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(screenContentPadding()),
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = screenContentPadding(),
+            verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingSmall),
         ) {
-            BackButton(onClick = onBack)
-
-            Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraLarge))
-
-            // A null category is the catalog's answer, not a gap to paper over: this used to run
-            // through `orEmpty()` and draw a blank heading above "0 tracks", which reads as a
-            // broken screen rather than as "there is no such category".
             val category = state.category
-            if (category == null) {
-                Text(
-                    text = stringResource(Res.string.category_not_found),
-                    style = SleepRelaxTheme.typography.bodyLarge,
-                    color = SleepRelaxTheme.colors.textSecondary,
-                )
-            } else {
-                Text(
-                    text = category.name,
-                    style = SleepRelaxTheme.typography.headlineMedium,
-                    color = SleepRelaxTheme.colors.textPrimary,
-                )
-                Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraSmall))
-                Text(
-                    text = pluralStringResource(
-                        Res.plurals.category_track_count,
-                        state.tracks.size,
-                        state.tracks.size,
-                    ),
-                    style = SleepRelaxTheme.typography.bodyMedium,
-                    color = SleepRelaxTheme.colors.textSecondary,
-                )
+            // The header scrolls with the tracks. A fixed header can consume the entire viewport
+            // in landscape or at large font sizes and leave a nested list no height to scroll in.
+            item {
+                Column {
+                    BackButton(onClick = onBack)
+                    Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraLarge))
 
-                Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingHuge))
-                if (state.favoritesReadStatus == CategoryFavoritesReadStatus.Unavailable || state.favoriteWriteFailed) {
-                    Text(
-                        text = stringResource(if (state.favoritesReadStatus == CategoryFavoritesReadStatus.Unavailable) UiRes.string.favorites_read_failed else UiRes.string.favorite_write_failed),
-                        color = SleepRelaxTheme.colors.error,
-                        style = SleepRelaxTheme.typography.bodyMedium,
-                    )
-                }
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingSmall),
-                ) {
-                    items(state.tracks, key = { it.id.value }) { track ->
-                        // Every question about this row is the state's to answer; this only draws
-                        // what comes back. The same row the favorites and story lists draw, so a
-                        // tap that cannot be served says so here too.
-                        PlayableRow(
-                            title = track.name,
-                            subtitle = stringResource(
-                                UiRes.string.duration_public_domain,
-                                formatDuration(track.durationSeconds),
+                    if (category == null) {
+                        Text(
+                            text = stringResource(Res.string.category_not_found),
+                            style = SleepRelaxTheme.typography.bodyLarge,
+                            color = SleepRelaxTheme.colors.textSecondary,
+                        )
+                    } else {
+                        Text(
+                            text = category.name,
+                            style = SleepRelaxTheme.typography.headlineMedium,
+                            color = SleepRelaxTheme.colors.textPrimary,
+                        )
+                        Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraSmall))
+                        Text(
+                            text = pluralStringResource(
+                                Res.plurals.category_track_count,
+                                state.tracks.size,
+                                state.tracks.size,
                             ),
-                            isPlaying = state.isRowPlaying(track.id),
-                            onClick = { onTrackClick(track.id) },
-                            onPlayPauseClick = { onPlaybackClick(track.id) },
-                            statusMessage = stringResource(UiRes.string.preparing)
-                                .takeIf { state.isRowPreparing(track.id) },
-                            errorMessage = state.rowFailure(track.id)
-                                ?.let { stringResource(it.messageResource()) },
-                            trailingContent = {
-                                FavoriteButton(
-                                    isFavorite = state.isRowFavorite(track.id),
-                                    enabled = state.favoritesAvailable,
-                                    isLoading = state.favoritesReadStatus == CategoryFavoritesReadStatus.Pending,
-                                    onClick = { onFavoriteClick(track.id) },
-                                )
-                            },
+                            style = SleepRelaxTheme.typography.bodyMedium,
+                            color = SleepRelaxTheme.colors.textSecondary,
+                        )
+                        Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingHuge))
+                    }
+                }
+            }
+
+            if (category != null) {
+                if (state.favoritesReadStatus == CategoryFavoritesReadStatus.Unavailable || state.favoriteWriteFailed) {
+                    item {
+                        Text(
+                            text = stringResource(if (state.favoritesReadStatus == CategoryFavoritesReadStatus.Unavailable) UiRes.string.favorites_read_failed else UiRes.string.favorite_write_failed),
+                            color = SleepRelaxTheme.colors.error,
+                            style = SleepRelaxTheme.typography.bodyMedium,
                         )
                     }
+                }
+                items(state.tracks, key = { it.id.value }) { track ->
+                    PlayableRow(
+                        title = track.name,
+                        subtitle = stringResource(
+                            UiRes.string.duration_public_domain,
+                            formatDuration(track.durationSeconds),
+                        ),
+                        isPlaying = state.isRowPlaying(track.id),
+                        onClick = { onTrackClick(track.id) },
+                        onPlayPauseClick = { onPlaybackClick(track.id) },
+                        statusMessage = stringResource(UiRes.string.preparing)
+                            .takeIf { state.isRowPreparing(track.id) },
+                        errorMessage = state.rowFailure(track.id)
+                            ?.let { stringResource(it.messageResource()) },
+                        trailingContent = {
+                            FavoriteButton(
+                                isFavorite = state.isRowFavorite(track.id),
+                                enabled = state.favoritesAvailable,
+                                isLoading = state.favoritesReadStatus == CategoryFavoritesReadStatus.Pending,
+                                onClick = { onFavoriteClick(track.id) },
+                            )
+                        },
+                    )
                 }
             }
         }

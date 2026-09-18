@@ -14,8 +14,8 @@ import kotlinx.coroutines.launch
  *
  * The others are scoped to a navigation entry: `rememberViewModelStoreNavEntryDecorator` opens a
  * child store per entry and clears it when that entry is popped. This feature has no entry — it is
- * chrome, drawn outside `NavDisplay` so that it outlives every destination change — so `viewModel`
- * resolves the owner the decorator itself asks for: the root one. Which is the right lifetime here.
+ * chrome, drawn by a scene decorator beside the entry content — so `viewModel` resolves the owner
+ * the entry decorator itself asks for: the root one. Which is the right lifetime here.
  * The bar is one thing, present from the first frame to the last, over a session that is app-scoped
  * too; there is no entry for it to be cleared along with.
  *

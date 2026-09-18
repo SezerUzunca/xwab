@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -29,7 +30,6 @@ import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.designsystem.format.formatDuration
-import com.xwab.app.designsystem.format.formatRemaining
 import com.xwab.app.designsystem.components.BackButton
 import com.xwab.app.designsystem.components.FavoriteButton
 import com.xwab.app.feature.sound.domain.SoundFavoriteReadStatus
@@ -39,10 +39,9 @@ import com.xwab.app.designsystem.components.ScreenContainer
 import com.xwab.app.designsystem.components.screenContentPadding
 import com.xwab.app.designsystem.components.SleepRelaxSlider
 import com.xwab.app.designsystem.components.SleepRelaxSwitch
-import com.xwab.app.designsystem.components.SleepRelaxTextButton
+import com.xwab.app.designsystem.components.SleepTimerControl
 import com.xwab.app.designsystem.components.glassCard
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
-import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res as UiRes
 import xwab.designsystem.generated.resources.duration_public_domain
@@ -50,32 +49,16 @@ import xwab.designsystem.generated.resources.preparing
 import xwab.designsystem.generated.resources.favorites_read_failed
 import xwab.designsystem.generated.resources.favorite_write_failed
 import xwab.feature.sound.generated.resources.Res
-import xwab.feature.sound.generated.resources.cancel_timer
 import xwab.feature.sound.generated.resources.loop_sound
-import xwab.feature.sound.generated.resources.sleep_timer
-import xwab.feature.sound.generated.resources.sleep_timer_off
-import xwab.feature.sound.generated.resources.sleep_timer_stops_in
 import xwab.feature.sound.generated.resources.sound_could_not_open
 import xwab.feature.sound.generated.resources.sound_not_found
 import xwab.feature.sound.generated.resources.sound_unavailable
-import xwab.feature.sound.generated.resources.timer_15_minutes
-import xwab.feature.sound.generated.resources.timer_30_minutes
-import xwab.feature.sound.generated.resources.timer_45_minutes
-import xwab.feature.sound.generated.resources.timer_60_minutes
 import xwab.feature.sound.generated.resources.volume
 import xwab.feature.sound.generated.resources.volume_percentage
 
 private const val MINUTE_MS = 60_000L
 private val ALBUM_ART_SIZE = 220.dp
 private val ALBUM_ART_INNER_SIZE = 100.dp
-
-/** The presets the timer row offers, in the order they are shown. */
-private val SLEEP_TIMER_PRESETS: List<Pair<Long, StringResource>> = listOf(
-    15L * MINUTE_MS to Res.string.timer_15_minutes,
-    30L * MINUTE_MS to Res.string.timer_30_minutes,
-    45L * MINUTE_MS to Res.string.timer_45_minutes,
-    60L * MINUTE_MS to Res.string.timer_60_minutes,
-)
 
 @Composable
 internal fun SoundScreenRoute(
@@ -280,6 +263,7 @@ private fun PlaybackControls(
             onLoopingChange = onLoopingChange,
         )
 
+        Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingSmall))
         SleepTimerControl(
             remainingMs = state.sleepTimerRemainingMs,
             enabled = state.canConfigure,
@@ -296,13 +280,14 @@ private fun VolumeControl(
     enabled: Boolean,
     onVolumeChange: (Float) -> Unit,
 ) {
+    val label = stringResource(Res.string.volume)
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = stringResource(Res.string.volume),
+            text = label,
             color = SleepRelaxTheme.colors.textPrimary,
             style = SleepRelaxTheme.typography.titleSmall,
         )
@@ -315,7 +300,7 @@ private fun VolumeControl(
     SleepRelaxSlider(
         value = volume,
         onValueChange = onVolumeChange,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
         enabled = enabled,
     )
 }
@@ -326,89 +311,22 @@ private fun LoopingControl(
     enabled: Boolean,
     onLoopingChange: (Boolean) -> Unit,
 ) {
+    val label = stringResource(Res.string.loop_sound)
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = stringResource(Res.string.loop_sound),
+            text = label,
             color = SleepRelaxTheme.colors.textPrimary,
             style = SleepRelaxTheme.typography.titleSmall,
         )
         SleepRelaxSwitch(
             checked = isLooping,
             onCheckedChange = onLoopingChange,
+            modifier = Modifier.semantics { contentDescription = label },
             enabled = enabled,
-        )
-    }
-}
-
-/**
- * Scoped to the column it sits in: the cancel button aligns itself to the panel's end, which only
- * that column can decide.
- */
-@Composable
-private fun ColumnScope.SleepTimerControl(
-    remainingMs: Long?,
-    enabled: Boolean,
-    onTimerStart: (Long) -> Unit,
-    onTimerCancel: () -> Unit,
-) {
-    Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingSmall))
-    Text(
-        text = stringResource(Res.string.sleep_timer),
-        color = SleepRelaxTheme.colors.textPrimary,
-        style = SleepRelaxTheme.typography.titleSmall,
-    )
-    Text(
-        text = remainingMs
-            ?.let { stringResource(Res.string.sleep_timer_stops_in, formatRemaining(it)) }
-            ?: stringResource(Res.string.sleep_timer_off),
-        color = SleepRelaxTheme.colors.textSecondary,
-        style = SleepRelaxTheme.typography.labelMedium,
-    )
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingExtraSmall),
-    ) {
-        SLEEP_TIMER_PRESETS.forEach { (durationMs, label) ->
-            TimerPresetButton(
-                text = stringResource(label),
-                durationMs = durationMs,
-                enabled = enabled,
-                onTimerStart = onTimerStart,
-                modifier = Modifier.weight(1f),
-            )
-        }
-    }
-    if (remainingMs != null) {
-        SleepRelaxTextButton(
-            onClick = onTimerCancel,
-            modifier = Modifier.align(Alignment.End),
-        ) {
-            Text(stringResource(Res.string.cancel_timer))
-        }
-    }
-}
-
-@Composable
-private fun TimerPresetButton(
-    text: String,
-    durationMs: Long,
-    enabled: Boolean,
-    onTimerStart: (Long) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    SleepRelaxTextButton(
-        onClick = { onTimerStart(durationMs) },
-        modifier = modifier,
-        enabled = enabled,
-    ) {
-        Text(
-            text = text,
-            maxLines = 1,
-            style = SleepRelaxTheme.typography.labelMedium,
         )
     }
 }

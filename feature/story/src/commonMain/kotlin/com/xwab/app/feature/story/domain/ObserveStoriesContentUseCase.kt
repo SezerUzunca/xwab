@@ -10,14 +10,14 @@ import kotlinx.coroutines.flow.combine
 internal data class StoriesContent(
     val stories: List<Story>,
     val playback: PlaybackSummary,
+    val sleepTimerRemainingMs: Long?,
 )
 
 /**
  * Joins the two ports this screen reads into the one thing it shows.
  *
- * Two rather than the three the sound screens join: there is no favorites port for stories, so
- * nothing else is combined here. Feature-owned for the same reason as the others — only the ports
- * are shared, never the question a screen asks of them.
+ * There is no favorites port for stories. Playback and the timer are both session-owned, while
+ * this feature owns their combination with its catalog.
  */
 internal class ObserveStoriesContentUseCase(
     private val storyPort: StoryPort,
@@ -26,7 +26,8 @@ internal class ObserveStoriesContentUseCase(
     operator fun invoke(): Flow<StoriesContent> = combine(
         storyPort.observeStories(),
         playbackPort.playback,
-    ) { stories, playback ->
-        StoriesContent(stories = stories, playback = playback)
+        playbackPort.sleepTimerRemainingMs,
+    ) { stories, playback, remainingMs ->
+        StoriesContent(stories = stories, playback = playback, sleepTimerRemainingMs = remainingMs)
     }
 }

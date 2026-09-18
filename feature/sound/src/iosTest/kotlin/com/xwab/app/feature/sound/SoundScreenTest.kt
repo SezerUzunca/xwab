@@ -4,15 +4,23 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertRangeInfoEquals
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.SemanticsActions
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import com.xwab.app.feature.sound.domain.SoundFavoriteReadStatus
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 /**
  * What this screen says while a source is being resolved.
@@ -131,6 +139,40 @@ class SoundScreenTest {
         onNodeWithText(FULL_VOLUME).assertExists()
     }
 
+    @Test
+    fun theVolumeSliderHasANameAndAnAdjustableValue() = runComposeUiTest {
+        var chosenVolume: Float? = null
+        show(SoundState(track = TRACK, volume = 0.5f), onVolumeChange = { chosenVolume = it })
+
+        onNodeWithContentDescription(VOLUME)
+            .assertIsEnabled()
+            .assertRangeInfoEquals(ProgressBarRangeInfo(0.5f, 0f..1f))
+            .performSemanticsAction(SemanticsActions.SetProgress) { it(0.25f) }
+
+        assertEquals(0.25f, chosenVolume)
+    }
+
+    @Test
+    fun theLoopSwitchHasANameAndRetainsItsToggleAction() = runComposeUiTest {
+        var chosenLooping: Boolean? = null
+        show(SoundState(track = TRACK, isLooping = true), onLoopingChange = { chosenLooping = it })
+
+        onNodeWithContentDescription(LOOP_SOUND)
+            .assertIsOn()
+            .performScrollTo()
+            .performClick()
+
+        assertEquals(false, chosenLooping)
+    }
+
+    @Test
+    fun labeledSessionControlsAreDisabledForAMissingSound() = runComposeUiTest {
+        show(SoundState(track = null))
+
+        onNodeWithContentDescription(VOLUME).assertIsNotEnabled()
+        onNodeWithContentDescription(LOOP_SOUND).assertIsNotEnabled()
+    }
+
     /**
      * A pending read waits at the heart and nowhere else, and the waiting heart is still the thing
      * a tap is refused by — asserted on the control, which is where the design system now puts the
@@ -160,7 +202,11 @@ class SoundScreenTest {
         onNodeWithText(FAVORITES_UNAVAILABLE).assertExists()
     }
 
-    private fun ComposeUiTest.show(state: SoundState) {
+    private fun ComposeUiTest.show(
+        state: SoundState,
+        onVolumeChange: (Float) -> Unit = {},
+        onLoopingChange: (Boolean) -> Unit = {},
+    ) {
         setContent {
             SleepRelaxTheme {
                 SoundScreen(
@@ -168,8 +214,8 @@ class SoundScreenTest {
                     onBack = {},
                     onFavoriteClick = {},
                     onPlaybackClick = {},
-                    onLoopingChange = {},
-                    onVolumeChange = {},
+                    onLoopingChange = onLoopingChange,
+                    onVolumeChange = onVolumeChange,
                     onTimerStart = {},
                     onTimerCancel = {},
                 )
@@ -191,6 +237,8 @@ class SoundScreenTest {
         const val UNAVAILABLE = "Could not reach this sound. Tap play to try again."
         const val NOT_FOUND = "This sound is no longer in the catalog"
         const val FULL_VOLUME = "100%"
+        const val VOLUME = "Volume"
+        const val LOOP_SOUND = "Loop sound"
 
         /** The tail of the line that describes a track, and only a track this app actually holds. */
         const val LICENCE = "Public Domain"

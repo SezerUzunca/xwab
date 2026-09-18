@@ -1,6 +1,7 @@
 package com.xwab.app.designsystem.theme
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import kotlin.math.pow
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -51,6 +52,22 @@ class ContrastTest {
             "the glass card should be the tighter case, but reads ${onCard.rounded()}:1 " +
                 "against ${onGradient.rounded()}:1 on the bare gradient",
         )
+    }
+
+    @Test
+    fun categoryCountAccentIsReadableAcrossTheCategoryCardGradient() {
+        // CategoryCard blends from glassWhite to 8% primary over the screen gradient. Checking
+        // opaque palette swatches alone misses translucent text and translucent backgrounds.
+        val failures = (0..10).flatMap { screenStep ->
+            val screen = lerp(darkColors.backgroundTop, darkColors.backgroundBottom, screenStep / 10f)
+            (0..10).mapNotNull { cardStep ->
+                val card = lerp(darkColors.glassWhite, darkColors.primary.copy(alpha = 0.08f), cardStep / 10f)
+                    .over(screen)
+                val ratio = contrastRatio(darkColors.accent.over(card), card)
+                "screen=$screenStep card=$cardStep is ${ratio.rounded()}:1".takeIf { ratio < AA_NORMAL_TEXT }
+            }
+        }
+        assertTrue(failures.isEmpty(), "Category counts need $AA_NORMAL_TEXT:1: ${failures.joinToString()}")
     }
 
     private val textColors = listOf(

@@ -21,6 +21,7 @@ internal class IosPlaybackEngine(
     private val onPlaybackEnded: (Long) -> Unit,
     private val onPlaybackFailed: (Long, String?) -> Unit,
     private val onReadinessTimedOut: (Long) -> Unit,
+    private val userAgent: String? = null,
 ) {
     private var player = AVQueuePlayer()
     private val notificationCenter = NSNotificationCenter.defaultCenter
@@ -164,7 +165,7 @@ internal class IosPlaybackEngine(
         } else {
             NSURL.URLWithString(uri) ?: return false
         }
-        val item = AVPlayerItem(uRL = url)
+        val item = playerItem(url)
         activeUrl = url
         activeAsset = item.asset
         attachItem(item, looping)
@@ -334,7 +335,7 @@ internal class IosPlaybackEngine(
 
         player.pause()
         clearQueue()
-        val item = AVPlayerItem(uRL = url)
+        val item = playerItem(url)
         activeUrl = url
         activeAsset = item.asset
         attachItem(
@@ -353,6 +354,11 @@ internal class IosPlaybackEngine(
             }
         }
     }
+
+    /** Both first load and a seek/loop rebuild must keep the same HTTP identity. */
+    private fun playerItem(url: NSURL): AVPlayerItem = AVPlayerItem(
+        asset = AVURLAsset(uRL = url, options = playbackAssetOptions(url.scheme, userAgent)),
+    )
 
     /**
      * A looping item is first allowed to become ready as a normal queue item. This guarantees its

@@ -14,5 +14,10 @@ kotlin {
             implementation(projects.testing)
             implementation(libs.kotlinx.coroutines.test)
         }
+        if (gradle.extra["enableIos"] as Boolean) {
+            iosTest.dependencies {
+                implementation(libs.compose.uiTest)
+            }
+        }
     }
 }
