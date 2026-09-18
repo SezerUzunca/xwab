@@ -156,7 +156,6 @@ class DataStoreFavoritesAdapterTest {
 
         store.writeFailure = CancellationException("cancelled")
         assertFailsWith<CancellationException> { adapter.toggle("sound", "rain") }
-        Unit
     }
     private class FakePreferencesDataStore : DataStore<Preferences> {
         private val stored = MutableStateFlow<Preferences>(emptyPreferences())
