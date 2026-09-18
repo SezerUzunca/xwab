@@ -36,6 +36,11 @@ internal fun appEntryProvider(
         onTrackClick = { onNavigate(SoundRoute(it.value)) },
         onBack = onBack,
     )
-    soundEntry(dependencies = graph.soundDependencies, onBack = onBack)
-    storiesEntry(dependencies = graph.storiesDependencies)
+    soundEntry(
+        dependencies = graph.soundDependencies,
+        onBack = onBack
+    )
+    storiesEntry(
+        dependencies = graph.storiesDependencies
+    )
 }
