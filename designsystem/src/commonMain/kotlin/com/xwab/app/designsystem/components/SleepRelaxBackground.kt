@@ -9,8 +9,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 
+/**
+ * The app gradient, and nothing else.
+ *
+ * Internal because a screen wants [ScreenContainer], which is this plus the width its content is
+ * held to — the two were always written together, and the pair is the thing with a meaning. This
+ * survives as a piece of its own only because [LoadingContent] needs the gradient without the
+ * frame.
+ */
 @Composable
-fun SleepRelaxBackground(
+internal fun SleepRelaxBackground(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
 ) {

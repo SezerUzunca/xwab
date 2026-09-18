@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -30,7 +29,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xwab.app.core.sound.port.Category
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.designsystem.components.LoadingContent
-import com.xwab.app.designsystem.components.SleepRelaxBackground
+import com.xwab.app.designsystem.components.ScreenContainer
+import com.xwab.app.designsystem.components.screenContentPadding
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -59,19 +59,11 @@ internal fun BrowseScreen(
     state: BrowseState,
     onCategoryClick: (CategoryId) -> Unit,
 ) {
-    SleepRelaxBackground {
+    ScreenContainer {
         LazyVerticalGrid(
             columns = GridCells.Adaptive(CATEGORY_CARD_MIN_WIDTH),
-            modifier = Modifier
-                .widthIn(max = SleepRelaxTheme.dimens.contentMaxWidth)
-                .fillMaxSize()
-                .align(Alignment.Center),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                start = SleepRelaxTheme.dimens.paddingScreenHorizontal,
-                end = SleepRelaxTheme.dimens.paddingScreenHorizontal,
-                top = SleepRelaxTheme.dimens.paddingScreenVertical,
-                bottom = SleepRelaxTheme.dimens.spacingHuge,
-            ),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = screenContentPadding(),
             verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingMedium),
             horizontalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingMedium),
         ) {

@@ -6,13 +6,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -26,7 +24,8 @@ import com.xwab.app.designsystem.components.FavoriteButton
 import com.xwab.app.feature.category.domain.CategoryFavoritesReadStatus
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.PlayableRow
-import com.xwab.app.designsystem.components.SleepRelaxBackground
+import com.xwab.app.designsystem.components.ScreenContainer
+import com.xwab.app.designsystem.components.screenContentPadding
 import com.xwab.app.designsystem.format.formatDuration
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.pluralStringResource
@@ -71,16 +70,11 @@ internal fun CategoryScreen(
     onPlaybackClick: (trackId: TrackId) -> Unit,
     onBack: () -> Unit,
 ) {
-    SleepRelaxBackground {
+    ScreenContainer {
         Column(
             modifier = Modifier
-                .widthIn(max = SleepRelaxTheme.dimens.contentMaxWidth)
                 .fillMaxSize()
-                .align(Alignment.Center)
-                .padding(
-                    horizontal = SleepRelaxTheme.dimens.paddingScreenHorizontal,
-                    vertical = SleepRelaxTheme.dimens.paddingScreenVertical
-                ),
+                .padding(screenContentPadding()),
         ) {
             BackButton(onClick = onBack)
 

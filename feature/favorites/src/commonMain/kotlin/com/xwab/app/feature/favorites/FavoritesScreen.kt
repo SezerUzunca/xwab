@@ -3,13 +3,11 @@ package com.xwab.app.feature.favorites
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -19,7 +17,8 @@ import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.PlayableRow
-import com.xwab.app.designsystem.components.SleepRelaxBackground
+import com.xwab.app.designsystem.components.ScreenContainer
+import com.xwab.app.designsystem.components.screenContentPadding
 import com.xwab.app.designsystem.format.formatDuration
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.stringResource
@@ -51,16 +50,10 @@ internal fun FavoritesScreen(
     onTrackClick: (TrackId) -> Unit,
     onPlaybackClick: (TrackId) -> Unit,
 ) {
-    SleepRelaxBackground {
+    ScreenContainer {
         LazyColumn(
-            modifier = Modifier
-                .widthIn(max = SleepRelaxTheme.dimens.contentMaxWidth)
-                .fillMaxSize()
-                .align(Alignment.Center),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                horizontal = SleepRelaxTheme.dimens.paddingScreenHorizontal,
-                vertical = SleepRelaxTheme.dimens.paddingScreenVertical,
-            ),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = screenContentPadding(),
             verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingSmall),
         ) {
             item {

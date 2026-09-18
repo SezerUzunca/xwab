@@ -87,7 +87,10 @@ internal fun NowPlayingScreen(
                                 is PlaybackFailure.EngineFailed -> Res.string.item_could_not_open
                             },
                         ),
-                        style = SleepRelaxTheme.typography.labelMedium,
+                        // The style every failure in this app is written in. This was the only one
+                        // in `labelMedium`, a size below the rest, which made the one message
+                        // with no screen behind it to repeat it the quietest of them all.
+                        style = SleepRelaxTheme.typography.bodyMedium,
                         color = SleepRelaxTheme.colors.error,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,

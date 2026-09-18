@@ -14,8 +14,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 
+/**
+ * A titled, subtitled glass card that does something when it is tapped.
+ *
+ * Internal because [PlayableRow] is the only thing that draws one, and the only shape this app
+ * wants a card in: a card carrying a transport control and whatever the session has to say about
+ * it. A screen reaching for the bare card again is how the status and failure lines went missing
+ * from the category list the first time.
+ */
 @Composable
-fun ContentCard(
+internal fun ContentCard(
     title: String,
     subtitle: String,
     onClick: () -> Unit,

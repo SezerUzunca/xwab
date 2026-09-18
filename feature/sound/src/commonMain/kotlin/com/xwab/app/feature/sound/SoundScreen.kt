@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -36,7 +35,8 @@ import com.xwab.app.designsystem.components.FavoriteButton
 import com.xwab.app.feature.sound.domain.SoundFavoriteReadStatus
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.PlayPauseButton
-import com.xwab.app.designsystem.components.SleepRelaxBackground
+import com.xwab.app.designsystem.components.ScreenContainer
+import com.xwab.app.designsystem.components.screenContentPadding
 import com.xwab.app.designsystem.components.SleepRelaxSlider
 import com.xwab.app.designsystem.components.SleepRelaxSwitch
 import com.xwab.app.designsystem.components.SleepRelaxTextButton
@@ -110,18 +110,13 @@ internal fun SoundScreen(
     onTimerStart: (Long) -> Unit,
     onTimerCancel: () -> Unit,
 ) {
-    SleepRelaxBackground {
+    ScreenContainer {
         // Content can outgrow a tall window too when text scales or status lines appear.
         Column(
             modifier = Modifier
-                .widthIn(max = SleepRelaxTheme.dimens.contentMaxWidth)
                 .fillMaxSize()
-                .align(Alignment.Center)
                 .verticalScroll(rememberScrollState())
-                .padding(
-                    horizontal = SleepRelaxTheme.dimens.paddingScreenHorizontal,
-                    vertical = SleepRelaxTheme.dimens.paddingScreenVertical,
-                ),
+                .padding(screenContentPadding()),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(

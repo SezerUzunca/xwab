@@ -5,13 +5,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -21,7 +19,8 @@ import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.designsystem.components.PlayableRow
 import com.xwab.app.designsystem.format.formatDuration
 import com.xwab.app.designsystem.components.LoadingContent
-import com.xwab.app.designsystem.components.SleepRelaxBackground
+import com.xwab.app.designsystem.components.ScreenContainer
+import com.xwab.app.designsystem.components.screenContentPadding
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res as UiRes
@@ -54,18 +53,10 @@ internal fun StoriesScreen(
     state: StoriesState,
     onPlaybackClick: (storyId: StoryId) -> Unit,
 ) {
-    SleepRelaxBackground {
+    ScreenContainer {
         LazyColumn(
-            modifier = Modifier
-                .widthIn(max = SleepRelaxTheme.dimens.contentMaxWidth)
-                .fillMaxSize()
-                .align(Alignment.Center),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                start = SleepRelaxTheme.dimens.paddingScreenHorizontal,
-                end = SleepRelaxTheme.dimens.paddingScreenHorizontal,
-                top = SleepRelaxTheme.dimens.paddingScreenVertical,
-                bottom = SleepRelaxTheme.dimens.spacingHuge,
-            ),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = screenContentPadding(),
             verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingSmall),
         ) {
             item {
