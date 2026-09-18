@@ -118,7 +118,14 @@ jobs:
   device-test:
     name: Run playback service device tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Two emulator attempts have to fit, and one costs roughly thirteen minutes.
+    timeout-minutes: 45
+
+    env:
+      # Stated once because two steps run it. The runner hands this to `sh`, so it has to stay
+      # POSIX: no pipefail, and the exit status has to be carried across the redirect by hand
+      # rather than through a pipe.
+      DEVICE_TEST_SCRIPT: ./gradlew :core:playback:connectedAndroidTest --stacktrace > gradle-output.log 2>&1; status=$?; cat gradle-output.log; exit $status
 
     steps:
       - name: Check out repository
@@ -134,16 +141,42 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
+      # This job failed in roughly one run in three without anything in the repository being
+      # involved: the same signature appeared on a commit that passed unchanged on the next one,
+      # and on a pull request whose diff touched no file this job compiles.
+      #
+      # The log says what it is, and it is not a slow boot — the emulator reports boot completed
+      # and answers adb. Seconds later the guest's system_server goes down and comes back, and the
+      # action's own `settings put animator_duration_scale` lands in that window:
+      #
+      #     cmd: Failure calling service settings: Broken pipe (32)
+      #     The process '.../adb' failed with exit code 224
+      #
+      # The action aborts there, so Gradle never starts and there is nothing to report. Raising
+      # `emulator-boot-timeout` would not touch this; a second emulator does. A real test failure
+      # fails both attempts and still fails the job.
       - name: Run Android device tests on an emulator
+        id: device-tests
+        continue-on-error: true
         uses: ReactiveCircus/android-emulator-runner@v2
         with:
           api-level: 35
           arch: x86_64
           disable-animations: true
-          # The runner hands this to `sh`, so it has to stay POSIX: no pipefail, and the exit
-          # status has to be carried across the redirect by hand rather than through a pipe.
-          script: ./gradlew :core:playback:connectedAndroidTest --stacktrace > gradle-output.log 2>&1; status=$?; cat gradle-output.log; exit $status
+          script: ${{ env.DEVICE_TEST_SCRIPT }}
 
+      - name: Retry the device tests on a fresh emulator
+        if: steps.device-tests.outcome == 'failure'
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          disable-animations: true
+          script: ${{ env.DEVICE_TEST_SCRIPT }}
+
+      # Both attempts write the same log, so this reads whichever one the job actually failed on.
+      # It cannot run after a first attempt that was retried: `continue-on-error` keeps that
+      # failure off the job, so `failure()` is true only once the retry has failed too.
       - name: Report what broke
         if: failure()
         run: |

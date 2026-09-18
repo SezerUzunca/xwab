@@ -20,6 +20,8 @@ import com.xwab.app.core.playback.port.AudioSource
 import com.xwab.app.core.playback.port.LoopMode
 import com.xwab.app.core.playback.port.PlaybackCommand
 import com.xwab.app.core.playback.port.PlaybackEnginePort
+import com.xwab.app.core.playback.port.PlaybackError
+import com.xwab.app.core.playback.port.PlaybackErrorCode
 import com.xwab.app.core.playback.port.PlaybackPhase
 import com.xwab.app.core.playback.port.PlaybackRequest
 import com.xwab.app.core.playback.port.SleepTimerState
@@ -541,6 +543,50 @@ class DefaultPlaybackAdapterTest {
             ),
             adapter(player).playback.first(),
         )
+    }
+
+    /**
+     * The ordinary case is a listener with no network: the engine is handed a source it can never
+     * open. That is a reach failure, and the one answer worth giving is the one that says trying
+     * again might work — so it must not arrive as the engine having broken on a source it held.
+     */
+    @Test
+    fun aSourceTheEngineCouldNeverOpenIsReportedAsOutOfReach() = runBlocking {
+        listOf(PlaybackErrorCode.InvalidSource, PlaybackErrorCode.Timeout).forEach { code ->
+            val player = FakePlaybackEnginePort().apply {
+                mutableState.value = AudioPlayerState(
+                    source = AudioSource(id = "sound:gentle-rain", uri = "https://example.test/x.mp3"),
+                    phase = PlaybackPhase.Failed,
+                    error = PlaybackError(code),
+                )
+            }
+
+            assertEquals(
+                PlaybackFailure.SourceUnavailable(sound("gentle-rain")),
+                adapter(player).playback.first().failure,
+                "$code is a source that was never opened",
+            )
+        }
+    }
+
+    /** The other half of the same decision: a source it had accepted and then broke on. */
+    @Test
+    fun aSourceTheEngineBrokeOnIsStillAnEngineFailure() = runBlocking {
+        listOf(PlaybackErrorCode.PlaybackFailed, PlaybackErrorCode.ServiceUnavailable).forEach { code ->
+            val player = FakePlaybackEnginePort().apply {
+                mutableState.value = AudioPlayerState(
+                    source = AudioSource(id = "sound:gentle-rain", uri = "file.mp3"),
+                    phase = PlaybackPhase.Failed,
+                    error = PlaybackError(code),
+                )
+            }
+
+            assertEquals(
+                PlaybackFailure.EngineFailed(sound("gentle-rain")),
+                adapter(player).playback.first().failure,
+                "$code is the engine failing, not the source being out of reach",
+            )
+        }
     }
 
     /**
