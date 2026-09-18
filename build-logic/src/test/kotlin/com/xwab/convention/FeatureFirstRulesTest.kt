@@ -127,6 +127,86 @@ class FeatureFirstRulesTest {
     }
 
     @Test
+    fun oneUserAgentStatedInTwoPlacesIsAllowedWhileTheyAgree() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.userAgentAgreementViolations(
+                mapOf(
+                    "core/sources/SoundSourceManifest.kt" to
+                        """private const val WIKIMEDIA_USER_AGENT = "Sleep/1.0 (https://example.test)"""",
+                    "androidApp/src/main/AndroidManifest.xml" to
+                        """
+                        <meta-data
+                            android:name="com.xwab.app.core.playback.USER_AGENT"
+                            android:value="Sleep/1.0 (https://example.test)" />
+                        """.trimIndent(),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun aUserAgentThatDriftsBetweenThePlaybackAndDownloadPathsFails() {
+        val violations = FeatureFirstRules.userAgentAgreementViolations(
+            mapOf(
+                "core/sources/SoundSourceManifest.kt" to
+                    """private const val WIKIMEDIA_USER_AGENT = "Sleep/2.0 (https://example.test)"""",
+                "androidApp/src/main/AndroidManifest.xml" to
+                    """<meta-data android:name="x.USER_AGENT" android:value="Sleep/1.0" />""",
+            ),
+        )
+
+        assertEquals(1, violations.size)
+        assertTrue(violations.single().contains("Sleep/2.0 (https://example.test)"))
+        assertTrue(violations.single().contains("Sleep/1.0"))
+    }
+
+    /**
+     * The three things the first version of this rule reported and should not have: its own test
+     * fixtures, and the constant naming the manifest entry a user agent is *read from*.
+     */
+    @Test
+    fun theUserAgentCheckIgnoresTestDataAndTheKeyItIsStoredUnder() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.userAgentAgreementViolations(
+                mapOf(
+                    "core/sources/src/commonMain/kotlin/SoundSourceManifest.kt" to
+                        """private const val WIKIMEDIA_USER_AGENT = "Sleep/1.0"""",
+                    "core/playback/src/androidMain/kotlin/PlaybackService.kt" to
+                        """private const val USER_AGENT_METADATA_KEY = "com.example.USER_AGENT"""",
+                    "build-logic/src/test/kotlin/FeatureFirstRulesTest.kt" to
+                        """private const val WIKIMEDIA_USER_AGENT = "Sleep/9.9"""",
+                    "feature/sound/src/commonTest/kotlin/SoundScreenTest.kt" to
+                        """private const val USER_AGENT = "Sleep/8.8"""",
+                ),
+            ),
+        )
+    }
+
+    /** A comment is not a declaration, and neither is metadata about something else. */
+    @Test
+    fun theUserAgentCheckReadsDeclarationsAndNotProseOrOtherMetadata() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.userAgentAgreementViolations(
+                mapOf(
+                    "core/sources/SoundSourceManifest.kt" to
+                        """
+                        // const val OLD_USER_AGENT = "Sleep/0.1"
+                        private const val WIKIMEDIA_USER_AGENT = "Sleep/1.0"
+                        """.trimIndent(),
+                    "androidApp/src/main/AndroidManifest.xml" to
+                        """
+                        <meta-data android:name="com.other.THING" android:value="Sleep/9.9" />
+                        <meta-data android:name="x.USER_AGENT" android:value="Sleep/1.0" />
+                        """.trimIndent(),
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun sharedUsesFeatureContractsOnlyAtTheirApplicationBoundaries() {
         assertEquals(
             emptyList(),

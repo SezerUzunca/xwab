@@ -2,6 +2,8 @@ package com.xwab.app.core.playback.platform
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -11,7 +13,11 @@ import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
@@ -21,6 +27,15 @@ import co.touchlab.kermit.Logger
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.xwab.app.core.playback.store.remainingDurationUntil
+
+/**
+ * Where the application states the user agent its playback should present.
+ *
+ * A manifest key rather than a constructor argument, because Android builds the service. The value
+ * belongs to the app: `androidApp` declares it, and it has to agree with the one `:core:sources`
+ * attaches to its download requests, since both identify the same client to the same host.
+ */
+private const val USER_AGENT_METADATA_KEY = "com.xwab.app.core.playback.USER_AGENT"
 
 internal class PlaybackService : MediaSessionService() {
 
@@ -50,6 +65,7 @@ internal class PlaybackService : MediaSessionService() {
             )
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_LOCAL)
+            .apply { applicationUserAgent()?.let { setMediaSourceFactory(identifyingSources(it)) } }
             .build()
 
         this.player = player
@@ -119,6 +135,46 @@ internal class PlaybackService : MediaSessionService() {
         mediaSession = null
         super.onDestroy()
     }
+
+    /**
+     * How this app identifies itself to a host it streams from, or null when it does not say.
+     *
+     * Read from the application's manifest rather than injected, because Android constructs this
+     * service and nothing can hand it a value. Read at all because the header the app attaches to
+     * its *downloads* never reaches this player: a sound that is not cached yet is opened here,
+     * directly, and until this the request went out under whatever the platform's HTTP stack calls
+     * itself. Some hosts refuse that.
+     *
+     * It is a string the application owns. This module learns that requests should say who is
+     * making them — which is a property of any HTTP client — and nothing about who that is.
+     */
+    private fun applicationUserAgent(): String? {
+        val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packageManager.getApplicationInfo(
+                packageName,
+                PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong()),
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.getApplicationInfo(packageName, PackageManager.GET_META_DATA)
+        }
+        return info.metaData?.getString(USER_AGENT_METADATA_KEY)?.takeIf { it.isNotBlank() }
+    }
+
+    /**
+     * The default factory, with one thing changed.
+     *
+     * [DefaultDataSource.Factory] is what keeps local playback working: a cached sound resolves to
+     * a file path, and only the HTTPS half of the chain is given the user agent.
+     */
+    @OptIn(UnstableApi::class)
+    private fun identifyingSources(userAgent: String): MediaSource.Factory =
+        DefaultMediaSourceFactory(
+            DefaultDataSource.Factory(
+                this,
+                DefaultHttpDataSource.Factory().setUserAgent(userAgent),
+            ),
+        )
 
     private fun startSleepTimer(deadlineElapsedRealtimeMs: Long): SessionResult {
         if (remainingDurationUntil(deadlineElapsedRealtimeMs, SystemClock.elapsedRealtime()) == null) {

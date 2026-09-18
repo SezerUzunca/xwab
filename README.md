@@ -180,6 +180,9 @@ internal Metro contributions behind `PlaybackEnginePort`.
 12. Sound or story exposes more than one port interface or lacks its `SoundPort` / `StoryPort` contract.
 13. Favorites depends on another project, or delivery depends on a project other than itself or `:core:network`.
 14. Designsystem depends on another project, or core depends on designsystem or shared.
+15. Two places state this app's user agent and they disagree. A sound downloads through common
+    Kotlin and streams through a service Android constructs, so the string is written twice and
+    neither half can read the other; a drift leaves one path working and the failure invisible.
 
 Rules 5, 12, 13 and 14 name modules by path, so each of those names is also checked against the modules
 the build actually contains. Renaming one without updating its rule fails the build instead of
