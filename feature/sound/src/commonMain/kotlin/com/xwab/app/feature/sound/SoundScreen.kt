@@ -54,6 +54,7 @@ import xwab.feature.sound.generated.resources.sound_could_not_open
 import xwab.feature.sound.generated.resources.sound_not_found
 import xwab.feature.sound.generated.resources.sound_unavailable
 import xwab.feature.sound.generated.resources.volume
+import xwab.feature.sound.generated.resources.volume_is_separate
 import xwab.feature.sound.generated.resources.volume_percentage
 
 private const val MINUTE_MS = 60_000L
@@ -302,6 +303,15 @@ private fun VolumeControl(
         onValueChange = onVolumeChange,
         modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
         enabled = enabled,
+    )
+    // The device's own media volume multiplies with this one and is what the phone's volume keys
+    // move, so a silenced device leaves this slider reading 100% over silence. Said here rather
+    // than fixed by binding the two, because turning a sleep sound down at night should not turn
+    // the whole phone down.
+    Text(
+        text = stringResource(Res.string.volume_is_separate),
+        color = SleepRelaxTheme.colors.textSecondary,
+        style = SleepRelaxTheme.typography.labelMedium,
     )
 }
 
