@@ -12,6 +12,7 @@ import com.xwab.app.core.playback.port.AudioSource
 import com.xwab.app.core.playback.port.LoopMode
 import com.xwab.app.core.playback.port.PlaybackCommand
 import com.xwab.app.core.playback.port.PlaybackEnginePort
+import com.xwab.app.core.playback.port.PlaybackErrorCode
 import com.xwab.app.core.playback.port.PlaybackPhase
 import com.xwab.app.core.playback.port.PlaybackRequest
 import com.xwab.app.core.sound.port.SoundPort
@@ -314,9 +315,27 @@ internal class DefaultPlaybackAdapter internal constructor(
     private fun AudioPlayerState.effectiveLooping(preferenceEstablished: Boolean): Boolean =
         if (preferenceEstablished || activeSource != null) isLooping else DEFAULT_LOOPING
 
+    /**
+     * Reads the engine's own verdict instead of flattening every failure into one.
+     *
+     * The engine already distinguishes the two cases this session publishes: a source it was handed
+     * and could never open ([PlaybackErrorCode.InvalidSource]) or never got ready
+     * ([PlaybackErrorCode.Timeout]) is a source that could not be reached, which is worth another
+     * tap; a source it had accepted and then failed on is not. Until this, both arrived as
+     * [PlaybackFailure.EngineFailed], so a listener with no network was told the item could not be
+     * played rather than that it could not be reached — the one answer that would have told them
+     * trying again might work.
+     */
     private fun AudioPlayerState.engineFailure(): PlaybackFailure? =
         if (phase == PlaybackPhase.Failed) {
-            itemOf(activeSource)?.let { PlaybackFailure.EngineFailed(it) }
+            itemOf(activeSource)?.let { item ->
+                when (error?.code) {
+                    PlaybackErrorCode.InvalidSource,
+                    PlaybackErrorCode.Timeout,
+                    -> PlaybackFailure.SourceUnavailable(item)
+                    else -> PlaybackFailure.EngineFailed(item)
+                }
+            }
         } else {
             null
         }

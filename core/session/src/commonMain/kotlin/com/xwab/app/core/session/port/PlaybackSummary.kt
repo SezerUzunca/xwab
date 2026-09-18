@@ -39,10 +39,14 @@ sealed interface PlaybackFailure {
      */
     data class ItemNotFound(override val itemId: PlaybackItemId) : PlaybackFailure
 
-    /** The item exists, but no source could be produced for it. Worth another tap. */
+    /**
+     * The item exists, but nothing playable could be got for it: either no source was produced, or
+     * the engine was handed one and never managed to open it. Both are reach failures — the
+     * ordinary one being a listener with no network — and both are worth another tap.
+     */
     data class SourceUnavailable(override val itemId: PlaybackItemId) : PlaybackFailure
 
-    /** The engine accepted a source and then failed on it. */
+    /** The engine accepted a source and then failed on it. Tapping again is unlikely to help. */
     data class EngineFailed(override val itemId: PlaybackItemId) : PlaybackFailure
 }
 
