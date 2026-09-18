@@ -8,7 +8,7 @@ import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertRangeInfoEquals
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
@@ -237,7 +237,8 @@ class SoundScreenTest {
         const val UNAVAILABLE = "Could not reach this sound. Tap play to try again."
         const val NOT_FOUND = "This sound is no longer in the catalog"
         const val FULL_VOLUME = "100%"
-        const val VOLUME = "Volume"
+        /** The slider's content description is the label, which names which volume this is. */
+        const val VOLUME = "Sound volume"
         const val LOOP_SOUND = "Loop sound"
 
         /** The tail of the line that describes a track, and only a track this app actually holds. */

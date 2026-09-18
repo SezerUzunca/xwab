@@ -13,7 +13,15 @@
     <string name="sound_unavailable">Could not reach this sound. Tap play to try again.</string>
     <string name="sound_could_not_open">Could not play this sound</string>
 
-    <string name="volume">Volume</string>
+    <!--
+      Named for what it is, because it is not the only volume in play. The device's own media
+      volume multiplies with this one, and the phone's volume keys move that one — so a listener
+      who has silenced their device sees this slider still reading 100% and hears nothing. The
+      name and the line below it are what say so; the two stay separate deliberately, because
+      turning a sleep sound down should not turn the whole phone down.
+    -->
+    <string name="volume">Sound volume</string>
+    <string name="volume_is_separate">Separate from your device volume</string>
     <!--
       One `%`, not the `%%` an Android XML string would escape it with: Compose Multiplatform
       formats this itself and passes a doubled sign straight through, so the slider read "100%%"
