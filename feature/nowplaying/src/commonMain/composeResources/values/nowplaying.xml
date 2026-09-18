@@ -3,6 +3,12 @@
     <string name="now_playing">Now playing</string>
 
     <!--
+      What tapping the bar does, for a screen reader. Content-neutral like the rest of this
+      feature: it does not know whether it is holding a sound or a story.
+    -->
+    <string name="open_now_playing">Open what is playing</string>
+
+    <!--
       The same three answers every list gives, with the noun taken out: this bar is content-neutral
       by design and does not know whether it is holding a sound or a story. Each one sits directly
       under the title, which is what it refers to.

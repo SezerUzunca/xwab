@@ -1,6 +1,7 @@
 package com.xwab.app.feature.nowplaying
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,6 +26,7 @@ import xwab.feature.nowplaying.generated.resources.item_could_not_open
 import xwab.feature.nowplaying.generated.resources.item_not_found
 import xwab.feature.nowplaying.generated.resources.item_unavailable
 import xwab.feature.nowplaying.generated.resources.now_playing
+import xwab.feature.nowplaying.generated.resources.open_now_playing
 
 /**
  * What the session is on, wherever the listener is.
@@ -37,6 +39,7 @@ import xwab.feature.nowplaying.generated.resources.now_playing
 internal fun NowPlayingScreen(
     state: NowPlayingState,
     onPlayPauseClick: () -> Unit,
+    onOpenClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (state.isIdle) return
@@ -47,6 +50,12 @@ internal fun NowPlayingScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(SleepRelaxTheme.colors.backgroundBottom)
+                // The whole bar except the transport control, which has its own. A listener who
+                // started something from a row and then walked away from that screen has no other
+                // way back to it.
+                .clickable(onClickLabel = stringResource(Res.string.open_now_playing)) {
+                    onOpenClick()
+                }
                 .padding(
                     start = SleepRelaxTheme.dimens.spacingLarge,
                     end = SleepRelaxTheme.dimens.spacingSmall,
@@ -109,6 +118,7 @@ private fun NowPlayingScreenPreview() {
                 playIntent = true,
             ),
             onPlayPauseClick = {},
+            onOpenClick = {},
         )
     }
 }

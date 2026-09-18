@@ -52,6 +52,7 @@ fun App(graph: AppGraph) {
             val nowPlayingBar = rememberNowPlayingSceneDecoratorStrategy<NavKey>(
                 graph = graph,
                 sharedTransitionScope = this@SharedTransitionLayout,
+                onNavigate = navigator::navigate,
             )
 
             Scaffold(

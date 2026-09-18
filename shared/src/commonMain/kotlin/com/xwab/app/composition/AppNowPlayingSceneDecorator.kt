@@ -10,12 +10,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.scene.SceneDecoratorStrategy
 import androidx.navigation3.scene.SceneDecoratorStrategyScope
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
+import com.xwab.app.core.session.port.PlaybackItemId
+import com.xwab.app.core.session.port.PlaybackKind
 import com.xwab.app.di.AppGraph
 import com.xwab.app.feature.nowplaying.navigation.NowPlayingBar
+import com.xwab.app.feature.sound.navigation.SoundRoute
+import com.xwab.app.feature.story.navigation.StoriesRoute
 
 /** One bar, one key, however many scenes carry it. */
 private const val NOW_PLAYING_BAR_KEY = "now-playing-bar"
@@ -27,8 +32,8 @@ private const val NOW_PLAYING_BAR_KEY = "now-playing-bar"
  * instead because a scene decorator is the only place chrome can reach `NavDisplay`'s
  * [SharedTransitionScope]: a bar that expands into the screen for what it is playing has to hand
  * its content to that screen, and shared elements only match inside one `SharedTransitionLayout`.
- * Nothing uses that yet — the bar is not tappable — so today this is the same picture in a
- * different place.
+ * The bar now opens what it is holding; the expand-into-the-screen animation is what the matched
+ * element below is still groundwork for.
  *
  * `NavDisplay` animates between *decorated* scenes, so for the length of every navigation the
  * outgoing and the incoming scene are both composed and both draw a bar. [NOW_PLAYING_BAR_KEY]
@@ -86,10 +91,24 @@ internal class NowPlayingSceneDecoratorStrategy<T : Any>(
 internal fun <T : Any> rememberNowPlayingSceneDecoratorStrategy(
     graph: AppGraph,
     sharedTransitionScope: SharedTransitionScope,
+    onNavigate: (NavKey) -> Unit,
 ): NowPlayingSceneDecoratorStrategy<T> {
-    val bar: @Composable () -> Unit =
-        remember(graph) { { NowPlayingBar(graph.nowPlayingDependencies) } }
+    val bar: @Composable () -> Unit = remember(graph, onNavigate) {
+        { NowPlayingBar(graph.nowPlayingDependencies, onOpen = { onNavigate(it.route()) }) }
+    }
     return remember(sharedTransitionScope, bar) {
         NowPlayingSceneDecoratorStrategy(sharedTransitionScope, bar)
     }
+}
+
+/**
+ * Where a playing item is on screen — the app's answer, not the bar's.
+ *
+ * A sound has a screen of its own. A story does not: every story is played from its row, so the
+ * nearest thing to "where this came from" is the list it is in. Both are decisions only the module
+ * that owns the routes can make, which is why the bar hands over an id and nothing else.
+ */
+internal fun PlaybackItemId.route(): NavKey = when (kind) {
+    PlaybackKind.SOUND -> SoundRoute(value)
+    PlaybackKind.STORY -> StoriesRoute
 }
