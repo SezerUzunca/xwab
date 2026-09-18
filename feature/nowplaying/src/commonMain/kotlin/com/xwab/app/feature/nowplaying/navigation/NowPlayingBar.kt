@@ -16,7 +16,8 @@ import com.xwab.app.feature.nowplaying.di.NowPlayingDependencies
  * It lives in `.navigation` because that is where this build puts a feature's public contract —
  * the package a shell is allowed to reach and the only place a feature may expose anything. It is
  * a composable rather than a route because this feature is chrome, not a destination: the shell
- * places it in its scaffold, outside `NavDisplay`, so that it outlives every destination change.
+ * places it beside entry content in a scene decorator. Its ViewModel therefore uses the root store
+ * rather than an entry store, so it outlives every destination change.
  * The contract is otherwise the same shape as `soundEntry` or `browseEntry` — the shell hands over
  * a dependency provider and nothing else crosses.
  *

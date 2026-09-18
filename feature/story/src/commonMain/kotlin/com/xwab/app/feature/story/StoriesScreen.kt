@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
@@ -20,6 +21,8 @@ import com.xwab.app.designsystem.components.PlayableRow
 import com.xwab.app.designsystem.format.formatDuration
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.ScreenContainer
+import com.xwab.app.designsystem.components.SleepTimerControl
+import com.xwab.app.designsystem.components.glassCard
 import com.xwab.app.designsystem.components.screenContentPadding
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.stringResource
@@ -43,6 +46,8 @@ internal fun StoriesScreenRoute(viewModel: StoriesViewModel) {
         is StoriesUiState.Ready -> StoriesScreen(
             state = content.value,
             onPlaybackClick = viewModel::togglePlayback,
+            onTimerStart = viewModel::startSleepTimer,
+            onTimerCancel = viewModel::cancelSleepTimer,
         )
     }
 }
@@ -52,6 +57,8 @@ internal fun StoriesScreenRoute(viewModel: StoriesViewModel) {
 internal fun StoriesScreen(
     state: StoriesState,
     onPlaybackClick: (storyId: StoryId) -> Unit,
+    onTimerStart: (Long) -> Unit,
+    onTimerCancel: () -> Unit,
 ) {
     ScreenContainer {
         LazyColumn(
@@ -59,7 +66,7 @@ internal fun StoriesScreen(
             contentPadding = screenContentPadding(),
             verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingSmall),
         ) {
-            item {
+            item(key = "header") {
                 Column {
                     Text(
                         text = stringResource(Res.string.stories_title),
@@ -76,8 +83,20 @@ internal fun StoriesScreen(
                 }
             }
 
+            item(key = "sleep-timer") {
+                SleepTimerControl(
+                    remainingMs = state.sleepTimerRemainingMs,
+                    enabled = state.canStartSleepTimer,
+                    onTimerStart = onTimerStart,
+                    onTimerCancel = onTimerCancel,
+                    modifier = Modifier
+                        .glassCard()
+                        .padding(SleepRelaxTheme.dimens.spacingLarge),
+                )
+            }
+
             if (state.stories.isEmpty()) {
-                item {
+                item(key = "empty") {
                     Text(
                         text = stringResource(Res.string.stories_empty),
                         style = SleepRelaxTheme.typography.bodyMedium,
@@ -86,7 +105,7 @@ internal fun StoriesScreen(
                 }
             }
 
-            items(state.stories, key = { it.id.value }) { story ->
+            items(state.stories, key = { "story:${it.id.value}" }) { story ->
                 // Every question about this row is the state's to answer; this only draws what
                 // comes back.
                 StoryRow(
@@ -154,6 +173,8 @@ private fun StoriesScreenPreview() {
                 ),
             ),
             onPlaybackClick = {},
+            onTimerStart = {},
+            onTimerCancel = {},
         )
     }
 }

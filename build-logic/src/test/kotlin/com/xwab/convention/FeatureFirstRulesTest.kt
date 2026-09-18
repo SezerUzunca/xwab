@@ -127,7 +127,7 @@ class FeatureFirstRulesTest {
     }
 
     @Test
-    fun oneUserAgentStatedInTwoPlacesIsAllowedWhileTheyAgree() {
+    fun downloadAndroidAndIosUserAgentsAreAllowedWhileTheyAgree() {
         assertEquals(
             emptyList(),
             FeatureFirstRules.userAgentAgreementViolations(
@@ -139,6 +139,45 @@ class FeatureFirstRulesTest {
                         <meta-data
                             android:name="com.xwab.app.core.playback.USER_AGENT"
                             android:value="Sleep/1.0 (https://example.test)" />
+                        """.trimIndent(),
+                    "iosApp/iosApp/Info.plist" to
+                        """
+                        <key>com.xwab.app.core.playback.USER_AGENT</key>
+                        <string>Sleep/1.0 (https://example.test)</string>
+                        """.trimIndent(),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun aDifferentIosPlaybackIdentityFailsTheSameRule() {
+        val violations = FeatureFirstRules.userAgentAgreementViolations(
+            mapOf(
+                "core/sources/SoundSourceManifest.kt" to
+                    """private const val WIKIMEDIA_USER_AGENT = "Sleep/1.0"""",
+                "iosApp/iosApp/Info.plist" to
+                    """<key>com.xwab.app.core.playback.USER_AGENT</key><string>Sleep/2.0</string>""",
+            ),
+        )
+        assertEquals(1, violations.size)
+        assertTrue(violations.single().contains("iosApp/iosApp/Info.plist"))
+    }
+
+    @Test
+    fun iosMetadataCommentsAndUnrelatedKeysAreNotIdentities() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.userAgentAgreementViolations(
+                mapOf(
+                    "core/sources/SoundSourceManifest.kt" to
+                        """private const val WIKIMEDIA_USER_AGENT = "Sleep/1.0"""",
+                    "iosApp/iosApp/Info.plist" to
+                        """
+                        <!-- <key>x.USER_AGENT</key><string>Sleep/old</string> -->
+                        <key>CFBundleName</key><string>Sleep/other</string>
+                        <key>x.USER_AGENT</key>
+                        <string>Sleep/1.0</string>
                         """.trimIndent(),
                 ),
             ),

@@ -97,6 +97,15 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.serialization.json)
+        }
+        // The same simulator harness used by feature screen tests also exercises the real
+        // navigation composition, including saved-state and ViewModel entry decorators.
+        if (gradle.extra["enableIos"] as Boolean) {
+            iosTest.dependencies {
+                implementation(libs.compose.uiTest)
+                implementation(libs.androidx.lifecycle.viewmodelCompose)
+            }
         }
     }
 }

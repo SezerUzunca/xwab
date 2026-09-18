@@ -1,4 +1,4 @@
-@file:OptIn(kotlin.experimental.ExperimentalNativeApi::class)
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class, kotlin.experimental.ExperimentalNativeApi::class)
 
 package com.xwab.app.core.playback.platform
 
@@ -28,6 +28,7 @@ import kotlin.time.TimeSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import platform.Foundation.NSBundle
 import platform.Foundation.NSThread
 
 /**
@@ -66,6 +67,7 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
     private var pendingLoad: PendingLoad? = null
 
     private val engine: IosPlaybackEngine = IosPlaybackEngine(
+        userAgent = NSBundle.mainBundle.objectForInfoDictionaryKey(USER_AGENT_METADATA_KEY) as? String,
         onStateChanged = { onEngineStateChanged() },
         onPlaybackEnded = { operationId ->
             dispatch(PlaybackMessage.EnginePlaybackEnded(operationId))
@@ -379,3 +381,6 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
         val source: AudioSource,
     )
 }
+
+/** The application owns its identity; the reusable player only reads its configuration. */
+private const val USER_AGENT_METADATA_KEY = "com.xwab.app.core.playback.USER_AGENT"

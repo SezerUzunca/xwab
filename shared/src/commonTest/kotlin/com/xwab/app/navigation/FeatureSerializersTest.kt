@@ -1,12 +1,16 @@
 package com.xwab.app.navigation
 
 import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.serialization.NavBackStackSerializer
 import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.PolymorphicSerializer
+import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -24,6 +28,9 @@ import kotlinx.serialization.modules.SerializersModule
  * Add a route here when you add a feature — the list is the contract, not a sample of it.
  */
 class FeatureSerializersTest {
+
+    private val routeSerializer = PolymorphicSerializer(NavKey::class)
+    private val format = Json { serializersModule = FEATURE_SERIALIZERS }
 
     /** Argument values are irrelevant: polymorphic lookup is by type, not by content. */
     private val routes: List<NavKey> = listOf(
@@ -55,6 +62,48 @@ class FeatureSerializersTest {
                 FEATURE_SERIALIZERS.getPolymorphic(NavKey::class, serialName),
                 "$serialName cannot be read back, so restoring a back stack holding it throws",
             )
+        }
+    }
+
+    @Test
+    fun everyRouteRoundTripsWithItsArgumentsIntact() {
+        // Delimiters and non-ASCII characters catch argument loss that a serializer lookup cannot.
+        val routesWithArguments = routes + listOf(
+            CategoryRoute("rain / yağmur:夜"),
+            SoundRoute("sound|\"quoted\"/%25:夜"),
+        )
+        routesWithArguments.forEach { route ->
+            val saved = format.encodeToString(routeSerializer, route)
+
+            assertEquals(route, format.decodeFromString(routeSerializer, saved))
+        }
+    }
+
+    @Test
+    fun aMixedBackStackRoundTripsThroughTheSerializerRememberNavBackStackUses() {
+        val stack = NavBackStack<NavKey>(
+            BrowseRoute,
+            CategoryRoute("rain / yağmur:夜"),
+            SoundRoute("rain|night"),
+        )
+        val serializer = NavBackStackSerializer(routeSerializer)
+
+        val restored = format.decodeFromString(
+            serializer,
+            format.encodeToString(serializer, stack),
+        )
+
+        assertEquals(stack.toList(), restored.toList())
+        restored.removeLast()
+        assertEquals(3, stack.size, "restoration must create an independent back stack")
+    }
+
+    @Test
+    fun everySelectedTabRoundTripsAsAPolymorphicNavKey() {
+        TOP_LEVEL_DESTINATIONS.forEach { destination ->
+            val saved = format.encodeToString(routeSerializer, destination.route)
+
+            assertEquals(destination.route, format.decodeFromString(routeSerializer, saved))
         }
     }
 

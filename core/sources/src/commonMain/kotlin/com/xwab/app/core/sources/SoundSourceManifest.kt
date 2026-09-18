@@ -48,10 +48,9 @@ internal fun soundSource(itemId: String, httpsUrl: String, version: Int = 1): Ma
  * with the source itself rather than being guessed by whatever resolves it.
  *
  * Reaches the *download*, and only the download. On a cache miss delivery hands playback the HTTPS
- * URL and the platform player opens it directly, so the same string is declared a second time —
- * as a `com.xwab.app.core.playback.USER_AGENT` meta-data entry in `androidApp`'s manifest, which
- * the playback service reads and gives to its HTTP data source. Two declarations because the two
- * paths are reached from different places: this one from common Kotlin, that one from a service
- * Android constructs. They identify the same client to the same host and must say the same thing.
+ * URL and the platform player opens it directly. Native players read the same identity from the
+ * application's `com.xwab.app.core.playback.USER_AGENT` setting: manifest metadata on Android,
+ * Info.plist on iOS. The architecture check keeps these platform entry points and this download
+ * declaration in agreement without exposing this internal manifest across module boundaries.
  */
 private const val WIKIMEDIA_USER_AGENT = "SleepSounds/1.0 (https://github.com/SezerUzunca/xwab)"

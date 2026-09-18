@@ -125,7 +125,8 @@ A scaffold slot would be simpler, and is what Google's Common UI recipe uses for
 stays there. The bar is inside the navigation area instead because that is the only place it can
 reach `NavDisplay`'s `SharedTransitionScope` — a bar that expands into the screen for what it is
 playing has to hand its content to that screen, and shared elements only match within one
-`SharedTransitionLayout`. Nothing uses that yet; the bar is not tappable.
+`SharedTransitionLayout`. The bar opens the current sound's detail or the Stories tab; the
+expand-into-the-screen animation remains future work.
 
 `NavDisplay` animates between *decorated* scenes, so during a navigation the outgoing and incoming
 scenes both draw a bar. One shared-element key matches the two, which moves the bar rather than
@@ -146,11 +147,13 @@ over whatever is playing without asking either catalog what a `PlaybackItemId` m
 published only while the engine holds the item the summary names as requested; mid-switch it is
 absent and `isPreparing` says so instead.
 
-That bar offers play and pause only — "open this item" has a different answer per content kind, and
-stories have no screen of their own to open. Its ViewModel is the one in this app not scoped to a
-navigation entry: chrome drawn outside `NavDisplay` has no entry, so `viewModel` resolves the root
-owner — which `rememberViewModelStoreNavEntryDecorator` requires of every screen anyway, and which
-is the right lifetime for a bar that is present from the first frame to the last.
+That bar offers play/pause and an open-item intent. `shared.composition` maps that intent to a
+route; the bar never imports another feature. Its ViewModel is not scoped to a navigation entry:
+the scene decorator draws it beside the entry content, outside the entry's ViewModel decorator,
+so `viewModel` resolves the root owner. Both transitioning scenes share that one instance.
+
+Sound details and Stories both expose the session sleep timer. Each feature observes and controls
+it through `PlaybackPort`; only the stateless timer control and its labels live in `designsystem`.
 
 Sound playback reads metadata through `SoundPort`, resolves its physical address through
 `SourcePort`, then gives a request to `DeliveryPort`.
@@ -161,6 +164,10 @@ without being cached.
 
 Android playback uses Media3; iOS playback uses AVFoundation. Platform implementations are
 internal Metro contributions behind `PlaybackEnginePort`.
+Both native streaming paths read the application's HTTP identity from platform metadata (Android
+manifest / iOS Info.plist). iOS applies it through `AVURLAssetHTTPUserAgentKey` on initial loads and
+queue rebuilds; cached files need no HTTP options. No application identity is hard-coded in core
+playback. The architecture check requires these values to agree with the download identity.
 
 ## Architecture enforcement
 
@@ -180,9 +187,9 @@ internal Metro contributions behind `PlaybackEnginePort`.
 12. Sound or story exposes more than one port interface or lacks its `SoundPort` / `StoryPort` contract.
 13. Favorites depends on another project, or delivery depends on a project other than itself or `:core:network`.
 14. Designsystem depends on another project, or core depends on designsystem or shared.
-15. Two places state this app's user agent and they disagree. A sound downloads through common
-    Kotlin and streams through a service Android constructs, so the string is written twice and
-    neither half can read the other; a drift leaves one path working and the failure invisible.
+15. The download source, Android manifest and iOS Info.plist state different user agents. Native
+    players read platform application metadata, while downloads read the source manifest; a drift
+    would leave one path working and the failure invisible.
 
 Rules 5, 12, 13 and 14 name modules by path, so each of those names is also checked against the modules
 the build actually contains. Renaming one without updating its rule fails the build instead of
@@ -213,6 +220,9 @@ an existing feature intent.
 
 `:check` runs the architecture check and the build-logic regression tests. Android CI runs it
 alongside the Android host tests before assembling the APK.
+On macOS, `./gradlew -PenableIos=true iosSimulatorArm64Test` also runs Compose screen and
+navigation lifecycle/save-state tests. Real-device background playback and interruption checks
+remain necessary before a release.
 
 Open `iosApp` in Xcode to run the iOS application.
 

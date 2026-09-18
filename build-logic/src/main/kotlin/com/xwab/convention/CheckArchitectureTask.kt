@@ -185,11 +185,10 @@ abstract class CheckArchitectureTask : DefaultTask() {
         }
 
     /**
-     * Kotlin and Android manifests together, because the two halves of this app's identity live
-     * one in each: a constant a download reads, and a manifest entry the playback service reads.
+     * Download identity plus the Android manifest and iOS bundle settings used by native players.
      */
     private fun clientIdentitySources(root: File): Map<String, String> =
-        textSourcesIn(root, setOf("kt", "xml"))
+        textSourcesIn(root, setOf("kt", "xml", "plist"))
 
     private fun architectureTextSources(root: File): Map<String, String> =
         textSourcesIn(root, setOf("kt", "kts", "toml"))
