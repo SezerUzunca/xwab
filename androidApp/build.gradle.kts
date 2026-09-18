@@ -37,7 +37,25 @@ android {
     }
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false
+            // AGP 9.3's optimization DSL, which replaces `isMinifyEnabled` + `isShrinkResources`
+            // and brings the default Android keep rules with it, so no `proguardFiles` line is
+            // needed. Anything this app turns out to need goes in `src/main/keepRules/*.keep`.
+            //
+            // R8 runs in full mode by default, which assumes code is not reached reflectively.
+            // Every library here either ships its own consumer rules — media3-exoplayer,
+            // media3-datasource, datastore, navigation3-runtime and okhttp each carry a
+            // `proguard.txt`, kotlinx-serialization a `META-INF/proguard` file and
+            // kotlinx-coroutines-android an R8 one — or resolves at compile time, as Metro does.
+            // ExoPlayer is designed to be shrunk rather than kept, so it asks for no rules at all.
+            //
+            // The one library that carries nothing is `ktor-client-okhttp`, which is found through
+            // a `META-INF/services` entry rather than by any reference R8 can see. R8 reads those
+            // files itself, so no rule is written here on the guess that it doesn't: whether
+            // `OkHttpEngineContainer` survives is checked in the built release APK instead. Adding
+            // a keep rule that R8 did not need would cost the optimization it does make there.
+            optimization {
+                enable = true
+            }
         }
     }
     compileOptions {
