@@ -5,7 +5,7 @@ import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.TrackId
 
-/** Local sound metadata. Physical addresses are owned by `:core:sources`. */
+/** Local sound metadata. This module's internal source manifest owns the physical addresses. */
 internal val catalogManifest = listOf(
     Track(TrackId("gentle-rain"), "Rain on the Window", CategoryId("rain"), 12, playbackTitle = "Gentle Rain"),
     Track(TrackId("calm-waves"), "Ontario Waves", CategoryId("ocean"), 1109, playbackTitle = "Calm Waves"),

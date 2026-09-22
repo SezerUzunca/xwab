@@ -32,8 +32,8 @@ import com.xwab.app.core.playback.store.remainingDurationUntil
  * Where the application states the user agent its playback should present.
  *
  * A manifest key rather than a constructor argument, because Android builds the service. The value
- * belongs to the app: `androidApp` declares it, and it has to agree with the one `:core:sources`
- * attaches to its download requests, since both identify the same client to the same host.
+ * belongs to the app: `androidApp` declares it, and it has to agree with the identity content
+ * owners attach to delivery requests, since both identify the same client to the same host.
  */
 private const val USER_AGENT_METADATA_KEY = "com.xwab.app.core.playback.USER_AGENT"
 

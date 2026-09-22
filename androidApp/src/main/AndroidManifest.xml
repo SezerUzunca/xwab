@@ -14,7 +14,7 @@
 
           Wikimedia, which every shipped source comes from, asks a client to say who it is and how
           to reach it, and refuses requests that do not. The same string is attached to the download
-          requests `:core:sources` makes — the two have to agree, because they are the same client
+          requests sound playback sends through delivery — the two have to agree, because they are the same client
           talking to the same host over two different paths.
         -->
         <meta-data

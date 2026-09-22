@@ -7,15 +7,11 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 
 /**
- * The two ports this screen reads — two, not three, because stories have no favorites port.
+ * The two ports this screen reads: story metadata and the playback session.
  *
- * `StoryPort` is metadata only. Where a story's audio actually lives is `:core:sources`, which a
- * feature may not depend on at all — so this screen could not ask for an address even if it wanted
- * one, and it does not: it names a story to [PlaybackPort] and the session resolves it.
- *
- * This comment used to say the opposite, from before the addresses were split out, which is the
- * kind of stale signal that invites the next reader to reach for something the boundary has since
- * taken away.
+ * `StoryPort` is metadata only. Physical addresses and the story resolver stay internal to
+ * `:core:story`. This screen names a story to [PlaybackPort]; the session delegates resolution
+ * through the shared playback resolver contract.
  */
 @SingleIn(AppScope::class)
 @Inject

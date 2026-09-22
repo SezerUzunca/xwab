@@ -64,119 +64,129 @@ internal object FeatureFirstRules {
         val match: MatchResult,
     )
 
-    val MODULES_OFF_LIMITS_TO_FEATURES = mapOf(
-        ":shared" to
-            "the app shell owns navigation state and destination policy",
-        ":core:network" to
-            "HTTP is an adapter detail; screens read content through public ports",
-        ":core:delivery" to
-            "source resolution and caching belong behind PlaybackPort",
-        ":core:playback" to
-            "the platform engine is hidden behind PlaybackPort",
-        ":core:sources" to
-            "physical content addresses are adapter details hidden from screens",
-        ":core:resolution" to
-            "a resolution carries the address of a file; PlaybackPort is the only route to one",
-    )
-
-    /** The one port interface each content module is allowed to publish. */
-    val CONTENT_MODULE_PORTS = mapOf(
-        ":core:sound" to "SoundPort",
-        ":core:story" to "StoryPort",
-    )
-
-    /**
-     * Contracts a core module publishes for *other* modules to implement rather than to call.
-     *
-     * A port is consumed: one module declares it, one adapter satisfies it, and the name says so.
-     * A service provider interface points the other way — `:core:resolution` publishes one so every
-     * content module can answer for its own kind, and `:core:session` can play a kind without
-     * naming the module that owns it. That is the seam the whole plug-and-play arrangement rests
-     * on, so it is registered here rather than bent into the Port naming rule.
-     */
-    val SERVICE_PROVIDER_INTERFACES = mapOf(
-        ":core:resolution" to "PlaybackItemResolver",
-    )
-
-    /**
-     * Modules whose project dependencies are stated exhaustively, and what each is allowed.
-     *
-     * Two different reasons to be on this list. Favorites and delivery are reusable outside this
-     * app — favorites stores ids it never interprets, delivery moves bytes and needs a transport —
-     * so naming app content is what would tie them to it.
-     *
-     * `:core:session` is here for the opposite reason. It is this app's own playback session, and
-     * the list is what stops it learning what a sound or a story is: it drives the engine and
-     * resolves through the contract in `:core:resolution`, while content modules contribute their
-     * own resolvers into the map it reads. Let one content dependency back in and adding a content
-     * type starts editing this module again, which is the cost that design was paid to remove.
-     */
-    val REUSABLE_MODULE_DEPENDENCIES = mapOf(
-        ":core:favorites" to emptySet<String>(),
-        ":core:delivery" to setOf(":core:network"),
-        ":core:session" to setOf(":core:resolution", ":core:playback"),
-    )
-
     /** UI primitives and presentation models have no application project dependencies. */
     val INDEPENDENT_SUPPORT_MODULES = setOf(":designsystem")
 
-    /**
-     * Every rule that names a module by path, and the constant holding those names.
-     *
-     * A rule keyed on a module path stops matching anything the moment that module is renamed —
-     * it does not fail, it just quietly protects nothing, which is the one failure mode an
-     * architecture guard cannot afford. Registering each list here makes the rename itself the
-     * thing that breaks the build, rather than the next mistake the rule was meant to catch.
-     */
-    private val RULE_MODULE_REFERENCES: List<Triple<String, String, Set<String>>> = listOf(
-        Triple("independent-support rule", "INDEPENDENT_SUPPORT_MODULES", INDEPENDENT_SUPPORT_MODULES),
-        Triple(
-            "adapter-boundary rule",
-            "MODULES_OFF_LIMITS_TO_FEATURES",
-            MODULES_OFF_LIMITS_TO_FEATURES.keys,
-        ),
-        Triple(
-            "one-port-per-content rule",
-            "CONTENT_MODULE_PORTS",
-            CONTENT_MODULE_PORTS.keys,
-        ),
-        Triple(
-            "reusable-capability rule",
-            "REUSABLE_MODULE_DEPENDENCIES",
-            REUSABLE_MODULE_DEPENDENCIES.keys + REUSABLE_MODULE_DEPENDENCIES.values.flatten(),
-        ),
-        Triple("shell-wiring rule", "SHELL_MODULE", setOf(SHELL_MODULE)),
-        Triple(
-            "service-provider-interface rule",
-            "SERVICE_PROVIDER_INTERFACES",
-            SERVICE_PROVIDER_INTERFACES.keys,
-        ),
-    )
-
+    /** Only fixed application structure lives here; capability rules travel with their module. */
     fun staleRuleViolations(modules: Set<String>): List<String> =
-        RULE_MODULE_REFERENCES.flatMap { (rule, constant, referenced) ->
-            (referenced - modules).sorted().map { missing ->
-                "The $rule names $missing, which is not a module in this build. Update " +
-                    "$constant, or the rule protects nothing."
-            }
-        }
+        (INDEPENDENT_SUPPORT_MODULES - modules).sorted().map {
+            "The independent-support rule names $it, which is not a module in this build. " +
+                "Update INDEPENDENT_SUPPORT_MODULES."
+        } + if (SHELL_MODULE !in modules) listOf(
+            "The shell-wiring rule names $SHELL_MODULE, which is not a module in this build. Update SHELL_MODULE.",
+        ) else emptyList()
 
-    /** Sound and story each expose one cohesive port. */
-    fun contentPortViolations(sources: List<CoreSource>): List<String> =
-        CONTENT_MODULE_PORTS.flatMap { (module, expected) ->
-            val moduleSources = sources.filter { it.module == module }
-            if (moduleSources.isEmpty()) return@flatMap emptyList()
-            val interfaces = moduleSources.flatMap { source ->
+    fun corePolicyViolations(
+        modules: Set<String>,
+        policies: Map<String, CoreModulePolicy>,
+    ): List<String> = policies.flatMap { (module, policy) ->
+        (policy.dependencies - modules).sorted().map { dependency ->
+            "$module architecture.properties still names absent dependency $dependency. " +
+                "Update this module's boundary when replacing or removing that capability."
+        }
+    }
+
+    /** Each module explicitly owns its complete set of callable public contracts. */
+    fun corePortViolations(
+        sources: List<CoreSource>,
+        policies: Map<String, CoreModulePolicy>,
+    ): List<String> = policies.flatMap { (module, policy) ->
+        val interfaces = sources.filter { it.module == module && CORE_PORT_PACKAGE.matches(it.packageName) }
+            .flatMap { source ->
                 declarations(source.source, includeNested = true).mapNotNull { parsed ->
                     val declaration = parsed.match
-                    if (declaration.groupValues[2] != "interface") return@mapNotNull null
-                    if (!CORE_PORT_PACKAGE.matches(source.packageName)) return@mapNotNull null
-                    declaration.groupValues[3]
+                    val modifiers = declaration.groupValues[1].split(Regex("""\s+"""))
+                    if (declaration.groupValues[2] != "interface" || "sealed" in modifiers) null
+                    else declaration.groupValues[3]
+                }
+            }.toSet()
+        if (interfaces == policy.publicInterfaces) emptyList()
+        else listOf(
+            "$module must expose exactly the callable port interfaces declared in architecture.properties: " +
+                "${policy.publicInterfaces.sorted()}; found ${interfaces.sorted()}.",
+        )
+    }
+
+    /** Selected port types serve core contributors, never feature code or other public APIs. */
+    fun adapterOnlyTypeViolations(
+        coreSources: List<CoreSource>,
+        featureSources: Map<String, String>,
+        policies: Map<String, CoreModulePolicy>,
+    ): List<String> {
+        data class RestrictedType(val module: String, val packageName: String, val name: String) {
+            val qualifiedName: String get() = "$packageName.$name"
+        }
+        val portSources = coreSources.filter { CORE_PORT_PACKAGE.matches(it.packageName) }
+        val declarationsBySource = portSources.associateWith {
+            declarations(it.source, includeNested = false).map { parsed ->
+                parsed.match.groupValues[2] to parsed.match.groupValues[3].removeSurrounding("`")
+            }
+        }
+        val portTypes = declarationsBySource.flatMap { (source, declarations) ->
+            declarations.filter { (kind, _) -> kind in setOf("class", "interface", "object", "typealias") }
+                .map { (_, name) -> RestrictedType(source.module, source.packageName, name) }
+        }.distinct()
+        val restricted = portTypes.filter { it.name in policies[it.module]?.adapterOnlyTypes.orEmpty() }
+        val violations = mutableListOf<String>()
+        policies.forEach { (module, policy) ->
+            val declared = portTypes.filter { it.module == module }.map { it.name }.toSet()
+            (policy.adapterOnlyTypes - declared).sorted().forEach { name ->
+                violations += "$module architecture.properties marks $name adapter-only, but no owned " +
+                    "top-level port type has that name. Update adapterOnlyTypes when moving or removing a type."
+            }
+        }
+
+        fun checkReferences(path: String, source: String, allowedOwner: String? = null) {
+            val code = codeOnly(source)
+            val packageName = PACKAGE.find(code)?.groupValues?.get(1)
+            val references = references(code, QUALIFIED_CORE_REFERENCE).toList()
+            val exposed = restricted.filter { type ->
+                type.module != allowedOwner && (
+                    references.any { reference ->
+                        reference.removeSuffix(".*").isWithin(type.qualifiedName) ||
+                            reference == "${type.packageName}.*"
+                    } || packageName == type.packageName && Regex("""\b${type.name}\b""").containsMatchIn(code)
+                )
+            }
+            if (exposed.isNotEmpty()) {
+                violations += "$path references adapter-only port types: " +
+                    exposed.map { it.qualifiedName }.sorted().joinToString() +
+                    ". Features and public consumer ports must not expose these core implementation contracts."
+            }
+        }
+        featureSources.forEach { (path, source) -> checkReferences(path, source) }
+        portSources.forEach { source ->
+            val declaredNames = declarationsBySource.getValue(source).map { it.second }.toSet()
+            val ownRestricted = policies[source.module]?.adapterOnlyTypes.orEmpty()
+            val definesRestrictedType = declaredNames.any { it in ownRestricted }
+            if (definesRestrictedType) {
+                // Keeping ordinary contracts in a separate file lets same-package references be
+                // checked without a second package hierarchy or a Kotlin compiler dependency.
+                val mixed = declaredNames - ownRestricted
+                if (mixed.isNotEmpty()) {
+                    violations += "${source.path} mixes adapter-only types with unmarked public declarations " +
+                        "${mixed.sorted()}. Keep consumer contracts in a separate file in the same port package."
                 }
             }
-            if (interfaces == listOf(expected)) emptyList()
-            else listOf("$module must expose exactly one port interface: $expected.")
+            checkReferences(source.path, source.source, allowedOwner = source.module.takeIf { definesRestrictedType })
         }
+        return violations.distinct().sorted()
+    }
+
+    fun coreModuleShapeViolations(modules: Set<String>): List<String> =
+        modules.filter { it.startsWith(CORE_PREFIX) && !Regex(":core:[a-z][a-z0-9]*(?:-[a-z0-9]+)*").matches(it) }
+            .sorted().map {
+                "$it is not a flat core capability. Each core must be exactly one :core:<name> module."
+            }
+
+    /** A module cannot disguise its own implementation as somebody else's public contract. */
+    fun corePackageOwnershipViolations(sources: List<CoreSource>): List<String> =
+        sources.mapNotNull { source ->
+            val packageSegment = source.module.removePrefix(CORE_PREFIX).replace("-", "")
+            val expected = "com.xwab.app.core.$packageSegment"
+            if (source.packageName.isWithin(expected)) null
+            else "${source.path} uses ${source.packageName}; ${source.module} owns only $expected and its subpackages."
+        }.sorted()
 
     /** A feature is one Gradle module; nested `api` / `impl` projects are not part of the model. */
     fun featureModuleShapeViolations(modules: Set<String>): List<String> =
@@ -191,10 +201,9 @@ internal object FeatureFirstRules {
     /**
      * A module directory that no `include` names builds nothing and fails nothing.
      *
-     * Features are discovered by scanning `feature/`, so this cannot happen to one. Every other
-     * module is named by hand in `settings.gradle.kts`, and a directory left out of it is invisible
-     * in the worst way: it compiles nowhere, its tests never run, and every rule in this file skips
-     * it because the graph it walks is built from the modules the build actually has.
+     * Flat capabilities and features are discovered under `core/` and `feature/`. A directory in
+     * another location or outside that shape still needs explicit inclusion; otherwise it compiles
+     * nowhere and runs no tests. Every graph rule would silently skip it without this check.
      *
      * Plugging a module in is supposed to be dropping a directory and wiring it. This is the half
      * of that nothing else reports.
@@ -214,15 +223,10 @@ internal object FeatureFirstRules {
     /**
      * A capability or a screen the shell never declares is in no application.
      *
-     * Metro aggregates a scope's contributions from the compile classpath, so a core module missing
-     * from `shared/build.gradle.kts` contributes no binding to the application graph however
-     * correct its adapter is. A feature missing from it is worse: it builds, its tests pass, and it
-     * is in no app at all.
-     *
-     * Both fail silently today, and both are the second half of plugging a module in — the half a
-     * scaffolding script prints as a reminder rather than enforces. Unplugging has the same shape:
-     * delete the dependency and leave the module, and the build stays green around a module nothing
-     * ships.
+     * Metro aggregates a scope's contributions from the compile classpath. The shell discovers
+     * core dependencies automatically; feature wiring remains explicit application policy. This
+     * check guards both paths, so a broken discovery loop or forgotten feature dependency cannot
+     * leave a registered, tested module absent from the application graph.
      */
     fun unwiredModuleViolations(graph: Map<String, List<String>>): List<String> {
         val shell = graph[SHELL_MODULE] ?: return emptyList()
@@ -233,8 +237,8 @@ internal object FeatureFirstRules {
             }
             .sorted()
             .map { module ->
-                "$module is in the build but $SHELL_MODULE does not depend on it. Declare it in " +
-                    "shared/build.gradle.kts or remove the module: a core capability the shell " +
+                "$module is in the build but $SHELL_MODULE does not depend on it. Check core discovery " +
+                    "or declare the feature in shared/build.gradle.kts: a core capability the shell " +
                     "does not see contributes nothing to the application graph, and a feature it " +
                     "does not see is in no app."
             }
@@ -419,29 +423,27 @@ internal object FeatureFirstRules {
     fun dependencyViolations(
         graph: Map<String, List<String>>,
         apiEdges: Map<String, List<String>> = emptyMap(),
+        policies: Map<String, CoreModulePolicy>,
     ): List<String> {
         val violations = mutableListOf<String>()
 
         graph.forEach { (module, dependencies) ->
-            val reusableDependencies = REUSABLE_MODULE_DEPENDENCIES[module]
+            val allowedDependencies = policies[module]?.dependencies
             dependencies.forEach { dependency ->
-                // KMP host-test configurations include a dependency on their own main module.
-                if (reusableDependencies != null && dependency != module && dependency !in reusableDependencies) {
-                    violations += "$module depends on $dependency. This module states its project " +
-                        "dependencies exhaustively and $dependency is not among them: " +
-                        "${reusableDependencies.sorted()}."
-                }
                 if (module.startsWith(CORE_PREFIX) && dependency.startsWith(FEATURE_PREFIX)) {
                     violations += "$module depends on $dependency. A core module may not depend on a feature."
+                } else if (module.startsWith(CORE_PREFIX) &&
+                    (dependency == ":shared" || dependency in INDEPENDENT_SUPPORT_MODULES)
+                ) {
+                    violations += "$module depends on $dependency. Core capabilities may not depend on UI or the app shell."
+                } else if (module.startsWith(CORE_PREFIX) && dependency !in allowedDependencies.orEmpty()) {
+                    violations += "$module depends on $dependency. This module states its project " +
+                        "dependencies exhaustively in architecture.properties and $dependency is not among them: " +
+                        "${allowedDependencies.orEmpty().sorted()}."
                 }
 
                 if (module in INDEPENDENT_SUPPORT_MODULES && dependency != module) {
                     violations += "$module depends on $dependency. Support modules must remain independent of application projects."
-                }
-                if (module.startsWith(CORE_PREFIX) &&
-                    (dependency == ":shared" || dependency in INDEPENDENT_SUPPORT_MODULES)
-                ) {
-                    violations += "$module depends on $dependency. Core capabilities may not depend on UI or the app shell."
                 }
 
                 if (
@@ -455,17 +457,18 @@ internal object FeatureFirstRules {
             }
 
             if (module.startsWith(FEATURE_PREFIX)) {
-                violations += offLimitsReachableFrom(module, dependencies, apiEdges)
+                violations += offLimitsReachableFrom(module, dependencies, apiEdges, policies)
             }
         }
 
-        return violations.distinct().sorted()
+        return (violations + coreDependencyCycleViolations(graph)).distinct().sorted()
     }
 
     private fun offLimitsReachableFrom(
         feature: String,
         directDependencies: List<String>,
         apiEdges: Map<String, List<String>>,
+        policies: Map<String, CoreModulePolicy>,
     ): List<String> {
         val violations = mutableListOf<String>()
         val visited = mutableSetOf<String>()
@@ -476,7 +479,15 @@ internal object FeatureFirstRules {
             val reached = path.last()
             if (!visited.add(reached)) continue
 
-            MODULES_OFF_LIMITS_TO_FEATURES[reached]?.let { reason ->
+            val policy = policies[reached]
+            val reason = when {
+                reached == SHELL_MODULE -> "the app shell owns navigation state and destination policy"
+                reached.startsWith(CORE_PREFIX) && policy?.featureAccessible != true ->
+                    policy?.let { "this is an adapter-only capability: ${it.responsibility}" }
+                        ?: "this core has no valid architecture.properties declaring feature access"
+                else -> null
+            }
+            reason?.let {
                 violations += if (path.size == 1) {
                     "$feature depends on $reached. A feature may not: $reason."
                 } else {
@@ -494,6 +505,33 @@ internal object FeatureFirstRules {
 
     fun isApiConfiguration(configurationName: String): Boolean =
         configurationName == "api" || configurationName.endsWith("Api")
+
+    /** Test fixtures do not change a production capability's dependency boundary. */
+    fun isProductionConfiguration(configurationName: String): Boolean =
+        !configurationName.startsWith("test", ignoreCase = true) && !configurationName.contains("Test")
+
+    fun coreDependencyCycleViolations(graph: Map<String, List<String>>): List<String> {
+        val complete = mutableSetOf<String>()
+        val active = mutableListOf<String>()
+        val cycles = sortedSetOf<String>()
+        fun visit(module: String) {
+            val cycleStart = active.indexOf(module)
+            if (cycleStart >= 0) {
+                val cycle = active.drop(cycleStart)
+                val first = cycle.indices.minBy { cycle[it] }
+                val canonical = cycle.drop(first) + cycle.take(first)
+                cycles += (canonical + canonical.first()).joinToString(" -> ")
+                return
+            }
+            if (!complete.add(module)) return
+            active += module
+            graph[module].orEmpty().filter { it.startsWith(CORE_PREFIX) }
+                .sorted().forEach(::visit)
+            active.removeAt(active.lastIndex)
+        }
+        graph.keys.filter { it.startsWith(CORE_PREFIX) }.sorted().forEach(::visit)
+        return cycles.map { "Core capability dependencies must be acyclic: $it." }
+    }
 
     /** Every shared source set observes the same composition, navigation and DI boundaries. */
     fun sharedFeatureReferenceViolations(sources: Map<String, String>): List<String> =
@@ -642,7 +680,10 @@ internal object FeatureFirstRules {
      * Keeps the public ABI of every core capability to port contracts and their data.
      * Implementations, Metro contributors and helpers must be internal or private.
      */
-    fun coreVisibilityViolations(sources: List<CoreSource>): List<String> =
+    fun coreVisibilityViolations(
+        sources: List<CoreSource>,
+        policies: Map<String, CoreModulePolicy> = emptyMap(),
+    ): List<String> =
         sources.flatMap { source ->
             val isPortPackage = CORE_PORT_PACKAGE.matches(source.packageName)
             declarations(source.source, includeNested = isPortPackage).mapNotNull { parsed ->
@@ -667,7 +708,7 @@ internal object FeatureFirstRules {
 
                     isPortPackage && isPublic &&
                         kind == "interface" && "sealed" !in modifiers && !name.endsWith("Port") &&
-                        name != SERVICE_PROVIDER_INTERFACES[source.module] ->
+                        name !in policies[source.module]?.publicInterfaces.orEmpty() ->
                         "${source.path}:${parsed.lineNumber} exposes interface $name. " +
                             "Public port interfaces must end in Port."
 
@@ -751,13 +792,16 @@ internal object FeatureFirstRules {
                 if (!reference.startsWith("com.xwab.app.core.")) return@mapNotNull null
 
                 val target = ownerOf(reference)
-                if (target?.module == source.module || target?.packageName?.let(CORE_PORT_PACKAGE::matches) == true) {
+                val sourceIsPort = CORE_PORT_PACKAGE.matches(source.packageName)
+                val targetIsPort = target?.packageName?.let(CORE_PORT_PACKAGE::matches) == true
+                if (targetIsPort || target?.module == source.module && !sourceIsPort) {
                     return@mapNotNull null
                 }
 
                 val owner = target?.module ?: "an unresolved core package"
                 "${source.path} references $reference from $owner. " +
-                    "Core modules may communicate only through port packages."
+                    if (sourceIsPort) "Public port contracts must not reference implementation packages, including their own."
+                    else "Core modules may communicate only through port packages."
             }
         }.sorted()
     }

@@ -8,7 +8,7 @@ package com.xwab.app.core.sound.port
  * became [Track] on the grounds that a stored name must not move — which is true of a name anything
  * already holds, and this app has not shipped: no installed copy holds it, so it moved with the
  * model rather than staying behind as the last word of a vocabulary nothing else uses. It reads
- * `sound` now, the same name `:core:sources` gives the same content kind.
+ * `sound` now, independently of the same value used for playback and sound cache storage.
  *
  * From the first release on that argument reverses: changing this then drops every favorite saved
  * under the old name, and costs a data migration rather than a rename.

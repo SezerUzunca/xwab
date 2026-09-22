@@ -4,9 +4,9 @@ import com.xwab.app.core.session.port.DEFAULT_LOOPING
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
-import com.xwab.app.core.resolution.port.ItemResolution
-import com.xwab.app.core.resolution.port.PlaybackItemResolver
-import com.xwab.app.core.resolution.port.PlaybackPolicy
+import com.xwab.app.core.session.port.ItemResolution
+import com.xwab.app.core.session.port.PlaybackItemResolver
+import com.xwab.app.core.session.port.PlaybackPolicy
 import com.xwab.app.core.playback.port.AudioPlayerState
 import com.xwab.app.core.playback.port.AudioSource
 import com.xwab.app.core.playback.port.LoopMode
@@ -778,6 +778,24 @@ class DefaultPlaybackAdapterTest {
             PlaybackFailure.ItemNotFound(story("night-came-slowly")),
             adapter.playback.first().failure,
         )
+        assertNull(player.lastLoadRequest)
+    }
+
+    @Test
+    fun aRemovedKindCannotResumeASourceRetainedByTheEngine() = runBlocking {
+        val removedItem = PlaybackItemId("removed-content", "retained-item")
+        val player = FakePlaybackEnginePort().apply {
+            mutableState.value = AudioPlayerState(
+                source = AudioSource(id = removedItem.toEngineId(), uri = "https://example.test/old.mp3"),
+                phase = PlaybackPhase.Ready,
+            )
+        }
+        val adapter = adapter(player)
+
+        adapter.play(removedItem)
+
+        assertEquals(PlaybackFailure.ItemNotFound(removedItem), adapter.playback.first().failure)
+        assertEquals(0, player.playCalls)
         assertNull(player.lastLoadRequest)
     }
 

@@ -23,12 +23,14 @@ class ArchitectureConventionPlugin : Plugin<Project> {
             // The dependency graph is only complete once every module has been configured.
             gradle.projectsEvaluated {
                 val graph = rootProject.subprojects.associate { module ->
-                    module.path to module.projectDependencies { true }
+                    module.path to module.projectDependencies(FeatureFirstRules::isProductionConfiguration)
                 }
                 // Collected separately rather than filtered out of the graph, because the two
                 // answer different questions: what a module declares, and what it re-exports.
                 val apiGraph = rootProject.subprojects.associate { module ->
-                    module.path to module.projectDependencies(FeatureFirstRules::isApiConfiguration)
+                    module.path to module.projectDependencies {
+                        FeatureFirstRules.isProductionConfiguration(it) && FeatureFirstRules.isApiConfiguration(it)
+                    }
                 }
 
                 checkArchitecture.configure { task ->

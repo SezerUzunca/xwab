@@ -1,10 +1,8 @@
 package com.xwab.app.core.story
 
-import com.xwab.app.core.resolution.port.ItemResolution
-import com.xwab.app.core.resolution.port.PlaybackItemResolver
-import com.xwab.app.core.resolution.port.PlaybackPolicy
-import com.xwab.app.core.sources.port.STORY_NAMESPACE
-import com.xwab.app.core.sources.port.SourcePort
+import com.xwab.app.core.session.port.ItemResolution
+import com.xwab.app.core.session.port.PlaybackItemResolver
+import com.xwab.app.core.session.port.PlaybackPolicy
 import com.xwab.app.core.story.port.STORY_PLAYBACK_KIND
 import com.xwab.app.core.story.port.StoryId
 import com.xwab.app.core.story.port.StoryPort
@@ -15,28 +13,34 @@ import dev.zacsweers.metro.StringKey
 import kotlinx.coroutines.flow.first
 
 /**
- * What playing a story means: metadata from this module's catalog, an address from the source port.
+ * Pairs story metadata with this module's private stream manifest.
  *
- * The same two steps as `SoundPlaybackResolver`, with the cache step missing. A sound is resolved
- * through `:core:delivery`, which answers with a local file when there is one and starts a download
- * when there is not. A story has no such module by design: it streams over HTTPS and nothing is
- * kept — which is also why this module, unlike `:core:sound`, never depends on delivery at all.
+ * Stories stream over HTTPS through the platform player. Source lookup and playback defaults are
+ * story policy; this resolver publishes the resulting URI and metadata through the resolution port.
  *
  * An unknown catalog id is `NotFound`; `Unavailable` remains a defensive answer for a
- * catalog/source mismatch, which the composition root's consistency test is there to prevent.
+ * catalog/source mismatch, which this module's completeness test is there to prevent.
  */
 @ContributesIntoMap(AppScope::class)
 @StringKey(STORY_PLAYBACK_KIND)
-@Inject
-internal class StoryPlaybackResolver(
+internal class StoryPlaybackResolver internal constructor(
     private val catalog: StoryPort,
-    private val sources: SourcePort,
+    sources: List<StorySource>,
 ) : PlaybackItemResolver {
+    @Inject
+    internal constructor(catalog: StoryPort) : this(catalog, storySourceManifest)
+
+    init {
+        val duplicates = sources.groupBy(StorySource::itemId).filterValues { it.size > 1 }.keys
+        require(duplicates.isEmpty()) { "Story source ids must be unique: ${duplicates.joinToString()}" }
+    }
+
+    private val sourcesById = sources.associateBy(StorySource::itemId)
 
     override suspend fun resolve(value: String): ItemResolution {
         val storyId = StoryId(value)
         val story = catalog.observeStory(storyId).first() ?: return ItemResolution.NotFound
-        val source = sources.sourceFor(STORY_NAMESPACE, value)
+        val source = sourcesById[value]
             ?: return ItemResolution.Unavailable("story source is missing")
 
         return ItemResolution.Resolved(

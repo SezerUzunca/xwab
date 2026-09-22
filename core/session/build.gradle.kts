@@ -7,12 +7,8 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // Two dependencies, and neither is a content type. The session drives the platform
-            // engine and resolves whatever it was handed through the contract in `:core:resolution`
-            // — content modules contribute their own resolvers into the map it reads, so adding or
-            // removing a content type never reaches this module. `checkArchitecture` holds this
-            // list to exactly these two.
-            implementation(projects.core.resolution)
+            // The session owns its resolver contract. Content modules implement it without a
+            // dependency back from this module; only the platform engine is needed here.
             implementation(projects.core.playback)
             api(libs.kotlinx.coroutines.core)
         }

@@ -6,42 +6,42 @@ One capability: **the single playback session the app runs.**
 engine-independent view they render. It is a live command/state boundary, not a persistence layer.
 
 The session is content-independent: it plays a `PlaybackItemId`, which is a *kind* and a raw value.
-What that item is, where its bytes come from and whether it should loop are answered by an internal
-resolver, one per kind:
+What that item is, where its bytes come from and whether it should loop are answered through
+`PlaybackItemResolver`, the consumer-owned port in this module's `.port` package. Each playable
+content module implements that contract with an internal resolver under its stable playback kind:
 
 ```
 core:session
-   │
-   ├─ PlaybackPort          the only thing a screen can reach
-   ├─ DefaultPlaybackAdapter   one item at a time; newest request wins
-   ├─ SoundPlaybackResolver        internal
-   │    ├─► core:sound     what the track is called, for the media session to publish
-   │    ├─► core:sources   its HTTPS address and current cache filename
-   │    └─► core:delivery    a local file if it is cached, HTTPS if it is not
-   └─ StoryPlaybackResolver        internal
-        ├─► core:story     title and narrator
-        └─► core:sources   its HTTPS stream address, without caching
-   ────► core:playback      the platform player that opens whatever was resolved
+   ├─ PlaybackPort             screen commands and session state
+   └─ DefaultPlaybackAdapter   one item at a time; newest request wins
+        ├─► core:session.port.PlaybackItemResolver
+        │    └─ contributed map: playback kind → resolver
+        └─► core:playback.port.PlaybackEnginePort
 ```
 
-The two resolvers are the same two steps: metadata, then a source. The sound one has a cache behind
-it and the story one does not, and that is the only difference between the kinds that is meant to
-last.
+The session's only core dependency is playback. Adding a content kind requires its resolver
+contribution and composition-root dependency; it requires no session change.
+Removing the last contribution is supported: an optional map binding defaults to an empty map.
+Requests for absent kinds publish `ItemNotFound`, including when a surviving platform service still
+holds a source with that kind. Existing playback can still be observed or paused.
 
 `play` takes an id, and the metadata is read beside the URI by the resolver. A screen handing over
 a `Track` it happened to be holding could pair a stale title with a freshly resolved URI, and the
 two authorities would never be compared.
 
-Content, sources, delivery and the engine are `implementation` dependencies; this module publishes
-no types from them. `checkArchitecture` rejects feature dependencies on sources, delivery or the
-engine, including re-exported dependencies. Content metadata uses `SoundPort` and `StoryPort`;
-physical addresses use `SourcePort`. `SOUND_NAMESPACE` and `STORY_NAMESPACE` are published by
-`core:sources`, not restated here — the sound one is reused for both source lookup and `CacheKey`,
-so a resolver and the delivery cache it feeds can never name different namespaces.
+`PlaybackItemResolver`, `ItemResolution` and `PlaybackPolicy` are public Kotlin types so content
+modules can implement the session's contract. This module's `architecture.properties` lists them
+under `adapterOnlyTypes`, and `checkArchitecture` rejects feature references to them. They are
+visible at Kotlin compile time; the screen boundary is an architecture rule, not separate Gradle
+classpath isolation. Features steer playback through `PlaybackPort`.
 
-The resolvers are `internal` because they hand back URIs. Metro exposes only `PlaybackPort`;
-the source-resolution chain remains a private
-implementation detail of this module.
+Playback is an `implementation` dependency. `checkArchitecture` also rejects feature dependencies
+on network, delivery or the engine, including re-exported dependencies. Every cross-module
+dependency uses a port package.
+
+The content resolvers own metadata/source pairing and content-specific playback defaults. The
+session applies those results and listener preferences; it never looks up a catalog or downloads
+content itself. The screen-facing boundary remains `PlaybackPort`.
 
 ## What it decides
 
@@ -69,16 +69,17 @@ The engine identifies a source by plain string — it is a standalone library an
 kind is. `PlaybackItemId` is written into that string with its kind in front:
 
 ```
-PlaybackItemId(SOUND, "forest")  ->  "sound:forest"
-PlaybackItemId(STORY, "forest")  ->  "story:forest"
+PlaybackItemId("sound", "forest")  ->  "sound:forest"
+PlaybackItemId("story", "forest")  ->  "story:forest"
 ```
 
 `forest` is a plausible name for both. Without the prefix the session would compare a story request
 against an attached sound of the same name, decide it was already holding it, and send `Play`.
 
-Reading back, an id with no known prefix is a sound. That is the upgrade path, not a guess: on
-Android the media service outlives the app, so a session started by a build that wrote bare track
-ids can still be attached when this one reconnects to it.
+Reading back preserves any nonblank kind and value. Bare IDs and empty halves are rejected; the
+session never guesses a content kind. A removed kind remains readable in retained engine state,
+but a new play request for it requires an installed resolver. Content modules must keep their
+playback kinds stable because these IDs can outlive the app process on Android.
 
 ## Four fields that are easy to confuse
 

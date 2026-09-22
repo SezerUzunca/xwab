@@ -8,9 +8,9 @@ package com.xwab.app.core.sound.port
  * `:core:session` holds one playback for whatever kind of thing the app has, and knowing that
  * "sound" is one of them is exactly what it must not do.
  *
- * Deliberately not shared with `:core:sources`' own `SOUND_NAMESPACE`, which happens to read the
- * same today. That one namespaces physical addresses and cache filenames; this one names a playback
- * kind. They answer to different modules and are free to diverge.
+ * Separate from this module's internal cache namespace, which happens to read the same today.
+ * That one namespaces persisted downloads; this one names a playback kind.
+ * They serve different contracts and are free to diverge.
  *
  * Like the favorites namespace beside it, this leaves the process: it is the prefix the engine
  * source id carries, and on Android the playback service outlives the app, so a reconnect reads

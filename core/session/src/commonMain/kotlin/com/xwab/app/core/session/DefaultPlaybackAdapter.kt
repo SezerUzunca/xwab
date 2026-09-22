@@ -6,8 +6,8 @@ import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.core.session.port.VOLUME_RANGE
-import com.xwab.app.core.resolution.port.ItemResolution
-import com.xwab.app.core.resolution.port.PlaybackItemResolver
+import com.xwab.app.core.session.port.ItemResolution
+import com.xwab.app.core.session.port.PlaybackItemResolver
 import com.xwab.app.core.playback.port.AudioPlayerState
 import com.xwab.app.core.playback.port.AudioSource
 import com.xwab.app.core.playback.port.LoopMode
@@ -49,11 +49,13 @@ internal constructor(
      * and this constructor never changes. Metro aggregates the map from the compile classpath, so
      * the map holds exactly the content modules the composition root declares — a removed one is
      * simply absent, and the kind it used to answer for reports `ItemNotFound`.
+     * With no contributions Metro uses the optional empty map, so the session still exists after
+     * the last content module is removed.
      *
      * Keys cannot collide: a map is a map, and two modules registering the same kind is a Metro
      * duplicate-binding error at compile time rather than one resolver silently never running.
      */
-    private val resolversByKind: Map<String, PlaybackItemResolver>,
+    private val resolversByKind: Map<String, PlaybackItemResolver> = emptyMap(),
 ) : PlaybackPort {
 
     /**
@@ -97,9 +99,15 @@ internal constructor(
     private var lastAppliedLooping: Boolean? = null
 
     override suspend fun play(itemId: PlaybackItemId) {
+        val resolver = resolversByKind[itemId.kind]
         val engine = enginePort.state.value
-        if (itemOf(engine.activeSource) == itemId && engine.phase != PlaybackPhase.Failed) {
+        if (
+            resolver != null &&
+            itemOf(engine.activeSource) == itemId &&
+            engine.phase != PlaybackPhase.Failed
+        ) {
             // The engine is already holding this item's source; there is nothing to resolve.
+            // A retained engine source cannot restore a content capability removed from this build.
             intent.update { it.superseded() }
             enginePort.submit(PlaybackCommand.Play)
             return
@@ -113,8 +121,7 @@ internal constructor(
         try {
             // A kind nothing can resolve is a wiring gap rather than a listener error, and it is
             // reported as "nothing could find this" instead of pretending a source was unreachable.
-            val resolver = resolversByKind[itemId.kind]
-                ?: return settle(generation, PlaybackFailure.ItemNotFound(itemId))
+            if (resolver == null) return settle(generation, PlaybackFailure.ItemNotFound(itemId))
 
             when (val resolution = resolver.resolve(itemId.value)) {
                 is ItemResolution.Resolved -> {

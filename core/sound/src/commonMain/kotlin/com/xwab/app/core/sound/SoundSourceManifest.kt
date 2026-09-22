@@ -1,6 +1,11 @@
-package com.xwab.app.core.sources
+package com.xwab.app.core.sound
 
-import com.xwab.app.core.sources.port.ContentSource
+import com.xwab.app.core.delivery.port.CacheKey
+import com.xwab.app.core.delivery.port.DeliveryRequest
+import com.xwab.app.core.sound.port.TrackId
+
+/** Persisted storage identity; changing it would detach existing sound downloads. */
+internal const val SOUND_CACHE_NAMESPACE: String = "sound"
 
 internal val soundSourceManifest = listOf(
     soundSource("gentle-rain", "https://upload.wikimedia.org/wikipedia/commons/transcoded/3/3d/Rain.ogg/Rain.ogg.mp3"),
@@ -25,13 +30,14 @@ internal val soundSourceManifest = listOf(
     soundSource("vierne-berceuse", "https://upload.wikimedia.org/wikipedia/commons/transcoded/c/c0/Vierne_Berceuse_%28Fernwerk_und_Hauptorgel%29.ogg/Vierne_Berceuse_%28Fernwerk_und_Hauptorgel%29.ogg.mp3"),
 )
 
-internal fun soundSource(itemId: String, httpsUrl: String, version: Int = 1): ManifestSource {
+internal fun soundSource(itemId: String, httpsUrl: String, version: Int = 1): SoundSource {
     require(version > 0) { "Sound source versions must be positive." }
-    return ManifestSource(
-        itemId = itemId,
-        source = ContentSource(
+    return SoundSource(
+        trackId = TrackId(itemId),
+        request = DeliveryRequest(
+            key = CacheKey(SOUND_CACHE_NAMESPACE, "$itemId-v$version.mp3"),
             httpsUrl = httpsUrl,
-            cacheFileName = "$itemId-v$version.mp3",
+            acceptedContentTypes = setOf("audio/mpeg", "application/octet-stream"),
             headers = mapOf("User-Agent" to WIKIMEDIA_USER_AGENT),
         ),
     )

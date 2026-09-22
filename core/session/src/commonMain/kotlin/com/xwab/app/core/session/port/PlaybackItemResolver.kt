@@ -1,22 +1,18 @@
-package com.xwab.app.core.resolution.port
+package com.xwab.app.core.session.port
 
 /**
  * How one kind of content becomes something the playback engine can open.
  *
- * This is the seam that makes a content type pluggable. A content module implements it, contributes
- * it into the application scope keyed by its own playback kind, and `:core:session` — which
- * implements none of them and names none of them — resolves whatever it was handed by looking the
- * kind up in the injected map. Adding a fourth content type is adding a module; removing one is
- * deleting a directory. Neither edits the session.
+ * The session owns the contract it needs; each content module owns its implementation and
+ * contributes it under its stable playback kind. The session selects a resolver from the injected
+ * map without depending on any content module. Adding or removing a kind changes its contribution
+ * and feature wiring, not the session implementation.
  *
- * It lives in a module of its own rather than in `:core:session`, and that module is off limits to
- * features, because [ItemResolution.Resolved] carries the address of a file. Published from the
- * session, any screen could resolve a resolver out of the graph and read that address directly,
- * which is exactly the route `PlaybackPort` exists to be the only one of. Kept here, a feature
- * cannot name these types at all — the same compile-time guarantee the resolvers had while they
- * were internal to the session.
+ * This is a core adapter contract. Screens use [PlaybackPort]. The module's architecture policy
+ * marks this interface and its result models as adapter-only; `checkArchitecture` rejects feature
+ * references even though these public types share the session module's compilation classpath.
  */
-public fun interface PlaybackItemResolver {
+fun interface PlaybackItemResolver {
     /**
      * @param value the raw half of a playback item id — what the kind's own catalog calls the item.
      *   The kind itself is not passed: a resolver is registered under exactly one, so it already
@@ -41,7 +37,7 @@ public sealed interface ItemResolution {
      * @param displayName what this app calls the item on its own screens, which is not always
      *   [title]. A sound's catalog name is the recording's — "Rain on the Window" — while the
      *   notification gets the plainer "Gentle Rain", and one lullaby has it the other way round:
-     *   listed in English, announced as "Egwu Nwa". Both are deliberate, and the session has to
+     *   listed in English, announced as "Egawa Nwa". Both are deliberate, and the session has to
      *   carry both, because a now-playing bar two rows below the list that named it cannot call it
      *   something else.
      */

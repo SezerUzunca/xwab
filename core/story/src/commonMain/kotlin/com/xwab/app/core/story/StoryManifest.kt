@@ -3,7 +3,7 @@ package com.xwab.app.core.story
 import com.xwab.app.core.story.port.Story
 import com.xwab.app.core.story.port.StoryId
 
-/** Local story metadata. Physical addresses are owned by `:core:sources`. */
+/** Local story metadata, paired with this module's private StorySourceManifest. */
 internal val storyManifest: List<Story> = listOf(
     Story(
         id = StoryId("night-came-slowly"),
