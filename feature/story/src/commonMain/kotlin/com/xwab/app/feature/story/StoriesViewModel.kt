@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackItemId
-import com.xwab.app.core.session.port.PlaybackKind
 import com.xwab.app.core.session.port.requestedValueOf
+import com.xwab.app.core.story.port.STORY_PLAYBACK_KIND
 import com.xwab.app.core.story.port.StoryId
 import com.xwab.app.feature.story.domain.ObserveStoriesContentUseCase
 import com.xwab.app.feature.story.domain.StoriesContent
@@ -24,10 +24,10 @@ internal class StoriesViewModel(
             val playback = content.playback
             // This screen lists stories, so the session being on a sound is the same to it as the
             // session being on nothing: no row here is the current item.
-            val requestedStoryId = playback.requestedValueOf(PlaybackKind.STORY)?.let(::StoryId)
+            val requestedStoryId = playback.requestedValueOf(STORY_PLAYBACK_KIND)?.let(::StoryId)
             // Bound locally: `failure` is another module's property, so the checks below cannot
             // smart-cast it in place.
-            val failure = playback.failure?.takeIf { it.itemId.kind == PlaybackKind.STORY }
+            val failure = playback.failure?.takeIf { it.itemId.kind == STORY_PLAYBACK_KIND }
 
             StoriesUiState.Ready(StoriesState(
                 stories = content.stories,
@@ -49,7 +49,7 @@ internal class StoriesViewModel(
         if (current.isRowPlaying(storyId)) {
             playbackPort.pause()
         } else {
-            viewModelScope.launch { playbackPort.play(PlaybackItemId.story(storyId.value)) }
+            viewModelScope.launch { playbackPort.play(PlaybackItemId(STORY_PLAYBACK_KIND, storyId.value)) }
         }
     }
 

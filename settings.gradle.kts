@@ -40,34 +40,17 @@ dependencyResolutionManagement {
 
 include(":androidApp")
 
-// Content modules own metadata; physical source addresses live behind their own adapter-only port.
-// Delivery and favorites remain independent capabilities.
-include(":core:sound")
-include(":core:sources")
-include(":core:delivery")
-include(":core:favorites")
-include(":core:story")
-
-// Playback is two flat modules rather than a content group, because the halves are not the same
-// kind of thing. `:core:playback` is a standalone audio library that names no module of this app;
-// `:core:session` is the one playback session the app runs, and the only half a feature may reach.
-include(":core:playback")
-include(":core:session")
-
-// Crosscutting transport capability, tied to no content type.
-include(":core:network")
 // UI and test support are outside core: they are not application capability ports.
 include(":designsystem")
 include(":testing")
 include(":shared")
 
-// A feature is one cohesive module. Its Navigation 3 route is the only public contract; screen,
-// state and presentation logic remain internal in the same module.
-rootDir.resolve("feature").listFiles()
-    ?.filter {
-        it.isDirectory && it.resolve("build.gradle.kts").exists()
-    }
-    ?.sortedBy { it.name }
-    ?.forEach { featureDir ->
-        include(":feature:${featureDir.name}")
-    }
+// Each capability and feature is one cohesive module. Installed core modules are also wired
+// automatically into shared's Metro classpath; their own architecture.properties defines the
+// permitted dependencies and public ports. Adding/removing a module needs no central core list.
+listOf("core", "feature").forEach { group ->
+    rootDir.resolve(group).listFiles()
+        ?.filter { it.isDirectory && it.resolve("build.gradle.kts").isFile }
+        ?.sortedBy { it.name }
+        ?.forEach { moduleDir -> include(":$group:${moduleDir.name}") }
+}

@@ -2,6 +2,7 @@ package com.xwab.app.feature.category
 
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
+import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.core.sound.port.Category
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.TrackId
@@ -54,7 +55,7 @@ internal data class CategoryState(
     fun isRowPreparing(trackId: TrackId): Boolean = requestedTrackId == trackId && isPreparing
 
     fun rowFailure(trackId: TrackId): PlaybackFailure? =
-        playbackFailure?.takeIf { it.itemId == PlaybackItemId.sound(trackId.value) }
+        playbackFailure?.takeIf { it.itemId == PlaybackItemId(SOUND_PLAYBACK_KIND, trackId.value) }
 
     fun isRowFavorite(trackId: TrackId): Boolean = trackId in favoriteIds
 }

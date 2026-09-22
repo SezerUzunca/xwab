@@ -6,6 +6,7 @@ import com.xwab.app.core.favorites.port.FavoritesSnapshot
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
+import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.testing.FakeFavorites
 import com.xwab.app.testing.FakeSoundCatalog
 import com.xwab.app.testing.FakePlaybackPort
@@ -55,7 +56,7 @@ class FavoritesViewModelTest {
         val coordinator = FakePlaybackPort().apply {
             publish(
                 PlaybackSummary(
-                    requestedItemId = PlaybackItemId.story("night"),
+                    requestedItemId = PlaybackItemId(OTHER_KIND, "night"),
                     playIntent = true,
                     isPreparing = true,
                 ),
@@ -74,7 +75,7 @@ class FavoritesViewModelTest {
 
     @Test
     fun attachesPlaybackFailureToItsSound() = runTest(mainDispatcher) {
-        val itemId = PlaybackItemId.sound("rain")
+        val itemId = PlaybackItemId(SOUND_PLAYBACK_KIND, "rain")
         val coordinator = FakePlaybackPort().apply {
             publish(PlaybackSummary(failure = PlaybackFailure.SourceUnavailable(itemId)))
         }
@@ -94,7 +95,7 @@ class FavoritesViewModelTest {
         val coordinator = FakePlaybackPort().apply {
             publish(
                 PlaybackSummary(
-                    requestedItemId = PlaybackItemId.sound("rain"),
+                    requestedItemId = PlaybackItemId(SOUND_PLAYBACK_KIND, "rain"),
                     playIntent = true,
                 ),
             )
@@ -119,7 +120,7 @@ class FavoritesViewModelTest {
         viewModel.togglePlayback(TrackId("rain"))
         advanceUntilIdle()
 
-        assertEquals(PlaybackItemId.sound("rain"), coordinator.playedItemId)
+        assertEquals(PlaybackItemId(SOUND_PLAYBACK_KIND, "rain"), coordinator.playedItemId)
         assertTrue(coordinator.pauses == 0)
     }
 
@@ -159,7 +160,7 @@ class FavoritesViewModelTest {
         assertFalse(readyState(viewModel).favoritesAvailable)
 
         playback.publish(PlaybackSummary(
-            requestedItemId = PlaybackItemId.sound("rain"),
+            requestedItemId = PlaybackItemId(SOUND_PLAYBACK_KIND, "rain"),
             playIntent = true,
             isPreparing = true,
         ))
@@ -194,15 +195,15 @@ class FavoritesViewModelTest {
         val before = emissions.size
 
         playback.publish(PlaybackSummary(
-            requestedItemId = PlaybackItemId.sound("ocean"),
+            requestedItemId = PlaybackItemId(SOUND_PLAYBACK_KIND, "ocean"),
             playIntent = true,
             isPreparing = true,
-            failure = PlaybackFailure.SourceUnavailable(PlaybackItemId.sound("birds")),
+            failure = PlaybackFailure.SourceUnavailable(PlaybackItemId(SOUND_PLAYBACK_KIND, "birds")),
         ))
         runCurrent()
         assertEquals(before, emissions.size)
 
-        val failure = PlaybackFailure.SourceUnavailable(PlaybackItemId.sound("rain"))
+        val failure = PlaybackFailure.SourceUnavailable(PlaybackItemId(SOUND_PLAYBACK_KIND, "rain"))
         playback.publish(PlaybackSummary(failure = failure))
         runCurrent()
         assertEquals(failure, readyState(viewModel).rowFailure(TrackId("rain")))
@@ -247,3 +248,6 @@ class FavoritesViewModelTest {
     private fun TestScope.collectState(viewModel: FavoritesViewModel) =
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
 }
+
+/** Some kind this screen does not show, to prove it ignores one. */
+private const val OTHER_KIND = "other-kind"

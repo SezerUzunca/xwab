@@ -46,8 +46,14 @@ internal fun rememberNavigationState(): NavigationState {
     }
 
     return remember {
-        // A tab dropped between releases restores a route that no longer has a stack of its own.
-        // Fall back to the start tab rather than failing the whole restore on it.
+        // A feature dropped between releases leaves its route in every saved stack that held it.
+        // FEATURE_SERIALIZERS reads those back as RetiredRoute rather than failing the restore;
+        // this is where they are thrown away.
+        dropRetiredRoutes(backStacks)
+
+        // A tab dropped between releases restores a route that no longer has a stack of its own —
+        // including RetiredRoute, which is what the selected tab reads back as once its feature is
+        // gone. Fall back to the start tab rather than failing the whole restore on it.
         if (selectedRoute.value !in backStacks) {
             selectedRoute.value = destinations.first().route
         }

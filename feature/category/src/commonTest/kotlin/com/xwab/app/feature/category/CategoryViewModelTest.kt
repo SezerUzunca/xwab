@@ -3,6 +3,7 @@ package com.xwab.app.feature.category
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
+import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.sound.port.TrackId
@@ -70,7 +71,7 @@ class CategoryViewModelTest {
         val port = FakePlaybackPort().apply {
             publish(
                 PlaybackSummary(
-                    requestedItemId = PlaybackItemId.story("gentle-rain"),
+                    requestedItemId = PlaybackItemId(OTHER_KIND, "gentle-rain"),
                     playIntent = true,
                     isPreparing = true,
                 ),
@@ -87,7 +88,7 @@ class CategoryViewModelTest {
         viewModel.togglePlayback(GENTLE_RAIN)
         advanceUntilIdle()
 
-        assertEquals(PlaybackItemId.sound("gentle-rain"), port.playedItemId)
+        assertEquals(PlaybackItemId(SOUND_PLAYBACK_KIND, "gentle-rain"), port.playedItemId)
         assertEquals(0, port.pauses)
     }
 
@@ -96,7 +97,7 @@ class CategoryViewModelTest {
         val port = FakePlaybackPort().apply {
             publish(
                 PlaybackSummary(
-                    requestedItemId = PlaybackItemId.sound("gentle-rain"),
+                    requestedItemId = PlaybackItemId(SOUND_PLAYBACK_KIND, "gentle-rain"),
                     playIntent = true,
                 ),
             )
@@ -117,7 +118,7 @@ class CategoryViewModelTest {
         val port = FakePlaybackPort().apply {
             publish(
                 PlaybackSummary(
-                    requestedItemId = PlaybackItemId.sound("gentle-rain"),
+                    requestedItemId = PlaybackItemId(SOUND_PLAYBACK_KIND, "gentle-rain"),
                     playIntent = true,
                 ),
             )
@@ -129,7 +130,7 @@ class CategoryViewModelTest {
         viewModel.togglePlayback(HEAVY_RAIN)
         advanceUntilIdle()
 
-        assertEquals(PlaybackItemId.sound("heavy-rain"), port.playedItemId)
+        assertEquals(PlaybackItemId(SOUND_PLAYBACK_KIND, "heavy-rain"), port.playedItemId)
         assertEquals(0, port.pauses)
     }
 
@@ -155,7 +156,7 @@ class CategoryViewModelTest {
         val port = FakePlaybackPort().apply {
             publish(
                 PlaybackSummary(
-                    requestedItemId = PlaybackItemId.sound("gentle-rain"),
+                    requestedItemId = PlaybackItemId(SOUND_PLAYBACK_KIND, "gentle-rain"),
                     playIntent = true,
                     isPreparing = true,
                 ),
@@ -179,7 +180,7 @@ class CategoryViewModelTest {
      */
     @Test
     fun aFailureReachesOnlyTheRowItHappenedTo() = runTest(mainDispatcher) {
-        val failure = PlaybackFailure.SourceUnavailable(PlaybackItemId.sound("gentle-rain"))
+        val failure = PlaybackFailure.SourceUnavailable(PlaybackItemId(SOUND_PLAYBACK_KIND, "gentle-rain"))
         val port = FakePlaybackPort().apply { publish(PlaybackSummary(failure = failure)) }
         val viewModel = createViewModel(port)
         collectState(viewModel)
@@ -196,7 +197,7 @@ class CategoryViewModelTest {
         val port = FakePlaybackPort().apply {
             publish(
                 PlaybackSummary(
-                    failure = PlaybackFailure.SourceUnavailable(PlaybackItemId.story("gentle-rain")),
+                    failure = PlaybackFailure.SourceUnavailable(PlaybackItemId(OTHER_KIND, "gentle-rain")),
                 ),
             )
         }
@@ -253,7 +254,7 @@ class CategoryViewModelTest {
         viewModel.togglePlayback(GENTLE_RAIN)
         runCurrent()
         assertTrue(writes.toggles.isEmpty())
-        assertEquals(PlaybackItemId.sound(GENTLE_RAIN.value), playback.playedItemId)
+        assertEquals(PlaybackItemId(SOUND_PLAYBACK_KIND, GENTLE_RAIN.value), playback.playedItemId)
 
         reads.emit(FavoritesSnapshot(emptySet(), isAvailable = false))
         runCurrent()
@@ -318,10 +319,10 @@ class CategoryViewModelTest {
         favorites.toggle(SOUND_FAVORITES_NAMESPACE, "birds")
         runCurrent()
         playback.publish(PlaybackSummary(
-            requestedItemId = PlaybackItemId.sound("waves"),
+            requestedItemId = PlaybackItemId(SOUND_PLAYBACK_KIND, "waves"),
             playIntent = true,
             isPreparing = true,
-            failure = PlaybackFailure.SourceUnavailable(PlaybackItemId.sound("birds")),
+            failure = PlaybackFailure.SourceUnavailable(PlaybackItemId(SOUND_PLAYBACK_KIND, "birds")),
         ))
         runCurrent()
         assertEquals(before, emissions.size)
@@ -364,3 +365,6 @@ class CategoryViewModelTest {
         val HEAVY_RAIN = TrackId("heavy-rain")
     }
 }
+
+/** Some kind this screen does not show, to prove it ignores one. */
+private const val OTHER_KIND = "other-kind"

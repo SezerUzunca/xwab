@@ -7,13 +7,9 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // Resolve content through core ports and drive the internal platform engine.
-            implementation(projects.core.delivery)
-            implementation(projects.core.story)
-            implementation(projects.core.sources)
+            // The session owns its resolver contract. Content modules implement it without a
+            // dependency back from this module; only the platform engine is needed here.
             implementation(projects.core.playback)
-            // Content dependencies stay internal: the session publishes PlaybackItemId.
-            implementation(projects.core.sound)
             api(libs.kotlinx.coroutines.core)
         }
     }

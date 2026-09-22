@@ -49,12 +49,11 @@ There is no shared repository abstraction. A feature consumes the narrow capabil
 
 | Capability module | Public port |
 |---|---|
-| `:core:sound` | `SoundPort`, sound metadata models and `SOUND_FAVORITES_NAMESPACE` |
-| `:core:sources` | `SourcePort` and `ContentSource` |
+| `:core:sound` | `SoundPort`, sound metadata models, `SOUND_FAVORITES_NAMESPACE` and `SOUND_PLAYBACK_KIND` |
 | `:core:delivery` | `DeliveryPort`, `DeliveryRequest`, `CacheKey` and `DeliveryResult` |
 | `:core:favorites` | `FavoritesPort` |
-| `:core:story` | `StoryPort` and story metadata models |
-| `:core:session` | `PlaybackPort` and session model types |
+| `:core:story` | `StoryPort`, story metadata models and `STORY_PLAYBACK_KIND` |
+| `:core:session` | `PlaybackPort` and session models; `PlaybackItemResolver`, `ItemResolution` and `PlaybackPolicy` for content adapters |
 | `:core:playback` | `PlaybackEnginePort` and engine command/state types |
 | `:core:network` | `NetworkPort` and transport-neutral response/error types |
 
@@ -73,7 +72,6 @@ the entry's ViewModel initializer.
 core/
 ├── network
 ├── sound
-├── sources
 ├── story
 ├── delivery
 ├── favorites
@@ -91,18 +89,78 @@ feature/
 └── story
 ```
 
-Each directory directly under `core` is one Gradle module. Sound and story own metadata models,
-one metadata port, manifest data and an internal implementation in a separate file. Physical
-addresses and cache filenames live behind `SourcePort` in `:core:sources`; features are forbidden
-from depending on it. Contracts and models live in each module's `port` package; internal adapters
-and hand-written manifests live in the module package. Delivery and favorites are separate modules.
-`checkArchitecture` enforces one port per metadata content module.
-Favorites uses caller-owned namespaces and string IDs; delivery accepts source URLs and namespaced
-cache requests. Neither depends on sound or story. Only delivery depends on the network module.
-The namespace sounds are saved under is stated once — by `:core:sound`, which owns the identity —
-rather than at each screen that favorites one, and matches the `sound` namespace `:core:sources`
-gives the same content kind.
+The seven directories directly under `core` are Gradle modules, discovered automatically by Gradle.
+`shared` automatically includes those modules on Metro's compilation classpath. Application routes
+remain explicitly composed by the shell.
 
+| Module | Owns | Delegates |
+|---|---|---|
+| `sound` / `story` | Catalog metadata, private sources and lookup, stable content identities, playback resolver and policy | Sounds delegate cache/download work to `DeliveryPort`; stories stream directly |
+| `session` | Current playback intent, request ordering, summary for screens and the resolver contract it consumes | Item resolution and platform commands through ports |
+| `playback` | Native engine, media controls, playback state, sleep timer execution | No application module dependency |
+| `delivery` | Local-first delivery, downloads, cache validation and cleanup | HTTP through `NetworkPort` |
+| `network` | HTTP transport and transport errors | No content, caching or playback policy |
+| `favorites` | Persistence of caller-owned namespaces and IDs | No catalog knowledge |
+
+Physical source addresses and lookup remain internal to their owning content module. Each
+playable content module contributes its own `PlaybackItemResolver`; the session selects it by
+kind through the consumer-owned port in `com.xwab.app.core.session.port`. A resolver reads its
+own metadata and source and returns a content-neutral resolution. There is no separate source
+registry or source registration step.
+Sound depends on session and delivery; story depends on session; session depends only on playback.
+Features cannot depend on delivery, network or the native engine. The resolver contract is public
+in Kotlin because content modules implement it across module boundaries. Session's
+`adapterOnlyTypes` policy makes `checkArchitecture` reject feature references to the resolver and
+its result/policy models; this screen boundary is enforced by the architecture check, not by a
+separate Gradle classpath.
+
+Contracts and models live in each module's `.port` package. Adapters and manifests remain internal.
+Every core module supplies an [architecture.properties](core/session/architecture.properties)
+contract declaring its responsibility, feature visibility, permitted dependencies and public
+interfaces, with optional `adapterOnlyTypes` for contracts reserved for adapters.
+`checkArchitecture` validates those declarations against the actual code and production dependency
+graph; a new module without a contract fails the check.
+
+### Adding a content type
+
+`:core:session` publishes the `PlaybackItemResolver` port it consumes. A content module implements
+it and contributes it with
+`@ContributesIntoMap(AppScope::class) @StringKey(ITS_OWN_KIND)`. `:core:session` injects
+`Map<String, PlaybackItemResolver>` and looks up the requested kind. Its only core dependency is
+`:core:playback`; the session never names a sound, story or other content implementation.
+
+A new playable content type supplies an internal `PlaybackItemResolver` backed by its own private
+sources. The session needs no edits and supports an empty resolver map. Infrastructure capabilities
+such as favorites or network do not need a playback resolver.
+Removing a content type removes its resolver registration; an unknown playback kind reports `ItemNotFound`,
+including when the engine still holds an ID belonging to a removed module.
+
+Each content module owns the string naming its kind — `SOUND_PLAYBACK_KIND`, `STORY_PLAYBACK_KIND`
+— because that string is the engine source id's prefix and outlives the process. The architecture
+check verifies that the app shell names every registered playback kind in its routing composition.
+
+### Adding, removing or replacing core modules
+
+1. Add a flat `core/<name>` module with `build.gradle.kts` and `architecture.properties`.
+2. Declare its owned responsibility and exact public interfaces; specify only required core
+   dependencies. Empty `dependencies=` means the module is independent.
+3. Keep public contracts in `.port` and contribute internal implementations through Metro.
+   Playable content modules contribute a playback resolver under a stable key and keep physical
+   sources private to that module.
+4. Wire any feature and route that presents the new capability in the app shell.
+5. Run `:check`, Android host tests and `:androidApp:assembleDebug`.
+
+To remove a module, remove its consumers or supply a replacement implementing the required port,
+then delete the module directory and update the affected dependency contracts. Core discovery and
+Metro registration update automatically. Required dependencies are intentional compile-time
+requirements: removing `network` while retaining `delivery` requires another transport adapter.
+This is build-time modularity; modules are not dynamically unloaded from a running application.
+
+Replacing an adapter preserves its port and installs one implementation for that binding. Metro
+rejects duplicate single bindings or duplicate contribution keys. Preserve stored IDs, cache
+namespaces, favorite namespaces and route serial names, or provide an explicit migration. Removing
+a feature also requires the shell changes described below; unrelated core implementations remain
+untouched.
 ## Navigation 3
 
 `shared` owns the app-level navigation policy and one back stack per top-level destination.
@@ -155,12 +213,13 @@ so `viewModel` resolves the root owner. Both transitioning scenes share that one
 Sound details and Stories both expose the session sleep timer. Each feature observes and controls
 it through `PlaybackPort`; only the stateless timer control and its labels live in `designsystem`.
 
-Sound playback reads metadata through `SoundPort`, resolves its physical address through
-`SourcePort`, then gives a request to `DeliveryPort`.
-The session owns the sound namespace, MPEG policy and current cache inventory. Cached files are preferred; otherwise
-the HTTPS source is returned immediately and a single background download fills app-owned cache.
-Stories read metadata through `StoryPort`, resolve their address through `SourcePort`, and stream
-without being cached.
+`SoundPlaybackResolver` reads metadata through `SoundPort`, looks up its own internal source and
+passes a request to `DeliveryPort`. The sound module owns its cache namespace, accepted MPEG types
+and complete retained-file inventory. Delivery prefers cached files; otherwise it returns the
+HTTPS source immediately and starts a background download.
+`StoryPlaybackResolver` reads metadata through `StoryPort`, looks up its own internal HTTPS source
+and returns it for streaming without caching. Both resolvers supply metadata and loop policy through
+`PlaybackItemResolver`; neither the session nor the platform engine needs to know the content type.
 
 Android playback uses Media3; iOS playback uses AVFoundation. Platform implementations are
 internal Metro contributions behind `PlaybackEnginePort`.
@@ -173,27 +232,41 @@ playback. The architecture check requires these values to agree with the downloa
 
 `checkArchitecture` fails when any of these rules is broken:
 
-1. A core module depends on a feature, or one feature depends on another feature.
-2. A feature is not exactly one `:feature:<name>` module, or an `api`/`impl` directory appears under `core` or `feature`.
-3. A feature reaches an adapter-only core module, directly or through an exported dependency.
-4. A feature-specific use case leaks into `core`.
-5. Any shared production source set references a feature outside the allowed boundaries: navigation/composition may use feature navigation contracts, and DI may use feature dependency bags.
-6. A production core declaration outside an exact capability `.port` package is public.
-7. A port declaration or member is non-public, or a public contract interface does not end in `Port`.
-8. A cross-core import, wildcard import, or fully qualified reference bypasses an exact `.port` package.
-9. A `Repository` or DI-style `Provider` abstraction appears in `core`.
-10. A Koin import or dependency is reintroduced anywhere in the project.
-11. A feature exposes a declaration outside its navigation package or a DI `*Dependencies` class.
-12. Sound or story exposes more than one port interface or lacks its `SoundPort` / `StoryPort` contract.
-13. Favorites depends on another project, or delivery depends on a project other than itself or `:core:network`.
-14. Designsystem depends on another project, or core depends on designsystem or shared.
-15. The download source, Android manifest and iOS Info.plist state different user agents. Native
-    players read platform application metadata, while downloads read the source manifest; a drift
-    would leave one path working and the failure invisible.
+1. A core module lacks a valid `architecture.properties` contract, exposes a different set of
+   callable interfaces, or declares a dependency outside its allowed list. Missing dependency
+   targets and core dependency cycles also fail.
+2. A core module depends on a non-core application module, or a feature depends on another feature.
+   Core and feature modules must be flat; `api`/`impl` directory splits are forbidden.
+3. A feature reaches a core module marked `featureAccessible=false`, directly or through an
+   exported dependency, or references a port type listed in that module's `adapterOnlyTypes`.
+4. A production core declaration outside its own exact `.port` package is public, a port member
+   is non-public, or a cross-core reference bypasses the target module's `.port` package.
+5. Screen state or a feature-specific use case leaks into core; a `Repository` / DI-style
+   `Provider` abstraction appears in core; or Koin is reintroduced.
+6. A feature exposes anything except navigation contracts or DI `*Dependencies` classes, or shared
+   references features outside the navigation/composition and DI boundaries.
+7. Designsystem depends on an application project.
+8. A module directory is absent from the build, or a core/feature module is absent from shared's
+   compilation graph. Core registration is automatic; feature composition stays explicit.
+9. A feature route lacks `@SerialName`, or a contributed playback kind has no routing reference
+   in the shell.
+10. The download source and native player application metadata disagree on the HTTP user agent.
 
-Rules 5, 12, 13 and 14 name modules by path, so each of those names is also checked against the modules
-the build actually contains. Renaming one without updating its rule fails the build instead of
-leaving a rule that matches nothing and reports nothing.
+The core policy is module-owned rather than a central list of sound/story-specific exceptions.
+For example, `core/session/architecture.properties` permits only playback and declares its screen
+and resolver ports. Production dependency checks exclude test configurations so test fakes do not
+become application dependencies.
+
+```properties
+responsibility=Coordinate playback through contributed resolvers and the platform engine.
+featureAccessible=true
+dependencies=:core:playback
+publicInterfaces=PlaybackPort,PlaybackItemResolver
+adapterOnlyTypes=PlaybackItemResolver,ItemResolution,PlaybackPolicy
+```
+
+Port checks enforce code boundaries and dependency direction. The responsibility sentence is a
+review contract: behavior and tests must still demonstrate that an adapter stays within its job.
 
 The Metro convention additionally treats non-public contribution problems as errors and generates
 providers that allow internal contributed adapters to remain hidden across modules.
@@ -207,6 +280,27 @@ providers that allow internal contributed adapters to remain hidden across modul
 The script creates one `:feature:sleep-timer` module. Then wire its dependency bag, entry provider
 and serializer into `shared`, and make the route reachable from either a top-level destination or
 an existing feature intent.
+
+## Removing a feature
+
+Delete the `feature/<name>` directory. Gradle stops including it on its own, and every remaining
+reference is a compile error: the `projects.feature.<name>` accessor in `shared/build.gradle.kts`,
+the accessor in `AppGraph`, the registration in `AppEntryProvider`, the entry in
+`FEATURE_SERIALIZERS`, and the tab in `TOP_LEVEL_DESTINATIONS` if it had one. Follow the compiler
+until it stops, then run the checks below.
+
+Two things the compiler cannot point at:
+
+- **The tab label** in `shared/src/commonMain/composeResources/values/app.xml`. Deleting a tab
+  leaves its `tab_*` string behind, resolving happily to a name nothing asks for.
+  `TopLevelDestinationsTest` fails on it rather than letting it ship.
+- **Saved back stacks in installed copies.** A listener who was on the removed screen when they last
+  closed the app restores a route this build no longer registers. That no longer crashes — see
+  `RetiredRoute` — but it is why a route's `@SerialName` is a wire format and why removing a feature
+  is a decision about people who already have the app, not only about this source tree.
+
+Its favorites are a separate question. `FavoritesPort` namespaces are keys on disk, so a removed
+content type's favorites stay stored until something deletes them.
 
 ## Build and checks
 

@@ -60,16 +60,12 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // The composition root sees every contributed core adapter. Features cannot reach the
-            // delivery layer, engine or network directly; this module declares the graph.
-            implementation(projects.core.sound)
-            implementation(projects.core.sources)
-            implementation(projects.core.delivery)
-            implementation(projects.core.story)
-            implementation(projects.core.favorites)
-            implementation(projects.core.session)
-            implementation(projects.core.playback)
-            implementation(projects.core.network)
+            // Metro discovers installed capabilities on this classpath. A new core module owns
+            // its contributions; no app-level list needs updating for each adapter or content kind.
+            rootProject.subprojects
+                .filter { it.path.startsWith(":core:") }
+                .sortedBy { it.path }
+                .forEach { implementation(project(it.path)) }
             implementation(projects.designsystem)
 
             implementation(projects.feature.browse)

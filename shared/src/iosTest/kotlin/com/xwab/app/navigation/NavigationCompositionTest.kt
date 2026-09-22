@@ -228,7 +228,7 @@ private class NavigationHarness {
                     NowPlayingSceneDecoratorStrategy<NavKey>(transitionScope) { Chrome() }
                 }
                 NavDisplay(
-                    entries = navigationState.toEntries(provider),
+                    entries = rememberTabEntries(navigationState, provider),
                     sceneDecoratorStrategies = listOf(decorator),
                     sharedTransitionScope = transitionScope,
                     onBack = navigator::goBack,

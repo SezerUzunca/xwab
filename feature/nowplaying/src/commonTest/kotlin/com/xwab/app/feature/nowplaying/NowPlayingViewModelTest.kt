@@ -178,7 +178,13 @@ class NowPlayingViewModelTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect() }
 
     private companion object {
-        val RAIN = PlaybackItemId.sound("gentle-rain")
-        val WAVES = PlaybackItemId.sound("calm-waves")
+        val RAIN = PlaybackItemId(ANY_KIND, "gentle-rain")
+        val WAVES = PlaybackItemId(ANY_KIND, "calm-waves")
     }
 }
+
+/**
+ * This feature draws whatever is playing and never asks what kind it is, so its own fixtures
+ * name a kind that belongs to no content module.
+ */
+private const val ANY_KIND = "any-kind"

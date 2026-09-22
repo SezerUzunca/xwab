@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
+import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.core.sound.port.Category
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Track
@@ -63,7 +64,7 @@ class CategoryScreenTest {
         show(
             state(
                 playbackFailure = PlaybackFailure.SourceUnavailable(
-                    PlaybackItemId.sound(GENTLE_RAIN.value),
+                    PlaybackItemId(SOUND_PLAYBACK_KIND, GENTLE_RAIN.value),
                 ),
             ),
         )

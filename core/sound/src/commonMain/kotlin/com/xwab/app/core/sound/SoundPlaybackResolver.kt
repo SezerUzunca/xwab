@@ -1,49 +1,51 @@
-package com.xwab.app.core.session
+package com.xwab.app.core.sound
 
-import com.xwab.app.core.session.port.PlaybackKind
-import com.xwab.app.core.sources.port.SOUND_NAMESPACE
-import com.xwab.app.core.sources.port.SourcePort
+import com.xwab.app.core.delivery.port.DeliveryPort
+import com.xwab.app.core.delivery.port.DeliveryResult
+import com.xwab.app.core.session.port.ItemResolution
+import com.xwab.app.core.session.port.PlaybackItemResolver
+import com.xwab.app.core.session.port.PlaybackPolicy
+import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.sound.port.TrackId
-import com.xwab.app.core.delivery.port.DeliveryPort
-import com.xwab.app.core.delivery.port.CacheKey
-import com.xwab.app.core.delivery.port.DeliveryRequest
-import com.xwab.app.core.delivery.port.DeliveryResult
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.StringKey
 import kotlinx.coroutines.flow.first
 
 /**
- * Sounds: metadata from the catalog, a URI from delivery.
+ * What playing a sound means: metadata from this module's catalog, a URI from delivery.
  *
- * This is where metadata, physical-source and delivery capabilities meet, and where a raw item
- * value becomes a `TrackId` again. All three dependencies are `implementation`, so none of their
- * types appears in anything this module publishes.
+ * It lives here rather than in `:core:session` because this is the module that knows what a sound
+ * is. The session holds one playback for whatever the app can play and looks a resolver up by kind;
+ * it never names this class or its dependencies. A content module contributes its own resolver,
+ * keeping physical sources and playback policy inside their owner.
+ *
+ * [SOUND_PLAYBACK_KIND] is the map key rather than a literal, so the kind a screen asks for and the
+ * kind that answers cannot drift apart.
+ *
+ * Delivery and session are `implementation` dependencies. Physical sources stay internal, and
+ * the session's architecture policy reserves resolver contracts for core adapters.
  *
  * Delivery answers with a local file when the track is cached and with the HTTPS source when it is
  * not, starting the download in the background either way. That behaviour belongs to sounds and
  * stays here: a story streams and is not kept, so it must never be resolved through this path.
  */
+@ContributesIntoMap(AppScope::class)
+@StringKey(SOUND_PLAYBACK_KIND)
+@Inject
 internal class SoundPlaybackResolver(
     private val catalog: SoundPort,
-    private val sources: SourcePort,
     private val content: DeliveryPort,
+    private val sources: SoundSources,
 ) : PlaybackItemResolver {
-    override val kind: PlaybackKind = PlaybackKind.SOUND
 
     override suspend fun resolve(value: String): ItemResolution {
         val trackId = TrackId(value)
         val track = catalog.observeTrack(trackId).first() ?: return ItemResolution.NotFound
-        val source = sources.sourceFor(SOUND_NAMESPACE, value)
+        val request = sources.requestFor(trackId)
             ?: return ItemResolution.Unavailable("sound source is missing")
-        val cacheFileName = source.cacheFileName
-            ?: return ItemResolution.Unavailable("sound cache filename is missing")
-
-        val request = DeliveryRequest(
-            key = CacheKey(SOUND_NAMESPACE, cacheFileName),
-            httpsUrl = source.httpsUrl,
-            acceptedContentTypes = setOf("audio/mpeg", "application/octet-stream"),
-            retainedFileNames = sources.cacheFileNames(SOUND_NAMESPACE),
-            headers = source.headers,
-        )
         return when (val resolution = content.resolve(request)) {
             is DeliveryResult.Resolved -> ItemResolution.Resolved(
                 uri = resolution.uri,

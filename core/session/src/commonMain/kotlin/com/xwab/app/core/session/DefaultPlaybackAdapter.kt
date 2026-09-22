@@ -3,10 +3,11 @@ package com.xwab.app.core.session
 import com.xwab.app.core.session.port.DEFAULT_LOOPING
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
-import com.xwab.app.core.session.port.PlaybackKind
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.core.session.port.VOLUME_RANGE
+import com.xwab.app.core.session.port.ItemResolution
+import com.xwab.app.core.session.port.PlaybackItemResolver
 import com.xwab.app.core.playback.port.AudioPlayerState
 import com.xwab.app.core.playback.port.AudioSource
 import com.xwab.app.core.playback.port.LoopMode
@@ -15,10 +16,6 @@ import com.xwab.app.core.playback.port.PlaybackEnginePort
 import com.xwab.app.core.playback.port.PlaybackErrorCode
 import com.xwab.app.core.playback.port.PlaybackPhase
 import com.xwab.app.core.playback.port.PlaybackRequest
-import com.xwab.app.core.sound.port.SoundPort
-import com.xwab.app.core.sources.port.SourcePort
-import com.xwab.app.core.delivery.port.DeliveryPort
-import com.xwab.app.core.story.port.StoryPort
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -40,37 +37,26 @@ import kotlinx.coroutines.flow.updateAndGet
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
-internal class DefaultPlaybackAdapter internal constructor(
+internal class DefaultPlaybackAdapter
+@Inject
+internal constructor(
     private val enginePort: PlaybackEnginePort,
-    resolvers: List<PlaybackItemResolver>,
+    /**
+     * One resolver per content kind, keyed by the kind each module registered itself under.
+     *
+     * Injected as a multibinding rather than built here, which is the whole of this module's
+     * independence from content: a new content type contributes its own entry from its own module
+     * and this constructor never changes. Metro aggregates the map from the compile classpath, so
+     * the map holds exactly the content modules the composition root declares — a removed one is
+     * simply absent, and the kind it used to answer for reports `ItemNotFound`.
+     * With no contributions Metro uses the optional empty map, so the session still exists after
+     * the last content module is removed.
+     *
+     * Keys cannot collide: a map is a map, and two modules registering the same kind is a Metro
+     * duplicate-binding error at compile time rather than one resolver silently never running.
+     */
+    private val resolversByKind: Map<String, PlaybackItemResolver> = emptyMap(),
 ) : PlaybackPort {
-    @Inject
-    internal constructor(
-        enginePort: PlaybackEnginePort,
-        soundPort: SoundPort,
-        sourcePort: SourcePort,
-        soundContentPort: DeliveryPort,
-        storyPort: StoryPort,
-    ) : this(
-        enginePort = enginePort,
-        resolvers = listOf(
-            SoundPlaybackResolver(
-                catalog = soundPort,
-                sources = sourcePort,
-                content = soundContentPort,
-            ),
-            StoryPlaybackResolver(catalog = storyPort, sources = sourcePort),
-        ),
-    )
-    private val resolversByKind: Map<PlaybackKind, PlaybackItemResolver> =
-        resolvers.associateBy { it.kind }
-
-    init {
-        // Two resolvers for one kind means one of them silently never runs.
-        require(resolversByKind.size == resolvers.size) {
-            "One resolver per playback kind: ${resolvers.map { it.kind }}"
-        }
-    }
 
     /**
      * What the session wants, which the engine cannot hold on its own.
@@ -113,9 +99,15 @@ internal class DefaultPlaybackAdapter internal constructor(
     private var lastAppliedLooping: Boolean? = null
 
     override suspend fun play(itemId: PlaybackItemId) {
+        val resolver = resolversByKind[itemId.kind]
         val engine = enginePort.state.value
-        if (itemOf(engine.activeSource) == itemId && engine.phase != PlaybackPhase.Failed) {
+        if (
+            resolver != null &&
+            itemOf(engine.activeSource) == itemId &&
+            engine.phase != PlaybackPhase.Failed
+        ) {
             // The engine is already holding this item's source; there is nothing to resolve.
+            // A retained engine source cannot restore a content capability removed from this build.
             intent.update { it.superseded() }
             enginePort.submit(PlaybackCommand.Play)
             return
@@ -129,8 +121,7 @@ internal class DefaultPlaybackAdapter internal constructor(
         try {
             // A kind nothing can resolve is a wiring gap rather than a listener error, and it is
             // reported as "nothing could find this" instead of pretending a source was unreachable.
-            val resolver = resolversByKind[itemId.kind]
-                ?: return settle(generation, PlaybackFailure.ItemNotFound(itemId))
+            if (resolver == null) return settle(generation, PlaybackFailure.ItemNotFound(itemId))
 
             when (val resolution = resolver.resolve(itemId.value)) {
                 is ItemResolution.Resolved -> {
@@ -295,7 +286,7 @@ internal class DefaultPlaybackAdapter internal constructor(
         )
     }
 
-    /** The item an engine source names, reading a pre-namespacing id as the sound it was. */
+    /** The item an engine source names, or null when the id names nothing this session can act on. */
     private fun itemOf(source: AudioSource?): PlaybackItemId? =
         source?.id?.let { playbackItemIdOf(it) }
 

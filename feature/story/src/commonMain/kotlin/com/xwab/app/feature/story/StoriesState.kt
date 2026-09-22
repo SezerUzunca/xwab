@@ -2,6 +2,7 @@ package com.xwab.app.feature.story
 
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
+import com.xwab.app.core.story.port.STORY_PLAYBACK_KIND
 import com.xwab.app.core.story.port.Story
 import com.xwab.app.core.story.port.StoryId
 
@@ -51,5 +52,5 @@ internal data class StoriesState(
     fun isRowPreparing(storyId: StoryId): Boolean = requestedStoryId == storyId && isPreparing
 
     fun rowFailure(storyId: StoryId): PlaybackFailure? =
-        playbackFailure?.takeIf { it.itemId == PlaybackItemId.story(storyId.value) }
+        playbackFailure?.takeIf { it.itemId == PlaybackItemId(STORY_PLAYBACK_KIND, storyId.value) }
 }

@@ -10,7 +10,7 @@ class FeatureFirstRulesTest {
 
     @Test
     fun coreDependenciesPointOutwardNeverTowardFeatures() {
-        val violations = FeatureFirstRules.dependencyViolations(
+        val violations = dependencyViolations(
             mapOf(":core:sound" to listOf(":feature:category")),
         )
 
@@ -18,7 +18,7 @@ class FeatureFirstRulesTest {
         assertTrue(violations.single().contains("may not depend on a feature"))
         assertEquals(
             emptyList(),
-            FeatureFirstRules.dependencyViolations(
+            dependencyViolations(
                 mapOf(":feature:category" to listOf(":core:sound")),
             ),
         )
@@ -26,7 +26,7 @@ class FeatureFirstRulesTest {
 
     @Test
     fun featuresNeverDependOnOtherFeatures() {
-        val violations = FeatureFirstRules.dependencyViolations(
+        val violations = dependencyViolations(
             mapOf(":feature:category" to listOf(":feature:sound")),
         )
 
@@ -34,7 +34,7 @@ class FeatureFirstRulesTest {
         assertTrue(violations.single().contains("connect destination intents in :shared"))
         assertEquals(
             emptyList(),
-            FeatureFirstRules.dependencyViolations(
+            dependencyViolations(
                 mapOf(":shared" to listOf(":feature:category", ":feature:sound")),
             ),
         )
@@ -87,31 +87,33 @@ class FeatureFirstRulesTest {
 
     @Test
     fun featuresCannotDeclareOrReachAdapterModules() {
-        FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys.forEach { offLimits ->
-            val violations = FeatureFirstRules.dependencyViolations(
+        (corePolicies.filterValues { !it.featureAccessible }.keys + FeatureFirstRules.SHELL_MODULE).forEach { offLimits ->
+            val violations = dependencyViolations(
                 mapOf(":feature:sound" to listOf(offLimits)),
             )
             assertEquals(1, violations.size, offLimits)
         }
 
-        val transitive = FeatureFirstRules.dependencyViolations(
+        val transitive = dependencyViolations(
             graph = mapOf(":feature:sound" to listOf(":testing")),
             apiEdges = mapOf(":testing" to listOf(":core:delivery")),
         )
         assertEquals(1, transitive.size)
         assertTrue(transitive.single().contains("through :testing"))
 
-        val sourceBoundary = FeatureFirstRules.dependencyViolations(
+        val engineBoundary = dependencyViolations(
             graph = mapOf(":feature:story" to listOf(":testing")),
-            apiEdges = mapOf(":testing" to listOf(":core:sources")),
+            apiEdges = mapOf(":testing" to listOf(":core:playback")),
         )
-        assertEquals(1, sourceBoundary.size)
-        assertTrue(sourceBoundary.single().contains("physical content addresses"))
+        assertEquals(1, engineBoundary.size)
+        assertTrue(engineBoundary.single().contains("adapter-only capability"))
 
+        // The adapter boundary is about features. A core module may declare these: `:core:sound`
+        // reaches delivery and the session contribution contract to answer for its own content.
         assertEquals(
             emptyList(),
-            FeatureFirstRules.dependencyViolations(
-                mapOf(":core:session" to FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys.filter { it != ":shared" }),
+            dependencyViolations(
+                mapOf(":core:sound" to listOf(":core:delivery", ":core:session")),
             ),
         )
     }
@@ -132,7 +134,7 @@ class FeatureFirstRulesTest {
             emptyList(),
             FeatureFirstRules.userAgentAgreementViolations(
                 mapOf(
-                    "core/sources/SoundSourceManifest.kt" to
+                    "core/sound/SoundSourceManifest.kt" to
                         """private const val WIKIMEDIA_USER_AGENT = "Sleep/1.0 (https://example.test)"""",
                     "androidApp/src/main/AndroidManifest.xml" to
                         """
@@ -154,7 +156,7 @@ class FeatureFirstRulesTest {
     fun aDifferentIosPlaybackIdentityFailsTheSameRule() {
         val violations = FeatureFirstRules.userAgentAgreementViolations(
             mapOf(
-                "core/sources/SoundSourceManifest.kt" to
+                "core/sound/SoundSourceManifest.kt" to
                     """private const val WIKIMEDIA_USER_AGENT = "Sleep/1.0"""",
                 "iosApp/iosApp/Info.plist" to
                     """<key>com.xwab.app.core.playback.USER_AGENT</key><string>Sleep/2.0</string>""",
@@ -170,7 +172,7 @@ class FeatureFirstRulesTest {
             emptyList(),
             FeatureFirstRules.userAgentAgreementViolations(
                 mapOf(
-                    "core/sources/SoundSourceManifest.kt" to
+                    "core/sound/SoundSourceManifest.kt" to
                         """private const val WIKIMEDIA_USER_AGENT = "Sleep/1.0"""",
                     "iosApp/iosApp/Info.plist" to
                         """
@@ -188,7 +190,7 @@ class FeatureFirstRulesTest {
     fun aUserAgentThatDriftsBetweenThePlaybackAndDownloadPathsFails() {
         val violations = FeatureFirstRules.userAgentAgreementViolations(
             mapOf(
-                "core/sources/SoundSourceManifest.kt" to
+                "core/sound/SoundSourceManifest.kt" to
                     """private const val WIKIMEDIA_USER_AGENT = "Sleep/2.0 (https://example.test)"""",
                 "androidApp/src/main/AndroidManifest.xml" to
                     """<meta-data android:name="x.USER_AGENT" android:value="Sleep/1.0" />""",
@@ -210,7 +212,7 @@ class FeatureFirstRulesTest {
             emptyList(),
             FeatureFirstRules.userAgentAgreementViolations(
                 mapOf(
-                    "core/sources/src/commonMain/kotlin/SoundSourceManifest.kt" to
+                    "core/sound/src/commonMain/kotlin/SoundSourceManifest.kt" to
                         """private const val WIKIMEDIA_USER_AGENT = "Sleep/1.0"""",
                     "core/playback/src/androidMain/kotlin/PlaybackService.kt" to
                         """private const val USER_AGENT_METADATA_KEY = "com.example.USER_AGENT"""",
@@ -230,7 +232,7 @@ class FeatureFirstRulesTest {
             emptyList(),
             FeatureFirstRules.userAgentAgreementViolations(
                 mapOf(
-                    "core/sources/SoundSourceManifest.kt" to
+                    "core/sound/SoundSourceManifest.kt" to
                         """
                         // const val OLD_USER_AGENT = "Sleep/0.1"
                         private const val WIKIMEDIA_USER_AGENT = "Sleep/1.0"
@@ -251,7 +253,7 @@ class FeatureFirstRulesTest {
             emptyList(),
             FeatureFirstRules.sharedFeatureReferenceViolations(
                 mapOf(
-                    "shared/src/commonMain/kotlin/AppNavigation.kt" to sharedSource(
+                    "shared/src/commonMain/kotlin/TopLevelDestinations.kt" to sharedSource(
                         "navigation",
                         "import com.xwab.app.feature.browse.navigation.BrowseRoute",
                     ),
@@ -486,40 +488,16 @@ class FeatureFirstRulesTest {
         assertEquals(emptyList(), FeatureFirstRules.featureStateViolations(safe))
     }
 
-    /**
-     * Each registry is checked on its own, so a rule that starts naming a module nobody builds any
-     * more is reported by name rather than disappearing into the total.
-     */
     @Test
-    fun staleModuleNamesFailLoudlyForEveryRuleThatNamesOne() {
-        // Kept per rule rather than flattened: `:core:delivery` is named by two of them, and each
-        // has to report it, or one rule could go stale behind the other still holding the name.
-        val referencesPerRule = listOf(
-            FeatureFirstRules.INDEPENDENT_SUPPORT_MODULES,
-            FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES.keys,
-            FeatureFirstRules.CONTENT_MODULE_PORTS.keys,
-            FeatureFirstRules.REUSABLE_MODULE_DEPENDENCIES.keys +
-                FeatureFirstRules.REUSABLE_MODULE_DEPENDENCIES.values.flatten(),
-        )
-        val everyNamedModule = referencesPerRule.flatten().toSet()
-
-        assertEquals(
-            referencesPerRule.sumOf { it.size },
-            FeatureFirstRules.staleRuleViolations(setOf(":feature:category")).size,
-        )
-        assertEquals(emptyList(), FeatureFirstRules.staleRuleViolations(everyNamedModule))
-
-        listOf(
-            ":designsystem" to "INDEPENDENT_SUPPORT_MODULES",
-            FeatureFirstRules.CONTENT_MODULE_PORTS.keys.first() to "CONTENT_MODULE_PORTS",
-            FeatureFirstRules.REUSABLE_MODULE_DEPENDENCIES.keys.first() to "REUSABLE_MODULE_DEPENDENCIES",
-        ).forEach { (renamed, constant) ->
-            val violations = FeatureFirstRules.staleRuleViolations(everyNamedModule - renamed)
-            assertEquals(1, violations.size, renamed)
-            assertTrue(violations.single().contains(renamed) && violations.single().contains(constant))
-        }
+    fun fixedApplicationStructureStillDetectsStaleRules() {
+        val modules = FeatureFirstRules.INDEPENDENT_SUPPORT_MODULES + FeatureFirstRules.SHELL_MODULE
+        assertEquals(emptyList(), FeatureFirstRules.staleRuleViolations(modules))
+        assertEquals(2, FeatureFirstRules.staleRuleViolations(emptySet()).size)
+        assertTrue(FeatureFirstRules.staleRuleViolations(modules - ":designsystem")
+            .single().contains("INDEPENDENT_SUPPORT_MODULES"))
+        assertTrue(FeatureFirstRules.staleRuleViolations(modules - ":shared")
+            .single().contains("SHELL_MODULE"))
     }
-
     @Test
     fun featureSpecificUseCasesStayInTheirFeature() {
         val violations = FeatureFirstRules.leakedUseCaseViolations(
@@ -876,76 +854,97 @@ class FeatureFirstRulesTest {
                 packageName = "com.xwab.app.core.$name.port",
                 source = declaration,
             )
-            assertEquals(emptyList(), FeatureFirstRules.contentPortViolations(
+            assertEquals(emptyList(), corePortViolations(
                 listOf(source("interface $port")),
             ))
-            assertEquals(1, FeatureFirstRules.contentPortViolations(
+            assertEquals(1, corePortViolations(
                 listOf(source("interface $port\ninterface ExtraPort")),
             ).size)
-            assertEquals(1, FeatureFirstRules.contentPortViolations(
+            assertEquals(1, corePortViolations(
                 listOf(source("interface $port {\n    interface ExtraPort\n}")),
             ).size)
-            assertEquals(emptyList(), FeatureFirstRules.contentPortViolations(
+            assertEquals(emptyList(), corePortViolations(
                 listOf(source("interface $port {\n    data class Model(val id: String)\n}")),
             ))
-            assertEquals(1, FeatureFirstRules.contentPortViolations(
+            assertEquals(1, corePortViolations(
                 listOf(source("data class Model(val id: String)")),
             ).size)
         }
     }
 
+    /**
+     * Two reasons to be on this list, and the rule treats them the same: what is not written down
+     * is not allowed. Favorites and delivery stay reusable outside this app; `:core:session` stays
+     * ignorant of what a sound or a story is.
+     */
     @Test
-    fun reusableCapabilitiesCannotDependOnContentModules() {
+    fun aModuleWithAnExhaustiveDependencyListCannotStrayFromIt() {
         for (module in listOf(":core:favorites", ":core:delivery")) {
             for (dependency in listOf(":core:sound", ":core:story", ":core:session", ":shared")) {
-                assertTrue(FeatureFirstRules.dependencyViolations(mapOf(module to listOf(dependency)))
-                    .any { it.contains("must not depend on app content") })
+                assertTrue(
+                    dependencyViolations(mapOf(module to listOf(dependency)))
+                        .any { it.contains("is not among them") || it.contains("may not depend on UI") },
+                    "$module -> $dependency",
+                )
             }
         }
-        assertEquals(emptyList(), FeatureFirstRules.dependencyViolations(mapOf(
-            ":core:favorites" to listOf(":core:favorites"),
-            ":core:delivery" to listOf(":core:delivery", ":core:network"),
-        )))
+
+        // Letting any of these back in is what would put a content type in this module again.
+        for (dependency in listOf(":core:sound", ":core:story", ":core:delivery")) {
+            assertTrue(
+                dependencyViolations(mapOf(":core:session" to listOf(dependency)))
+                    .any { it.contains("is not among them") },
+                ":core:session -> $dependency",
+            )
+        }
+
+        assertEquals(
+            emptyList(),
+            dependencyViolations(
+                mapOf(
+                    ":core:favorites" to emptyList(),
+                    ":core:delivery" to listOf(":core:network"),
+                    ":core:session" to listOf(":core:playback"),
+                ),
+            ),
+        )
     }
 
     @Test
     fun currentModuleGraphSatisfiesDependencyRules() {
         val graph = mapOf(
-            ":core:sound" to emptyList<String>(),
-            ":core:story" to emptyList<String>(),
-            ":core:sources" to emptyList<String>(),
+            ":core:sound" to listOf(":core:session", ":core:delivery"),
+            ":core:story" to listOf(":core:session"),
             ":core:network" to emptyList<String>(),
             ":core:delivery" to listOf(":core:network"),
             ":core:favorites" to emptyList<String>(),
             ":core:playback" to emptyList<String>(),
-            ":core:session" to listOf(
-                ":core:sound", ":core:sources", ":core:delivery", ":core:story",
-                ":core:playback",
-            ),
+            ":core:session" to listOf(":core:playback"),
             ":designsystem" to emptyList<String>(),
             ":testing" to listOf(":core:sound", ":core:favorites", ":core:session"),
-            ":feature:browse" to listOf(":core:sound", ":testing", ":designsystem"),
+            ":feature:browse" to listOf(":core:sound", ":designsystem"),
             ":feature:category" to listOf(
                 ":core:sound", ":core:favorites", ":core:session",
-                ":testing", ":designsystem",
+                ":designsystem",
             ),
             ":feature:favorites" to listOf(
                 ":core:sound", ":core:favorites", ":core:session",
-                ":testing", ":designsystem",
+                ":designsystem",
             ),
             ":feature:sound" to listOf(
                 ":core:sound", ":core:favorites", ":core:session",
-                ":testing", ":designsystem",
+                ":designsystem",
             ),
             ":feature:story" to listOf(
-                ":core:story", ":core:session", ":testing", ":designsystem",
+                ":core:story", ":core:session", ":designsystem",
             ),
+            ":feature:nowplaying" to listOf(":core:session", ":designsystem"),
             ":shared" to listOf(
-                ":core:sound", ":core:sources", ":core:delivery",
+                ":core:sound", ":core:delivery",
                 ":core:favorites", ":core:story",
                 ":core:session", ":core:playback", ":core:network",
-                ":designsystem", ":testing", ":feature:browse", ":feature:category",
-                ":feature:favorites", ":feature:sound", ":feature:story",
+                ":designsystem", ":feature:browse", ":feature:category",
+                ":feature:favorites", ":feature:sound", ":feature:story", ":feature:nowplaying",
             ),
             ":androidApp" to listOf(":shared"),
         )
@@ -957,29 +956,241 @@ class FeatureFirstRulesTest {
         )
 
         assertEquals(emptyList(), FeatureFirstRules.staleRuleViolations(graph.keys))
+        assertEquals(emptyList(), FeatureFirstRules.corePolicyViolations(graph.keys, corePolicies))
+        assertEquals(emptyList(), FeatureFirstRules.unwiredModuleViolations(graph))
         assertEquals(emptyList(), FeatureFirstRules.featureModuleShapeViolations(graph.keys))
-        assertEquals(emptyList(), FeatureFirstRules.dependencyViolations(graph, apiEdges))
+        assertEquals(emptyList(), dependencyViolations(graph, apiEdges))
     }
 
     @Test
     fun supportModulesCannotAcquireApplicationDependencies() {
         for (module in listOf(":designsystem")) {
             for (dependency in listOf(":feature:sound", ":core:sound", ":shared", ":testing")) {
-                assertTrue(FeatureFirstRules.dependencyViolations(mapOf(module to listOf(dependency)))
+                assertTrue(dependencyViolations(mapOf(module to listOf(dependency)))
                     .any { it.contains("must remain independent") })
             }
-            assertEquals(emptyList(), FeatureFirstRules.dependencyViolations(mapOf(module to listOf(module))))
+            assertEquals(emptyList(), dependencyViolations(mapOf(module to listOf(module))))
         }
     }
 
     @Test
     fun coreCannotDependOnUiOrTheShell() {
         for (dependency in listOf(":designsystem", ":shared")) {
-            assertTrue(FeatureFirstRules.dependencyViolations(mapOf(":core:sound" to listOf(dependency)))
+            assertTrue(dependencyViolations(mapOf(":core:sound" to listOf(dependency)))
                 .any { it.contains("may not depend on UI") })
         }
     }
 
+    @Test
+    fun aModuleDirectoryMissingFromTheBuildIsReported() {
+        val violations = FeatureFirstRules.unregisteredModuleViolations(
+            moduleDirectories = listOf("core/sound", "core/meditation", "feature/browse"),
+            modules = setOf(":core:sound", ":feature:browse"),
+        )
+
+        assertEquals(1, violations.size)
+        assertTrue(violations.single().contains("core/meditation"))
+        assertTrue(violations.single().contains("settings.gradle.kts"))
+    }
+
+    @Test
+    fun everyRegisteredModuleDirectoryIsAccepted() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.unregisteredModuleViolations(
+                moduleDirectories = listOf("core/sound", "feature/browse", "designsystem"),
+                modules = setOf(":core:sound", ":feature:browse", ":designsystem"),
+            ),
+        )
+    }
+
+    @Test
+    fun aCapabilityOrScreenTheShellNeverDeclaresIsReported() {
+        val violations = FeatureFirstRules.unwiredModuleViolations(
+            mapOf(
+                FeatureFirstRules.SHELL_MODULE to listOf(":core:sound"),
+                ":core:sound" to emptyList(),
+                ":core:meditation" to emptyList(),
+                ":feature:browse" to emptyList(),
+            ),
+        )
+
+        assertEquals(2, violations.size)
+        assertTrue(violations.any { it.contains(":core:meditation") })
+        assertTrue(violations.any { it.contains(":feature:browse") })
+    }
+
+    /** Support modules are not capabilities; the rule is scoped to core and feature on purpose. */
+    @Test
+    fun theShellNeedNotDeclareSupportModules() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.unwiredModuleViolations(
+                mapOf(
+                    FeatureFirstRules.SHELL_MODULE to listOf(":core:sound", ":feature:browse"),
+                    ":core:sound" to emptyList(),
+                    ":feature:browse" to emptyList(),
+                    ":testing" to emptyList(),
+                    ":androidApp" to listOf(FeatureFirstRules.SHELL_MODULE),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun aRouteWithoutAnExplicitSerialNameIsReported() {
+        val violations = FeatureFirstRules.routeSerialNameViolations(
+            mapOf(
+                "feature/browse/src/commonMain/kotlin/BrowseNavigation.kt" to featureSource(
+                    ".navigation",
+                    """
+                    @Serializable
+                    data object BrowseRoute : NavKey
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        assertEquals(1, violations.size)
+        assertTrue(violations.single().contains("BrowseRoute"))
+        assertTrue(violations.single().contains("@SerialName"))
+    }
+
+    @Test
+    fun aRouteThatNamesItselfIsAccepted() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.routeSerialNameViolations(
+                mapOf(
+                    "feature/sound/src/commonMain/kotlin/SoundNavigation.kt" to featureSource(
+                        ".navigation",
+                        """
+                        @Serializable
+                        @SerialName("com.xwab.app.feature.sound.navigation.SoundRoute")
+                        data class SoundRoute(val trackId: String) : NavKey
+                        """.trimIndent(),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    /** A commented-out name is not a name; `codeOnly` is what makes the rule see that. */
+    @Test
+    fun aSerialNameInACommentDoesNotCount() {
+        val violations = FeatureFirstRules.routeSerialNameViolations(
+            mapOf(
+                "feature/story/src/commonMain/kotlin/StoriesNavigation.kt" to featureSource(
+                    ".navigation",
+                    """
+                    @Serializable
+                    // @SerialName("com.xwab.app.feature.story.navigation.StoriesRoute")
+                    data object StoriesRoute : NavKey
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        assertEquals(1, violations.size)
+        assertTrue(violations.single().contains("StoriesRoute"))
+    }
+
+    @Test
+    fun aPlaybackKindWithNoRouteIsReported() {
+        val violations = FeatureFirstRules.unroutedPlaybackKindViolations(
+            coreSources = mapOf(
+                "core/meditation/src/commonMain/kotlin/MeditationResolver.kt" to
+                    """
+                    @ContributesIntoMap(AppScope::class)
+                    @StringKey(MEDITATION_PLAYBACK_KIND)
+                    internal class MeditationPlaybackResolver : PlaybackItemResolver
+                    """.trimIndent(),
+            ),
+            compositionSources = mapOf(
+                "shared/src/commonMain/kotlin/AppNowPlayingSceneDecorator.kt" to
+                    "SOUND_PLAYBACK_KIND -> SoundRoute(value)",
+            ),
+        )
+
+        assertEquals(1, violations.size)
+        assertTrue(violations.single().contains("MEDITATION_PLAYBACK_KIND"))
+        assertTrue(violations.single().contains("no screen to open"))
+    }
+
+    @Test
+    fun aPlaybackKindTheShellRoutesIsAccepted() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.unroutedPlaybackKindViolations(
+                coreSources = mapOf(
+                    "core/sound/src/commonMain/kotlin/SoundPlaybackResolver.kt" to
+                        """
+                        @StringKey(SOUND_PLAYBACK_KIND)
+                        internal class SoundPlaybackResolver : PlaybackItemResolver
+                        """.trimIndent(),
+                ),
+                compositionSources = mapOf(
+                    "shared/src/commonMain/kotlin/AppNowPlayingSceneDecorator.kt" to
+                        "SOUND_PLAYBACK_KIND -> SoundRoute(value)",
+                ),
+            ),
+        )
+    }
+
+    /** A map key on something that is not a resolver is none of this rule's business. */
+    @Test
+    fun aMapKeyOutsideAResolverIsIgnored() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.unroutedPlaybackKindViolations(
+                coreSources = mapOf(
+                    "core/other/src/commonMain/kotlin/Thing.kt" to
+                        "@StringKey(SOME_OTHER_KEY)\ninternal class Thing : SomethingElse",
+                ),
+                compositionSources = emptyMap(),
+            ),
+        )
+    }
+
+    /** A commented-out registration is not a registration; `codeOnly` is what sees that. */
+    @Test
+    fun aCommentedOutPlaybackKindIsIgnored() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.unroutedPlaybackKindViolations(
+                coreSources = mapOf(
+                    "core/sound/src/commonMain/kotlin/SoundPlaybackResolver.kt" to
+                        "// @StringKey(GONE_PLAYBACK_KIND)\ninternal class X : PlaybackItemResolver",
+                ),
+                compositionSources = emptyMap(),
+            ),
+        )
+    }
+
+    private val corePolicies = mapOf(
+        ":core:sound" to policy(true, "SoundPort", ":core:session", ":core:delivery"),
+        ":core:story" to policy(true, "StoryPort", ":core:session"),
+        ":core:network" to policy(false, "NetworkPort"),
+        ":core:delivery" to policy(false, "DeliveryPort", ":core:network"),
+        ":core:favorites" to policy(true, "FavoritesPort"),
+        ":core:playback" to policy(false, "PlaybackEnginePort"),
+        ":core:session" to policy(true, "PlaybackPort", ":core:playback", interfaces = setOf("PlaybackPort", "PlaybackItemResolver")),
+    )
+
+    private fun policy(
+        featureAccessible: Boolean,
+        port: String,
+        vararg dependencies: String,
+        interfaces: Set<String> = setOf(port),
+    ) = CoreModulePolicy("Test capability", featureAccessible, dependencies.toSet(), interfaces)
+
+    private fun dependencyViolations(
+        graph: Map<String, List<String>>,
+        apiEdges: Map<String, List<String>> = emptyMap(),
+    ) = FeatureFirstRules.dependencyViolations(graph, apiEdges, corePolicies)
+
+    private fun corePortViolations(sources: List<FeatureFirstRules.CoreSource>) =
+        FeatureFirstRules.corePortViolations(sources, corePolicies.filterKeys { module -> sources.any { it.module == module } })
     private fun coreSource(path: String, packageSuffix: String, declaration: String) =
         FeatureFirstRules.CoreSource(
             path = "core/sample/src/commonMain/kotlin/$path",

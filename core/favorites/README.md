@@ -15,8 +15,8 @@ The caller maps these strings to its own domain types. Features and core modules
 port through Metro without accessing persistence implementation details.
 
 The file remains `xwab.preferences_pb`, in Android filesDir or the iOS documents directory.
-Each namespace uses `favorite_<namespace>_ids`. Sound features pass `sound`, the same name
-`:core:sources` gives that content kind; the namespace is stated once, by `:core:sound`.
+Each namespace uses `favorite_<namespace>_ids`. Sound features pass `sound`; this stable favorites
+namespace is stated once by the content owner, `:core:sound`.
 Tests cover records written straight into the store, persistence, namespace isolation and invalid
 inputs.
 

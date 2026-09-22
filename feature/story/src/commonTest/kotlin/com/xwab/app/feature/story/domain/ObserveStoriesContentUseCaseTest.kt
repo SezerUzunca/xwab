@@ -2,6 +2,7 @@ package com.xwab.app.feature.story.domain
 
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
+import com.xwab.app.core.story.port.STORY_PLAYBACK_KIND
 import com.xwab.app.testing.FakePlaybackPort
 import com.xwab.app.feature.story.FakeStoryCatalog
 import com.xwab.app.feature.story.story
@@ -21,7 +22,7 @@ class ObserveStoriesContentUseCaseTest {
         val coordinator = FakePlaybackPort()
         coordinator.publish(
             PlaybackSummary(
-                requestedItemId = PlaybackItemId.story("night-came-slowly"),
+                requestedItemId = PlaybackItemId(STORY_PLAYBACK_KIND, "night-came-slowly"),
                 playIntent = true,
                 isPlaying = true,
             ),
@@ -32,7 +33,7 @@ class ObserveStoriesContentUseCaseTest {
         val content = useCase().first()
 
         assertEquals(listOf(nightCameSlowly, idleFellow), content.stories)
-        assertEquals(PlaybackItemId.story("night-came-slowly"), content.playback.requestedItemId)
+        assertEquals(PlaybackItemId(STORY_PLAYBACK_KIND, "night-came-slowly"), content.playback.requestedItemId)
         assertTrue(content.playback.isPlaying)
         assertEquals(15 * 60_000L, content.sleepTimerRemainingMs)
     }
@@ -54,12 +55,15 @@ class ObserveStoriesContentUseCaseTest {
     fun aSoundInTheSessionReachesThisScreenAsASoundAndNotAsAStory() = runBlocking {
         val coordinator = FakePlaybackPort()
         coordinator.publish(
-            PlaybackSummary(requestedItemId = PlaybackItemId.sound("night-came-slowly"), playIntent = true),
+            PlaybackSummary(requestedItemId = PlaybackItemId(OTHER_KIND, "night-came-slowly"), playIntent = true),
         )
         val useCase = ObserveStoriesContentUseCase(catalog, coordinator)
 
         val content = useCase().first()
 
-        assertEquals(PlaybackItemId.sound("night-came-slowly"), content.playback.requestedItemId)
+        assertEquals(PlaybackItemId(OTHER_KIND, "night-came-slowly"), content.playback.requestedItemId)
     }
 }
+
+/** Some kind this screen does not show, to prove it ignores one. */
+private const val OTHER_KIND = "other-kind"

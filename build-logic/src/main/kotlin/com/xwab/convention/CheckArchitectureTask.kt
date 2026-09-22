@@ -21,10 +21,8 @@ import org.gradle.api.tasks.TaskAction
  * 3. A feature is exactly one `:feature:<name>` module; nested `api` / `impl` projects are invalid.
  * 4. A use case in a core module must serve more than one feature. A screen-specific one belongs
  *    to that screen's module, otherwise screen logic leaks into shared capabilities.
- * 5. A feature may not declare — or reach through an `api` dependency — a module in
- *    [FeatureFirstRules.MODULES_OFF_LIMITS_TO_FEATURES].
- *    Fetching audio and driving a platform player are done on a screen's behalf. Content-port
- *    checks also enforce one cohesive port per sound/story module.
+ * 5. Each core owns an architecture.properties file declaring its responsibility, feature access,
+ *    exhaustive project dependency boundary and complete set of public callable interfaces.
  * 6. All shared production source sets may reference features only at the navigation/composition
  *    boundary (navigation contracts) or DI boundary (Dependencies classes).
  * 7. A core capability exposes declarations only from an explicit `port` package; everything else
@@ -39,6 +37,20 @@ import org.gradle.api.tasks.TaskAction
  *     depend on it or on the app shell.
  * 13. Loading/Ready state types stay inside feature modules. Whether a screen has content yet is
  *     that screen's own question, not a vocabulary every feature has to share.
+ * 14. Every directory holding a build script is a module in the build.
+ * 15. Every core and feature module is a direct dependency of `:shared`. Metro aggregates
+ *     contributions from the compile classpath, so a capability the shell does not declare reaches
+ *     no graph, and a feature it does not declare is in no app — neither fails to build.
+ * 16. Every feature route declares an explicit `@SerialName`. The name is what a saved back stack
+ *     holds, so left implicit it follows the package and moving the file breaks every restore.
+ * 17. Every playback kind a content module registers a resolver under has a route in the app
+ *     shell. Kinds are open strings, so the exhaustive `when` that used to guarantee this is gone.
+ * 18. Core dependencies are acyclic, including production self dependencies. Test configurations
+ *     are excluded from both dependency graphs.
+ * 19. Public port contracts cannot reference their own implementation packages. Each flat core
+ *     module owns only its matching package namespace.
+ * 20. Optional adapterOnlyTypes stay out of feature code and public consumer port contracts;
+ *     their owner's marked types may refer to one another in their own source file.
  *
  * The rules themselves live in [FeatureFirstRules], where they are unit-tested from both sides.
  * This task is only their plumbing: it collects the dependency graph and source/configuration files.
@@ -48,7 +60,7 @@ import org.gradle.api.tasks.TaskAction
  */
 abstract class CheckArchitectureTask : DefaultTask() {
 
-    /** Module path to the paths of the projects it depends on, across every configuration. */
+    /** Module path to its production project dependencies; test fixtures do not change its ABI. */
     @get:Input
     abstract val moduleDependencies: MapProperty<String, List<String>>
 
@@ -69,12 +81,32 @@ abstract class CheckArchitectureTask : DefaultTask() {
         val graph = moduleDependencies.get()
         val root = repositoryRoot.get().asFile
         val coreSources = coreProductionSources(root, graph.keys)
-        val violations = FeatureFirstRules.staleRuleViolations(graph.keys) +
+        val policyResults = graph.keys.filter { it.startsWith(FeatureFirstRules.CORE_PREFIX) }
+            .associateWith { module ->
+                val file = root.resolve(module.removePrefix(":").replace(':', '/'))
+                    .resolve("architecture.properties")
+                parseCoreModulePolicy(module, file.takeIf(File::isFile)?.readText())
+            }
+        val policies = policyResults.mapNotNull { (module, result) ->
+            result.policy?.let { module to it }
+        }.toMap()
+        val violations = policyResults.values.flatMap { it.violations } +
+            FeatureFirstRules.staleRuleViolations(graph.keys) +
+            FeatureFirstRules.corePolicyViolations(graph.keys, policies) +
+            FeatureFirstRules.coreModuleShapeViolations(graph.keys) +
+            FeatureFirstRules.corePackageOwnershipViolations(coreSources) +
+            FeatureFirstRules.unregisteredModuleViolations(moduleDirectories(root), graph.keys) +
+            FeatureFirstRules.unwiredModuleViolations(graph) +
+            FeatureFirstRules.routeSerialNameViolations(productionSources(root, "feature")) +
+            FeatureFirstRules.unroutedPlaybackKindViolations(
+                coreSources = productionSources(root, "core"),
+                compositionSources = productionSources(root, "shared"),
+            ) +
             FeatureFirstRules.featureModuleShapeViolations(graph.keys) +
             FeatureFirstRules.legacySplitDirectoryViolations(legacySplitDirectories(root)) +
             FeatureFirstRules.koinUsageViolations(architectureTextSources(root)) +
             FeatureFirstRules.userAgentAgreementViolations(clientIdentitySources(root)) +
-            FeatureFirstRules.dependencyViolations(graph, moduleApiDependencies.get()) +
+            FeatureFirstRules.dependencyViolations(graph, moduleApiDependencies.get(), policies) +
             leakedUseCaseViolations(root, graph.keys) +
             FeatureFirstRules.sharedFeatureReferenceViolations(productionSources(root, "shared")) +
             FeatureFirstRules.featureVisibilityViolations(productionSources(root, "feature")) +
@@ -82,8 +114,9 @@ abstract class CheckArchitectureTask : DefaultTask() {
             FeatureFirstRules.lazyListKeyViolations(
                 productionSources(root, "feature") + productionSources(root, "shared"),
             ) +
-            FeatureFirstRules.contentPortViolations(coreSources) +
-            FeatureFirstRules.coreVisibilityViolations(coreSources) +
+            FeatureFirstRules.corePortViolations(coreSources, policies) +
+            FeatureFirstRules.adapterOnlyTypeViolations(coreSources, productionSources(root, "feature"), policies) +
+            FeatureFirstRules.coreVisibilityViolations(coreSources, policies) +
             FeatureFirstRules.coreImportViolations(coreSources) +
             FeatureFirstRules.legacyCoreAbstractionViolations(coreSources)
 
@@ -174,6 +207,29 @@ abstract class CheckArchitectureTask : DefaultTask() {
                 sources + productionSources(root, directory)
             }
 
+
+    /**
+     * Every directory that carries a build script, which is what a module looks like on disk.
+     *
+     * `build-logic` is skipped because it is an included build with a settings file of its own, and
+     * the repository root because its script configures the build rather than a module.
+     */
+    private fun moduleDirectories(root: File): List<String> =
+        root.walkTopDown()
+            .onEnter { directory ->
+                directory == root || directory.name !in setOf(
+                    ".git",
+                    ".gradle",
+                    ".idea",
+                    ".claude",
+                    ".agents",
+                    "build",
+                    "build-logic",
+                )
+            }
+            .filter { it.isDirectory && it != root && it.resolve("build.gradle.kts").isFile }
+            .map { it.relativeTo(root).invariantSeparatorsPath }
+            .toList()
     private fun legacySplitDirectories(root: File): List<String> =
         listOf(root.resolve("core"), root.resolve("feature")).flatMap { sourceRoot ->
             if (!sourceRoot.isDirectory) return@flatMap emptyList()

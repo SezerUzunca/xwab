@@ -132,5 +132,5 @@ data class PlaybackSummary(
  * A list of sounds has nothing to say about a story being played. Asking "is this row the current
  * item?" without checking the kind would light up the sound whose id a story happens to share.
  */
-fun PlaybackSummary.requestedValueOf(kind: PlaybackKind): String? =
+fun PlaybackSummary.requestedValueOf(kind: String): String? =
     requestedItemId?.takeIf { it.kind == kind }?.value

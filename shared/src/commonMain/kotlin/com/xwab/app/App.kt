@@ -18,7 +18,7 @@ import com.xwab.app.di.AppGraph
 import com.xwab.app.navigation.Navigator
 import com.xwab.app.navigation.TOP_LEVEL_DESTINATIONS
 import com.xwab.app.navigation.rememberNavigationState
-import com.xwab.app.navigation.toEntries
+import com.xwab.app.navigation.rememberTabEntries
 import com.xwab.app.ui.AppNavigationBar
 
 /**
@@ -67,7 +67,7 @@ fun App(graph: AppGraph) {
                 },
             ) { innerPadding ->
                 NavDisplay(
-                    entries = navigationState.toEntries(entryProvider),
+                    entries = rememberTabEntries(navigationState, entryProvider),
                     sceneDecoratorStrategies = listOf(nowPlayingBar),
                     sharedTransitionScope = this@SharedTransitionLayout,
                     onBack = navigator::goBack,
