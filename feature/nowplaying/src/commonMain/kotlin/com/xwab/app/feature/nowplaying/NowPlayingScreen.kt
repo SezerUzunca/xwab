@@ -116,7 +116,7 @@ private fun NowPlayingScreenPreview() {
     SleepRelaxTheme {
         NowPlayingScreen(
             state = NowPlayingState(
-                itemId = PlaybackItemId.sound("calm-waves"),
+                itemId = PlaybackItemId(ANY_KIND, "calm-waves"),
                 title = "Calm Waves",
                 playIntent = true,
             ),
@@ -125,3 +125,9 @@ private fun NowPlayingScreenPreview() {
         )
     }
 }
+
+/**
+ * This feature draws whatever is playing and never asks what kind it is, so its own fixtures
+ * name a kind that belongs to no content module.
+ */
+private const val ANY_KIND = "any-kind"

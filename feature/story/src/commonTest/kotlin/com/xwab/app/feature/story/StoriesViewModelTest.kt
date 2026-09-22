@@ -3,6 +3,7 @@ package com.xwab.app.feature.story
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
+import com.xwab.app.core.story.port.STORY_PLAYBACK_KIND
 import com.xwab.app.core.story.port.StoryId
 import com.xwab.app.core.story.port.Story
 import com.xwab.app.feature.story.domain.ObserveStoriesContentUseCase
@@ -54,7 +55,7 @@ class StoriesViewModelTest {
         val port = FakePlaybackPort().apply {
             publish(
                 PlaybackSummary(
-                    requestedItemId = PlaybackItemId.sound("bedtime"),
+                    requestedItemId = PlaybackItemId(OTHER_KIND, "bedtime"),
                     playIntent = true,
                     isPreparing = true,
                 ),
@@ -76,7 +77,7 @@ class StoriesViewModelTest {
         val soundFailed = FakePlaybackPort().apply {
             publish(
                 PlaybackSummary(
-                    failure = PlaybackFailure.SourceUnavailable(PlaybackItemId.sound("bedtime")),
+                    failure = PlaybackFailure.SourceUnavailable(PlaybackItemId(OTHER_KIND, "bedtime")),
                 ),
             )
         }
@@ -86,7 +87,7 @@ class StoriesViewModelTest {
 
         assertNull(readyState(ignoring).playbackFailure)
 
-        val failure = PlaybackFailure.SourceUnavailable(PlaybackItemId.story("bedtime"))
+        val failure = PlaybackFailure.SourceUnavailable(PlaybackItemId(STORY_PLAYBACK_KIND, "bedtime"))
         val storyFailed = FakePlaybackPort().apply { publish(PlaybackSummary(failure = failure)) }
         val showing = createViewModel(storyFailed)
         collectState(showing)
@@ -103,7 +104,7 @@ class StoriesViewModelTest {
         val port = FakePlaybackPort().apply {
             publish(
                 PlaybackSummary(
-                    requestedItemId = PlaybackItemId.story("bedtime"),
+                    requestedItemId = PlaybackItemId(STORY_PLAYBACK_KIND, "bedtime"),
                     playIntent = true,
                 ),
             )
@@ -124,7 +125,7 @@ class StoriesViewModelTest {
         val port = FakePlaybackPort().apply {
             publish(
                 PlaybackSummary(
-                    requestedItemId = PlaybackItemId.story("bedtime"),
+                    requestedItemId = PlaybackItemId(STORY_PLAYBACK_KIND, "bedtime"),
                     playIntent = true,
                 ),
             )
@@ -136,14 +137,14 @@ class StoriesViewModelTest {
         viewModel.togglePlayback(MOONLIGHT)
         advanceUntilIdle()
 
-        assertEquals(PlaybackItemId.story("moonlight"), port.playedItemId)
+        assertEquals(PlaybackItemId(STORY_PLAYBACK_KIND, "moonlight"), port.playedItemId)
         assertEquals(0, port.pauses)
     }
 
     @Test
     fun theTimerFollowsTheSessionEvenWhenASoundIsPlaying() = runTest(mainDispatcher) {
         val port = FakePlaybackPort().apply {
-            publish(PlaybackSummary(requestedItemId = PlaybackItemId.sound("bedtime")))
+            publish(PlaybackSummary(requestedItemId = PlaybackItemId(OTHER_KIND, "bedtime")))
             publishSleepTimer(60_000L)
         }
         val viewModel = createViewModel(port)
@@ -228,3 +229,6 @@ class StoriesViewModelTest {
         val MOONLIGHT = StoryId("moonlight")
     }
 }
+
+/** Some kind this screen does not show, to prove it ignores one. */
+private const val OTHER_KIND = "other-kind"

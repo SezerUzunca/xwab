@@ -4,6 +4,7 @@ import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
+import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.testing.FakeFavorites
 import com.xwab.app.testing.FakeSoundCatalog
 import com.xwab.app.testing.FakePlaybackPort
@@ -37,7 +38,7 @@ class ObserveFavoritesContentUseCaseTest {
         }
         runCurrent()
         val savedTracks = emissions.single().tracks
-        val playing = PlaybackSummary(requestedItemId = PlaybackItemId.sound(rain.id.value), playIntent = true)
+        val playing = PlaybackSummary(requestedItemId = PlaybackItemId(SOUND_PLAYBACK_KIND, rain.id.value), playIntent = true)
 
         playback.publish(playing)
         runCurrent()
@@ -90,7 +91,7 @@ class ObserveFavoritesContentUseCaseTest {
     fun carriesPlaybackSummaryThrough() = runBlocking {
         val coordinator = FakePlaybackPort()
         val playing = PlaybackSummary(
-            requestedItemId = PlaybackItemId.sound("gentle-rain"),
+            requestedItemId = PlaybackItemId(SOUND_PLAYBACK_KIND, "gentle-rain"),
             playIntent = true,
             isPlaying = true,
         )

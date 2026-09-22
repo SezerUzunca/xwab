@@ -4,6 +4,7 @@ import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
+import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 
 /** Loading and content states owned by this feature. */
 internal sealed interface FavoritesUiState {
@@ -46,5 +47,5 @@ internal data class FavoritesState(
     fun isRowPreparing(trackId: TrackId): Boolean = requestedTrackId == trackId && isPreparing
 
     fun rowFailure(trackId: TrackId): PlaybackFailure? =
-        playbackFailure?.takeIf { it.itemId == PlaybackItemId.sound(trackId.value) }
+        playbackFailure?.takeIf { it.itemId == PlaybackItemId(SOUND_PLAYBACK_KIND, trackId.value) }
 }

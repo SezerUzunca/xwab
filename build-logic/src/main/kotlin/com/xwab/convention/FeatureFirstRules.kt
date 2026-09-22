@@ -4,6 +4,7 @@ package com.xwab.convention
 internal object FeatureFirstRules {
     const val CORE_PREFIX = ":core:"
     const val FEATURE_PREFIX = ":feature:"
+    const val SHELL_MODULE = ":shared"
 
     val USE_CASE_DECLARATION =
         Regex("""^\s*(?:internal\s+|public\s+)?class\s+(\w+UseCase)\b""", RegexOption.MULTILINE)
@@ -43,6 +44,17 @@ internal object FeatureFirstRules {
     /** A single-line `key = { ... }` lambda, which is how every list in this app spells one. */
     private val LAZY_LIST_KEY = Regex("""\bkey\s*=\s*\{([^{}\n]*)\}""")
 
+    /** `data object BrowseRoute : NavKey`, `data class SoundRoute(val trackId: String) : NavKey`. */
+    private val ROUTE_DECLARATION = Regex(
+        """^\s*(?:(?:public|internal|data|value)\s+)*(?:object|class)\s+(\w+)\b[^\r\n]*:\s*NavKey\s*\{?\s*$""",
+    )
+
+    private val EXPLICIT_SERIAL_NAME = Regex("""@SerialName\s*\(""")
+
+    /** `@StringKey(SOUND_PLAYBACK_KIND)` — the kind a content module registers its resolver under. */
+    private val CONTRIBUTED_PLAYBACK_KIND =
+        Regex("""@StringKey\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)""")
+
     private val DECLARATION = Regex(
         """^\s*(?:(?:@[A-Za-z_][A-Za-z0-9_.:]*(?:\([^()\r\n]*\))?)\s+)*((?:(?:public|internal|private|protected|expect|actual|open|abstract|final|override|inner|companion|suspend|inline|tailrec|operator|infix|external|lateinit|const|data|sealed|enum|value|annotation|fun)\s+)*)(class|interface|object|fun|const\s+val|val|var|typealias)(?:\s+(?:<[^>]+>\s+)?(`[^`\r\n]+`|[A-Za-z_][A-Za-z0-9_.]*))?""",
     )
@@ -63,6 +75,8 @@ internal object FeatureFirstRules {
             "the platform engine is hidden behind PlaybackPort",
         ":core:sources" to
             "physical content addresses are adapter details hidden from screens",
+        ":core:resolution" to
+            "a resolution carries the address of a file; PlaybackPort is the only route to one",
     )
 
     /** The one port interface each content module is allowed to publish. */
@@ -72,12 +86,35 @@ internal object FeatureFirstRules {
     )
 
     /**
-     * Modules reusable outside this app, and the only project dependencies each may declare.
-     * Favorites stores ids it never interprets; delivery moves bytes and needs a transport.
+     * Contracts a core module publishes for *other* modules to implement rather than to call.
+     *
+     * A port is consumed: one module declares it, one adapter satisfies it, and the name says so.
+     * A service provider interface points the other way — `:core:resolution` publishes one so every
+     * content module can answer for its own kind, and `:core:session` can play a kind without
+     * naming the module that owns it. That is the seam the whole plug-and-play arrangement rests
+     * on, so it is registered here rather than bent into the Port naming rule.
+     */
+    val SERVICE_PROVIDER_INTERFACES = mapOf(
+        ":core:resolution" to "PlaybackItemResolver",
+    )
+
+    /**
+     * Modules whose project dependencies are stated exhaustively, and what each is allowed.
+     *
+     * Two different reasons to be on this list. Favorites and delivery are reusable outside this
+     * app — favorites stores ids it never interprets, delivery moves bytes and needs a transport —
+     * so naming app content is what would tie them to it.
+     *
+     * `:core:session` is here for the opposite reason. It is this app's own playback session, and
+     * the list is what stops it learning what a sound or a story is: it drives the engine and
+     * resolves through the contract in `:core:resolution`, while content modules contribute their
+     * own resolvers into the map it reads. Let one content dependency back in and adding a content
+     * type starts editing this module again, which is the cost that design was paid to remove.
      */
     val REUSABLE_MODULE_DEPENDENCIES = mapOf(
         ":core:favorites" to emptySet<String>(),
         ":core:delivery" to setOf(":core:network"),
+        ":core:session" to setOf(":core:resolution", ":core:playback"),
     )
 
     /** UI primitives and presentation models have no application project dependencies. */
@@ -107,6 +144,12 @@ internal object FeatureFirstRules {
             "reusable-capability rule",
             "REUSABLE_MODULE_DEPENDENCIES",
             REUSABLE_MODULE_DEPENDENCIES.keys + REUSABLE_MODULE_DEPENDENCIES.values.flatten(),
+        ),
+        Triple("shell-wiring rule", "SHELL_MODULE", setOf(SHELL_MODULE)),
+        Triple(
+            "service-provider-interface rule",
+            "SERVICE_PROVIDER_INTERFACES",
+            SERVICE_PROVIDER_INTERFACES.keys,
         ),
     )
 
@@ -144,6 +187,132 @@ internal object FeatureFirstRules {
             "$module is a nested feature project. Each feature must be exactly one " +
                 ":feature:<name> module; keep Navigation 3 contracts and implementation together."
         }
+
+    /**
+     * A module directory that no `include` names builds nothing and fails nothing.
+     *
+     * Features are discovered by scanning `feature/`, so this cannot happen to one. Every other
+     * module is named by hand in `settings.gradle.kts`, and a directory left out of it is invisible
+     * in the worst way: it compiles nowhere, its tests never run, and every rule in this file skips
+     * it because the graph it walks is built from the modules the build actually has.
+     *
+     * Plugging a module in is supposed to be dropping a directory and wiring it. This is the half
+     * of that nothing else reports.
+     */
+    fun unregisteredModuleViolations(
+        moduleDirectories: Collection<String>,
+        modules: Set<String>,
+    ): List<String> {
+        val registered = modules.map(::directoryOf).toSet()
+        return (moduleDirectories - registered).sorted().map { directory ->
+            "$directory holds a build script but is not a module in this build. Add it to " +
+                "settings.gradle.kts or delete it: an unregistered directory compiles nothing, " +
+                "runs no tests, and no rule here can see it."
+        }
+    }
+
+    /**
+     * A capability or a screen the shell never declares is in no application.
+     *
+     * Metro aggregates a scope's contributions from the compile classpath, so a core module missing
+     * from `shared/build.gradle.kts` contributes no binding to the application graph however
+     * correct its adapter is. A feature missing from it is worse: it builds, its tests pass, and it
+     * is in no app at all.
+     *
+     * Both fail silently today, and both are the second half of plugging a module in — the half a
+     * scaffolding script prints as a reminder rather than enforces. Unplugging has the same shape:
+     * delete the dependency and leave the module, and the build stays green around a module nothing
+     * ships.
+     */
+    fun unwiredModuleViolations(graph: Map<String, List<String>>): List<String> {
+        val shell = graph[SHELL_MODULE] ?: return emptyList()
+        return graph.keys
+            .filter { module ->
+                (module.startsWith(CORE_PREFIX) || module.startsWith(FEATURE_PREFIX)) &&
+                    module !in shell
+            }
+            .sorted()
+            .map { module ->
+                "$module is in the build but $SHELL_MODULE does not depend on it. Declare it in " +
+                    "shared/build.gradle.kts or remove the module: a core capability the shell " +
+                    "does not see contributes nothing to the application graph, and a feature it " +
+                    "does not see is in no app."
+            }
+    }
+
+    /**
+     * Every content kind the app can play has somewhere to open.
+     *
+     * This replaces a guarantee the compiler used to give. While a playback kind was a closed enum,
+     * the composition root's `when` over it was exhaustive: adding a content type would not build
+     * until it had a route. Kinds are open strings now — which is what lets a content module be
+     * added or removed without editing `:core:session` — and an open `when` needs an `else`, so the
+     * compiler has nothing left to say.
+     *
+     * So the build says it instead. A module that registers a resolver under a kind has declared
+     * that the app can play that kind; if the composition root never mentions the same constant,
+     * something is playable with no screen to open from the now-playing bar.
+     *
+     * Keyed on the constant's *name* rather than its value, which is the whole point of each
+     * content module publishing one: a rule that compared string literals would be satisfied by a
+     * matching typo.
+     */
+    fun unroutedPlaybackKindViolations(
+        coreSources: Map<String, String>,
+        compositionSources: Map<String, String>,
+    ): List<String> {
+        val contributed = coreSources
+            .filterValues { it.contains("PlaybackItemResolver") }
+            .flatMap { (path, source) ->
+                CONTRIBUTED_PLAYBACK_KIND.findAll(codeOnly(source))
+                    .map { path to it.groupValues[1] }
+                    .toList()
+            }
+        if (contributed.isEmpty()) return emptyList()
+
+        val composition = compositionSources.values.joinToString("\n", transform = ::codeOnly)
+        return contributed
+            .filterNot { (_, constant) -> Regex("""\b$constant\b""").containsMatchIn(composition) }
+            .map { (path, constant) ->
+                "$path registers a playback resolver under $constant, but nothing in the app shell " +
+                    "names that kind. Something the app can play has no screen to open: give it a " +
+                    "route where the now-playing bar turns an item into one."
+            }
+            .sorted()
+    }
+
+    /**
+     * A route's serial name is a wire format, so it is stated rather than inferred.
+     *
+     * Left implicit, a `@Serializable` route is named after its package. A saved back stack holds
+     * that name, and the build that reads one back is never the build that wrote it — so moving the
+     * file, renaming the package or repackaging the feature silently invalidates the navigation
+     * every installed copy restores. Written out, the name survives all three.
+     *
+     * This is what makes a feature removable at all: [com.xwab.app.navigation.RetiredRoute] can
+     * only recognise a name it no longer has if that name was stable in the first place.
+     *
+     * Scoped to `feature/`, which is where routes live. The shell's own fallback names itself in a
+     * hand-written descriptor instead, and is not a route anything navigates to.
+     */
+    fun routeSerialNameViolations(sources: Map<String, String>): List<String> =
+        sources.flatMap { (path, source) ->
+            val lines = codeOnly(source).lines()
+            lines.mapIndexedNotNull { index, line ->
+                val route = ROUTE_DECLARATION.find(line)?.groupValues?.get(1)
+                    ?: return@mapIndexedNotNull null
+
+                val annotations = lines.take(index).asReversed()
+                    .takeWhile { it.isBlank() || it.trimStart().startsWith("@") }
+                if (annotations.any(EXPLICIT_SERIAL_NAME::containsMatchIn)) {
+                    return@mapIndexedNotNull null
+                }
+
+                "$path:${index + 1} declares route $route without an explicit @SerialName. The " +
+                    "name a saved back stack holds would then follow the package, and moving the " +
+                    "file would break the navigation every installed copy restores."
+            }
+        }.sorted()
 
     /** Neither modules nor source/package directories may recreate the old `api` / `impl` split. */
     fun legacySplitDirectoryViolations(paths: List<String>): List<String> =
@@ -258,8 +427,9 @@ internal object FeatureFirstRules {
             dependencies.forEach { dependency ->
                 // KMP host-test configurations include a dependency on their own main module.
                 if (reusableDependencies != null && dependency != module && dependency !in reusableDependencies) {
-                    violations += "$module depends on $dependency. Reusable favorites and delivery " +
-                        "must not depend on app content; only delivery may use core:network."
+                    violations += "$module depends on $dependency. This module states its project " +
+                        "dependencies exhaustively and $dependency is not among them: " +
+                        "${reusableDependencies.sorted()}."
                 }
                 if (module.startsWith(CORE_PREFIX) && dependency.startsWith(FEATURE_PREFIX)) {
                     violations += "$module depends on $dependency. A core module may not depend on a feature."
@@ -496,7 +666,8 @@ internal object FeatureFirstRules {
                             "Every declaration in a port package must be public."
 
                     isPortPackage && isPublic &&
-                        kind == "interface" && "sealed" !in modifiers && !name.endsWith("Port") ->
+                        kind == "interface" && "sealed" !in modifiers && !name.endsWith("Port") &&
+                        name != SERVICE_PROVIDER_INTERFACES[source.module] ->
                         "${source.path}:${parsed.lineNumber} exposes interface $name. " +
                             "Public port interfaces must end in Port."
 

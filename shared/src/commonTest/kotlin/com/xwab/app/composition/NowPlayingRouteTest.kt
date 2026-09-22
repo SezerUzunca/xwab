@@ -1,6 +1,8 @@
 package com.xwab.app.composition
 
 import com.xwab.app.core.session.port.PlaybackItemId
+import com.xwab.app.core.story.port.STORY_PLAYBACK_KIND
+import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import com.xwab.app.navigation.TOP_LEVEL_DESTINATIONS
@@ -21,7 +23,7 @@ class NowPlayingRouteTest {
     fun aPlayingSoundOpensItsOwnScreen() {
         assertEquals(
             SoundRoute("gentle-rain"),
-            PlaybackItemId.sound("gentle-rain").route(),
+            PlaybackItemId(SOUND_PLAYBACK_KIND, "gentle-rain").route(),
         )
     }
 
@@ -33,7 +35,7 @@ class NowPlayingRouteTest {
      */
     @Test
     fun aPlayingStoryOpensTheListItIsPlayedFrom() {
-        val route = PlaybackItemId.story("moonlit-forest").route()
+        val route = PlaybackItemId(STORY_PLAYBACK_KIND, "moonlit-forest").route()
 
         assertEquals(StoriesRoute, route)
         assertTrue(

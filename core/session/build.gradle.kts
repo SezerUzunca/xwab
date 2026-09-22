@@ -7,13 +7,13 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // Resolve content through core ports and drive the internal platform engine.
-            implementation(projects.core.delivery)
-            implementation(projects.core.story)
-            implementation(projects.core.sources)
+            // Two dependencies, and neither is a content type. The session drives the platform
+            // engine and resolves whatever it was handed through the contract in `:core:resolution`
+            // — content modules contribute their own resolvers into the map it reads, so adding or
+            // removing a content type never reaches this module. `checkArchitecture` holds this
+            // list to exactly these two.
+            implementation(projects.core.resolution)
             implementation(projects.core.playback)
-            // Content dependencies stay internal: the session publishes PlaybackItemId.
-            implementation(projects.core.sound)
             api(libs.kotlinx.coroutines.core)
         }
     }

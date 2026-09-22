@@ -4,6 +4,7 @@ import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
+import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.testing.FakeFavorites
 import com.xwab.app.testing.FakeSoundCatalog
 import com.xwab.app.testing.FakePlaybackPort
@@ -64,7 +65,7 @@ class ObserveSoundContentUseCaseTest {
     fun theSoundScreenCombinesTrackFavoritesPlaybackAndSleepTimer() = runBlocking {
         val coordinator = FakePlaybackPort()
         coordinator.publish(
-            PlaybackSummary(requestedItemId = PlaybackItemId.sound("gentle-rain"), playIntent = true, isPlaying = true),
+            PlaybackSummary(requestedItemId = PlaybackItemId(SOUND_PLAYBACK_KIND, "gentle-rain"), playIntent = true, isPlaying = true),
         )
         coordinator.publishSleepTimer(90_000L)
         val useCase = ObserveSoundContentUseCase(

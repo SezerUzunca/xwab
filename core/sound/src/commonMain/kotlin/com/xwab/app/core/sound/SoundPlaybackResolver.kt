@@ -1,33 +1,50 @@
-package com.xwab.app.core.session
+package com.xwab.app.core.sound
 
-import com.xwab.app.core.session.port.PlaybackKind
-import com.xwab.app.core.sources.port.SOUND_NAMESPACE
-import com.xwab.app.core.sources.port.SourcePort
-import com.xwab.app.core.sound.port.SoundPort
-import com.xwab.app.core.sound.port.TrackId
-import com.xwab.app.core.delivery.port.DeliveryPort
 import com.xwab.app.core.delivery.port.CacheKey
+import com.xwab.app.core.delivery.port.DeliveryPort
 import com.xwab.app.core.delivery.port.DeliveryRequest
 import com.xwab.app.core.delivery.port.DeliveryResult
+import com.xwab.app.core.resolution.port.ItemResolution
+import com.xwab.app.core.resolution.port.PlaybackItemResolver
+import com.xwab.app.core.resolution.port.PlaybackPolicy
+import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
+import com.xwab.app.core.sound.port.SoundPort
+import com.xwab.app.core.sound.port.TrackId
+import com.xwab.app.core.sources.port.SOUND_NAMESPACE
+import com.xwab.app.core.sources.port.SourcePort
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.StringKey
 import kotlinx.coroutines.flow.first
 
 /**
- * Sounds: metadata from the catalog, a URI from delivery.
+ * What playing a sound means: metadata from this module's catalog, a URI from delivery.
  *
- * This is where metadata, physical-source and delivery capabilities meet, and where a raw item
- * value becomes a `TrackId` again. All three dependencies are `implementation`, so none of their
- * types appears in anything this module publishes.
+ * It lives here rather than in `:core:session` because this is the module that knows what a sound
+ * is. The session holds one playback for whatever the app can play and looks a resolver up by kind;
+ * it never names this class, this module, or the two it reaches through. That is what makes a
+ * content type pluggable — and what makes this the only file that has to exist for a fourth one.
+ *
+ * [SOUND_PLAYBACK_KIND] is the map key rather than a literal, so the kind a screen asks for and the
+ * kind that answers cannot drift apart.
+ *
+ * All three dependencies are `implementation`: `:core:delivery` and `:core:sources` are off limits
+ * to features, and nothing this module publishes names a type from either, so they stop here rather
+ * than travelling onto the compile classpath of every screen that reads a catalog.
  *
  * Delivery answers with a local file when the track is cached and with the HTTPS source when it is
  * not, starting the download in the background either way. That behaviour belongs to sounds and
  * stays here: a story streams and is not kept, so it must never be resolved through this path.
  */
+@ContributesIntoMap(AppScope::class)
+@StringKey(SOUND_PLAYBACK_KIND)
+@Inject
 internal class SoundPlaybackResolver(
     private val catalog: SoundPort,
     private val sources: SourcePort,
     private val content: DeliveryPort,
 ) : PlaybackItemResolver {
-    override val kind: PlaybackKind = PlaybackKind.SOUND
 
     override suspend fun resolve(value: String): ItemResolution {
         val trackId = TrackId(value)

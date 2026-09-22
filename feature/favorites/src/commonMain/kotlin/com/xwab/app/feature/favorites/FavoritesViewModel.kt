@@ -6,8 +6,8 @@ import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackItemId
-import com.xwab.app.core.session.port.PlaybackKind
 import com.xwab.app.core.session.port.requestedValueOf
+import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.feature.favorites.domain.FavoritesContent
 import com.xwab.app.feature.favorites.domain.ObserveFavoritesContentUseCase
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,10 +28,10 @@ internal class FavoritesViewModel(
             if (content.favoritesAvailable) lastKnownTracks = content.tracks
             val tracks = lastKnownTracks ?: content.tracks
             val playback = content.playback
-            val requestedTrackId = playback.requestedValueOf(PlaybackKind.SOUND)?.let(::TrackId)
+            val requestedTrackId = playback.requestedValueOf(SOUND_PLAYBACK_KIND)?.let(::TrackId)
                 ?.takeIf { id -> tracks.any { it.id == id } }
             val failure = playback.failure?.takeIf { failure ->
-                failure.itemId.kind == PlaybackKind.SOUND && tracks.any { it.id.value == failure.itemId.value }
+                failure.itemId.kind == SOUND_PLAYBACK_KIND && tracks.any { it.id.value == failure.itemId.value }
             }
             FavoritesUiState.Ready(
                 FavoritesState(
@@ -55,7 +55,7 @@ internal class FavoritesViewModel(
         if (current.isRowPlaying(trackId)) {
             playbackPort.pause()
         } else {
-            viewModelScope.launch { playbackPort.play(PlaybackItemId.sound(trackId.value)) }
+            viewModelScope.launch { playbackPort.play(PlaybackItemId(SOUND_PLAYBACK_KIND, trackId.value)) }
         }
     }
 }

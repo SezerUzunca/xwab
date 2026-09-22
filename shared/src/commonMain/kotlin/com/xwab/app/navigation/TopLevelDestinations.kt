@@ -7,14 +7,8 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation3.runtime.NavKey
 import com.xwab.app.feature.browse.navigation.BrowseRoute
-import com.xwab.app.feature.browse.navigation.browseNavigationSerializers
-import com.xwab.app.feature.category.navigation.categoryNavigationSerializers
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
-import com.xwab.app.feature.favorites.navigation.favoritesNavigationSerializers
-import com.xwab.app.feature.sound.navigation.soundNavigationSerializers
 import com.xwab.app.feature.story.navigation.StoriesRoute
-import com.xwab.app.feature.story.navigation.storiesNavigationSerializers
-import kotlinx.serialization.modules.SerializersModule
 import org.jetbrains.compose.resources.StringResource
 import xwab.shared.generated.resources.Res
 import xwab.shared.generated.resources.tab_browse
@@ -39,6 +33,9 @@ internal class TopLevelDestination(
  *
  * List order is visible and intentional: Browse is the first route and therefore the route the
  * app starts from and falls back to on back.
+ *
+ * This list is also what [rememberNavigationState] builds a back stack per, so a route is a tab
+ * exactly by appearing here — there is no second place that decides it.
  */
 internal val TOP_LEVEL_DESTINATIONS: List<TopLevelDestination> = listOf(
     TopLevelDestination(
@@ -57,17 +54,3 @@ internal val TOP_LEVEL_DESTINATIONS: List<TopLevelDestination> = listOf(
         icon = Icons.AutoMirrored.Filled.List,
     ),
 )
-
-/**
- * The app explicitly assembles the route serializers exported by feature navigation packages.
- *
- * A route registered with `appEntryProvider` but missing here fails only when a saved back stack is
- * restored, which is why FeatureSerializersTest checks both directions of every route.
- */
-internal val FEATURE_SERIALIZERS: SerializersModule = SerializersModule {
-    include(browseNavigationSerializers)
-    include(favoritesNavigationSerializers)
-    include(categoryNavigationSerializers)
-    include(soundNavigationSerializers)
-    include(storiesNavigationSerializers)
-}

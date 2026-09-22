@@ -3,10 +3,11 @@ package com.xwab.app.core.session
 import com.xwab.app.core.session.port.DEFAULT_LOOPING
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
-import com.xwab.app.core.session.port.PlaybackKind
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.core.session.port.VOLUME_RANGE
+import com.xwab.app.core.resolution.port.ItemResolution
+import com.xwab.app.core.resolution.port.PlaybackItemResolver
 import com.xwab.app.core.playback.port.AudioPlayerState
 import com.xwab.app.core.playback.port.AudioSource
 import com.xwab.app.core.playback.port.LoopMode
@@ -15,10 +16,6 @@ import com.xwab.app.core.playback.port.PlaybackEnginePort
 import com.xwab.app.core.playback.port.PlaybackErrorCode
 import com.xwab.app.core.playback.port.PlaybackPhase
 import com.xwab.app.core.playback.port.PlaybackRequest
-import com.xwab.app.core.sound.port.SoundPort
-import com.xwab.app.core.sources.port.SourcePort
-import com.xwab.app.core.delivery.port.DeliveryPort
-import com.xwab.app.core.story.port.StoryPort
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -40,37 +37,24 @@ import kotlinx.coroutines.flow.updateAndGet
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
-internal class DefaultPlaybackAdapter internal constructor(
+internal class DefaultPlaybackAdapter
+@Inject
+internal constructor(
     private val enginePort: PlaybackEnginePort,
-    resolvers: List<PlaybackItemResolver>,
+    /**
+     * One resolver per content kind, keyed by the kind each module registered itself under.
+     *
+     * Injected as a multibinding rather than built here, which is the whole of this module's
+     * independence from content: a new content type contributes its own entry from its own module
+     * and this constructor never changes. Metro aggregates the map from the compile classpath, so
+     * the map holds exactly the content modules the composition root declares — a removed one is
+     * simply absent, and the kind it used to answer for reports `ItemNotFound`.
+     *
+     * Keys cannot collide: a map is a map, and two modules registering the same kind is a Metro
+     * duplicate-binding error at compile time rather than one resolver silently never running.
+     */
+    private val resolversByKind: Map<String, PlaybackItemResolver>,
 ) : PlaybackPort {
-    @Inject
-    internal constructor(
-        enginePort: PlaybackEnginePort,
-        soundPort: SoundPort,
-        sourcePort: SourcePort,
-        soundContentPort: DeliveryPort,
-        storyPort: StoryPort,
-    ) : this(
-        enginePort = enginePort,
-        resolvers = listOf(
-            SoundPlaybackResolver(
-                catalog = soundPort,
-                sources = sourcePort,
-                content = soundContentPort,
-            ),
-            StoryPlaybackResolver(catalog = storyPort, sources = sourcePort),
-        ),
-    )
-    private val resolversByKind: Map<PlaybackKind, PlaybackItemResolver> =
-        resolvers.associateBy { it.kind }
-
-    init {
-        // Two resolvers for one kind means one of them silently never runs.
-        require(resolversByKind.size == resolvers.size) {
-            "One resolver per playback kind: ${resolvers.map { it.kind }}"
-        }
-    }
 
     /**
      * What the session wants, which the engine cannot hold on its own.
@@ -295,7 +279,7 @@ internal class DefaultPlaybackAdapter internal constructor(
         )
     }
 
-    /** The item an engine source names, reading a pre-namespacing id as the sound it was. */
+    /** The item an engine source names, or null when the id names nothing this session can act on. */
     private fun itemOf(source: AudioSource?): PlaybackItemId? =
         source?.id?.let { playbackItemIdOf(it) }
 

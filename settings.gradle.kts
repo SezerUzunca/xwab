@@ -54,6 +54,10 @@ include(":core:story")
 include(":core:playback")
 include(":core:session")
 
+// The contract a content module implements so the session can play its items without naming it.
+// Off limits to features: a resolution carries the address of a file.
+include(":core:resolution")
+
 // Crosscutting transport capability, tied to no content type.
 include(":core:network")
 // UI and test support are outside core: they are not application capability ports.

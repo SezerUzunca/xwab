@@ -67,6 +67,7 @@ kotlin {
             implementation(projects.core.delivery)
             implementation(projects.core.story)
             implementation(projects.core.favorites)
+            implementation(projects.core.resolution)
             implementation(projects.core.session)
             implementation(projects.core.playback)
             implementation(projects.core.network)
@@ -98,6 +99,8 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.serialization.json)
+            // The content-consistency check builds a Metro graph and reads both catalogs.
+            implementation(libs.kotlinx.coroutines.core)
         }
         // The same simulator harness used by feature screen tests also exercises the real
         // navigation composition, including saved-state and ViewModel entry decorators.

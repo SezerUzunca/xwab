@@ -49,12 +49,13 @@ There is no shared repository abstraction. A feature consumes the narrow capabil
 
 | Capability module | Public port |
 |---|---|
-| `:core:sound` | `SoundPort`, sound metadata models and `SOUND_FAVORITES_NAMESPACE` |
+| `:core:sound` | `SoundPort`, sound metadata models, `SOUND_FAVORITES_NAMESPACE` and `SOUND_PLAYBACK_KIND` |
 | `:core:sources` | `SourcePort` and `ContentSource` |
 | `:core:delivery` | `DeliveryPort`, `DeliveryRequest`, `CacheKey` and `DeliveryResult` |
 | `:core:favorites` | `FavoritesPort` |
-| `:core:story` | `StoryPort` and story metadata models |
+| `:core:story` | `StoryPort`, story metadata models and `STORY_PLAYBACK_KIND` |
 | `:core:session` | `PlaybackPort` and session model types |
+| `:core:resolution` | `PlaybackItemResolver`, `ItemResolution` and `PlaybackPolicy` |
 | `:core:playback` | `PlaybackEnginePort` and engine command/state types |
 | `:core:network` | `NetworkPort` and transport-neutral response/error types |
 
@@ -103,6 +104,22 @@ The namespace sounds are saved under is stated once — by `:core:sound`, which 
 rather than at each screen that favorites one, and matches the `sound` namespace `:core:sources`
 gives the same content kind.
 
+### Adding a content type
+
+Playing something is a contract, not a list. `:core:resolution` publishes `PlaybackItemResolver`;
+a content module implements it and contributes it with
+`@ContributesIntoMap(AppScope::class) @StringKey(ITS_OWN_KIND)`. `:core:session` injects
+`Map<String, PlaybackItemResolver>`, looks the kind up and knows nothing else — it depends on
+`:core:resolution` and `:core:playback` and nothing more, so it never learns what a sound or a
+story is.
+
+A fourth content type is therefore a new module and a route, with `:core:session` untouched.
+Removing one is deleting a directory: the kind it answered for is simply absent from the map, and
+the session reports `ItemNotFound` for an item a media service that outlived the app still names.
+
+Each content module owns the string naming its kind — `SOUND_PLAYBACK_KIND`, `STORY_PLAYBACK_KIND`
+— because that string is the engine source id's prefix and outlives the process. Rule 19 checks
+that the app shell has a route for every kind registered.
 ## Navigation 3
 
 `shared` owns the app-level navigation policy and one back stack per top-level destination.
@@ -179,19 +196,32 @@ playback. The architecture check requires these values to agree with the downloa
 4. A feature-specific use case leaks into `core`.
 5. Any shared production source set references a feature outside the allowed boundaries: navigation/composition may use feature navigation contracts, and DI may use feature dependency bags.
 6. A production core declaration outside an exact capability `.port` package is public.
-7. A port declaration or member is non-public, or a public contract interface does not end in `Port`.
+7. A port declaration or member is non-public, or a public contract interface does not end in `Port` and is not the service provider interface its module is registered for.
 8. A cross-core import, wildcard import, or fully qualified reference bypasses an exact `.port` package.
 9. A `Repository` or DI-style `Provider` abstraction appears in `core`.
 10. A Koin import or dependency is reintroduced anywhere in the project.
 11. A feature exposes a declaration outside its navigation package or a DI `*Dependencies` class.
 12. Sound or story exposes more than one port interface or lacks its `SoundPort` / `StoryPort` contract.
-13. Favorites depends on another project, or delivery depends on a project other than itself or `:core:network`.
+13. A module that states its project dependencies exhaustively declares one that is not on its list: favorites, delivery, or `:core:session`, which may reach only `:core:resolution` and `:core:playback` and so can never learn what a sound or a story is.
 14. Designsystem depends on another project, or core depends on designsystem or shared.
 15. The download source, Android manifest and iOS Info.plist state different user agents. Native
     players read platform application metadata, while downloads read the source manifest; a drift
     would leave one path working and the failure invisible.
+16. A directory holds a build script but is not a module in the build. `feature/` directories are
+    discovered automatically; every other module is named by hand in `settings.gradle.kts` and can
+    be left out without anything failing.
+17. A core or feature module is not a direct dependency of `:shared`. Metro aggregates a scope's
+    contributions from the compile classpath, so a capability the shell does not declare never
+    reaches the application graph, and a feature it does not declare is in no app. Both build and
+    test perfectly well.
+18. A feature route is declared without an explicit `@SerialName`. The serial name is what a saved
+    back stack holds, so left implicit it follows the package and moving the file invalidates the
+    navigation every installed copy restores.
+19. A content module registers a playback resolver under a kind the app shell never names. Playback
+    kinds are open strings, so the exhaustive `when` that used to make this a compile error is gone;
+    something the app can play would have no screen to open from the now-playing bar.
 
-Rules 5, 12, 13 and 14 name modules by path, so each of those names is also checked against the modules
+Rules 5, 12, 13, 14 and 17 name modules by path, so each of those names is also checked against the modules
 the build actually contains. Renaming one without updating its rule fails the build instead of
 leaving a rule that matches nothing and reports nothing.
 
@@ -207,6 +237,27 @@ providers that allow internal contributed adapters to remain hidden across modul
 The script creates one `:feature:sleep-timer` module. Then wire its dependency bag, entry provider
 and serializer into `shared`, and make the route reachable from either a top-level destination or
 an existing feature intent.
+
+## Removing a feature
+
+Delete the `feature/<name>` directory. Gradle stops including it on its own, and every remaining
+reference is a compile error: the `projects.feature.<name>` accessor in `shared/build.gradle.kts`,
+the accessor in `AppGraph`, the registration in `AppEntryProvider`, the entry in
+`FEATURE_SERIALIZERS`, and the tab in `TOP_LEVEL_DESTINATIONS` if it had one. Follow the compiler
+until it stops, then run the checks below.
+
+Two things the compiler cannot point at:
+
+- **The tab label** in `shared/src/commonMain/composeResources/values/app.xml`. Deleting a tab
+  leaves its `tab_*` string behind, resolving happily to a name nothing asks for.
+  `TopLevelDestinationsTest` fails on it rather than letting it ship.
+- **Saved back stacks in installed copies.** A listener who was on the removed screen when they last
+  closed the app restores a route this build no longer registers. That no longer crashes — see
+  `RetiredRoute` — but it is why a route's `@SerialName` is a wire format and why removing a feature
+  is a decision about people who already have the app, not only about this source tree.
+
+Its favorites are a separate question. `FavoritesPort` namespaces are keys on disk, so a removed
+content type's favorites stay stored until something deletes them.
 
 ## Build and checks
 

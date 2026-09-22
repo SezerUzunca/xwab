@@ -4,17 +4,9 @@ import com.xwab.app.core.session.port.DEFAULT_LOOPING
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
-import com.xwab.app.core.delivery.port.DeliveryPort
-import com.xwab.app.core.delivery.port.DeliveryResult
-import com.xwab.app.core.sound.port.Category
-import com.xwab.app.core.sound.port.CategoryId
-import com.xwab.app.core.sound.port.Track
-import com.xwab.app.core.sound.port.SoundPort
-import com.xwab.app.core.sound.port.TrackId
-import com.xwab.app.core.sources.port.ContentSource
-import com.xwab.app.core.sources.port.SOUND_NAMESPACE
-import com.xwab.app.core.sources.port.STORY_NAMESPACE
-import com.xwab.app.core.sources.port.SourcePort
+import com.xwab.app.core.resolution.port.ItemResolution
+import com.xwab.app.core.resolution.port.PlaybackItemResolver
+import com.xwab.app.core.resolution.port.PlaybackPolicy
 import com.xwab.app.core.playback.port.AudioPlayerState
 import com.xwab.app.core.playback.port.AudioSource
 import com.xwab.app.core.playback.port.LoopMode
@@ -25,9 +17,6 @@ import com.xwab.app.core.playback.port.PlaybackErrorCode
 import com.xwab.app.core.playback.port.PlaybackPhase
 import com.xwab.app.core.playback.port.PlaybackRequest
 import com.xwab.app.core.playback.port.SleepTimerState
-import com.xwab.app.core.story.port.Story
-import com.xwab.app.core.story.port.StoryPort
-import com.xwab.app.core.story.port.StoryId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -64,8 +53,22 @@ class DefaultPlaybackAdapterTest {
         }
     }
 
-    private val testContentResolver =
-        DeliveryPort { trackId -> DeliveryResult.Resolved("test://$trackId") }
+    /**
+     * How the session is told what an item turns out to be.
+     *
+     * The kinds below are this test's own strings. `:core:session` depends on no content module, so
+     * there is nothing here to borrow one from — and that absence is the point: the session resolves
+     * whatever it is handed by looking the kind up in the map it was given, and these fakes are as
+     * much of a content type as it ever sees.
+     */
+    private fun resolvedSound(value: String, uri: String): ItemResolution =
+        ItemResolution.Resolved(
+            uri = uri,
+            title = SOUND_TITLES.getValue(value),
+            displayName = SOUND_NAMES.getValue(value),
+            artist = "Sleep Sounds",
+            policy = PlaybackPolicy(defaultLooping = true),
+        )
 
     @Test
     fun playReloadsAFailedSourceWithAutoplay() = runBlocking {
@@ -155,9 +158,9 @@ class DefaultPlaybackAdapterTest {
         val lookupStarted = CompletableDeferred<Unit>()
         val lookupResult = CompletableDeferred<String>()
         val player = FakePlaybackEnginePort()
-        val adapter = adapter(player) {
+        val adapter = adapter(player) { value ->
             lookupStarted.complete(Unit)
-            DeliveryResult.Resolved(lookupResult.await())
+            resolvedSound(value, lookupResult.await())
         }
 
         val firstTap = launch { adapter.play(sound("gentle-rain")) }
@@ -224,12 +227,12 @@ class DefaultPlaybackAdapterTest {
         val lookupStarted = CompletableDeferred<Unit>()
         val lookupResult = CompletableDeferred<String>()
         val player = FakePlaybackEnginePort()
-        val adapter = adapter(player) { request ->
-            if (request.key.fileName.startsWith("calm-waves")) {
+        val adapter = adapter(player) { value ->
+            if (value == "calm-waves") {
                 lookupStarted.complete(Unit)
-                DeliveryResult.Resolved(lookupResult.await())
+                resolvedSound(value, lookupResult.await())
             } else {
-                DeliveryResult.Resolved("test://${request.key.fileName}")
+                resolvedSound(value, "test://$value")
             }
         }
 
@@ -258,9 +261,9 @@ class DefaultPlaybackAdapterTest {
         val lookupStarted = CompletableDeferred<Unit>()
         val lookupResult = CompletableDeferred<String>()
         val player = FakePlaybackEnginePort()
-        val adapter = adapter(player) {
+        val adapter = adapter(player) { value ->
             lookupStarted.complete(Unit)
-            DeliveryResult.Resolved(lookupResult.await())
+            resolvedSound(value, lookupResult.await())
         }
 
         val firstTap = launch { adapter.play(sound("gentle-rain")) }
@@ -362,17 +365,17 @@ class DefaultPlaybackAdapterTest {
         val rainResult = CompletableDeferred<String>()
         val wavesResult = CompletableDeferred<String>()
         val player = FakePlaybackEnginePort()
-        val adapter = adapter(player) { trackId ->
-            when (trackId.key.fileName) {
-                "gentle-rain-v1.mp3" -> {
+        val adapter = adapter(player) { value ->
+            when (value) {
+                "gentle-rain" -> {
                     rainStarted.complete(Unit)
-                    DeliveryResult.Resolved(rainResult.await())
+                    resolvedSound(value, rainResult.await())
                 }
-                "calm-waves-v1.mp3" -> {
+                "calm-waves" -> {
                     wavesStarted.complete(Unit)
-                    DeliveryResult.Resolved(wavesResult.await())
+                    resolvedSound(value, wavesResult.await())
                 }
-                else -> DeliveryResult.Unavailable("missing source")
+                else -> ItemResolution.Unavailable("missing source")
             }
         }
 
@@ -424,7 +427,7 @@ class DefaultPlaybackAdapterTest {
     @Test
     fun aSourceThatCouldNotBeReachedIsPublishedAsAFailure() = runBlocking {
         val player = FakePlaybackEnginePort()
-        val adapter = adapter(player) { DeliveryResult.Unavailable("offline") }
+        val adapter = adapter(player) { ItemResolution.Unavailable("offline") }
 
         adapter.play(sound("gentle-rain"))
 
@@ -626,9 +629,9 @@ class DefaultPlaybackAdapterTest {
                 isPlaying = true,
             )
         }
-        val adapter = adapter(player) {
+        val adapter = adapter(player) { value ->
             lookupStarted.complete(Unit)
-            DeliveryResult.Resolved(lookupResult.await())
+            resolvedSound(value, lookupResult.await())
         }
 
         val switch = launch { adapter.play(sound("calm-waves")) }
@@ -659,7 +662,7 @@ class DefaultPlaybackAdapterTest {
                 isPlaying = true,
             )
         }
-        val adapter = adapter(player) { DeliveryResult.Unavailable("offline") }
+        val adapter = adapter(player) { ItemResolution.Unavailable("offline") }
 
         adapter.play(sound("calm-waves"))
 
@@ -681,7 +684,7 @@ class DefaultPlaybackAdapterTest {
     fun aCancelledLookupLeavesNoClaimBehind() = runBlocking {
         val lookupStarted = CompletableDeferred<Unit>()
         val player = FakePlaybackEnginePort()
-        val adapter = adapter(player) {
+        val adapter = adapter(player) { value ->
             lookupStarted.complete(Unit)
             awaitCancellation()
         }
@@ -710,13 +713,17 @@ class DefaultPlaybackAdapterTest {
     }
 
     /**
-     * The upgrade path. On Android the media service outlives the app, so a session started by a
-     * build that wrote bare track ids can still be attached when this one connects to it. Reading
-     * `gentle-rain` as a sound is what lets playback carry on; without it the session would see a
-     * different item, resolve it again and restart the sound under the listener.
+     * What replaced the upgrade path.
+     *
+     * On Android the media service outlives the app, so a session started by an older build can
+     * still be attached when this one connects. An id with no kind used to be read as a sound,
+     * which kept that playback carrying on. With kinds open there is no module here that knows
+     * which kind would be the one to guess, so the id names nothing and the item is loaded fresh
+     * rather than carried on as something it may not be. Nothing is lost that was reachable: no
+     * released build ever wrote a bare id.
      */
     @Test
-    fun aServiceStillHoldingAPreNamespacingIdIsRecognisedAsTheSameSound() = runBlocking {
+    fun aServiceHoldingAnIdWithNoKindIsNotMistakenForTheItemBeingPlayed() = runBlocking {
         val player = FakePlaybackEnginePort().apply {
             mutableState.value = AudioPlayerState(
                 source = AudioSource(id = "gentle-rain", uri = "file.mp3"),
@@ -727,9 +734,11 @@ class DefaultPlaybackAdapterTest {
 
         adapter.play(sound("gentle-rain"))
 
-        assertEquals(1, player.playCalls)
-        assertNull(player.lastLoadRequest, "the attached sound must not be reloaded")
-        assertEquals(sound("gentle-rain"), adapter.playback.first().activeItemId)
+        assertEquals(
+            "sound:gentle-rain",
+            player.lastLoadRequest?.source?.id,
+            "an id with no kind names nothing, so there is nothing to carry on from",
+        )
     }
 
     /**
@@ -763,10 +772,10 @@ class DefaultPlaybackAdapterTest {
         val player = FakePlaybackEnginePort()
         val adapter = adapter(player)
 
-        adapter.play(PlaybackItemId.story("night-came-slowly"))
+        adapter.play(story("night-came-slowly"))
 
         assertEquals(
-            PlaybackFailure.ItemNotFound(PlaybackItemId.story("night-came-slowly")),
+            PlaybackFailure.ItemNotFound(story("night-came-slowly")),
             adapter.playback.first().failure,
         )
         assertNull(player.lastLoadRequest)
@@ -781,7 +790,7 @@ class DefaultPlaybackAdapterTest {
     fun aStoryIsPlayedStraightFromItsStreamAddress() = runBlocking {
         val player = FakePlaybackEnginePort()
 
-        storyAdapter(player).play(PlaybackItemId.story("night-came-slowly"))
+        storyAdapter(player).play(story("night-came-slowly"))
 
         assertEquals("story:night-came-slowly", player.lastLoadRequest?.source?.id)
         assertEquals("https://example.test/night.mp3", player.lastLoadRequest?.source?.uri)
@@ -794,7 +803,7 @@ class DefaultPlaybackAdapterTest {
     fun aStoryDoesNotLoopByDefaultWhereASoundDoes() = runBlocking {
         val player = FakePlaybackEnginePort()
 
-        storyAdapter(player).play(PlaybackItemId.story("night-came-slowly"))
+        storyAdapter(player).play(story("night-came-slowly"))
 
         assertEquals(LoopMode.Off, player.lastLoadRequest?.loopMode)
     }
@@ -806,7 +815,7 @@ class DefaultPlaybackAdapterTest {
         val adapter = storyAdapter(player)
 
         adapter.setLooping(true)
-        adapter.play(PlaybackItemId.story("night-came-slowly"))
+        adapter.play(story("night-came-slowly"))
 
         assertEquals(LoopMode.One, player.lastLoadRequest?.loopMode)
     }
@@ -822,7 +831,7 @@ class DefaultPlaybackAdapterTest {
         val adapter = storyAdapter(player)
 
         adapter.play(sound("gentle-rain"))
-        adapter.play(PlaybackItemId.story("night-came-slowly"))
+        adapter.play(story("night-came-slowly"))
 
         assertEquals(LoopMode.Off, player.lastLoadRequest?.loopMode)
     }
@@ -833,7 +842,7 @@ class DefaultPlaybackAdapterTest {
         val player = FakePlaybackEnginePort()
         val adapter = storyAdapter(player)
 
-        adapter.play(PlaybackItemId.story("night-came-slowly"))
+        adapter.play(story("night-came-slowly"))
         adapter.play(sound("gentle-rain"))
 
         assertEquals(LoopMode.One, player.lastLoadRequest?.loopMode)
@@ -848,10 +857,10 @@ class DefaultPlaybackAdapterTest {
         val player = FakePlaybackEnginePort()
         val adapter = storyAdapter(player)
 
-        adapter.play(PlaybackItemId.story("an-idle-fellow"))
+        adapter.play(story("an-idle-fellow"))
 
         assertEquals(
-            PlaybackFailure.SourceUnavailable(PlaybackItemId.story("an-idle-fellow")),
+            PlaybackFailure.SourceUnavailable(story("an-idle-fellow")),
             adapter.playback.first().failure,
         )
         assertNull(player.lastLoadRequest)
@@ -862,117 +871,58 @@ class DefaultPlaybackAdapterTest {
         val player = FakePlaybackEnginePort()
         val adapter = storyAdapter(player)
 
-        adapter.play(PlaybackItemId.story("no-such-story"))
+        adapter.play(story("no-such-story"))
 
         assertEquals(
-            PlaybackFailure.ItemNotFound(PlaybackItemId.story("no-such-story")),
+            PlaybackFailure.ItemNotFound(story("no-such-story")),
             adapter.playback.first().failure,
         )
         assertNull(player.lastLoadRequest)
     }
 
-    /** One resolver per kind: a second would never run, and nothing would say which. */
-    @Test
-    fun twoResolversForOneKindAreRejected() {
-        assertFailsWith<IllegalArgumentException> {
-            DefaultPlaybackAdapter(
-                FakePlaybackEnginePort(),
-                listOf(
-                    SoundPlaybackResolver(FakeCatalog, FakeSources, testContentResolver),
-                    SoundPlaybackResolver(FakeCatalog, FakeSources, testContentResolver),
-                ),
-            )
-        }
-    }
 
-    private fun sound(value: String) = PlaybackItemId.sound(value)
+    private fun sound(value: String) = PlaybackItemId(SOUND, value)
 
+    private fun story(value: String) = PlaybackItemId(STORY, value)
+
+    /**
+     * A session wired for sounds only, with the resolution step left swappable.
+     *
+     * The lambda is where a real resolver's work would happen — a catalog read, a cache lookup, a
+     * download. None of that is this module's business any more, so the tests that used to stage a
+     * slow or failing delivery stage a slow or failing *resolution* instead, which is the only
+     * shape the session can actually see.
+     */
     private fun adapter(
         player: FakePlaybackEnginePort,
-        resolver: DeliveryPort = testContentResolver,
-    ) = DefaultPlaybackAdapter(
-        player,
-        listOf(SoundPlaybackResolver(FakeCatalog, FakeSources, resolver)),
-    )
+        resolve: suspend (String) -> ItemResolution = ::defaultSoundResolution,
+    ) = DefaultPlaybackAdapter(player, mapOf(SOUND to PlaybackItemResolver { resolve(it) }))
 
-    /** The same session with both kinds wired, which is what the app ships. */
+    /** The same session with a second kind wired, which is what the app ships. */
     private fun storyAdapter(player: FakePlaybackEnginePort) = DefaultPlaybackAdapter(
         player,
-        listOf(
-            SoundPlaybackResolver(FakeCatalog, FakeSources, testContentResolver),
-            StoryPlaybackResolver(FakeStoryCatalog, FakeSources),
+        mapOf(
+            SOUND to PlaybackItemResolver { defaultSoundResolution(it) },
+            STORY to PlaybackItemResolver { storyResolution(it) },
         ),
     )
 
-    /** Two catalog rows, with one source deliberately omitted to exercise defensive handling. */
-    private object FakeStoryCatalog : StoryPort {
-        private val stories = listOf(
-            story("night-came-slowly", "The Night Came Slowly"),
-            story("an-idle-fellow", "An Idle Fellow"),
+    private fun defaultSoundResolution(value: String): ItemResolution =
+        if (value in SOUND_NAMES) resolvedSound(value, "test://$value") else ItemResolution.NotFound
+
+    /** One story resolves, one has no source, and anything else is not in the catalog at all. */
+    private fun storyResolution(value: String): ItemResolution = when (value) {
+        "night-came-slowly" -> ItemResolution.Resolved(
+            uri = "https://example.test/night.mp3",
+            title = "The Night Came Slowly",
+            // A story is listed and announced under the same name; it has no second one.
+            displayName = "The Night Came Slowly",
+            artist = "Alan Davis Drake",
+            policy = PlaybackPolicy(defaultLooping = false),
         )
-
-        override fun observeStories(): Flow<List<Story>> = flowOf(stories)
-        override fun observeStory(storyId: StoryId): Flow<Story?> =
-            flowOf(stories.find { it.id == storyId })
-
-        private fun story(id: String, title: String) = Story(
-            id = StoryId(id),
-            title = title,
-            author = "Kate Chopin",
-            description = "A literary short story.",
-            narrator = "Alan Davis Drake",
-            durationSeconds = 174,
-        )
+        "an-idle-fellow" -> ItemResolution.Unavailable("story source is missing")
+        else -> ItemResolution.NotFound
     }
-
-    /** The catalog the adapter reads its metadata from; only `observeTrack` is ever asked. */
-    private object FakeCatalog : SoundPort {
-        private val tracks = listOf(
-            Track(
-                id = TrackId("gentle-rain"),
-                name = "Rain on the Window",
-                categoryId = CategoryId("rain"),
-                durationSeconds = 9,
-                playbackTitle = "Gentle Rain",
-            ),
-            Track(
-                id = TrackId("calm-waves"),
-                name = "Ontario Waves",
-                categoryId = CategoryId("ocean"),
-                durationSeconds = 286,
-                playbackTitle = "Calm Waves",
-            ),
-        )
-
-        override fun observeCategories(): Flow<List<Category>> = flowOf(emptyList())
-        override fun observeAllTracks(): Flow<List<Track>> = flowOf(tracks)
-        override fun observeCategory(categoryId: CategoryId): Flow<Category?> = flowOf(null)
-        override fun observeTracksForCategory(categoryId: CategoryId): Flow<List<Track>> = flowOf(emptyList())
-        override fun observeTrack(trackId: TrackId): Flow<Track?> = flowOf(tracks.find { it.id == trackId })
-    }
-
-    /** Physical addresses are deliberately separate from both metadata fakes. */
-    private object FakeSources : SourcePort {
-        private val soundIds = setOf("gentle-rain", "calm-waves")
-
-        override fun sourceFor(namespace: String, itemId: String): ContentSource? = when {
-            namespace == SOUND_NAMESPACE && itemId in soundIds -> ContentSource(
-                httpsUrl = "https://example.test/$itemId.mp3",
-                cacheFileName = "$itemId-v1.mp3",
-            )
-            namespace == STORY_NAMESPACE && itemId == "night-came-slowly" ->
-                ContentSource("https://example.test/night.mp3")
-            else -> null
-        }
-
-        override fun cacheFileNames(namespace: String): Set<String> =
-            if (namespace == SOUND_NAMESPACE) {
-                soundIds.mapTo(mutableSetOf()) { "$it-v1.mp3" }
-            } else {
-                emptySet()
-            }
-    }
-
     /**
      * Both facades publish inside `submit`, before it returns, so a command the adapter
      * sends is readable in `state` on the next line. This fake mirrors that for the fields the
@@ -1035,3 +985,25 @@ class DefaultPlaybackAdapterTest {
         override fun release() = Unit
     }
 }
+
+/**
+ * The kinds this test invents for itself.
+ *
+ * They read like the app's two content types because the assertions around engine ids do, but
+ * nothing imports them from `:core:sound` or `:core:story` — `:core:session` cannot see either
+ * module, which is the property the whole file is built on.
+ */
+private const val SOUND = "sound"
+private const val STORY = "story"
+
+/** What the lists show. Differs from the notification title, which is why both are carried. */
+private val SOUND_NAMES = mapOf(
+    "gentle-rain" to "Rain on the Window",
+    "calm-waves" to "Ontario Waves",
+)
+
+/** What the platform media session publishes. */
+private val SOUND_TITLES = mapOf(
+    "gentle-rain" to "Gentle Rain",
+    "calm-waves" to "Calm Waves",
+)

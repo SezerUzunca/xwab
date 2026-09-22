@@ -9,8 +9,8 @@ import com.xwab.app.core.favorites.port.FavoritesPort
 import com.xwab.app.core.favorites.port.FavoriteToggleResult
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackItemId
-import com.xwab.app.core.session.port.PlaybackKind
 import com.xwab.app.core.session.port.requestedValueOf
+import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.feature.category.domain.CategoryContent
 import com.xwab.app.feature.category.domain.CategoryFavoritesReadStatus
 import com.xwab.app.feature.category.domain.ObserveCategoryContentUseCase
@@ -37,12 +37,12 @@ internal class CategoryViewModel(
                 lastKnownFavoriteIds = content.favoriteIds
             }
             val playback = content.playback
-            val requestedTrackId = playback.requestedValueOf(PlaybackKind.SOUND)?.let(::TrackId)
+            val requestedTrackId = playback.requestedValueOf(SOUND_PLAYBACK_KIND)?.let(::TrackId)
                 ?.takeIf { id -> content.tracks.any { it.id == id } }
             // Bound locally: `failure` is another module's property, so the check below cannot
             // smart-cast it in place.
             val failure = playback.failure?.takeIf { failure ->
-                failure.itemId.kind == PlaybackKind.SOUND &&
+                failure.itemId.kind == SOUND_PLAYBACK_KIND &&
                     content.tracks.any { it.id.value == failure.itemId.value }
             }
 
@@ -80,7 +80,7 @@ internal class CategoryViewModel(
         if (current.isRowPlaying(trackId)) {
             playbackPort.pause()
         } else {
-            viewModelScope.launch { playbackPort.play(PlaybackItemId.sound(trackId.value)) }
+            viewModelScope.launch { playbackPort.play(PlaybackItemId(SOUND_PLAYBACK_KIND, trackId.value)) }
         }
     }
 }

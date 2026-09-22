@@ -9,6 +9,7 @@ import com.xwab.app.core.favorites.port.FavoriteToggleResult
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
+import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.feature.sound.domain.ObserveSoundContentUseCase
 import com.xwab.app.feature.sound.domain.SoundContent
 import com.xwab.app.feature.sound.domain.SoundFavoriteReadStatus
@@ -29,7 +30,7 @@ internal class SoundViewModel(
     // Survives an upstream restart while this ViewModel is still on the back stack.
     private var lastKnownFavorite: Boolean? = null
     /** This screen is about one sound, so that is the item it recognises in the session. */
-    private val itemId = PlaybackItemId.sound(trackId.value)
+    private val itemId = PlaybackItemId(SOUND_PLAYBACK_KIND, trackId.value)
 
     val state: StateFlow<SoundUiState> = combine<SoundContent, Boolean, SoundUiState>(
         observeSoundContentUseCase(trackId), favoriteWriteFailed,

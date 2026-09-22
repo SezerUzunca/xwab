@@ -16,7 +16,8 @@ import androidx.navigation3.scene.SceneDecoratorStrategy
 import androidx.navigation3.scene.SceneDecoratorStrategyScope
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import com.xwab.app.core.session.port.PlaybackItemId
-import com.xwab.app.core.session.port.PlaybackKind
+import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
+import com.xwab.app.core.story.port.STORY_PLAYBACK_KIND
 import com.xwab.app.di.AppGraph
 import com.xwab.app.feature.nowplaying.navigation.NowPlayingBar
 import com.xwab.app.feature.sound.navigation.SoundRoute
@@ -94,7 +95,12 @@ internal fun <T : Any> rememberNowPlayingSceneDecoratorStrategy(
     onNavigate: (NavKey) -> Unit,
 ): NowPlayingSceneDecoratorStrategy<T> {
     val bar: @Composable () -> Unit = remember(graph, onNavigate) {
-        { NowPlayingBar(graph.nowPlayingDependencies, onOpen = { onNavigate(it.route()) }) }
+        {
+            NowPlayingBar(
+                graph.nowPlayingDependencies,
+                onOpen = { item -> item.route()?.let(onNavigate) },
+            )
+        }
     }
     return remember(sharedTransitionScope, bar) {
         NowPlayingSceneDecoratorStrategy(sharedTransitionScope, bar)
@@ -108,7 +114,10 @@ internal fun <T : Any> rememberNowPlayingSceneDecoratorStrategy(
  * nearest thing to "where this came from" is the list it is in. Both are decisions only the module
  * that owns the routes can make, which is why the bar hands over an id and nothing else.
  */
-internal fun PlaybackItemId.route(): NavKey = when (kind) {
-    PlaybackKind.SOUND -> SoundRoute(value)
-    PlaybackKind.STORY -> StoriesRoute
+internal fun PlaybackItemId.route(): NavKey? = when (kind) {
+    SOUND_PLAYBACK_KIND -> SoundRoute(value)
+    STORY_PLAYBACK_KIND -> StoriesRoute
+    // A kind this build has no content module for. It can still reach here from a playback service
+    // that outlived an older build, and there is nothing to open for it.
+    else -> null
 }

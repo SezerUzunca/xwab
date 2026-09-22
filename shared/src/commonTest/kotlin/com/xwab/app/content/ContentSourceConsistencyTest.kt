@@ -1,4 +1,4 @@
-package com.xwab.app.core.session
+package com.xwab.app.content
 
 import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.sources.port.SOUND_NAMESPACE
@@ -16,9 +16,10 @@ import kotlinx.coroutines.runBlocking
 /**
  * Replaces the compile-time coupling lost when metadata and physical addresses were separated.
  *
- * It belongs to this module because pairing published content with the address it plays from is
- * what the session does: [SoundPlaybackResolver] and [StoryPlaybackResolver] make exactly this
- * lookup at runtime, and the three ports the check needs are already this module's dependencies.
+ * It belongs to the composition root because pairing published content with the address it plays from
+ * is an app-wide claim: each content module's own resolver makes exactly this
+ * lookup at runtime, and this is the only module that sees every catalog at once. It moved here when
+ * the resolvers moved into the content modules and `:core:session` stopped depending on either.
  */
 class ContentSourceConsistencyTest {
     @Test

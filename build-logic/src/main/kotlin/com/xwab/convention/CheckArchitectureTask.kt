@@ -39,6 +39,15 @@ import org.gradle.api.tasks.TaskAction
  *     depend on it or on the app shell.
  * 13. Loading/Ready state types stay inside feature modules. Whether a screen has content yet is
  *     that screen's own question, not a vocabulary every feature has to share.
+ * 14. Every directory holding a build script is a module in the build. A `feature/` directory is
+ *     discovered automatically; everything else is named by hand and can be left out silently.
+ * 15. Every core and feature module is a direct dependency of `:shared`. Metro aggregates
+ *     contributions from the compile classpath, so a capability the shell does not declare reaches
+ *     no graph, and a feature it does not declare is in no app — neither fails to build.
+ * 16. Every feature route declares an explicit `@SerialName`. The name is what a saved back stack
+ *     holds, so left implicit it follows the package and moving the file breaks every restore.
+ * 17. Every playback kind a content module registers a resolver under has a route in the app
+ *     shell. Kinds are open strings, so the exhaustive `when` that used to guarantee this is gone.
  *
  * The rules themselves live in [FeatureFirstRules], where they are unit-tested from both sides.
  * This task is only their plumbing: it collects the dependency graph and source/configuration files.
@@ -70,6 +79,13 @@ abstract class CheckArchitectureTask : DefaultTask() {
         val root = repositoryRoot.get().asFile
         val coreSources = coreProductionSources(root, graph.keys)
         val violations = FeatureFirstRules.staleRuleViolations(graph.keys) +
+            FeatureFirstRules.unregisteredModuleViolations(moduleDirectories(root), graph.keys) +
+            FeatureFirstRules.unwiredModuleViolations(graph) +
+            FeatureFirstRules.routeSerialNameViolations(productionSources(root, "feature")) +
+            FeatureFirstRules.unroutedPlaybackKindViolations(
+                coreSources = productionSources(root, "core"),
+                compositionSources = productionSources(root, "shared"),
+            ) +
             FeatureFirstRules.featureModuleShapeViolations(graph.keys) +
             FeatureFirstRules.legacySplitDirectoryViolations(legacySplitDirectories(root)) +
             FeatureFirstRules.koinUsageViolations(architectureTextSources(root)) +
@@ -174,6 +190,29 @@ abstract class CheckArchitectureTask : DefaultTask() {
                 sources + productionSources(root, directory)
             }
 
+
+    /**
+     * Every directory that carries a build script, which is what a module looks like on disk.
+     *
+     * `build-logic` is skipped because it is an included build with a settings file of its own, and
+     * the repository root because its script configures the build rather than a module.
+     */
+    private fun moduleDirectories(root: File): List<String> =
+        root.walkTopDown()
+            .onEnter { directory ->
+                directory == root || directory.name !in setOf(
+                    ".git",
+                    ".gradle",
+                    ".idea",
+                    ".claude",
+                    ".agents",
+                    "build",
+                    "build-logic",
+                )
+            }
+            .filter { it.isDirectory && it != root && it.resolve("build.gradle.kts").isFile }
+            .map { it.relativeTo(root).invariantSeparatorsPath }
+            .toList()
     private fun legacySplitDirectories(root: File): List<String> =
         listOf(root.resolve("core"), root.resolve("feature")).flatMap { sourceRoot ->
             if (!sourceRoot.isDirectory) return@flatMap emptyList()

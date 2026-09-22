@@ -3,6 +3,7 @@ package com.xwab.app.feature.sound
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
+import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.feature.sound.domain.ObserveSoundContentUseCase
@@ -76,7 +77,7 @@ class SoundViewModelTest {
     @Test
     fun ignoresAFailureThatBelongsToAnotherItem() = runTest(mainDispatcher) {
         val port = FakePlaybackPort().apply {
-            publish(PlaybackSummary(failure = PlaybackFailure.EngineFailed(PlaybackItemId.sound("ocean"))))
+            publish(PlaybackSummary(failure = PlaybackFailure.EngineFailed(PlaybackItemId(SOUND_PLAYBACK_KIND, "ocean"))))
         }
         val viewModel = createViewModel(port)
         collectState(viewModel)
@@ -374,7 +375,7 @@ class SoundViewModelTest {
 
     private companion object {
         val RAIN = TrackId("gentle-rain")
-        val RAIN_ITEM = PlaybackItemId.sound("gentle-rain")
+        val RAIN_ITEM = PlaybackItemId(SOUND_PLAYBACK_KIND, "gentle-rain")
         const val FIFTEEN_MINUTES_MS = 15L * 60_000L
     }
 }
