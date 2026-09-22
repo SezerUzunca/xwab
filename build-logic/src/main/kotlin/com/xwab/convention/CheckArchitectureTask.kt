@@ -51,6 +51,9 @@ import org.gradle.api.tasks.TaskAction
  *     module owns only its matching package namespace.
  * 20. Optional adapterOnlyTypes stay out of feature code and public consumer port contracts;
  *     their owner's marked types may refer to one another in their own source file.
+ * 21. A core module that implements another's adapterOnlyTypes may not reference that module's
+ *     remaining publicInterfaces. Answering a capability's contract and calling it are different
+ *     roles, and one module holding both puts the coordination back where it was moved from.
  *
  * The rules themselves live in [FeatureFirstRules], where they are unit-tested from both sides.
  * This task is only their plumbing: it collects the dependency graph and source/configuration files.
@@ -116,6 +119,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
             ) +
             FeatureFirstRules.corePortViolations(coreSources, policies) +
             FeatureFirstRules.adapterOnlyTypeViolations(coreSources, productionSources(root, "feature"), policies) +
+            FeatureFirstRules.contributorPortViolations(coreSources, policies) +
             FeatureFirstRules.coreVisibilityViolations(coreSources, policies) +
             FeatureFirstRules.coreImportViolations(coreSources) +
             FeatureFirstRules.legacyCoreAbstractionViolations(coreSources)

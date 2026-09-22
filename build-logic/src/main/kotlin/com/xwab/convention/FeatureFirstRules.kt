@@ -173,6 +173,82 @@ internal object FeatureFirstRules {
         return violations.distinct().sorted()
     }
 
+    /**
+     * A module that answers a capability's contract may not also call it.
+     *
+     * `:core:sound` implements `PlaybackItemResolver` so the session can play a sound without
+     * naming sounds. Nothing stopped it importing `PlaybackPort` as well and asking the session to
+     * play one — which would turn a contributor into a caller and put the coordination back inside
+     * the module it was moved out of. Acyclic in Gradle, backwards in meaning.
+     *
+     * Derived rather than declared, so there is no list to maintain: a module's own policy already
+     * separates the two roles. `adapterOnlyTypes` are what contributors implement, and whatever
+     * remains in `publicInterfaces` is what consumers call. Any core module referencing the first
+     * set is a contributor and may not touch the second.
+     *
+     * Kotlin has no way to say this in the language. Java does — a module system `exports ... to`
+     * shares a package with named modules without making it generally available — and Kotlin is
+     * working on the equivalent in KEEP-0451 (`shared internal`). Until then the build says it.
+     *
+     * Deliberately not keyed on module names. Naming the permitted modules is how the Java module
+     * system spells this, and its own documentation warns what that costs: the owning module has to
+     * be edited whenever a new module needs access. That is the coupling this project removed when
+     * each capability started declaring its own boundary, and it is not worth reintroducing for a
+     * rule that can read the roles off declarations already there.
+     */
+    fun contributorPortViolations(
+        coreSources: List<CoreSource>,
+        policies: Map<String, CoreModulePolicy>,
+    ): List<String> {
+        data class OwnedType(val module: String, val packageName: String, val name: String) {
+            val qualifiedName: String get() = "$packageName.$name"
+        }
+
+        val portTypes = coreSources
+            .filter { CORE_PORT_PACKAGE.matches(it.packageName) }
+            .flatMap { source ->
+                declarations(source.source, includeNested = false).mapNotNull { parsed ->
+                    if (parsed.match.groupValues[2] !in DECLARED_TYPE_KINDS) return@mapNotNull null
+                    val name = parsed.match.groupValues[3].removeSurrounding("`")
+                    OwnedType(source.module, source.packageName, name).takeIf { name.isNotBlank() }
+                }
+            }
+            .distinct()
+
+        val violations = mutableListOf<String>()
+
+        policies.forEach { (owner, policy) ->
+            val consumerNames = policy.publicInterfaces - policy.adapterOnlyTypes
+            val ownerTypes = portTypes.filter { it.module == owner }
+            val contract = ownerTypes.filter { it.name in policy.adapterOnlyTypes }
+            val consumer = ownerTypes.filter { it.name in consumerNames }
+            if (contract.isEmpty() || consumer.isEmpty()) return@forEach
+
+            coreSources.filter { it.module != owner }
+                .groupBy { it.module }
+                .forEach { (module, sources) ->
+                    val code = sources.joinToString("\n") { codeOnly(it.source) }
+                    val referenced = references(code, QUALIFIED_CORE_REFERENCE).toList()
+                    fun refersTo(type: OwnedType) = referenced.any { reference ->
+                        reference.removeSuffix(".*").isWithin(type.qualifiedName) ||
+                            reference == "${type.packageName}.*"
+                    }
+
+                    if (contract.none(::refersTo)) return@forEach
+                    val called = consumer.filter(::refersTo)
+                    if (called.isNotEmpty()) {
+                        violations += "$module implements $owner's adapter contract and also references " +
+                            called.map { it.qualifiedName }.sorted().joinToString() +
+                            ". A module that answers a capability's contract must not also call it: " +
+                            "reach the capability through the contract it contributed, or stop " +
+                            "contributing and become an ordinary consumer."
+                    }
+                }
+        }
+
+        return violations.distinct().sorted()
+    }
+
     fun coreModuleShapeViolations(modules: Set<String>): List<String> =
         modules.filter { it.startsWith(CORE_PREFIX) && !Regex(":core:[a-z][a-z0-9]*(?:-[a-z0-9]+)*").matches(it) }
             .sorted().map {

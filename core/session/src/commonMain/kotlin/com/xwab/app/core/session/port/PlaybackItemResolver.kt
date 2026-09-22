@@ -18,7 +18,7 @@ fun interface PlaybackItemResolver {
      *   The kind itself is not passed: a resolver is registered under exactly one, so it already
      *   knows.
      */
-    public suspend fun resolve(value: String): ItemResolution
+    suspend fun resolve(value: String): ItemResolution
 }
 
 /**
@@ -28,9 +28,9 @@ fun interface PlaybackItemResolver {
  *   repeats until the timer stops it; a story that repeats has not ended, it has restarted. An
  *   explicit choice still wins — this is the default, not the policy.
  */
-public data class PlaybackPolicy(public val defaultLooping: Boolean)
+data class PlaybackPolicy(val defaultLooping: Boolean)
 
-public sealed interface ItemResolution {
+sealed interface ItemResolution {
     /**
      * @param title what the platform media session should publish, read beside the source rather
      *   than handed in by a screen, so a stale title cannot be paired with a fresh source.
@@ -41,17 +41,17 @@ public sealed interface ItemResolution {
      *   carry both, because a now-playing bar two rows below the list that named it cannot call it
      *   something else.
      */
-    public data class Resolved(
-        public val uri: String,
-        public val title: String?,
-        public val displayName: String,
-        public val artist: String?,
-        public val policy: PlaybackPolicy,
+    data class Resolved(
+        val uri: String,
+        val title: String?,
+        val displayName: String,
+        val artist: String?,
+        val policy: PlaybackPolicy,
     ) : ItemResolution
 
     /** The catalog does not hold this item at all. */
-    public data object NotFound : ItemResolution
+    data object NotFound : ItemResolution
 
     /** The item exists; its audio could not be reached. */
-    public data class Unavailable(public val reason: String?) : ItemResolution
+    data class Unavailable(val reason: String?) : ItemResolution
 }

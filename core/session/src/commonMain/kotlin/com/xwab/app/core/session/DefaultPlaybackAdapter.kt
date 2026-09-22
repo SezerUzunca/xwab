@@ -46,7 +46,7 @@ internal constructor(
      *
      * Injected as a multibinding rather than built here, which is the whole of this module's
      * independence from content: a new content type contributes its own entry from its own module
-     * and this constructor never changes. Metro aggregates the map from the compile classpath, so
+     * and this constructor never changes. Metro aggregates the map from to compile classpath, so
      * the map holds exactly the content modules the composition root declares — a removed one is
      * simply absent, and the kind it used to answer for reports `ItemNotFound`.
      * With no contributions Metro uses the optional empty map, so the session still exists after

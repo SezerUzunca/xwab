@@ -239,6 +239,9 @@ playback. The architecture check requires these values to agree with the downloa
    Core and feature modules must be flat; `api`/`impl` directory splits are forbidden.
 3. A feature reaches a core module marked `featureAccessible=false`, directly or through an
    exported dependency, or references a port type listed in that module's `adapterOnlyTypes`.
+   A core module that implements another's `adapterOnlyTypes` may not reference that module's
+   remaining `publicInterfaces`: answering a capability's contract and calling it are separate
+   roles, and one module holding both puts the coordination back where it was moved from.
 4. A production core declaration outside its own exact `.port` package is public, a port member
    is non-public, or a cross-core reference bypasses the target module's `.port` package.
 5. Screen state or a feature-specific use case leaks into core; a `Repository` / DI-style
