@@ -86,10 +86,11 @@ jobs:
       # naming the task without a project runs it in each of them. Findings that predate detekt are in
       # each module's baseline, so only new ones fail this step.
       - name: Analyse Kotlin with detekt
+        id: detekt
         run: set -o pipefail; ./gradlew staticAnalysis --stacktrace 2>&1 | tee -a gradle-output.log
 
       - name: Report the detekt findings
-        if: failure()
+        if: failure() && steps.detekt.outcome == 'failure'
         run: |
           found=0
           while IFS= read -r report; do
@@ -108,10 +109,11 @@ jobs:
       # and a status bar that followed the device instead of the app, reached a device before anyone
       # noticed. Reports rather than uploads its findings, for the reason the steps below give.
       - name: Lint the Android application
+        id: lint
         run: set -o pipefail; ./gradlew :androidApp:lintDebug --stacktrace 2>&1 | tee -a gradle-output.log
 
       - name: Report the lint findings
-        if: failure()
+        if: failure() && steps.lint.outcome == 'failure'
         run: |
           report=androidApp/build/reports/lint-results-debug.xml
           if [ ! -f "$report" ]; then
