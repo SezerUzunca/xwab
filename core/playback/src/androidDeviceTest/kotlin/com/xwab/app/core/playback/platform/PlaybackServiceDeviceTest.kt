@@ -7,6 +7,7 @@ import android.os.Looper
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import androidx.test.core.app.ApplicationProvider
@@ -99,7 +100,7 @@ class PlaybackServiceDeviceTest {
             arguments = SleepTimerProtocol.startArguments(Long.MIN_VALUE),
         )
 
-        assertEquals(SessionResult.RESULT_ERROR_BAD_VALUE, result.resultCode)
+        assertEquals(SessionError.ERROR_BAD_VALUE, result.resultCode)
     }
 
     @Test

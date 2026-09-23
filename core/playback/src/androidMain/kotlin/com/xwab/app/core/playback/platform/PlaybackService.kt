@@ -22,6 +22,7 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionCommands
+import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import co.touchlab.kermit.Logger
 import com.google.common.util.concurrent.Futures
@@ -178,7 +179,7 @@ internal class PlaybackService : MediaSessionService() {
 
     private fun startSleepTimer(deadlineElapsedRealtimeMs: Long): SessionResult {
         if (remainingDurationUntil(deadlineElapsedRealtimeMs, SystemClock.elapsedRealtime()) == null) {
-            return SessionResult(SessionResult.RESULT_ERROR_BAD_VALUE)
+            return SessionResult(SessionError.ERROR_BAD_VALUE)
         }
 
         sleepTimer.startUntil(deadlineElapsedRealtimeMs)
@@ -251,7 +252,7 @@ internal class PlaybackService : MediaSessionService() {
         ): ListenableFuture<SessionResult> {
             if (!isOwnController(controller)) {
                 logger.w { "Custom command denied for untrusted package: ${controller.packageName}" }
-                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_PERMISSION_DENIED))
+                return Futures.immediateFuture(SessionResult(SessionError.ERROR_PERMISSION_DENIED))
             }
 
             val result = when (customCommand.customAction) {
@@ -262,7 +263,7 @@ internal class PlaybackService : MediaSessionService() {
                 SleepTimerProtocol.ACTION_GET_STATE -> sleepTimerResult()
                 else -> {
                     logger.w { "Unsupported custom action: ${customCommand.customAction}" }
-                    SessionResult(SessionResult.RESULT_ERROR_NOT_SUPPORTED)
+                    SessionResult(SessionError.ERROR_NOT_SUPPORTED)
                 }
             }
             return Futures.immediateFuture(result)
