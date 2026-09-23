@@ -1,0 +1,16 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MaxLineLength:DeliveryRequestTest.kt:DeliveryRequestTest$assertFailsWith&lt;IllegalArgumentException&gt; { DeliveryRequest(key, "https://example.test/guide.pdf", maxBytes = 0) }</ID>
+    <ID>MaxLineLength:DownloadPolicyTest.kt:DownloadPolicyTest$FakeNetworkPort(NetworkResponse(200, "application/pdf", null), ByteArray(11)).downloadContent(request) { _, _ -&gt; }</ID>
+    <ID>MaxLineLength:DownloadPolicyTest.kt:DownloadPolicyTest$assertFailsWith&lt;UnusableContentSourceException&gt; { requireUsableContentType("text/html", request.acceptedContentTypes) }</ID>
+    <ID>MaxLineLength:DownloadPolicyTest.kt:DownloadPolicyTest$private val request = DeliveryRequest(CacheKey("documents", "guide.pdf"), "https://example.test/guide.pdf", setOf("application/pdf"), maxBytes = 10)</ID>
+    <ID>MaxLineLength:DownloadPolicyTest.kt:DownloadPolicyTest.FakeNetworkPort$override suspend</ID>
+    <ID>MaxLineLength:DownloadPolicyTest.kt:DownloadPolicyTest.FakeNetworkPort$private</ID>
+    <ID>MaxLineLength:LocalFirstDeliveryAdapterTest.kt:LocalFirstDeliveryAdapterTest$val adapter = LocalFirstDeliveryAdapter(FakeContentFileStore(), RecordingPrefetcher(IllegalStateException("closed")))</ID>
+    <ID>MaxLineLength:LocalFirstDeliveryAdapterTest.kt:LocalFirstDeliveryAdapterTest$val adapter = LocalFirstDeliveryAdapter(FakeContentFileStore(failure = CancellationException()), RecordingPrefetcher())</ID>
+    <ID>MaxLineLength:LocalFirstDeliveryAdapterTest.kt:LocalFirstDeliveryAdapterTest$val adapter = LocalFirstDeliveryAdapter(FakeContentFileStore(failure = IllegalStateException("unreadable")), RecordingPrefetcher())</ID>
+    <ID>MaxLineLength:LocalFirstDeliveryAdapterTest.kt:LocalFirstDeliveryAdapterTest.FakeContentFileStore$private</ID>
+  </CurrentIssues>
+</SmellBaseline>

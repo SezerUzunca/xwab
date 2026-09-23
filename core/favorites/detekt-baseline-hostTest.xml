@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MaxLineLength:DataStoreFavoritesAdapterTest.kt:DataStoreFavoritesAdapterTest$assertEquals(listOf(FavoritesSnapshot(emptySet(), isAvailable = false)), adapter.observe("sound").take(1).toList())</ID>
+    <ID>UseCheckOrError:DataStoreFavoritesAdapterTest.kt:DataStoreFavoritesAdapterTest.FakePreferencesDataStore$throw IllegalStateException("the preferences file is unreadable")</ID>
+  </CurrentIssues>
+</SmellBaseline>

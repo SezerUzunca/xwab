@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.composeCompiler)
     // Reports this module's project dependencies for `checkArchitecture`, as every module does.
     id("xwab.architecture.module")
+    // detekt, as every module applies it.
+    id("xwab.detekt")
 }
 
 kotlin {

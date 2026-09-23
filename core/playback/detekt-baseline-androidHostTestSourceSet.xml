@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MagicNumber:AndroidPlaybackSupportTest.kt:AndroidPlaybackSupportTest$7L</ID>
+    <ID>MagicNumber:AndroidPlaybackSupportTest.kt:AndroidPlaybackSupportTest$8L</ID>
+    <ID>MagicNumber:AndroidPlaybackSupportTest.kt:AndroidPlaybackSupportTest$9L</ID>
+  </CurrentIssues>
+</SmellBaseline>

@@ -349,6 +349,14 @@ alongside the Android host tests before assembling the APK. CI also runs
 `./gradlew :androidApp:lintDebug`, which with `checkDependencies` lints every module the app ships.
 A KMP library only has lint tasks when it applies `com.android.lint`; `xwab.kmp.library` and
 `:shared` do.
+
+`./gradlew staticAnalysis` runs detekt in every module (`xwab.detekt`, on detekt's defaults plus
+[config/detekt/detekt.yml](config/detekt/detekt.yml)). Findings that predate it are in each
+module's `detekt-baseline-*.xml`, so only new ones fail CI. Sources generated into `build/` are not
+analysed. To record a module's current findings after a deliberate change, run
+`./gradlew :<module>:staticAnalysisBaseline`. detekt is on 2.0.0-alpha, the first line built for
+Kotlin 2.4; move to 2.0.0 once it is released.
+
 On macOS, `./gradlew -PenableIos=true iosSimulatorArm64Test` also runs Compose screen and
 navigation lifecycle/save-state tests. Real-device background playback and interruption checks
 remain necessary before a release.

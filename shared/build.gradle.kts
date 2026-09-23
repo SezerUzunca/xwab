@@ -22,6 +22,8 @@ plugins {
     // Also what `xwab.kmp.library` applies: without it the KMP library plugin creates no lint
     // tasks, and the app's `checkDependencies` has nothing of this module's to read.
     id("com.android.lint")
+    // Also applied by `xwab.kmp.library`: detekt, with this module's baseline.
+    id("xwab.detekt")
 }
 
 // Mirrors what `xwab.kmp.library` configures for every other module, so the module that merges the

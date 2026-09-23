@@ -1,0 +1,13 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongParameterList:PlayableRow.kt:@Composable fun PlayableRow</ID>
+    <ID>MagicNumber:Shape.kt:SleepRelaxShapes$100</ID>
+    <ID>MatchingDeclarationName:Color.kt:SleepRelaxColors</ID>
+    <ID>MatchingDeclarationName:Dimens.kt:SleepRelaxDimens</ID>
+    <ID>MatchingDeclarationName:Shape.kt:SleepRelaxShapes</ID>
+    <ID>MatchingDeclarationName:Type.kt:SleepRelaxTypography</ID>
+    <ID>MaxLineLength:PlayPauseButton.kt:modifier = Modifier.size(if (large) SleepRelaxTheme.dimens.iconLarge else SleepRelaxTheme.dimens.iconMedium)</ID>
+  </CurrentIssues>
+</SmellBaseline>

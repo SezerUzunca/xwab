@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MaxLineLength:TabEntryProviderTest.kt:UnopenedFeaturesGraph$override</ID>
+    <ID>MaxLineLength:TabEntryProviderTest.kt:UnopenedFeaturesGraph$override val favoritesDependencies: () -&gt; FavoritesDependencies = { error("Favorites initialized before rendering") }</ID>
+  </CurrentIssues>
+</SmellBaseline>

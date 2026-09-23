@@ -1,0 +1,26 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:PlaybackReducer.kt:pendingRequest != null &amp;&amp; ( pendingRequest.source != intent.attachedSource || hasUnappliedSourceOperation || hasDifferentOwnedOperation )</ID>
+    <ID>CyclomaticComplexMethod:AndroidPlaybackFacade.kt:AndroidPlaybackFacade$private fun executeEffects</ID>
+    <ID>CyclomaticComplexMethod:PlaybackReducer.kt:internal fun reducePlayback: ReduceResult</ID>
+    <ID>CyclomaticComplexMethod:PlaybackReducer.kt:private fun reduceControllerConnected: ReduceResult</ID>
+    <ID>LongMethod:PlaybackReducer.kt:private fun reduceControllerConnected: ReduceResult</ID>
+    <ID>LongMethod:PlaybackReducer.kt:private fun reduceEnginePlaybackObserved: ReduceResult</ID>
+    <ID>LongParameterList:SleepTimerClient.kt:SleepTimerClient$private fun sendCommand</ID>
+    <ID>MatchingDeclarationName:AndroidPlaybackSupport.kt:AndroidControllerAccess</ID>
+    <ID>MatchingDeclarationName:PlaybackReducer.kt:ReduceResult</ID>
+    <ID>MaxLineLength:AndroidPlaybackFacade.kt:AndroidPlaybackFacade$is PlaybackSideEffect.CancelSleepTimer -&gt; ensureConnectedOrApply { controller -&gt; applyCancelSleepTimer(controller) }</ID>
+    <ID>MaxLineLength:AndroidPlaybackFacade.kt:AndroidPlaybackFacade$is PlaybackSideEffect.PauseForInterruption -&gt; ensureConnectedOrApply { controller -&gt; controller.pause() }</ID>
+    <ID>MaxLineLength:AndroidPlaybackFacade.kt:AndroidPlaybackFacade$is PlaybackSideEffect.SetVolume -&gt; ensureConnectedOrApply { controller -&gt; controller.volume = effect.volume }</ID>
+    <ID>MaxLineLength:AndroidPlaybackFacade.kt:AndroidPlaybackFacade$is PlaybackSideEffect.StartSleepTimer -&gt; ensureConnectedOrApply { controller -&gt; applyStartSleepTimer(controller, effect.deadlineElapsedRealMs) }</ID>
+    <ID>ObjectLiteralToLambda:PlaybackService.kt:SleepTimer$object : Runnable { override fun run() { reconcileDeadline() } }</ID>
+    <ID>ReturnCount:AndroidPlaybackFacade.kt:AndroidPlaybackFacade$private fun readSource: AudioSource?</ID>
+    <ID>ReturnCount:PlaybackReducer.kt:internal fun reducePlayback: ReduceResult</ID>
+    <ID>ReturnCount:PlaybackReducer.kt:private fun reduceControllerConnected: ReduceResult</ID>
+    <ID>TooGenericExceptionCaught:MediaControllerConnection.kt:MediaControllerConnection$error: Exception</ID>
+    <ID>TooManyFunctions:AndroidPlaybackFacade.kt:AndroidPlaybackFacade : PlaybackEnginePortListener</ID>
+    <ID>TooManyFunctions:PlaybackReducer.kt:com.xwab.app.core.playback.store.PlaybackReducer.kt</ID>
+  </CurrentIssues>
+</SmellBaseline>

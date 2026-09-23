@@ -1,0 +1,7 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MaxLineLength:DataStoreFavoritesAdapterTest.kt:DataStoreFavoritesAdapterTest$assertEquals(listOf(FavoritesSnapshot(emptySet(), isAvailable = false)), adapter.observe("sound").take(1).toList())</ID>
+  </CurrentIssues>
+</SmellBaseline>

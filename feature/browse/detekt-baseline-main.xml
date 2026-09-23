@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MatchingDeclarationName:BrowseNavigation.kt:BrowseRoute : NavKey</ID>
+    <ID>MaxLineLength:BrowseScreen.kt:Text(category.name, style = SleepRelaxTheme.typography.titleSmall, color = SleepRelaxTheme.colors.textPrimary)</ID>
+    <ID>UnusedPrivateFunction:BrowseScreen.kt:@Preview @Composable private fun BrowseScreenPreview</ID>
+  </CurrentIssues>
+</SmellBaseline>

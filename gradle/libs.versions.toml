@@ -8,6 +8,8 @@ androidx-core = "1.19.0"
 androidx-lifecycle = "2.11.0"
 composeMultiplatform = "1.11.1"
 metro = "1.4.2"
+# The only detekt line built against Kotlin 2.4 is still alpha; 1.23.x stops at Kotlin 2.0.
+detekt = "2.0.0-alpha.6"
 kotlin = "2.4.20"
 kotlinxCoroutines = "1.11.0"
 kotlinxSerialization = "1.11.0"
@@ -71,3 +73,5 @@ kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlinxSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 # Compile-time DI. Metro 1.4.2 supports the Kotlin 2.4.20 compiler compatibility line.
 metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
+# Kotlin static analysis, applied to every module through `xwab.detekt`.
+detekt = { id = "dev.detekt", version.ref = "detekt" }
