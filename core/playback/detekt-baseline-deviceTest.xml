@@ -1,0 +1,11 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MagicNumber:PlaybackServiceDeviceTest.kt:PlaybackServiceDeviceTest$10</ID>
+    <ID>MagicNumber:PlaybackServiceDeviceTest.kt:PlaybackServiceDeviceTest$2_500L</ID>
+    <ID>MagicNumber:PlaybackServiceDeviceTest.kt:PlaybackServiceDeviceTest$45</ID>
+    <ID>MagicNumber:PlaybackServiceDeviceTest.kt:PlaybackServiceDeviceTest$5</ID>
+    <ID>UnsafeCallOnNullableType:PlaybackServiceDeviceTest.kt:PlaybackServiceDeviceTest$outcome!!</ID>
+  </CurrentIssues>
+</SmellBaseline>

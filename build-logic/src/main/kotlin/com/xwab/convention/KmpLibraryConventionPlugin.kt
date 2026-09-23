@@ -20,6 +20,8 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             // Every module states its own project dependencies for `checkArchitecture`, rather
             // than the root reading them out of this project.
             pluginManager.apply(ModuleArchitectureReportPlugin::class.java)
+            // Kotlin static analysis, with this module's pre-existing findings in its baseline.
+            pluginManager.apply(DetektConventionPlugin::class.java)
             // Compile-time DI for every module. Metro is inert without its annotations, and
             // applying it here means no module has to remember to.
             pluginManager.apply("dev.zacsweers.metro")

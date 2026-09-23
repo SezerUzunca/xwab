@@ -82,6 +82,26 @@ jobs:
             echo "::error::${line}"
           done
 
+      # Kotlin static analysis. Every module applies `xwab.detekt`, which registers `staticAnalysis`;
+      # naming the task without a project runs it in each of them. Findings that predate detekt are in
+      # each module's baseline, so only new ones fail this step.
+      - name: Analyse Kotlin with detekt
+        run: set -o pipefail; ./gradlew staticAnalysis --stacktrace 2>&1 | tee -a gradle-output.log
+
+      - name: Report the detekt findings
+        if: failure()
+        run: |
+          found=0
+          while IFS= read -r report; do
+            while IFS= read -r finding; do
+              found=1
+              echo "::error::${report%%/build/*}: ${finding}"
+            done < <(grep -oE '<error [^>]*>' "$report" | sed -E 's/.*line="([0-9]+)".*message="([^"]*)".*source="([^"]*)".*/line \1: \2 [\3]/' | head -20)
+          done < <(find . -path '*/build/reports/detekt/*.xml' -not -path './build-logic/*')
+          if [ "$found" -eq 0 ]; then
+            echo "::error::detekt reported no findings; it failed before or outside the analysis."
+          fi
+
       # Android Lint had never run against this project. `checkArchitecture` guards the shape of the
       # build and the tests guard behaviour, but nothing was reading the manifest, the resources or
       # the merged APK for the class of mistake lint is for — and two of those, a light launch theme

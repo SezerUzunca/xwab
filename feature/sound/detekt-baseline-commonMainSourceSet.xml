@@ -1,0 +1,11 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongMethod:SoundScreen.kt:@Composable internal fun SoundScreen</ID>
+    <ID>MagicNumber:SoundScreen.kt:100</ID>
+    <ID>MatchingDeclarationName:SoundNavigation.kt:SoundRoute : NavKey</ID>
+    <ID>MaxLineLength:SoundScreen.kt:text = stringResource(if (state.favoriteReadStatus == SoundFavoriteReadStatus.Unavailable) UiRes.string.favorites_read_failed else UiRes.string.favorite_write_failed)</ID>
+    <ID>MaxLineLength:SoundViewModel.kt:SoundViewModel$favoriteWriteFailed.value = favoritesPort.toggle(SOUND_FAVORITES_NAMESPACE, trackId.value) == FavoriteToggleResult.Unavailable</ID>
+  </CurrentIssues>
+</SmellBaseline>

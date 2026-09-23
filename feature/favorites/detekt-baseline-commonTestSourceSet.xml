@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MaxLineLength:FavoritesViewModelTest.kt:FavoritesViewModelTest$private</ID>
+    <ID>MaxLineLength:ObserveFavoritesContentUseCaseTest.kt:ObserveFavoritesContentUseCaseTest$val playing = PlaybackSummary(requestedItemId = PlaybackItemId(SOUND_PLAYBACK_KIND, rain.id.value), playIntent = true)</ID>
+  </CurrentIssues>
+</SmellBaseline>

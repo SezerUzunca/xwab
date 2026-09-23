@@ -1,0 +1,7 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UnusedPrivateFunction:NowPlayingScreen.kt:@Preview @Composable private fun NowPlayingScreenPreview</ID>
+  </CurrentIssues>
+</SmellBaseline>

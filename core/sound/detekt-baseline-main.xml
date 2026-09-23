@@ -1,0 +1,29 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MaxLineLength:CatalogManifest.kt:Track(TrackId("chopin-berceuse"), "Chopin's Berceuse", CategoryId("lullaby"), 290, playbackArtist = "Veronica van der Knaap")</ID>
+    <ID>MaxLineLength:CatalogManifest.kt:Track(TrackId("igbo-lullaby"), "Igbo Lullaby", CategoryId("lullaby"), 37, playbackTitle = "Egwu Nwa", playbackArtist = "Akum20")</ID>
+    <ID>MaxLineLength:CatalogManifest.kt:Track(TrackId("shorebirds"), "Shorebirds by the Sea", CategoryId("ocean"), 12, playbackArtist = "U.S. Fish and Wildlife Service")</ID>
+    <ID>MaxLineLength:CatalogManifest.kt:Track(TrackId("south-carolina-beach"), "South Carolina Beach", CategoryId("ocean"), 62, playbackArtist = "Anthropic42")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("brahms-lullaby", "https://upload.wikimedia.org/wikipedia/commons/transcoded/c/cf/Lullaby_wound_up_clock_guten_abend_gute_nacht.ogg/Lullaby_wound_up_clock_guten_abend_gute_nacht.ogg.mp3")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("brown-noise", "https://upload.wikimedia.org/wikipedia/commons/transcoded/c/c9/Brownnoise.ogg/Brownnoise.ogg.mp3")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("chopin-berceuse", "https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d5/Chopin-Berceuse.ogg/Chopin-Berceuse.ogg.mp3")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("chorus-cicadas", "https://upload.wikimedia.org/wikipedia/commons/transcoded/b/b1/Chorus_Cicada_singing.ogg/Chorus_Cicada_singing.ogg.mp3")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("forest-birds", "https://upload.wikimedia.org/wikipedia/commons/transcoded/3/38/Birds_forest.ogg/Birds_forest.ogg.mp3")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("gray-noise", "https://upload.wikimedia.org/wikipedia/commons/transcoded/c/c0/Gray_noise.ogg/Gray_noise.ogg.mp3")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("heavy-rain", "https://upload.wikimedia.org/wikipedia/commons/transcoded/0/0e/Rain_(1).ogg/Rain_(1).ogg.mp3")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("igbo-lullaby", "https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d9/Egwu_Nwa.ogg/Egwu_Nwa.ogg.mp3")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("nightingale-song", "https://upload.wikimedia.org/wikipedia/commons/transcoded/9/91/Common_Nightingale%27s_song_2.ogg/Common_Nightingale%27s_song_2.ogg.mp3")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("pebble-shore", "https://upload.wikimedia.org/wikipedia/commons/transcoded/7/73/On_a_pebble_beach.ogg/On_a_pebble_beach.ogg.mp3")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("pink-noise", "https://upload.wikimedia.org/wikipedia/commons/transcoded/a/a2/Pink.Noise.ogg/Pink.Noise.ogg.mp3")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("shorebirds", "https://upload.wikimedia.org/wikipedia/commons/transcoded/9/91/Shorebirds.ogg/Shorebirds.ogg.mp3")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("south-carolina-beach", "https://upload.wikimedia.org/wikipedia/commons/transcoded/0/04/Beach_sounds_South_Carolina.ogg/Beach_sounds_South_Carolina.ogg.mp3")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("thunder-rain", "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/42/Rain_and_thunder.ogg/Rain_and_thunder.ogg.mp3")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("vierne-berceuse", "https://upload.wikimedia.org/wikipedia/commons/transcoded/c/c0/Vierne_Berceuse_%28Fernwerk_und_Hauptorgel%29.ogg/Vierne_Berceuse_%28Fernwerk_und_Hauptorgel%29.ogg.mp3")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("white-noise", "https://upload.wikimedia.org/wikipedia/commons/transcoded/9/98/White-noise-sound-20sec-mono-44100Hz.ogg/White-noise-sound-20sec-mono-44100Hz.ogg.mp3")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("window-storm", "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/41/Rain_against_the_window.ogg/Rain_against_the_window.ogg.mp3")</ID>
+    <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("woodland-ambience", "https://upload.wikimedia.org/wikipedia/commons/transcoded/0/0a/20090610_0_ambience.ogg/20090610_0_ambience.ogg.mp3")</ID>
+    <ID>ReturnCount:SoundPlaybackResolver.kt:SoundPlaybackResolver$override suspend fun resolve: ItemResolution</ID>
+  </CurrentIssues>
+</SmellBaseline>

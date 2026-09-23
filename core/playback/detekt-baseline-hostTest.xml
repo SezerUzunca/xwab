@@ -1,0 +1,11 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LargeClass:PlaybackReducerTest.kt:PlaybackReducerTest</ID>
+    <ID>LongParameterList:PlaybackReducerTest.kt:private fun playbackState: PlaybackState</ID>
+    <ID>MagicNumber:AndroidPlaybackSupportTest.kt:AndroidPlaybackSupportTest$7L</ID>
+    <ID>MagicNumber:AndroidPlaybackSupportTest.kt:AndroidPlaybackSupportTest$8L</ID>
+    <ID>MagicNumber:AndroidPlaybackSupportTest.kt:AndroidPlaybackSupportTest$9L</ID>
+  </CurrentIssues>
+</SmellBaseline>

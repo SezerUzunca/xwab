@@ -1,0 +1,12 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongMethod:CategoryScreen.kt:@Composable internal fun CategoryScreen</ID>
+    <ID>MatchingDeclarationName:CategoryNavigation.kt:CategoryRoute : NavKey</ID>
+    <ID>MaxLineLength:CategoryScreen.kt:text = stringResource(if (state.favoritesReadStatus == CategoryFavoritesReadStatus.Unavailable) UiRes.string.favorites_read_failed else UiRes.string.favorite_write_failed)</ID>
+    <ID>MaxLineLength:CategoryViewModel.kt:CategoryViewModel$favoriteWriteFailed.value = favoritesPort.toggle(SOUND_FAVORITES_NAMESPACE, trackId.value) == FavoriteToggleResult.Unavailable</ID>
+    <ID>MaxLineLength:ObserveCategoryContentUseCase.kt:ObserveCategoryContentUseCase$CategoryContent(category.category, category.tracks, category.favoriteIds, playback, category.favoritesReadStatus)</ID>
+    <ID>MaxLineLength:ObserveCategoryContentUseCase.kt:ObserveCategoryContentUseCase$if (it.isAvailable) CategoryFavoritesReadStatus.Available else CategoryFavoritesReadStatus.Unavailable</ID>
+  </CurrentIssues>
+</SmellBaseline>

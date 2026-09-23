@@ -19,6 +19,8 @@ plugins {
     // What `xwab.kmp.library` would otherwise have applied: this module's own project
     // dependencies, reported for `checkArchitecture`.
     id("xwab.architecture.module")
+    // Also applied by `xwab.kmp.library`: detekt, with this module's baseline.
+    id("xwab.detekt")
 }
 
 // Mirrors what `xwab.kmp.library` configures for every other module, so the module that merges the

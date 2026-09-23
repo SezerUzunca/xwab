@@ -1,0 +1,8 @@
+# Applied on top of detekt's defaults (`buildUponDefaultConfig`). Only what this project decides
+# differently lives here; everything else is detekt's own default.
+
+naming:
+  FunctionNaming:
+    # Composables are named like the UI they emit — `SoundScreen`, `PlayPauseButton` — which is
+    # the Compose API guideline, not an exception to it.
+    ignoreAnnotated: ['Composable']

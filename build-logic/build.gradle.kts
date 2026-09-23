@@ -36,6 +36,7 @@ dependencies {
     implementation(pluginMarker(libs.plugins.composeCompiler))
     implementation(pluginMarker(libs.plugins.kotlinxSerialization))
     implementation(pluginMarker(libs.plugins.metro))
+    implementation(pluginMarker(libs.plugins.detekt))
 
     // `FeatureFirstRules` is plain Kotlin over a dependency map, so its tests need nothing from
     // Gradle. Left on the default JUnit 4 runner `kotlin-test` picks for the JVM.
@@ -63,6 +64,10 @@ gradlePlugin {
         register("architectureModule") {
             id = "xwab.architecture.module"
             implementationClass = "com.xwab.convention.ModuleArchitectureReportPlugin"
+        }
+        register("detekt") {
+            id = "xwab.detekt"
+            implementationClass = "com.xwab.convention.DetektConventionPlugin"
         }
     }
 }
