@@ -26,8 +26,11 @@ four tracks per category, matching metadata/source IDs, unique cache filenames a
 headers. Resolver tests cover missing tracks and sources, delivery failures, playback metadata,
 looping defaults and the exact download headers, media types and retained cache inventory.
 
-`SOUND_CACHE_NAMESPACE` stays internal. Its value remains `sound` because it names persisted cache
-storage. `CacheKey` and `DeliveryRequest` validate download addresses, filenames and headers at
+`SOUND_CACHE_NAMESPACE` is public in `port/SoundStorage.kt` for one reader, the composition root:
+only the module that assembles the app knows which cache namespaces are still installed, and it
+names them so that downloads a removed content type left behind can be swept at launch. The cache
+requests themselves stay internal. Its value remains `sound`, pinned in `wireFormat`, because it
+names persisted cache storage. `CacheKey` and `DeliveryRequest` validate download addresses, filenames and headers at
 construction; this module validates unique source IDs and cache filenames and owns their versioning.
 Playback kinds and favorites namespaces are separate contracts, even where their string values
 currently match.

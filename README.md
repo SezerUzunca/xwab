@@ -56,7 +56,7 @@ There is no shared repository abstraction. A feature consumes the narrow capabil
 
 | Capability module | Public port |
 |---|---|
-| `:core:sound` | `SoundPort`, sound metadata models, `SOUND_FAVORITES_NAMESPACE` and `SOUND_PLAYBACK_KIND` |
+| `:core:sound` | `SoundPort`, sound metadata models, `SOUND_FAVORITES_NAMESPACE`, `SOUND_PLAYBACK_KIND` and `SOUND_CACHE_NAMESPACE` |
 | `:core:delivery` | `DeliveryPort`, `DeliveryRequest`, `CacheKey` and `DeliveryResult` |
 | `:core:favorites` | `FavoritesPort` |
 | `:core:story` | `StoryPort`, story metadata models and `STORY_PLAYBACK_KIND` |
@@ -103,6 +103,10 @@ The seven directories directly under `core` are Gradle modules, discovered autom
 `shared` automatically includes those modules on Metro's compilation classpath: settings publishes
 the discovered list, so `shared` never reads another project's state to find them. Application
 routes remain explicitly composed by the shell.
+
+`SOUND_CACHE_NAMESPACE` is public for one reader, the composition root. Only the module that
+assembles the app knows which cache namespaces are still installed, and it names them so that
+downloads left behind by a removed content type can be swept at launch.
 
 | Module | Owns | Delegates |
 |---|---|---|
