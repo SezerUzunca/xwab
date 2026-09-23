@@ -38,3 +38,8 @@ build/
 
 # Accidental nested clone of this remote repository
 sleep-sounds/
+
+# Claude Code state that belongs to one machine: its permission allowlist and task locks.
+# Shared project settings would go in .claude/settings.json, which stays tracked.
+.claude/settings.local.json
+.claude/*.lock
