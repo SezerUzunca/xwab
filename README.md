@@ -345,9 +345,7 @@ content type's favorites stay stored until something deletes them.
 ```
 
 `:check` runs the architecture check and the build-logic regression tests. Android CI runs it
-alongside the Android host tests before assembling the APK. CI also runs
-`./gradlew :androidApp:lintDebug`; with `checkDependencies` on, that one run lints every module the
-app ships, not only `androidApp`.
+alongside the Android host tests before assembling the APK.
 On macOS, `./gradlew -PenableIos=true iosSimulatorArm64Test` also runs Compose screen and
 navigation lifecycle/save-state tests. Real-device background playback and interruption checks
 remain necessary before a release.

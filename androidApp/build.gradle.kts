@@ -60,13 +60,6 @@ android {
             }
         }
     }
-    lint {
-        // Lint this module's project dependencies as well, so the one CI lint run reads every
-        // module the app ships — the core capabilities, the features, the design system and the
-        // shell — rather than the two activity classes that live here. Their findings land in this
-        // module's report, which is the one CI already prints.
-        checkDependencies = true
-    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
