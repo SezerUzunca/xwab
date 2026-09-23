@@ -7,6 +7,7 @@ internal data class CoreModulePolicy(
     val dependencies: Set<String>,
     val publicInterfaces: Set<String>,
     val adapterOnlyTypes: Set<String> = emptySet(),
+    val wireFormat: Map<String, String> = emptyMap(),
 )
 
 internal data class CoreModulePolicyResult(
@@ -18,6 +19,7 @@ internal data class CoreModulePolicyResult(
  * A deliberately small properties format: one key=value per line, with # comments.
  * Missing, misspelled and duplicate fields fail closed instead of weakening a new module's rules.
  * adapterOnlyTypes is optional; it reserves selected public port types for core implementations.
+ * wireFormat is optional; it pins the values this capability has written onto devices.
  */
 internal fun parseCoreModulePolicy(module: String, source: String?): CoreModulePolicyResult {
     val location = "${module.removePrefix(":").replace(':', '/')}/architecture.properties"
@@ -25,7 +27,7 @@ internal fun parseCoreModulePolicy(module: String, source: String?): CoreModuleP
         return CoreModulePolicyResult(null, listOf("$module must declare its responsibility and boundaries in $location."))
     }
     val required = setOf("responsibility", "featureAccessible", "dependencies", "publicInterfaces")
-    val allowed = required + "adapterOnlyTypes"
+    val allowed = required + setOf("adapterOnlyTypes", "wireFormat")
     val fields = linkedMapOf<String, String>()
     val violations = mutableListOf<String>()
     source.lineSequence().forEachIndexed { index, raw ->
@@ -61,6 +63,20 @@ internal fun parseCoreModulePolicy(module: String, source: String?): CoreModuleP
     interfaces.filterNot { Regex("[A-Z][A-Za-z0-9_]*").matches(it) }
         .forEach { violations += "$location public interface $it is not a valid interface name." }
     val adapterOnlyTypes = entries("adapterOnlyTypes")
+    val wireFormat = linkedMapOf<String, String>()
+    entries("wireFormat").forEach { entry ->
+        val name = entry.substringBefore('=', missingDelimiterValue = "").trim()
+        val value = entry.substringAfter('=', missingDelimiterValue = "").trim()
+        when {
+            !Regex("[A-Z][A-Z0-9_]*").matches(name) ->
+                violations += "$location wire format entry $entry must read NAME=value."
+            value.isEmpty() ->
+                violations += "$location wire format $name must state the value that is stored on devices."
+            name in wireFormat ->
+                violations += "$location repeats wire format $name."
+            else -> wireFormat[name] = value
+        }
+    }
     adapterOnlyTypes.filterNot { Regex("[A-Z][A-Za-z0-9_]*").matches(it) }
         .forEach { violations += "$location adapter-only type $it is not a valid top-level type name." }
     return CoreModulePolicyResult(
@@ -70,6 +86,7 @@ internal fun parseCoreModulePolicy(module: String, source: String?): CoreModuleP
             dependencies = dependencies,
             publicInterfaces = interfaces,
             adapterOnlyTypes = adapterOnlyTypes,
+            wireFormat = wireFormat,
         ) else null,
         violations = violations.sorted(),
     )

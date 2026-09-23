@@ -54,6 +54,10 @@ import org.gradle.api.tasks.TaskAction
  * 21. A core module that implements another's adapterOnlyTypes may not reference that module's
  *     remaining publicInterfaces. Answering a capability's contract and calling it are different
  *     roles, and one module holding both puts the coordination back where it was moved from.
+ * 22. Optional wireFormat pins each value a capability has written onto devices — playback kinds,
+ *     favourites and cache namespaces. Renaming one compiles, passes and breaks installed copies,
+ *     so the constant and its pin must change together. Any `*_NAMESPACE` / `*_KIND` constant must
+ *     be pinned.
  *
  * The rules themselves live in [FeatureFirstRules], where they are unit-tested from both sides.
  * This task is only their plumbing: it collects the dependency graph and source/configuration files.
@@ -120,6 +124,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
             FeatureFirstRules.corePortViolations(coreSources, policies) +
             FeatureFirstRules.adapterOnlyTypeViolations(coreSources, productionSources(root, "feature"), policies) +
             FeatureFirstRules.contributorPortViolations(coreSources, policies) +
+            FeatureFirstRules.wireFormatViolations(coreSources, policies) +
             FeatureFirstRules.coreVisibilityViolations(coreSources, policies) +
             FeatureFirstRules.coreImportViolations(coreSources) +
             FeatureFirstRules.legacyCoreAbstractionViolations(coreSources)

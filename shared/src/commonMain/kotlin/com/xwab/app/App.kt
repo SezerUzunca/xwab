@@ -7,6 +7,7 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.NavKey
@@ -36,6 +37,10 @@ import com.xwab.app.ui.AppNavigationBar
 @Composable
 fun App(graph: AppGraph) {
     SleepRelaxTheme {
+        // Downloads belonging to content this build no longer installs. Once per launch, off the
+        // main thread inside the store, and silent when there is nothing to remove.
+        LaunchedEffect(graph) { graph.contentCacheMaintenance().sweepUninstalledContent() }
+
         val navigationState = rememberNavigationState()
         val navigator = remember(navigationState) { Navigator(navigationState) }
         val entryProvider = remember(navigator, graph) {

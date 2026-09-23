@@ -249,6 +249,75 @@ internal object FeatureFirstRules {
         return violations.distinct().sorted()
     }
 
+    /** `const val SOUND_PLAYBACK_KIND: String = "sound"` — name and the literal it is pinned to. */
+    private val WIRE_FORMAT_CONSTANT =
+        Regex("""\bconst\s+val\s+([A-Z][A-Z0-9_]*)\s*(?::\s*String\s*)?=\s*"([^"]*)"""")
+
+    /** A constant whose name says it names something outside this process. */
+    private val WIRE_FORMAT_NAME = Regex("""[A-Z][A-Z0-9_]*_(?:NAMESPACE|KIND)""")
+
+    /**
+     * Values this capability has already written onto devices cannot be renamed by editing them.
+     *
+     * A playback kind is the prefix of an engine source id, and on Android the media service
+     * outlives the app, so a reconnect reads back what an earlier build wrote. A favorites
+     * namespace and a cache namespace are keys on disk. Every one of them is a plain string a
+     * refactor would happily rename: nothing fails to compile, no test notices, CI stays green, and
+     * the damage lands on people who already have the app — detached playback, lost favourites, a
+     * cache nothing will ever sweep.
+     *
+     * So the value is pinned beside the capability that owns it. Changing the constant now means
+     * changing `architecture.properties` too, and that second edit is the moment to ask whether a
+     * migration is owed. The build cannot decide that; it can only refuse to let it happen quietly.
+     *
+     * Constants join by being named, not by being listed: anything ending in `_NAMESPACE` or
+     * `_KIND` must be pinned. A new content type's kind cannot be added without declaring it, which
+     * is the same trick the user-agent rule uses and the reason neither needs a registry.
+     */
+    fun wireFormatViolations(
+        coreSources: List<CoreSource>,
+        policies: Map<String, CoreModulePolicy>,
+    ): List<String> {
+        val violations = mutableListOf<String>()
+
+        val declaredByModule = coreSources.groupBy { it.module }.mapValues { (_, sources) ->
+            sources.flatMap { source ->
+                WIRE_FORMAT_CONSTANT.findAll(commentsRemoved(source.source)).map { match ->
+                    Triple(match.groupValues[1], match.groupValues[2], source.path)
+                }
+            }
+        }
+
+        policies.forEach { (module, policy) ->
+            val constants = declaredByModule[module].orEmpty()
+
+            policy.wireFormat.forEach { (name, pinned) ->
+                val found = constants.filter { it.first == name }
+                when {
+                    found.isEmpty() ->
+                        violations += "$module architecture.properties pins wire format $name, but the " +
+                            "module declares no such constant. Update wireFormat when moving or removing one."
+
+                    found.none { it.second == pinned } ->
+                        violations += "$module declares $name as \"${found.first().second}\" in " +
+                            "${found.first().third}, but architecture.properties pins it to \"$pinned\". " +
+                            "This value is already stored on devices: installed copies hold it in an engine " +
+                            "source id, a favourites key or a cache path. Changing it detaches what is " +
+                            "there, so pin the new value only together with a migration for the old one."
+                }
+            }
+
+            constants.filter { WIRE_FORMAT_NAME.matches(it.first) && it.first !in policy.wireFormat }
+                .forEach { (name, value, path) ->
+                    violations += "$path declares $name = \"$value\", which names something outside this " +
+                        "process, but $module architecture.properties does not pin it. Add it to " +
+                        "wireFormat so renaming it cannot pass unnoticed."
+                }
+        }
+
+        return violations.distinct().sorted()
+    }
+
     fun coreModuleShapeViolations(modules: Set<String>): List<String> =
         modules.filter { it.startsWith(CORE_PREFIX) && !Regex(":core:[a-z][a-z0-9]*(?:-[a-z0-9]+)*").matches(it) }
             .sorted().map {

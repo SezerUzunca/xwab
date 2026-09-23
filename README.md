@@ -254,6 +254,10 @@ playback. The architecture check requires these values to agree with the downloa
 9. A feature route lacks `@SerialName`, or a contributed playback kind has no routing reference
    in the shell.
 10. The download source and native player application metadata disagree on the HTTP user agent.
+11. A capability renames a value it has already written onto devices. Playback kinds, favourites
+    and cache namespaces are pinned in `wireFormat`; the constant and its pin must change together,
+    which is the moment to decide whether a migration is owed. Any `*_NAMESPACE` / `*_KIND`
+    constant must be pinned, so a new content type joins the check by being named.
 
 The core policy is module-owned rather than a central list of sound/story-specific exceptions.
 For example, `core/session/architecture.properties` permits only playback and declares its screen

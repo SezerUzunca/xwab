@@ -59,6 +59,8 @@ class LocalFirstDeliveryAdapterTest {
     }
 
     private class FakeContentFileStore(private val path: String? = null, private val failure: Throwable? = null) : ContentFileStore {
+        override suspend fun retainOnly(namespaces: Set<String>) = Unit
+
         override suspend fun find(key: CacheKey): String? { failure?.let { throw it }; return path }
         override suspend fun download(request: DeliveryRequest): Unit = fail("Only the prefetcher downloads.")
     }

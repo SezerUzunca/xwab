@@ -91,6 +91,8 @@ class SoundPlaybackResolverTest {
     private class RecordingDelivery(
         private val result: DeliveryResult = DeliveryResult.Resolved("https://example.test/audio.mp3"),
     ) : DeliveryPort {
+        override suspend fun retainOnly(namespaces: Set<String>) = Unit
+
         val requests = mutableListOf<DeliveryRequest>()
 
         override suspend fun resolve(request: DeliveryRequest): DeliveryResult {
