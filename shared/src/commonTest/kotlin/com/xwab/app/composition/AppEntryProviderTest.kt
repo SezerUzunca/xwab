@@ -1,5 +1,6 @@
 package com.xwab.app.composition
 
+import com.xwab.app.content.ContentCacheMaintenance
 import com.xwab.app.di.AppGraph
 import com.xwab.app.feature.browse.di.BrowseDependencies
 import com.xwab.app.feature.category.di.CategoryDependencies
@@ -54,4 +55,5 @@ private object NoDependencies : AppGraph {
     override val soundDependencies: () -> SoundDependencies = { unused() }
     override val storiesDependencies: () -> StoriesDependencies = { unused() }
     override val nowPlayingDependencies: () -> NowPlayingDependencies = { unused() }
+    override val contentCacheMaintenance: () -> ContentCacheMaintenance = { unused() }
 }

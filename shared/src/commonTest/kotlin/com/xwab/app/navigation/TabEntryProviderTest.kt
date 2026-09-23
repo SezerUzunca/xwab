@@ -3,6 +3,7 @@ package com.xwab.app.navigation
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import com.xwab.app.composition.appEntryProvider
+import com.xwab.app.content.ContentCacheMaintenance
 import com.xwab.app.di.AppGraph
 import com.xwab.app.feature.browse.di.BrowseDependencies
 import com.xwab.app.feature.browse.navigation.BrowseRoute
@@ -98,4 +99,8 @@ private object UnopenedFeaturesGraph : AppGraph {
      * itself, and nothing about navigation should be able to open it.
      */
     override val nowPlayingDependencies: () -> NowPlayingDependencies = { error("Now playing initialized by navigation") }
+
+    /** Housekeeping the shell runs once at launch; navigation has no business reaching it. */
+    override val contentCacheMaintenance: () -> ContentCacheMaintenance =
+        { error("Cache maintenance initialized by navigation") }
 }

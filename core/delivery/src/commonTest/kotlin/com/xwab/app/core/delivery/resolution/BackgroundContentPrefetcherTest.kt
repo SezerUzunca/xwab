@@ -164,6 +164,8 @@ class BackgroundContentPrefetcherTest {
     }
 
     private class FakeContentFileStore : ContentFileStore {
+        override suspend fun retainOnly(namespaces: Set<String>) = Unit
+
         val downloaded = CompletableDeferred<Unit>()
         var downloadCount = 0
 
@@ -176,6 +178,8 @@ class BackgroundContentPrefetcherTest {
     }
 
     private class BlockingContentFileStore : ContentFileStore {
+        override suspend fun retainOnly(namespaces: Set<String>) = Unit
+
         val downloadStarted = CompletableDeferred<Unit>()
         val releaseDownload = CompletableDeferred<Unit>()
         val downloadFinished = CompletableDeferred<Unit>()
@@ -192,6 +196,8 @@ class BackgroundContentPrefetcherTest {
     }
 
     private class FailingContentFileStore : ContentFileStore {
+        override suspend fun retainOnly(namespaces: Set<String>) = Unit
+
         val attemptsExhausted = CompletableDeferred<Unit>()
         var attempts = 0
 
@@ -205,6 +211,8 @@ class BackgroundContentPrefetcherTest {
     }
 
     private class UnusableContentFileStore : ContentFileStore {
+        override suspend fun retainOnly(namespaces: Set<String>) = Unit
+
         var attempts = 0
 
         override suspend fun find(key: CacheKey): String? = null

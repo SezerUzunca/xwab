@@ -71,6 +71,37 @@ internal class CachingContentFileStore(
     }
 
     /**
+     * Removes the namespace directories no content module in this build claims any more.
+     *
+     * The within-namespace sweep in [download] cannot reach these: it only ever lists the namespace
+     * of the request that triggered it, and a removed content type produces no more requests. One
+     * directory listing at startup is what closes that.
+     *
+     * Refuses an empty set rather than deleting everything. A caller with no namespaces has almost
+     * certainly failed to assemble them, and obeying that literally would throw away every download
+     * on the device.
+     */
+    override suspend fun retainOnly(namespaces: Set<String>) = withContext(fileDispatcher) {
+        if (namespaces.isEmpty()) {
+            logger.w { "Refusing to sweep the cache for an empty namespace set." }
+            return@withContext
+        }
+        try {
+            fileSystem.list(root)
+                .filter { fileSystem.metadataOrNull(it)?.isDirectory == true }
+                .filterNot { it.name in namespaces }
+                .forEach { orphan ->
+                    logger.i { "Removing cached content for the uninstalled namespace ${orphan.name}." }
+                    fileSystem.deleteRecursively(orphan, mustExist = false)
+                }
+        } catch (error: IOException) {
+            // A cache that refuses to be listed or deleted is not worth failing a launch over; the
+            // files stay and the next start tries again.
+            logger.w(error) { "Could not sweep uninstalled namespaces from the cache at $root." }
+        }
+    }
+
+    /**
      * Drops caches written before delivery was namespaced.
      *
      * Those files sit beside the namespace directories rather than inside one, and the sweep only

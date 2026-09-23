@@ -13,6 +13,8 @@ internal class LocalFirstDeliveryAdapter(
 ) : DeliveryPort {
     private val logger = Logger.withTag("DeliveryPort")
 
+    override suspend fun retainOnly(namespaces: Set<String>) = fileStore.retainOnly(namespaces)
+
     override suspend fun resolve(request: DeliveryRequest): DeliveryResult = try {
         val cachedPath = fileStore.find(request.key)
         if (cachedPath != null) {

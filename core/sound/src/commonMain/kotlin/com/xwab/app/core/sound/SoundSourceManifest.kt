@@ -2,10 +2,8 @@ package com.xwab.app.core.sound
 
 import com.xwab.app.core.delivery.port.CacheKey
 import com.xwab.app.core.delivery.port.DeliveryRequest
+import com.xwab.app.core.sound.port.SOUND_CACHE_NAMESPACE
 import com.xwab.app.core.sound.port.TrackId
-
-/** Persisted storage identity; changing it would detach existing sound downloads. */
-internal const val SOUND_CACHE_NAMESPACE: String = "sound"
 
 internal val soundSourceManifest = listOf(
     soundSource("gentle-rain", "https://upload.wikimedia.org/wikipedia/commons/transcoded/3/3d/Rain.ogg/Rain.ogg.mp3"),

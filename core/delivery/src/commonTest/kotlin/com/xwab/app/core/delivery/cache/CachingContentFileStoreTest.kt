@@ -206,6 +206,45 @@ class CachingContentFileStoreTest {
         assertContentEquals(byteArrayOf(1, 2, 3), readFile(FILE_NAME))
     }
 
+    /**
+     * The half the per-request sweep can never reach: a content type that was removed stops making
+     * requests, so its directory is never listed again and its audio stays for good.
+     */
+    @Test
+    fun namespacesTheAppNoLongerInstallsAreRemoved() = runBlocking {
+        writeFile(FILE_NAME, byteArrayOf(1))
+        fileSystem.createDirectories(ROOT / "removed-content")
+        fileSystem.sink(ROOT / "removed-content" / FILE_NAME).buffer().use { it.write(byteArrayOf(2)) }
+
+        store().retainOnly(setOf("sample"))
+
+        assertFalse(fileSystem.exists(ROOT / "removed-content"))
+        assertContentEquals(byteArrayOf(1), readFile(FILE_NAME))
+    }
+
+    /**
+     * A caller that assembled nothing is far likelier to be broken than to mean it, and obeying it
+     * would throw away every download on the device.
+     */
+    @Test
+    fun anEmptyNamespaceSetSweepsNothing() = runBlocking {
+        writeFile(FILE_NAME, byteArrayOf(1))
+
+        store().retainOnly(emptySet())
+
+        assertContentEquals(byteArrayOf(1), readFile(FILE_NAME))
+    }
+
+    /** Nothing to remove is the ordinary case, and it must not disturb what is there. */
+    @Test
+    fun anInstalledNamespaceIsLeftAlone() = runBlocking {
+        writeFile(FILE_NAME, byteArrayOf(1))
+
+        store().retainOnly(setOf("sample", "never-downloaded"))
+
+        assertContentEquals(byteArrayOf(1), readFile(FILE_NAME))
+    }
+
     private fun request(retained: Set<String>? = null) = DeliveryRequest(
         CacheKey("sample", FILE_NAME), REMOTE_URL, retainedFileNames = retained,
     )
