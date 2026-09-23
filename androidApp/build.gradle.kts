@@ -62,6 +62,13 @@ android {
             }
         }
     }
+    lint {
+        // Lint this module's project dependencies as well, so the one CI lint run reads every
+        // module the app ships rather than the two activity classes that live here. It only
+        // reaches a KMP library that applies `com.android.lint`, which `xwab.kmp.library` and
+        // `:shared` do; the findings land in this module's report, which CI already prints.
+        checkDependencies = true
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11

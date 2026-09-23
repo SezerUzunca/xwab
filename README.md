@@ -345,7 +345,10 @@ content type's favorites stay stored until something deletes them.
 ```
 
 `:check` runs the architecture check and the build-logic regression tests. Android CI runs it
-alongside the Android host tests before assembling the APK.
+alongside the Android host tests before assembling the APK. CI also runs
+`./gradlew :androidApp:lintDebug`, which with `checkDependencies` lints every module the app ships.
+A KMP library only has lint tasks when it applies `com.android.lint`; `xwab.kmp.library` and
+`:shared` do.
 
 `./gradlew staticAnalysis` runs detekt in every module (`xwab.detekt`, on detekt's defaults plus
 [config/detekt/detekt.yml](config/detekt/detekt.yml)). Findings that predate it are in each
