@@ -100,8 +100,9 @@ feature/
 ```
 
 The seven directories directly under `core` are Gradle modules, discovered automatically by Gradle.
-`shared` automatically includes those modules on Metro's compilation classpath. Application routes
-remain explicitly composed by the shell.
+`shared` automatically includes those modules on Metro's compilation classpath: settings publishes
+the discovered list, so `shared` never reads another project's state to find them. Application
+routes remain explicitly composed by the shell.
 
 | Module | Owns | Delegates |
 |---|---|---|
@@ -284,6 +285,14 @@ adapterOnlyTypes=PlaybackItemResolver,ItemResolution,PlaybackPolicy
 
 Port checks enforce code boundaries and dependency direction. The responsibility sentence is a
 review contract: behavior and tests must still demonstrate that an adapter stays within its job.
+
+The dependency graph the check reads is reported by the modules themselves. Every module applies
+`xwab.architecture.module` — through `xwab.kmp.library`, or by id in `shared` and `androidApp` —
+which writes its own production project dependencies to a file. The root resolves those files like
+any other dependency, and settings publishes which modules there are. No project reads another's
+configurations, which keeps the check compatible with Gradle's isolated projects mode. A module
+that does not apply the plugin makes the check fail with Gradle's "no matching variant" error
+naming it, rather than letting the rules run without it.
 
 The Metro convention additionally treats non-public contribution problems as errors and generates
 providers that allow internal contributed adapters to remain hidden across modules.

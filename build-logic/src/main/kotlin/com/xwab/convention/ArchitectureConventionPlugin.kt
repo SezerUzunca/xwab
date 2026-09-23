@@ -2,15 +2,31 @@ package com.xwab.convention
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.artifacts.ProjectDependency
 
 /**
  * `xwab.architecture` — registers `checkArchitecture` on the root project.
  * [CheckArchitectureTask] runs the rules; [FeatureFirstRules] holds them.
+ *
+ * The dependency graph arrives as reports, one per module, resolved like any other dependency —
+ * see [ModuleArchitectureReportPlugin]. This project never reads another project's configurations,
+ * which is what keeps the check possible under Gradle's isolated projects mode. Which modules exist
+ * is settings' answer, published as `architectureModules` in `settings.gradle.kts`.
  */
 class ArchitectureConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
+            @Suppress("UNCHECKED_CAST")
+            val modules = gradle.extensions.extraProperties.get(ARCHITECTURE_MODULES) as List<String>
+
+            val declared = configurations.dependencyScope("architectureModules")
+            modules.forEach { module ->
+                dependencies.add(declared.name, dependencies.project(mapOf("path" to module)))
+            }
+            val reports = configurations.resolvable("architectureDependencyReports") { configuration ->
+                configuration.extendsFrom(declared.get())
+                configuration.attributes { it.architectureReport(objects) }
+            }
+
             val checkArchitecture =
                 tasks.register("checkArchitecture", CheckArchitectureTask::class.java) { task ->
                     task.group = "verification"
@@ -18,26 +34,8 @@ class ArchitectureConventionPlugin : Plugin<Project> {
                         "Fails when a dependency, package import or shared core use case breaks " +
                             "the feature-first rules."
                     task.repositoryRoot.set(layout.projectDirectory)
+                    task.dependencyReports.from(reports)
                 }
-
-            // The dependency graph is only complete once every module has been configured.
-            gradle.projectsEvaluated {
-                val graph = rootProject.subprojects.associate { module ->
-                    module.path to module.projectDependencies(FeatureFirstRules::isProductionConfiguration)
-                }
-                // Collected separately rather than filtered out of the graph, because the two
-                // answer different questions: what a module declares, and what it re-exports.
-                val apiGraph = rootProject.subprojects.associate { module ->
-                    module.path to module.projectDependencies {
-                        FeatureFirstRules.isProductionConfiguration(it) && FeatureFirstRules.isApiConfiguration(it)
-                    }
-                }
-
-                checkArchitecture.configure { task ->
-                    task.moduleDependencies.set(graph)
-                    task.moduleApiDependencies.set(apiGraph)
-                }
-            }
 
             // A broken rule should surface the way a broken test does — and so should a rule that
             // has stopped rejecting anything, which is what `build-logic`'s own tests cover.
@@ -50,15 +48,8 @@ class ArchitectureConventionPlugin : Plugin<Project> {
         }
     }
 
-    /** The paths of the projects this module depends on, in configurations matching [include]. */
-    private fun Project.projectDependencies(include: (String) -> Boolean): List<String> {
-        val paths = sortedSetOf<String>()
-        configurations.forEach { configuration ->
-            if (!include(configuration.name)) return@forEach
-            configuration.dependencies
-                .withType(ProjectDependency::class.java)
-                .forEach { dependency -> paths += dependency.path }
-        }
-        return paths.toList()
+    private companion object {
+        /** Set by `settings.gradle.kts`: every project in the build that has a build script. */
+        const val ARCHITECTURE_MODULES = "architectureModules"
     }
 }

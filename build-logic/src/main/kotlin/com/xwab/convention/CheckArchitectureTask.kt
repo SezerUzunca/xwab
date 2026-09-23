@@ -3,10 +3,12 @@ package com.xwab.convention
 import java.io.File
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.provider.MapProperty
-import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
 /**
@@ -60,24 +62,23 @@ import org.gradle.api.tasks.TaskAction
  *     be pinned.
  *
  * The rules themselves live in [FeatureFirstRules], where they are unit-tested from both sides.
- * This task is only their plumbing: it collects the dependency graph and source/configuration files.
+ * This task is only their plumbing: it reads the dependency report each module publishes about
+ * itself, and the source/configuration files.
  *
  * Rule 5 is graph-based: adapter-only capabilities are represented by real dependency edges, so
  * enforcement survives implementation renames and follows re-exported dependencies as well.
  */
 abstract class CheckArchitectureTask : DefaultTask() {
 
-    /** Module path to its production project dependencies; test fixtures do not change its ABI. */
-    @get:Input
-    abstract val moduleDependencies: MapProperty<String, List<String>>
-
     /**
-     * The same, narrowed to `api` configurations: the dependencies that do not stop at the module
-     * declaring them. Rule 5 follows these, so a forbidden module cannot reach a screen by being
-     * re-exported from a module the screen is allowed to declare.
+     * One [ModuleDependencyReport] per module: its production project dependencies, since test
+     * fixtures do not change its ABI, and the `api` subset of them — the dependencies that do not
+     * stop at the module declaring them. Rule 5 follows the second, so a forbidden module cannot
+     * reach a screen by being re-exported from a module the screen is allowed to declare.
      */
-    @get:Input
-    abstract val moduleApiDependencies: MapProperty<String, List<String>>
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val dependencyReports: ConfigurableFileCollection
 
     /** The repository root; source-level rules read Kotlin files under it. */
     @get:Internal
@@ -85,7 +86,9 @@ abstract class CheckArchitectureTask : DefaultTask() {
 
     @TaskAction
     fun check() {
-        val graph = moduleDependencies.get()
+        val (graph, apiGraph) = ModuleDependencyReport.graphsOf(
+            dependencyReports.files.sortedBy { it.path }.map { ModuleDependencyReport.parse(it.readText()) },
+        )
         val root = repositoryRoot.get().asFile
         val coreSources = coreProductionSources(root, graph.keys)
         val policyResults = graph.keys.filter { it.startsWith(FeatureFirstRules.CORE_PREFIX) }
@@ -113,7 +116,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
             FeatureFirstRules.legacySplitDirectoryViolations(legacySplitDirectories(root)) +
             FeatureFirstRules.koinUsageViolations(architectureTextSources(root)) +
             FeatureFirstRules.userAgentAgreementViolations(clientIdentitySources(root)) +
-            FeatureFirstRules.dependencyViolations(graph, moduleApiDependencies.get(), policies) +
+            FeatureFirstRules.dependencyViolations(graph, apiGraph, policies) +
             leakedUseCaseViolations(root, graph.keys) +
             FeatureFirstRules.sharedFeatureReferenceViolations(productionSources(root, "shared")) +
             FeatureFirstRules.featureVisibilityViolations(productionSources(root, "feature")) +
