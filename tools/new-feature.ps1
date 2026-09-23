@@ -70,7 +70,10 @@ kotlin {
             // implementation(projects.core.session)
         }
         commonTest.dependencies {
-            implementation(projects.testing)
+            // Declare only the fakes for the ports declared above, for example:
+            // implementation(projects.testing.sound)    // FakeSoundCatalog, track(), category()
+            // implementation(projects.testing.favorites) // FakeFavorites
+            // implementation(projects.testing.session)  // FakePlaybackPort
         }
     }
 }
@@ -202,7 +205,7 @@ Write-Host ""
 Write-Host "Done. Wire the feature in the app shell:" -ForegroundColor Green
 Write-Host "  1. Add implementation(projects.feature.${camel}) to shared/build.gradle.kts."
 Write-Host "  2. Expose ${camel}Dependencies as () -> ${Pascal}Dependencies in shared/.../di/AppGraph.kt."
-Write-Host "  3. Register ${camel}Entry in AppEntryProvider.kt and ${camel}NavigationSerializers in AppNavigation.kt."
+Write-Host "  3. Register ${camel}Entry in AppEntryProvider.kt and ${camel}NavigationSerializers in FEATURE_SERIALIZERS (FeatureSerializers.kt)."
 Write-Host "  4. Add ${Pascal}Route as a top-level route or connect it to an existing intent."
 Write-Host ""
 Write-Host "Then: ./gradlew :feature:${Name}:compileCommonMainKotlinMetadata checkArchitecture"

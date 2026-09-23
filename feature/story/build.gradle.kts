@@ -11,7 +11,7 @@ kotlin {
             implementation(projects.core.session)
         }
         commonTest.dependencies {
-            implementation(projects.testing)
+            implementation(projects.testing.session)
             implementation(libs.kotlinx.coroutines.test)
         }
         if (gradle.extra["enableIos"] as Boolean) {

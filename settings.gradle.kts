@@ -40,15 +40,17 @@ dependencyResolutionManagement {
 
 include(":androidApp")
 
-// UI and test support are outside core: they are not application capability ports.
+// UI support is outside core: it is not an application capability port.
 include(":designsystem")
-include(":testing")
 include(":shared")
 
 // Each capability and feature is one cohesive module. Installed core modules are also wired
 // automatically into shared's Metro classpath; their own architecture.properties defines the
 // permitted dependencies and public ports. Adding/removing a module needs no central core list.
-listOf("core", "feature").forEach { group ->
+//
+// Test fakes are split the same way, one module per port they stand in for, so a test compiles
+// against only the capabilities it reads. They sit outside core for the reason UI support does.
+listOf("core", "feature", "testing").forEach { group ->
     rootDir.resolve(group).listFiles()
         ?.filter { it.isDirectory && it.resolve("build.gradle.kts").isFile }
         ?.sortedBy { it.name }

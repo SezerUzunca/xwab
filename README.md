@@ -29,9 +29,16 @@ the feature's Metro dependency bag live together; there is no feature API/implem
 split. Features never depend on one another. The app shell connects outgoing feature intents to
 destination routes.
 
-`designsystem` and `testing` are top-level support modules. They are deliberately outside `core`:
-core reserves its public surface for ports, while UI components and reusable test fakes are not
-application capability ports.
+`designsystem` and the `testing` modules are top-level support modules. They are deliberately
+outside `core`: core reserves its public surface for ports, while UI components and reusable test
+fakes are not application capability ports.
+
+Test fakes are split by the port they stand in for — `:testing:session` (`FakePlaybackPort`),
+`:testing:favorites` (`FakeFavorites`) and `:testing:sound` (`FakeSoundCatalog`, `track()`,
+`category()` and the sound-namespace `FakeFavorites(Set<TrackId>)` builder). A feature's tests
+declare only the ones it reads, so the story list and the now-playing bar compile their tests
+against no sound catalog, and removing a capability breaks only the tests that used it. The
+`testing/` directories are discovered like `core/` and `feature/`.
 
 `designsystem` owns Material theme integration and stateless visual controls.
 Each feature owns its screen state; core capabilities manage their own operation state.
@@ -80,6 +87,9 @@ core/
 
 designsystem/
 testing/
+├── favorites
+├── session
+└── sound
 feature/
 ├── browse
 ├── category
