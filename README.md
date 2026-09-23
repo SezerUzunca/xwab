@@ -29,9 +29,16 @@ the feature's Metro dependency bag live together; there is no feature API/implem
 split. Features never depend on one another. The app shell connects outgoing feature intents to
 destination routes.
 
-`designsystem` and `testing` are top-level support modules. They are deliberately outside `core`:
-core reserves its public surface for ports, while UI components and reusable test fakes are not
-application capability ports.
+`designsystem` and the `testing` modules are top-level support modules. They are deliberately
+outside `core`: core reserves its public surface for ports, while UI components and reusable test
+fakes are not application capability ports.
+
+Test fakes are split by the port they stand in for — `:testing:session` (`FakePlaybackPort`),
+`:testing:favorites` (`FakeFavorites`) and `:testing:sound` (`FakeSoundCatalog`, `track()`,
+`category()` and the sound-namespace `FakeFavorites(Set<TrackId>)` builder). A feature's tests
+declare only the ones it reads, so the story list and the now-playing bar compile their tests
+against no sound catalog, and removing a capability breaks only the tests that used it. The
+`testing/` directories are discovered like `core/` and `feature/`.
 
 `designsystem` owns Material theme integration and stateless visual controls.
 Each feature owns its screen state; core capabilities manage their own operation state.
@@ -49,11 +56,11 @@ There is no shared repository abstraction. A feature consumes the narrow capabil
 
 | Capability module | Public port |
 |---|---|
-| `:core:sound` | `SoundPort`, sound metadata models, `SOUND_FAVORITES_NAMESPACE` and `SOUND_PLAYBACK_KIND` |
+| `:core:sound` | `SoundPort`, sound metadata models, `SOUND_FAVORITES_NAMESPACE`, `SOUND_PLAYBACK_KIND` and `SOUND_CACHE_NAMESPACE` |
 | `:core:delivery` | `DeliveryPort`, `DeliveryRequest`, `CacheKey` and `DeliveryResult` |
 | `:core:favorites` | `FavoritesPort` |
 | `:core:story` | `StoryPort`, story metadata models and `STORY_PLAYBACK_KIND` |
-| `:core:session` | `PlaybackPort` and session models; `PlaybackItemResolver`, `ItemResolution` and `PlaybackPolicy` for content adapters |
+| `:core:session` | `PlaybackPort` and session models; `PlaybackItemResolver`, `ItemResolution` and `PlaybackPolicy` for content adapters, behind the `PlaybackResolverApi` opt-in |
 | `:core:playback` | `PlaybackEnginePort` and engine command/state types |
 | `:core:network` | `NetworkPort` and transport-neutral response/error types |
 
@@ -80,6 +87,9 @@ core/
 
 designsystem/
 testing/
+├── favorites
+├── session
+└── sound
 feature/
 ├── browse
 ├── category
@@ -90,8 +100,13 @@ feature/
 ```
 
 The seven directories directly under `core` are Gradle modules, discovered automatically by Gradle.
-`shared` automatically includes those modules on Metro's compilation classpath. Application routes
-remain explicitly composed by the shell.
+`shared` automatically includes those modules on Metro's compilation classpath: settings publishes
+the discovered list, so `shared` never reads another project's state to find them. Application
+routes remain explicitly composed by the shell.
+
+`SOUND_CACHE_NAMESPACE` is public for one reader, the composition root. Only the module that
+assembles the app knows which cache namespaces are still installed, and it names them so that
+downloads left behind by a removed content type can be swept at launch.
 
 | Module | Owns | Delegates |
 |---|---|---|
@@ -109,10 +124,12 @@ own metadata and source and returns a content-neutral resolution. There is no se
 registry or source registration step.
 Sound depends on session and delivery; story depends on session; session depends only on playback.
 Features cannot depend on delivery, network or the native engine. The resolver contract is public
-in Kotlin because content modules implement it across module boundaries. Session's
-`adapterOnlyTypes` policy makes `checkArchitecture` reject feature references to the resolver and
-its result/policy models; this screen boundary is enforced by the architecture check, not by a
-separate Gradle classpath.
+in Kotlin because content modules implement it across module boundaries, and Kotlin has no
+visibility for "these modules only" yet. Two checks stand in for one. The compiler rejects any use of
+the resolver and its result/policy models that does not opt in to `@PlaybackResolverApi`; the
+resolvers and the session's own adapter opt in, and screens have no reason to. Session's
+`adapterOnlyTypes` policy makes `checkArchitecture` reject feature references to the same types,
+the opt-in annotation included, so a feature cannot opt in quietly either.
 
 Contracts and models live in each module's `.port` package. Adapters and manifests remain internal.
 Every core module supplies an [architecture.properties](core/session/architecture.properties)
@@ -269,11 +286,19 @@ responsibility=Coordinate playback through contributed resolvers and the platfor
 featureAccessible=true
 dependencies=:core:playback
 publicInterfaces=PlaybackPort,PlaybackItemResolver
-adapterOnlyTypes=PlaybackItemResolver,ItemResolution,PlaybackPolicy
+adapterOnlyTypes=PlaybackItemResolver,ItemResolution,PlaybackPolicy,PlaybackResolverApi
 ```
 
 Port checks enforce code boundaries and dependency direction. The responsibility sentence is a
 review contract: behavior and tests must still demonstrate that an adapter stays within its job.
+
+The dependency graph the check reads is reported by the modules themselves. Every module applies
+`xwab.architecture.module` — through `xwab.kmp.library`, or by id in `shared` and `androidApp` —
+which writes its own production project dependencies to a file. The root resolves those files like
+any other dependency, and settings publishes which modules there are. No project reads another's
+configurations, which keeps the check compatible with Gradle's isolated projects mode. A module
+that does not apply the plugin makes the check fail with Gradle's "no matching variant" error
+naming it, rather than letting the rules run without it.
 
 The Metro convention additionally treats non-public contribution problems as errors and generates
 providers that allow internal contributed adapters to remain hidden across modules.

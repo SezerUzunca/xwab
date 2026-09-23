@@ -1,3 +1,5 @@
+@file:OptIn(PlaybackResolverApi::class)
+
 package com.xwab.app.core.sound
 
 import com.xwab.app.core.delivery.port.CacheKey
@@ -5,6 +7,7 @@ import com.xwab.app.core.delivery.port.DeliveryPort
 import com.xwab.app.core.delivery.port.DeliveryRequest
 import com.xwab.app.core.delivery.port.DeliveryResult
 import com.xwab.app.core.session.port.ItemResolution
+import com.xwab.app.core.session.port.PlaybackResolverApi
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.TrackId

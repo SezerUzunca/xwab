@@ -16,6 +16,9 @@ plugins {
     // Declared here rather than inherited: this module skips `xwab.kmp.library`, which is what
     // applies Metro everywhere else, and the application graph is generated in this module.
     alias(libs.plugins.metro)
+    // What `xwab.kmp.library` would otherwise have applied: this module's own project
+    // dependencies, reported for `checkArchitecture`.
+    id("xwab.architecture.module")
 }
 
 // Mirrors what `xwab.kmp.library` configures for every other module, so the module that merges the
@@ -62,10 +65,11 @@ kotlin {
         commonMain.dependencies {
             // Metro discovers installed capabilities on this classpath. A new core module owns
             // its contributions; no app-level list needs updating for each adapter or content kind.
-            rootProject.subprojects
-                .filter { it.path.startsWith(":core:") }
-                .sortedBy { it.path }
-                .forEach { implementation(project(it.path)) }
+            // Settings discovers them and publishes the list, so this module never reads another
+            // project's state to find them.
+            @Suppress("UNCHECKED_CAST")
+            val coreModules = gradle.extra["coreModules"] as List<String>
+            coreModules.forEach { implementation(project(it)) }
             implementation(projects.designsystem)
 
             implementation(projects.feature.browse)

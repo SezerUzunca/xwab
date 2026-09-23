@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    // Reports this module's project dependencies for `checkArchitecture`, as every module does.
+    id("xwab.architecture.module")
 }
 
 kotlin {

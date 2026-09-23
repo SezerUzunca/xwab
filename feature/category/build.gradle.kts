@@ -12,7 +12,8 @@ kotlin {
             implementation(projects.core.session)
         }
         commonTest.dependencies {
-            implementation(projects.testing)
+            implementation(projects.testing.sound)
+            implementation(projects.testing.session)
             implementation(libs.kotlinx.coroutines.test)
         }
         // Screen tests live in the iOS source set because the screens themselves are common code:

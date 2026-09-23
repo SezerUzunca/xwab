@@ -1,3 +1,7 @@
+// The one consumer of the resolver contract: this module owns it, and the session is what looks
+// resolvers up. Content modules opt in to implement it; screens never do.
+@file:OptIn(PlaybackResolverApi::class)
+
 package com.xwab.app.core.session
 
 import com.xwab.app.core.session.port.DEFAULT_LOOPING
@@ -8,6 +12,7 @@ import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.core.session.port.VOLUME_RANGE
 import com.xwab.app.core.session.port.ItemResolution
 import com.xwab.app.core.session.port.PlaybackItemResolver
+import com.xwab.app.core.session.port.PlaybackResolverApi
 import com.xwab.app.core.playback.port.AudioPlayerState
 import com.xwab.app.core.playback.port.AudioSource
 import com.xwab.app.core.playback.port.LoopMode

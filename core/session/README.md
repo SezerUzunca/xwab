@@ -30,10 +30,17 @@ a `Track` it happened to be holding could pair a stale title with a freshly reso
 two authorities would never be compared.
 
 `PlaybackItemResolver`, `ItemResolution` and `PlaybackPolicy` are public Kotlin types so content
-modules can implement the session's contract. This module's `architecture.properties` lists them
-under `adapterOnlyTypes`, and `checkArchitecture` rejects feature references to them. They are
-visible at Kotlin compile time; the screen boundary is an architecture rule, not separate Gradle
-classpath isolation. Features steer playback through `PlaybackPort`.
+modules can implement the session's contract. Kotlin cannot yet limit a public type to named
+modules, so two checks hold the screen boundary instead:
+
+- **The compiler.** All three are marked `@PlaybackResolverApi`, a `RequiresOptIn` marker at error
+  level. Code that uses them without opting in does not compile. The content resolvers and this
+  module's adapter opt in per file.
+- **The architecture check.** This module's `architecture.properties` lists the three types and the
+  marker under `adapterOnlyTypes`, and `checkArchitecture` rejects feature references to any of
+  them. That includes a feature writing `@OptIn(PlaybackResolverApi::class)`.
+
+Features steer playback through `PlaybackPort`.
 
 Playback is an `implementation` dependency. `checkArchitecture` also rejects feature dependencies
 on network, delivery or the engine, including re-exported dependencies. Every cross-module

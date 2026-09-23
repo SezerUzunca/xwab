@@ -10,7 +10,7 @@ kotlin {
             implementation(projects.core.sound)
         }
         commonTest.dependencies {
-            implementation(projects.testing)
+            implementation(projects.testing.sound)
             implementation(libs.kotlinx.coroutines.test)
         }
         if (gradle.extra["enableIos"] as Boolean) {

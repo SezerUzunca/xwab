@@ -1,7 +1,10 @@
+@file:OptIn(PlaybackResolverApi::class)
+
 package com.xwab.app.core.story
 
 import com.xwab.app.core.session.port.ItemResolution
 import com.xwab.app.core.session.port.PlaybackItemResolver
+import com.xwab.app.core.session.port.PlaybackResolverApi
 import com.xwab.app.core.story.port.STORY_PLAYBACK_KIND
 import com.xwab.app.core.story.port.StoryPort
 import dev.zacsweers.metro.AppScope

@@ -9,8 +9,9 @@ playback through the session.
 Public contracts and models live in `com.xwab.app.core.story.port`. The implementation and
 manifest files live separately in `com.xwab.app.core.story` and remain internal.
 `checkArchitecture` enforces the public metadata port and cross-module access through `port`
-packages. Session's resolver contracts are public at Kotlin compile time; its `adapterOnlyTypes`
-architecture policy rejects feature usage. Screens play stories through `PlaybackPort`.
+packages. Session's resolver contracts are public in Kotlin but require opting in to
+`@PlaybackResolverApi`, which `StoryPlaybackResolver.kt` does; its `adapterOnlyTypes` architecture
+policy rejects feature usage. Screens play stories through `PlaybackPort`.
 
 Story audio streams directly through the platform player. This module depends only on
 `core:session`; it owns no network client, cache, database or platform storage implementation.

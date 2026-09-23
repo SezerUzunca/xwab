@@ -60,5 +60,9 @@ gradlePlugin {
             id = "xwab.architecture"
             implementationClass = "com.xwab.convention.ArchitectureConventionPlugin"
         }
+        register("architectureModule") {
+            id = "xwab.architecture.module"
+            implementationClass = "com.xwab.convention.ModuleArchitectureReportPlugin"
+        }
     }
 }
