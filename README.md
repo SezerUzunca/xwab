@@ -60,7 +60,7 @@ There is no shared repository abstraction. A feature consumes the narrow capabil
 | `:core:delivery` | `DeliveryPort`, `DeliveryRequest`, `CacheKey` and `DeliveryResult` |
 | `:core:favorites` | `FavoritesPort` |
 | `:core:story` | `StoryPort`, story metadata models and `STORY_PLAYBACK_KIND` |
-| `:core:session` | `PlaybackPort` and session models; `PlaybackItemResolver`, `ItemResolution` and `PlaybackPolicy` for content adapters |
+| `:core:session` | `PlaybackPort` and session models; `PlaybackItemResolver`, `ItemResolution` and `PlaybackPolicy` for content adapters, behind the `PlaybackResolverApi` opt-in |
 | `:core:playback` | `PlaybackEnginePort` and engine command/state types |
 | `:core:network` | `NetworkPort` and transport-neutral response/error types |
 
@@ -120,10 +120,12 @@ own metadata and source and returns a content-neutral resolution. There is no se
 registry or source registration step.
 Sound depends on session and delivery; story depends on session; session depends only on playback.
 Features cannot depend on delivery, network or the native engine. The resolver contract is public
-in Kotlin because content modules implement it across module boundaries. Session's
-`adapterOnlyTypes` policy makes `checkArchitecture` reject feature references to the resolver and
-its result/policy models; this screen boundary is enforced by the architecture check, not by a
-separate Gradle classpath.
+in Kotlin because content modules implement it across module boundaries, and Kotlin has no
+visibility for "these modules only" yet. Two checks stand in for one. The compiler rejects any use of
+the resolver and its result/policy models that does not opt in to `@PlaybackResolverApi`; the
+resolvers and the session's own adapter opt in, and screens have no reason to. Session's
+`adapterOnlyTypes` policy makes `checkArchitecture` reject feature references to the same types,
+the opt-in annotation included, so a feature cannot opt in quietly either.
 
 Contracts and models live in each module's `.port` package. Adapters and manifests remain internal.
 Every core module supplies an [architecture.properties](core/session/architecture.properties)
@@ -280,7 +282,7 @@ responsibility=Coordinate playback through contributed resolvers and the platfor
 featureAccessible=true
 dependencies=:core:playback
 publicInterfaces=PlaybackPort,PlaybackItemResolver
-adapterOnlyTypes=PlaybackItemResolver,ItemResolution,PlaybackPolicy
+adapterOnlyTypes=PlaybackItemResolver,ItemResolution,PlaybackPolicy,PlaybackResolverApi
 ```
 
 Port checks enforce code boundaries and dependency direction. The responsibility sentence is a

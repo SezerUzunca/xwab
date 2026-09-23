@@ -1,3 +1,7 @@
+// This module answers the session's resolver contract, so it opts in to it. It never calls the
+// session itself: `checkArchitecture` keeps a contributor from also being a consumer.
+@file:OptIn(PlaybackResolverApi::class)
+
 package com.xwab.app.core.sound
 
 import com.xwab.app.core.delivery.port.DeliveryPort
@@ -5,6 +9,7 @@ import com.xwab.app.core.delivery.port.DeliveryResult
 import com.xwab.app.core.session.port.ItemResolution
 import com.xwab.app.core.session.port.PlaybackItemResolver
 import com.xwab.app.core.session.port.PlaybackPolicy
+import com.xwab.app.core.session.port.PlaybackResolverApi
 import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.sound.port.TrackId

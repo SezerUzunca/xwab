@@ -1,7 +1,10 @@
+@file:OptIn(PlaybackResolverApi::class)
+
 package com.xwab.app.core.story
 
 import com.xwab.app.core.session.port.ItemResolution
 import com.xwab.app.core.session.port.PlaybackPolicy
+import com.xwab.app.core.session.port.PlaybackResolverApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
