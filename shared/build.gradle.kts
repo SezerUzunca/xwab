@@ -19,6 +19,9 @@ plugins {
     // What `xwab.kmp.library` would otherwise have applied: this module's own project
     // dependencies, reported for `checkArchitecture`.
     id("xwab.architecture.module")
+    // Also what `xwab.kmp.library` applies: without it the KMP library plugin creates no lint
+    // tasks, and the app's `checkDependencies` has nothing of this module's to read.
+    id("com.android.lint")
 }
 
 // Mirrors what `xwab.kmp.library` configures for every other module, so the module that merges the

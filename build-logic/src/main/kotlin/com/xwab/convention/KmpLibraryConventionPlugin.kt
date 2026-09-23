@@ -17,6 +17,11 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
         with(target) {
             pluginManager.apply("org.jetbrains.kotlin.multiplatform")
             pluginManager.apply("com.android.kotlin.multiplatform.library")
+            // The KMP library plugin creates no lint tasks for its Android variant unless this one
+            // is applied as well: AGP's `KmpTaskManager` checks `hasPlugin("com.android.lint")`.
+            // Without it the app's `checkDependencies` finds nothing to read in this module, which
+            // a probe proved — an API 26 call in a minSdk 24 library passed lint.
+            pluginManager.apply("com.android.lint")
             // Every module states its own project dependencies for `checkArchitecture`, rather
             // than the root reading them out of this project.
             pluginManager.apply(ModuleArchitectureReportPlugin::class.java)
