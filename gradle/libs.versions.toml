@@ -1,5 +1,5 @@
 [versions]
-agp = "9.3.1"
+agp = "9.3.3"
 android-compileSdk = "37"
 android-minSdk = "24"
 android-targetSdk = "36"
@@ -7,14 +7,19 @@ androidx-activity = "1.13.0"
 androidx-core = "1.19.0"
 androidx-lifecycle = "2.11.0"
 composeMultiplatform = "1.11.1"
-metro = "1.4.2"
+# 1.4.3, not 1.4.4: 1.4.4 fails EmptyContentSessionGraphTest with MissingBinding for
+# DefaultPlaybackAdapter, which 1.4.2 and 1.4.3 compile. Retry on the next Metro release.
+metro = "1.4.3"
 # The only detekt line built against Kotlin 2.4 is still alpha; 1.23.x stops at Kotlin 2.0.
 detekt = "2.0.0-alpha.6"
 kotlin = "2.4.20"
 kotlinxCoroutines = "1.11.0"
 kotlinxSerialization = "1.11.0"
 material3 = "1.11.0-alpha07"
-navigation3 = "1.1.1"
+# Two publishers, two version lines: Google ships the runtime, JetBrains the KMP UI fork. JetBrains
+# UI 1.1.2 is built against runtime 1.1.7, so the pair moves together but the numbers do not match.
+navigation3 = "1.1.7"
+navigation3Ui = "1.1.2"
 datastore = "1.2.1"
 media3 = "1.11.1"
 kermit = "2.0.8"
@@ -51,7 +56,7 @@ okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 okio-fakefilesystem = { module = "com.squareup.okio:okio-fakefilesystem", version.ref = "okio" }
 # JetBrains Navigation 3 — tam KMP desteği (Android, iOS, Desktop, Web)
 navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "navigation3" }
-navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "navigation3" }
+navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "navigation3Ui" }
 androidx-lifecycle-viewmodelNavigation3 = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "androidx-lifecycle" }
 androidx-datastore = { module = "androidx.datastore:datastore", version.ref = "datastore" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
@@ -71,7 +76,7 @@ kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref =
 # Compiles `build-logic`; not applied to any module.
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlinxSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-# Compile-time DI. Metro 1.4.2 supports the Kotlin 2.4.20 compiler compatibility line.
+# Compile-time DI. Metro 1.4.3+ is built and tested against the Kotlin 2.4.20 release.
 metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
 # Kotlin static analysis, applied to every module through `xwab.detekt`.
 detekt = { id = "dev.detekt", version.ref = "detekt" }

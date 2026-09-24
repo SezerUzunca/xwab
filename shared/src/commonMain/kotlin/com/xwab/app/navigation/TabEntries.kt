@@ -25,7 +25,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
  * route independent in two tabs once their entries are combined in one `NavDisplay`.
  *
  * @param state the back stack per tab, and which tab is showing.
- * @param entryProvider resolves a route to the entry that draws it. Navigation 3 1.1.1 caches these
+ * @param entryProvider resolves a route to the entry that draws it. Navigation 3 1.1.x caches these
  *   entries by back-stack contents; changing only the provider does not invalidate them.
  */
 @Composable
