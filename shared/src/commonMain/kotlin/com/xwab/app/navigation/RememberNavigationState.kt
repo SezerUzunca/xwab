@@ -36,8 +36,8 @@ internal fun rememberNavigationState(): NavigationState {
     // It is persisted the way the Navigation 3 documentation persists it — as the route itself,
     // through the same `NavKey` polymorphism the back stacks already use — rather than as a
     // position in `TOP_LEVEL_DESTINATIONS`, which would restore the wrong tab once that list is
-    // reordered. `navigation3-runtime` 1.1.1 publishes no `NavKey` serializer, so the polymorphic
-    // serializer the back stacks are saved with is named here instead.
+    // reordered. `navigation3-runtime` 1.1.x publishes its `NavKeySerializer` for Android only, not
+    // for common code, so the polymorphic serializer the back stacks are saved with is named here.
     val selectedRoute = rememberSerializable(
         stateSerializer = PolymorphicSerializer(NavKey::class),
         configuration = configuration,
