@@ -55,10 +55,12 @@ jobs:
       # hit the 45-minute job timeout during linking, the one target the simulator test run had
       # not already warmed .konan for.
       #
-      # Keyed on the Kotlin version pinned in the version catalog, since that is what actually
-      # determines the compiler distribution and the shape of the klib cache; restore-keys falls
-      # back to the most recent same-OS cache on a miss so a version bump still starts from
-      # something instead of nothing, and the exact key is written fresh at the end of this run.
+      # Keyed on the whole version catalog, not only the Kotlin version: the per-target klib cache
+      # holds every library, so any version change makes the old key stale. restore-keys falls
+      # back to the most recent same-OS cache on a miss, so only what changed is compiled again,
+      # and the result is written under the new key at the end of this run. Keying on Kotlin
+      # alone would restore an exact hit after a library bump and skip the save, recompiling that
+      # library on every run until Kotlin itself moved.
       #
       # Restored here and saved by its own step at the end of the job, whatever became of the
       # steps between. The combined action saves only on success, so a run that timed out threw
