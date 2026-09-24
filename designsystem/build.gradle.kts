@@ -11,7 +11,9 @@ kotlin {
             api(libs.compose.foundation)
             api(libs.compose.material3)
             api(libs.compose.ui)
-            api(libs.compose.material.icons.extended)
+            // Drawn inside the components here, never part of their signatures, so it stays out of
+            // every feature's compile classpath. The shell declares its own for the tab icons.
+            implementation(libs.compose.material.icons.extended)
             api(libs.compose.components.resources)
         }
     }
