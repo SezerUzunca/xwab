@@ -217,7 +217,8 @@ internal class PlaybackService : MediaSessionService() {
                 return MediaSession.ConnectionResult.reject()
             }
 
-            val resultBuilder = MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+            // Starts empty: each accepted case below sets both command sets itself.
+            val resultBuilder = MediaSession.ConnectionResult.AcceptedResultBuilder()
             when (access) {
                 AndroidControllerAccess.OwnPackage -> {
                     val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS
