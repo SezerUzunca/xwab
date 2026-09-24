@@ -1,8 +1,0 @@
-<?xml version="1.0" ?>
-<SmellBaseline>
-  <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>ReturnCount:DefaultPlaybackAdapter.kt:DefaultPlaybackAdapter$override suspend fun play</ID>
-    <ID>TooManyFunctions:DefaultPlaybackAdapter.kt:DefaultPlaybackAdapter : PlaybackPort</ID>
-  </CurrentIssues>
-</SmellBaseline>

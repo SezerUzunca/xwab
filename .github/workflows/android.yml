@@ -26,15 +26,36 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      # Corretto because `gradle/gradle-daemon-jvm.properties` asks for Amazon's 21. With any other
+      # vendor here, Gradle has to download Corretto again on every run before it can start the daemon.
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
-          distribution: temurin
+          distribution: corretto
           java-version: "21"
-          cache: gradle
 
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
+
+      # `setup-java`'s own `cache: gradle` kept Gradle's home under a hash of every build script and
+      # had nothing to fall back on, so a change to any `build.gradle.kts` — most pull requests here —
+      # started from an empty cache: over ten minutes for this job where an unchanged one took about one.
+      # This restores the newest cache `main` saved, whatever changed since, and Gradle downloads and
+      # compiles only the difference. Its build cache lives in the same directory, so a module the
+      # change did not touch comes back from the cache instead of being compiled again.
+      #
+      # Only `main` writes, at the end of this job. A pull request's cache would be visible to that
+      # pull request alone, and each is close to a gigabyte of the repository's ten.
+      - name: Restore the Gradle caches
+        id: gradle-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-android-${{ github.sha }}
+          restore-keys: |
+            gradle-${{ runner.os }}-android-
 
       - name: Check architecture, test its rules, and run Android host tests
         run: set -o pipefail; ./gradlew :check testAndroidHostTest --stacktrace 2>&1 | tee -a gradle-output.log
@@ -137,6 +158,23 @@ jobs:
       - name: Assemble release APK
         run: set -o pipefail; ./gradlew :androidApp:assembleRelease --stacktrace 2>&1 | tee -a gradle-output.log
 
+      # Stopped first, so nothing is still writing into the caches while they are archived. Stopping
+      # is also when Gradle deletes what has gone unused — build outputs after a week, downloads after
+      # a month — which keeps each saved cache from growing on the last. Keyed on the commit, so
+      # every push to `main` saves one and the newest is what the restore above finds.
+      - name: Stop Gradle before saving its caches
+        if: github.ref == 'refs/heads/main' && steps.gradle-cache.outputs.cache-hit != 'true'
+        run: ./gradlew --stop
+
+      - name: Save the Gradle caches
+        if: github.ref == 'refs/heads/main' && steps.gradle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ steps.gradle-cache.outputs.cache-primary-key }}
+
   device-test:
     name: Run playback service device tests
     runs-on: ubuntu-latest
@@ -153,15 +191,28 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      # Corretto because `gradle/gradle-daemon-jvm.properties` asks for Amazon's 21. With any other
+      # vendor here, Gradle has to download Corretto again on every run before it can start the daemon.
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
-          distribution: temurin
+          distribution: corretto
           java-version: "21"
-          cache: gradle
 
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
+
+      # Reads what the build job saved on `main` and never writes: this job compiles a subset of
+      # what that one does, so its cache would only be a smaller copy of the same thing.
+      - name: Restore the Gradle caches
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-android-${{ github.sha }}
+          restore-keys: |
+            gradle-${{ runner.os }}-android-
 
       # This job failed in roughly one run in three without anything in the repository being
       # involved: the same signature appeared on a commit that passed unchanged on the next one,

@@ -37,19 +37,34 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      # Corretto because `gradle/gradle-daemon-jvm.properties` asks for Amazon's 21. With any other
+      # vendor here, Gradle has to download Corretto again on every run before it can start the daemon.
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
-          distribution: temurin
+          distribution: corretto
           java-version: "21"
-          cache: gradle
 
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
-      # Kotlin/Native keeps its compiler distribution and per-target klib cache in ~/.konan,
-      # outside Gradle User Home entirely — `setup-java`'s `cache: gradle` above never touches it,
-      # and it is what Kotlin's own docs name as the thing to preserve between CI builds. A cold
+      # Gradle's own caches, restored from the newest `main` saved and written back only there, as
+      # the Android workflow explains. Kept apart from its cache: a macOS runner builds the iOS
+      # targets, whose klibs and compiled outputs the Linux one never has.
+      - name: Restore the Gradle caches
+        id: gradle-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-ios-${{ github.sha }}
+          restore-keys: |
+            gradle-${{ runner.os }}-ios-
+
+      # Kotlin/Native keeps its compiler distribution and per-target klib cache in ~/.konan, outside
+      # Gradle User Home entirely, so the Gradle caches above never include it — and it is what
+      # Kotlin's own docs name as the thing to preserve between CI builds. A cold
       # run pays for it twice, once per native target this job builds (iosSimulatorArm64Test,
       # then the arm64 framework link): a 2026-08-14 run compiled every module cleanly and still
       # hit the 45-minute job timeout during linking, the one target the simulator test run had
@@ -158,6 +173,13 @@ jobs:
             echo "::error::${line}"
           done
 
+      # Before anything is archived, so nothing is still writing into either cache while it is saved:
+      # a step that hit its time limit may have left its build running. Stopping is also when Gradle
+      # deletes what has gone unused, as the Android workflow explains.
+      - name: Stop Gradle
+        if: always()
+        run: ./gradlew --stop
+
       # Whatever the steps above did, keep what they compiled into ~/.konan: a failed or timed-out
       # run has usually done the expensive part already. Skipped only when the exact key was
       # restored, since a cache entry cannot be overwritten.
@@ -167,3 +189,13 @@ jobs:
         with:
           path: ~/.konan
           key: ${{ steps.konan.outputs.cache-primary-key }}
+
+      # Unlike the toolchain, only from a green run on `main`.
+      - name: Save the Gradle caches
+        if: github.ref == 'refs/heads/main' && steps.gradle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ steps.gradle-cache.outputs.cache-primary-key }}

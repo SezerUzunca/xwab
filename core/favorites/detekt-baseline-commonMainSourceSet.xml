@@ -1,9 +1,0 @@
-<?xml version="1.0" ?>
-<SmellBaseline>
-  <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>MagicNumber:DataStoreFavoritesAdapter.kt:DataStoreFavoritesAdapter$5L</ID>
-    <ID>TooGenericExceptionCaught:DataStoreFactory.kt:error: Throwable</ID>
-    <ID>TooGenericExceptionCaught:DataStoreFavoritesAdapter.kt:DataStoreFavoritesAdapter$error: Exception</ID>
-  </CurrentIssues>
-</SmellBaseline>

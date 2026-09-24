@@ -1,7 +1,0 @@
-<?xml version="1.0" ?>
-<SmellBaseline>
-  <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>MatchingDeclarationName:FavoritesNavigation.kt:FavoritesRoute : NavKey</ID>
-  </CurrentIssues>
-</SmellBaseline>
