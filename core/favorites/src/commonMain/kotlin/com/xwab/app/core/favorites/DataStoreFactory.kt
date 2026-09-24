@@ -11,7 +11,7 @@ internal const val DATA_STORE_FILE_NAME = "xwab.preferences_pb"
 internal fun createDataStore(producePath: () -> Path): DataStore<Preferences> = try {
     PreferenceDataStoreFactory.createWithPath(produceFile = producePath)
 } catch (error: Throwable) {
-    Logger.e(TAG, error) { "Failed to create the preferences DataStore." }
+    Logger.e(error, tag = TAG) { "Failed to create the preferences DataStore." }
     throw error
 }
 

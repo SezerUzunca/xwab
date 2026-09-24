@@ -6,13 +6,15 @@ import com.xwab.app.core.playback.port.PlaybackEnginePort
 import com.xwab.app.core.playback.port.SleepTimerState
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
+import com.xwab.app.core.session.port.PlaybackPort
 import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.DependencyGraph
-import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
-import dev.zacsweers.metro.createGraphFactory
+import dev.zacsweers.metro.createGraph
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -20,8 +22,8 @@ import kotlinx.coroutines.runBlocking
 class EmptyContentSessionGraphTest {
     @Test
     fun aSessionCanBeInjectedWithoutAnyContentContributions() = runBlocking {
-        val engine = EmptyContentPlaybackEngine()
-        val graph = createGraphFactory<EmptyContentSessionGraph.Factory>().create(engine)
+        val graph = createGraph<EmptyContentSessionGraph>()
+        val engine = assertIs<EmptyContentPlaybackEngine>(graph.engine)
         val removedItem = PlaybackItemId("removed-content", "item")
 
         graph.session.play(removedItem)
@@ -31,19 +33,21 @@ class EmptyContentSessionGraphTest {
     }
 }
 
-// Own the session's lifetime without aggregating AppScope's platform engine contribution.
-@SingleIn(AppScope::class)
-@DependencyGraph
+// `AppScope` as the app aggregates it once the last content module is gone: nothing on this
+// classpath contributes a resolver. The session is reached through the port it is bound to, since
+// with `generateContributionProviders` Metro no longer offers the adapter class itself.
+@DependencyGraph(AppScope::class)
 internal interface EmptyContentSessionGraph {
-    val session: DefaultPlaybackAdapter
-
-    @DependencyGraph.Factory
-    fun interface Factory {
-        fun create(@Provides engine: PlaybackEnginePort): EmptyContentSessionGraph
-    }
+    val session: PlaybackPort
+    val engine: PlaybackEnginePort
 }
 
-private class EmptyContentPlaybackEngine : PlaybackEnginePort {
+// Aggregating `AppScope` also brings in the platform engine `core:playback` contributes. A higher
+// priority takes its place without naming it, which a test here could not do: that class is
+// internal to another module, and a different one on each platform.
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class, priority = 1)
+internal class EmptyContentPlaybackEngine : PlaybackEnginePort {
     override val state = MutableStateFlow(AudioPlayerState())
     override val sleepTimerState = MutableStateFlow(SleepTimerState())
     var submittedCommands = 0
