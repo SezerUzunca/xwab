@@ -45,7 +45,13 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
                 }
 
                 android {
-                    compileSdk = libs.version("android-compileSdk").toInt()
+                    // A minor SDK release (37.1) can only be stated through the spec DSL; the plain
+                    // `compileSdk = 37` setter has no place for it.
+                    compileSdk {
+                        version = release(libs.version("android-compileSdk").toInt()) {
+                            minorApiLevel = libs.version("android-compileSdkMinor").toInt()
+                        }
+                    }
                     minSdk = libs.version("android-minSdk").toInt()
 
                     compilerOptions { jvmTarget.set(JvmTarget.JVM_11) }
