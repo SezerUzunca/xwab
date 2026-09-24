@@ -28,7 +28,10 @@ jobs:
     # class that only exists in the iOS 26 SDK. This stayed hidden while the workflow built
     # only playback code, which has no Compose dependency; the feature screen tests brought it out.
     runs-on: macos-26
-    timeout-minutes: 45
+    # A cold Kotlin/Native cache after a library update needs more than 45: the Compose 1.12 run
+    # spent 24 minutes on its first test link alone. The two long steps carry their own limits
+    # below (55 + 30), so this one is only ever the backstop.
+    timeout-minutes: 95
 
     steps:
       - name: Check out repository
@@ -56,8 +59,14 @@ jobs:
       # determines the compiler distribution and the shape of the klib cache; restore-keys falls
       # back to the most recent same-OS cache on a miss so a version bump still starts from
       # something instead of nothing, and the exact key is written fresh at the end of this run.
-      - name: Cache the Kotlin/Native toolchain
-        uses: actions/cache@v6
+      #
+      # Restored here and saved by its own step at the end of the job, whatever became of the
+      # steps between. The combined action saves only on success, so a run that timed out threw
+      # its work away: the Compose 1.12 update spent 24 minutes caching Compose for the simulator,
+      # hit the job limit before the framework link, and the rerun would have started cold again.
+      - name: Restore the Kotlin/Native toolchain
+        id: konan
+        uses: actions/cache/restore@v6
         with:
           path: ~/.konan
           key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
@@ -70,6 +79,8 @@ jobs:
       # feature:sound and feature:category, whose composables are common code with no second
       # harness on the Android side.
       - name: Run Simulator ARM64 tests
+        # Step limits keep the job's own limit out of reach, so the cache save below always runs.
+        timeout-minutes: 55
         run: set -o pipefail; ./gradlew -PenableIos=true iosSimulatorArm64Test --stacktrace 2>&1 | tee -a gradle-output.log
 
       # Kotlin/Native reports a failing simulator test as a bare `kotlin.AssertionError at null:-1`.
@@ -124,6 +135,7 @@ jobs:
       # The device target is a separate compilation; linking the framework the iOS app
       # actually consumes is what proves every module builds for real hardware.
       - name: Link the iPhone ARM64 framework
+        timeout-minutes: 30
         run: set -o pipefail; ./gradlew -PenableIos=true :shared:linkDebugFrameworkIosArm64 --stacktrace 2>&1 | tee -a gradle-output.log
 
       # The kept results above only exist once a test has run, and they download from the same
@@ -143,3 +155,13 @@ jobs:
           printf '%s\n' "$detail" | while IFS= read -r line; do
             echo "::error::${line}"
           done
+
+      # Whatever the steps above did, keep what they compiled into ~/.konan: a failed or timed-out
+      # run has usually done the expensive part already. Skipped only when the exact key was
+      # restored, since a cache entry cannot be overwritten.
+      - name: Save the Kotlin/Native toolchain
+        if: always() && steps.konan.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.konan
+          key: ${{ steps.konan.outputs.cache-primary-key }}
