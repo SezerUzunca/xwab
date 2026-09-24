@@ -20,7 +20,6 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
     }
 
     // The conventions read versions from the same catalog the modules use, so there is exactly

@@ -1,36 +1,14 @@
-import dev.zacsweers.metro.gradle.DiagnosticSeverity
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 /**
- * The composition root configures its own targets rather than applying `xwab.kmp.compose`.
+ * The composition root. It owns application wiring and the app shell; feature UI lives in the
+ * feature modules it assembles.
  *
- * It is the only module that produces an iOS framework binary, and the only one that declares the
- * application graph. It owns application wiring and the app shell; feature UI lives in the feature
- * modules it assembles.
+ * Built on `xwab.kmp.compose` like every other Compose module, so targets, SDK levels, Metro, lint,
+ * detekt and the architecture report come from one place. It used to spell all of that out itself
+ * and drifted with it: moving to compileSdk 37.1 took three edits instead of one. What is its own
+ * is what only it does — produce the iOS framework and declare the application graph.
  */
 plugins {
-    alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidMultiplatformLibrary)
-    alias(libs.plugins.composeMultiplatform)
-    alias(libs.plugins.composeCompiler)
-    // Declared here rather than inherited: this module skips `xwab.kmp.library`, which is what
-    // applies Metro everywhere else, and the application graph is generated in this module.
-    alias(libs.plugins.metro)
-    // What `xwab.kmp.library` would otherwise have applied: this module's own project
-    // dependencies, reported for `checkArchitecture`.
-    id("xwab.architecture.module")
-    // Also what `xwab.kmp.library` applies: without it the KMP library plugin creates no lint
-    // tasks, and the app's `checkDependencies` has nothing of this module's to read.
-    id("com.android.lint")
-    // Also applied by `xwab.kmp.library`: detekt, with this module's baseline.
-    id("xwab.detekt")
-}
-
-// Mirrors what `xwab.kmp.library` configures for every other module, so the module that merges the
-// contributions is not the one module Metro is configured differently in.
-metro {
-    generateContributionProviders.set(true)
-    nonPublicContributionSeverity.set(DiagnosticSeverity.ERROR)
+    id("xwab.kmp.compose")
 }
 
 compose.resources {
@@ -39,6 +17,7 @@ compose.resources {
 
 kotlin {
     if (gradle.extra["enableIos"] as Boolean) {
+        // The convention creates both targets; this only adds the framework the iOS app links.
         listOf(
             iosArm64(),
             iosSimulatorArm64(),
@@ -52,22 +31,6 @@ kotlin {
 
     android {
         namespace = "com.xwab.app.shared"
-        compileSdk {
-            version = release(libs.versions.android.compileSdk.get().toInt()) {
-                minorApiLevel = libs.versions.android.compileSdkMinor.get().toInt()
-            }
-        }
-        minSdk = libs.versions.android.minSdk.get().toInt()
-
-        compilerOptions {
-            jvmTarget = JvmTarget.JVM_11
-        }
-        // Compose resources ship as Android assets, so the tab labels need this even though no
-        // host test reads one.
-        androidResources {
-            enable = true
-        }
-        withHostTest { }
     }
 
     sourceSets {
@@ -90,7 +53,6 @@ kotlin {
             // screen as a NavDisplay scene decorator instead of an entry.
             implementation(projects.feature.nowplaying)
 
-            implementation(libs.compose.runtime)
             implementation(libs.compose.ui)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
@@ -105,7 +67,6 @@ kotlin {
             implementation(libs.kotlinx.serialization.core)
         }
         commonTest.dependencies {
-            implementation(libs.kotlin.test)
             implementation(libs.kotlinx.serialization.json)
         }
         // The same simulator harness used by feature screen tests also exercises the real

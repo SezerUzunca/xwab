@@ -16,7 +16,6 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.ktor.client.mock)
-            implementation(libs.kotlinx.coroutines.core)
         }
         if (gradle.extra["enableIos"] as Boolean) {
             iosMain.dependencies {

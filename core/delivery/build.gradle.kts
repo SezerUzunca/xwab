@@ -13,8 +13,6 @@ kotlin {
             implementation(libs.kermit)
             implementation(libs.okio)
         }
-        androidMain.dependencies {
-        }
         commonTest.dependencies {
             implementation(libs.okio.fakefilesystem)
         }

@@ -17,8 +17,6 @@ kotlin {
             api(libs.kotlinx.coroutines.core)
             implementation(libs.kermit)
         }
-        androidMain.dependencies {
-        }
         commonTest.dependencies {
             implementation(libs.kotlinx.coroutines.test)
         }
