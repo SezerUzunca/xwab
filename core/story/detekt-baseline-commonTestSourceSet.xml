@@ -1,8 +1,0 @@
-<?xml version="1.0" ?>
-<SmellBaseline>
-  <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>InvalidPackageDeclaration:StoryIdTest.kt:package com.xwab.app.core.story.port</ID>
-    <ID>InvalidPackageDeclaration:StoryTest.kt:package com.xwab.app.core.story.port</ID>
-  </CurrentIssues>
-</SmellBaseline>

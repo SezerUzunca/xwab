@@ -1,8 +1,0 @@
-<?xml version="1.0" ?>
-<SmellBaseline>
-  <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>TooGenericExceptionCaught:KtorNetworkAdapter.kt:failure: Exception</ID>
-    <ID>TooGenericExceptionCaught:KtorNetworkAdapter.kt:failure: Throwable</ID>
-  </CurrentIssues>
-</SmellBaseline>

@@ -1,9 +1,0 @@
-<?xml version="1.0" ?>
-<SmellBaseline>
-  <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>MaxLineLength:CategoryViewModelTest.kt:CategoryViewModelTest$private</ID>
-    <ID>MaxLineLength:ObserveCategoryContentUseCaseTest.kt:ObserveCategoryContentUseCaseTest$useCase(CategoryId("ocean")).filter { it.favoritesReadStatus != CategoryFavoritesReadStatus.Pending }.toList(emissions)</ID>
-    <ID>MaxLineLength:ObserveCategoryContentUseCaseTest.kt:ObserveCategoryContentUseCaseTest$val content = useCase(CategoryId("ocean")).first { it.favoritesReadStatus == CategoryFavoritesReadStatus.Available }</ID>
-  </CurrentIssues>
-</SmellBaseline>
