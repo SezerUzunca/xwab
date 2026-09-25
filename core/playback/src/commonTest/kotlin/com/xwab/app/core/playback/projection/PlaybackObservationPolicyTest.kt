@@ -6,52 +6,69 @@ import kotlin.test.assertTrue
 
 class PlaybackObservationPolicyTest {
 
-    private fun shouldObserve(
-        hasCurrentItem: Boolean = true,
-        hasFailure: Boolean = false,
-        isReadyToPlay: Boolean = true,
-        isWaitingToPlay: Boolean = false,
-        playTransitionTicksRemaining: Int = 0,
-    ) = shouldObserveEngineTransition(
-        hasCurrentItem = hasCurrentItem,
-        hasFailure = hasFailure,
-        isReadyToPlay = isReadyToPlay,
-        isWaitingToPlay = isWaitingToPlay,
-        playTransitionTicksRemaining = playTransitionTicksRemaining,
+    /** A ready item, paused or playing, with nothing outstanding. Each test changes what it needs. */
+    private val settled = EngineTransitionState(
+        hasCurrentItem = true,
+        hasFailure = false,
+        isReadyToPlay = true,
+        isWaitingToPlay = false,
+        playTransitionTicksRemaining = 0,
+        awaitingReadiness = false,
     )
+
+    private fun shouldObserve(state: EngineTransitionState) = shouldObserveEngineTransition(state)
 
     @Test
     fun anItemThatIsNotReadyYetIsWatched() {
-        assertTrue(shouldObserve(isReadyToPlay = false))
+        assertTrue(shouldObserve(settled.copy(isReadyToPlay = false)))
     }
 
     @Test
     fun aPlayerWaitingToPlayIsWatched() {
-        assertTrue(shouldObserve(isWaitingToPlay = true))
+        assertTrue(shouldObserve(settled.copy(isWaitingToPlay = true)))
     }
 
     @Test
     fun aSettledPlayerIsNotWatched() {
-        assertFalse(shouldObserve())
+        assertFalse(shouldObserve(settled))
     }
 
     @Test
     fun aSettledPlayerIsStillWatchedWhileAPlayCommandIsCatchingUp() {
-        assertTrue(shouldObserve(playTransitionTicksRemaining = 1))
-        assertFalse(shouldObserve(playTransitionTicksRemaining = 0))
+        assertTrue(shouldObserve(settled.copy(playTransitionTicksRemaining = 1)))
+        assertFalse(shouldObserve(settled.copy(playTransitionTicksRemaining = 0)))
     }
 
     @Test
     fun anEmptyOrFailedPlayerIsNotWatchedAtAll() {
-        assertFalse(shouldObserve(hasCurrentItem = false, isReadyToPlay = false))
-        assertFalse(shouldObserve(hasFailure = true, isReadyToPlay = false))
+        assertFalse(shouldObserve(settled.copy(hasCurrentItem = false, isReadyToPlay = false)))
+        assertFalse(shouldObserve(settled.copy(hasFailure = true, isReadyToPlay = false)))
         // Not even for the remainder of a play transition: a failure is terminal for the
         // engine, and the facade suspends observation on top of this.
-        assertFalse(shouldObserve(hasFailure = true, playTransitionTicksRemaining = 5))
+        assertFalse(shouldObserve(settled.copy(hasFailure = true, playTransitionTicksRemaining = 5)))
     }
 
     @Test
     fun anEmptyPlayerOutranksAPendingPlayTransition() {
-        assertFalse(shouldObserve(hasCurrentItem = false, playTransitionTicksRemaining = 5))
+        assertFalse(shouldObserve(settled.copy(hasCurrentItem = false, playTransitionTicksRemaining = 5)))
+    }
+
+    @Test
+    fun aLoadAwaitingReadinessIsWatchedEvenOnceTheQueueEmpties() {
+        // A queue player drops an item that fails to open; nothing else would report it.
+        assertTrue(
+            shouldObserve(
+                settled.copy(hasCurrentItem = false, isReadyToPlay = false, awaitingReadiness = true),
+            ),
+        )
+    }
+
+    @Test
+    fun aFailureEndsTheWaitForReadiness() {
+        assertFalse(
+            shouldObserve(
+                settled.copy(hasFailure = true, isReadyToPlay = false, awaitingReadiness = true),
+            ),
+        )
     }
 }

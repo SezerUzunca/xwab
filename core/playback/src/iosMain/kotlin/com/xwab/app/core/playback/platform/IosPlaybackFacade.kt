@@ -86,7 +86,10 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
             )
         },
         onReadinessTimedOut = { operationId ->
-            if (!playbackState.released && engine.hasCurrentItem) {
+            // Not gated on the engine still holding an item: a queue player drops one it could not
+            // open, and that is exactly the load this deadline exists for. A superseded operation
+            // is the reducer's to ignore.
+            if (!playbackState.released) {
                 clearPendingLoad(operationId)
                 dispatch(
                     PlaybackMessage.EngineFailed(
@@ -118,7 +121,10 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
             when (effect) {
                 is PlaybackSideEffect.LoadSource -> {
                     mediaSession.clearInterruptionState()
-                    mediaSession.deactivate()
+                    // Moving straight on to another item keeps the session. Releasing it between two
+                    // items told any app this one had interrupted to resume, only to interrupt it
+                    // again as soon as the new item was ready.
+                    if (!playbackState.desired.playRequested) mediaSession.deactivate()
                     engine.volume = effect.request.volume
                     pendingLoad = PendingLoad(effect.operationId, effect.request.source)
                     val ok = engine.load(
@@ -173,7 +179,13 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
                 is PlaybackSideEffect.SetLooping -> {
                     if (engine.hasCurrentItem) {
                         engine.setLooping(effect.enabled, engine.currentPositionMs()) { finished ->
-                            if (finished && playbackState.desired.playRequested) engine.play()
+                            if (
+                                finished &&
+                                playbackState.desired.playRequested &&
+                                activatedForPlayback()
+                            ) {
+                                engine.play()
+                            }
                             if (finished) {
                                 publishState(forceNowPlayingUpdate = true)
                             }
@@ -296,12 +308,19 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
                 return
             }
             if (engine.hasItemFailure) {
+                // An item that failed before it ever became ready is a source that could not be
+                // opened, which Android reports the same way.
+                val failedWhileLoading = pendingLoad?.operationId == engine.currentOperationId
                 clearPendingLoad(engine.currentOperationId)
                 dispatch(
                     PlaybackMessage.EngineFailed(
                         engine.currentOperationId,
                         PlaybackError(
-                            PlaybackErrorCode.PlaybackFailed,
+                            if (failedWhileLoading) {
+                                PlaybackErrorCode.InvalidSource
+                            } else {
+                                PlaybackErrorCode.PlaybackFailed
+                            },
                             engine.itemErrorMessage,
                         ),
                     ),
@@ -320,7 +339,10 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
         val phase = playbackPhase(
             error = playbackState.observed.error,
             ended = playbackState.desired.ended,
-            hasCurrentItem = engine.hasCurrentItem,
+            // A queue player drops an item it has played to the end, so the engine holds nothing
+            // once a non-looping item finishes. The item is still this session's — playing again
+            // queues it anew — and it reads as ended, as it does on Android, rather than idle.
+            hasCurrentItem = engine.hasCurrentItem || playbackState.desired.ended,
             isReadyToPlay = engine.isReadyToPlay,
             isWaitingToPlay = engine.isWaitingToPlay,
         )
