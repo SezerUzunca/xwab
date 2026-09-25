@@ -525,6 +525,80 @@ class PlaybackReducerTest {
     }
 
     @Test
+    fun aRestartFromOutsideTheClientEndsTheEndedState() {
+        // A finished item restarted from the media notification reaches the reducer only as an
+        // observation of the engine playing again.
+        val finished = playbackState(
+            request = PlaybackRequest(sourceA),
+            source = sourceA,
+            ended = true,
+        )
+
+        val restarted = reducePlayback(
+            finished,
+            PlaybackMessage.EnginePlaybackObserved(
+                operationId = finished.pending.operationId,
+                source = sourceA,
+                playWhenReady = true,
+                looping = false,
+                volume = 1.0f,
+            ),
+        ).state
+
+        assertTrue(restarted.desired.playRequested)
+        assertFalse(restarted.desired.ended)
+
+        // Pausing and resuming carries on where it was instead of replaying from the start.
+        val paused = reducePlayback(restarted, PlaybackMessage.Pause).state
+        assertIs<PlaybackSideEffect.Play>(
+            reducePlayback(paused, PlaybackMessage.Play).sideEffects.single(),
+        )
+
+        // And the next natural end is handled rather than swallowed.
+        val endedAgain = reducePlayback(
+            restarted,
+            PlaybackMessage.EnginePlaybackEnded(restarted.pending.operationId),
+        )
+        assertFalse(endedAgain.state.desired.playRequested)
+        assertTrue(endedAgain.state.desired.ended)
+        assertTrue(endedAgain.sideEffects.any { it is PlaybackSideEffect.Pause })
+    }
+
+    @Test
+    fun theEngineStillPlayingAtTheEndDoesNotUndoTheEnd() {
+        val atTheEnd = reducePlayback(
+            playbackState(
+                request = PlaybackRequest(sourceA),
+                source = sourceA,
+                playRequested = true,
+            ),
+            PlaybackMessage.EnginePlaybackEnded(0L),
+        ).state
+
+        fun observe(state: PlaybackState, playWhenReady: Boolean) = reducePlayback(
+            state,
+            PlaybackMessage.EnginePlaybackObserved(
+                operationId = state.pending.operationId,
+                source = sourceA,
+                playWhenReady = playWhenReady,
+                looping = false,
+                volume = 1.0f,
+            ),
+        ).state
+
+        // Media3 keeps playWhenReady at the end until the pause the reducer issued lands.
+        val beforeThePause = observe(atTheEnd, playWhenReady = true)
+        assertTrue(beforeThePause.desired.ended)
+        assertFalse(beforeThePause.desired.playRequested)
+
+        val afterThePause = observe(beforeThePause, playWhenReady = false)
+        assertTrue(afterThePause.desired.ended)
+        assertIs<PlaybackSideEffect.SeekToStartThenPlay>(
+            reducePlayback(afterThePause, PlaybackMessage.Play).sideEffects.single(),
+        )
+    }
+
+    @Test
     fun unexpectedObservedSourceReloadsAttachedRequestOnlyOnce() {
         val request = PlaybackRequest(sourceA, autoplay = true, loopMode = LoopMode.One)
         val state = playbackState(
@@ -811,6 +885,28 @@ class PlaybackReducerTest {
         assertFalse(result.sideEffects.any { it is PlaybackSideEffect.Play })
         assertFalse(result.sideEffects.any { it is PlaybackSideEffect.SetLooping })
         assertFalse(result.sideEffects.any { it is PlaybackSideEffect.SetVolume })
+    }
+
+    @Test
+    fun controllerConnectedAdoptingARestartedItemEndsTheEndedState() {
+        val finished = playbackState(
+            request = PlaybackRequest(sourceA),
+            source = sourceA,
+            ended = true,
+        )
+
+        val result = reducePlayback(
+            finished,
+            PlaybackMessage.ControllerConnected(
+                attachedSource = sourceA,
+                controllerLooping = false,
+                controllerVolume = 1.0f,
+                controllerPlayWhenReady = true,
+            ),
+        )
+
+        assertTrue(result.state.desired.playRequested)
+        assertFalse(result.state.desired.ended)
     }
 
     @Test

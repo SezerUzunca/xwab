@@ -289,15 +289,17 @@ private fun reduceEnginePlaybackObserved(
         state.pending.pendingLooping?.let { it == intent.looping } != false
     val volumeOverrideApplied =
         state.pending.pendingVolume?.volumeEquals(intent.volume) != false
+    val playRequested = if (playOverrideApplied) {
+        intent.playWhenReady
+    } else {
+        state.desired.playRequested
+    }
 
     return ReduceResult(
         state.copy(
             desired = state.desired.copy(
-                playRequested = if (playOverrideApplied) {
-                    intent.playWhenReady
-                } else {
-                    state.desired.playRequested
-                },
+                playRequested = playRequested,
+                ended = state.desired.ended.stillEndedWhen(playRequested),
                 isLooping = if (loopingOverrideApplied) {
                     intent.looping
                 } else {
@@ -404,6 +406,7 @@ private fun reduceControllerConnected(
             isLooping = resolvedLooping,
             volume = resolvedVolume,
             playRequested = resolvedPlay,
+            ended = state.desired.ended.stillEndedWhen(resolvedPlay),
         ),
         observed = state.observed.copy(source = intent.attachedSource, error = null),
         pending = state.pending.copy(
@@ -470,6 +473,17 @@ private fun reduceControllerConnectionFailed(state: PlaybackState): ReduceResult
         emptyList(),
     )
 }
+
+/**
+ * An item that ended stays ended only while nobody wants it playing.
+ *
+ * Every command that asks for playback clears `ended` itself. The two paths that adopt the
+ * engine's own play state have to do the same, because on Android a restart can come from outside
+ * this client — the media notification, a headset button — and reach the reducer only as an
+ * observation. Kept past that, `ended` made the next pause-and-play replay from the start, and
+ * swallowed the next natural end, leaving playback requested while nothing played.
+ */
+private fun Boolean.stillEndedWhen(playRequested: Boolean): Boolean = this && !playRequested
 
 private fun MutableList<PlaybackSideEffect>.addSleepTimerSynchronization(
     lifecycle: SleepTimerLifecycle,
