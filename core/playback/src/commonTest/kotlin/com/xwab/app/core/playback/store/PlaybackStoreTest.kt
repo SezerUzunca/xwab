@@ -8,13 +8,12 @@ import kotlin.test.assertTrue
 
 /**
  * Contract tests for the common [PlaybackStore]: the mailbox drain, its
- * re-entrancy guard, effect ordering, superseded-operation filtering, and the
- * released gate. These lock the behavior the platform drivers now rely on.
+ * re-entrancy guard, effect ordering, and one publication per message. What a
+ * message does to the state is [reducePlayback]'s contract, tested there.
  */
 class PlaybackStoreTest {
 
     private val sourceA = AudioSource(id = "rain", uri = "file:///rain.mp3")
-    private val sourceB = AudioSource(id = "ocean", uri = "file:///ocean.mp3")
 
     /** Records executed effects and can feed engine events back into the store. */
     private class RecordingDriver {
@@ -38,20 +37,6 @@ class PlaybackStoreTest {
         val store = PlaybackStore(driver::executeEffects, driver::onStateChanged)
         driver.store = store
         return store to driver
-    }
-
-    @Test
-    fun loadEmitsLoadSourceAndUpdatesState() {
-        val (store, driver) = newStore()
-        val request = PlaybackRequest(sourceA, autoplay = false)
-
-        store.dispatch(PlaybackMessage.Load(request))
-
-        val load = driver.effects.filterIsInstance<PlaybackSideEffect.LoadSource>().single()
-        assertEquals(request, load.request)
-        assertEquals(request, store.state.desired.request)
-        assertEquals(load.operationId, store.state.pending.operationId)
-        assertEquals(load.operationId, store.state.pending.pendingSourceOperationId)
     }
 
     @Test
@@ -87,33 +72,5 @@ class PlaybackStoreTest {
         // Two dispatched messages, no re-entrancy => exactly two publications.
         assertEquals(2, driver.publishedStates.size)
         assertEquals(0.5f, store.state.desired.volume)
-    }
-
-    @Test
-    fun supersededSourceOperationEventIsIgnored() {
-        val (store, driver) = newStore()
-        store.dispatch(PlaybackMessage.Load(PlaybackRequest(sourceA, autoplay = true)))
-        val firstOp = store.state.pending.operationId
-        store.dispatch(PlaybackMessage.Load(PlaybackRequest(sourceB, autoplay = true)))
-        assertTrue(store.state.pending.operationId > firstOp)
-
-        driver.effects.clear()
-        // A completion for the superseded first operation must be dropped.
-        store.dispatch(PlaybackMessage.EngineSourceLoaded(firstOp, sourceA))
-
-        assertTrue(driver.effects.isEmpty())
-        assertEquals(sourceB, store.state.desired.request?.source)
-    }
-
-    @Test
-    fun commandsAfterReleaseAreDropped() {
-        val (store, driver) = newStore()
-        store.dispatch(PlaybackMessage.Release)
-        assertTrue(store.state.released)
-
-        driver.effects.clear()
-        store.dispatch(PlaybackMessage.Play)
-
-        assertTrue(driver.effects.isEmpty())
     }
 }

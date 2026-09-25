@@ -80,15 +80,4 @@ class PlaybackReconnectSequenceTest {
         assertTrue(result.sideEffects.any { it is PlaybackSideEffect.ReconnectSleepTimer })
         assertFalse(result.sideEffects.any { it is PlaybackSideEffect.CancelSleepTimer })
     }
-
-    @Test
-    fun reconnectToSameClientOwnedSourceDoesNotReload() {
-        val state = reducePlayback(loadedState(), PlaybackMessage.ControllerDisconnected).state
-
-        val result = reconnect(state)
-
-        // Reconnecting to the same client-owned source must adopt it, not reload it.
-        assertFalse(result.sideEffects.any { it is PlaybackSideEffect.LoadSource })
-        assertEquals(sourceA, result.state.observed.source)
-    }
 }

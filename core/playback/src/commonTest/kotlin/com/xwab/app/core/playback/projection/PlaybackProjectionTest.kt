@@ -7,11 +7,9 @@ import com.xwab.app.core.playback.port.PlaybackPhase
 import com.xwab.app.core.playback.port.PlaybackRequest
 import com.xwab.app.core.playback.store.DesiredPlayback
 import com.xwab.app.core.playback.store.ObservedPlayback
-import com.xwab.app.core.playback.store.PendingReconciliation
 import com.xwab.app.core.playback.store.PlaybackState
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -34,7 +32,11 @@ class PlaybackProjectionTest {
     @Test
     fun modelDerivedFieldsComeFromTheirOwnConcern() {
         val state = PlaybackState(
-            desired = DesiredPlayback(request = PlaybackRequest(requested), playRequested = true),
+            desired = DesiredPlayback(
+                request = PlaybackRequest(requested),
+                isLooping = true,
+                playRequested = true,
+            ),
             observed = ObservedPlayback(source = attached),
         )
 
@@ -43,6 +45,7 @@ class PlaybackProjectionTest {
         assertEquals(requested, projected.requestedSource)
         assertEquals(attached, projected.source)
         assertTrue(projected.playRequested)
+        assertTrue(projected.isLooping)
     }
 
     @Test
@@ -61,29 +64,6 @@ class PlaybackProjectionTest {
         assertTrue(projected.isPlaying)
         assertEquals(0.25f, projected.volume)
         assertEquals(error, projected.error)
-    }
-
-    @Test
-    fun loopingIsTheReconciledModelValueNotAPendingOverride() {
-        // The reducer keeps the requested value in `desired` while the engine has not
-        // acknowledged it yet; the published state must show that, not the stale flag.
-        val state = PlaybackState(
-            desired = DesiredPlayback(request = PlaybackRequest(requested), isLooping = true),
-            observed = ObservedPlayback(source = requested),
-            pending = PendingReconciliation(pendingLooping = true),
-        )
-
-        assertTrue(project(state).isLooping)
-    }
-
-    @Test
-    fun loopingFollowsTheModelWhenTheUserTurnsItOff() {
-        val state = PlaybackState(
-            desired = DesiredPlayback(request = PlaybackRequest(requested), isLooping = false),
-            observed = ObservedPlayback(source = requested),
-        )
-
-        assertFalse(project(state).isLooping)
     }
 
     @Test

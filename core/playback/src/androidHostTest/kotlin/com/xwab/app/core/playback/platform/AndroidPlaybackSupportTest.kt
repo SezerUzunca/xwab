@@ -10,13 +10,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * Tests for the Android-specific helper functions that remain after the
- * migration to the unified [PlaybackReducer].
- *
- * State-transition tests previously in this file have been moved to
- * [PlaybackReducerTest] in `commonTest`.
- */
 class AndroidPlaybackSupportTest {
 
     @Test

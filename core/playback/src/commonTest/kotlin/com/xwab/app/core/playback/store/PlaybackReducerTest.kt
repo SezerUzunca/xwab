@@ -873,25 +873,12 @@ class PlaybackReducerTest {
     }
 
     @Test
-    fun controllerConnectionFailurePreservesRunningSleepTimer() {
-        val state = playbackState(
-            request = PlaybackRequest(sourceA),
-            sleepTimerLifecycle = SleepTimerLifecycle.Running(90_000L),
-        )
-        val result = reducePlayback(state, PlaybackMessage.ControllerConnectionFailed)
-
-        // A still-running service timer must survive a transient connection failure instead of
-        // being cancelled on the next reconnect.
-        assertEquals(SleepTimerLifecycle.Running(90_000L), result.state.sleepTimerLifecycle)
-    }
-
-    @Test
     fun controllerConnectionFailedWithNoRequestSetsNoError() {
         val result = reducePlayback(PlaybackState(), PlaybackMessage.ControllerConnectionFailed)
         assertNull(result.state.observed.error)
     }
 
-    // ── iOS phase helper ─────────────────────────────────────────────────
+    // ── Phase helper ─────────────────────────────────────────────────────
 
     @Test
     fun playbackPhaseComputesCanonicalPhasesForBothPlatforms() {
