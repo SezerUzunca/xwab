@@ -9,18 +9,18 @@ package com.xwab.app.core.playback.projection
  * the player has settled: an item that is playing, or ready and paused, leaves that state through a
  * notification or through a command this engine itself issued.
  *
- * [playTransitionTicksRemaining] covers the one gap in that reasoning. `play()` does not move
- * `timeControlStatus` synchronously, so a player that still reads as settled immediately after a
- * play command has to be watched for a short while rather than trusted.
+ * [EngineTransitionState.playTransitionTicksRemaining] covers the one gap in that reasoning. `play()`
+ * does not move `timeControlStatus` synchronously, so a player that still reads as settled
+ * immediately after a play command has to be watched for a short while rather than trusted.
+ *
+ * [EngineTransitionState.awaitingReadiness] outranks an empty queue. A queue player drops an item
+ * that fails to open, and no notification says so; an engine that stopped watching then would never
+ * report the failure, nor reach its readiness deadline. The wait is bounded by that deadline.
  */
-internal fun shouldObserveEngineTransition(
-    hasCurrentItem: Boolean,
-    hasFailure: Boolean,
-    isReadyToPlay: Boolean,
-    isWaitingToPlay: Boolean,
-    playTransitionTicksRemaining: Int,
-): Boolean = when {
-    !hasCurrentItem || hasFailure -> false
-    !isReadyToPlay || isWaitingToPlay -> true
-    else -> playTransitionTicksRemaining > 0
+internal fun shouldObserveEngineTransition(state: EngineTransitionState): Boolean = when {
+    state.hasFailure -> false
+    state.awaitingReadiness -> true
+    !state.hasCurrentItem -> false
+    !state.isReadyToPlay || state.isWaitingToPlay -> true
+    else -> state.playTransitionTicksRemaining > 0
 }

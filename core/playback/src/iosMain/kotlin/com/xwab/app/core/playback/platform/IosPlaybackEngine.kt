@@ -2,6 +2,7 @@
 
 package com.xwab.app.core.playback.platform
 
+import com.xwab.app.core.playback.projection.EngineTransitionState
 import com.xwab.app.core.playback.projection.shouldObserveEngineTransition
 import com.xwab.app.core.playback.store.LatestOperationGate
 import com.xwab.app.core.playback.store.PLAYBACK_READINESS_TIMEOUT_MS
@@ -29,6 +30,25 @@ internal class IosPlaybackEngine(
     private var looper: AVPlayerLooper? = null
     private var activeAsset: AVAsset? = null
     private var activeUrl: NSURL? = null
+
+    /**
+     * The item this engine put in the queue itself, until a looper takes the queue over.
+     *
+     * Kept because a queue player drops an item that fails to open, and `currentItem` goes with
+     * it: without this reference the failure had nowhere left to be read from, and a source that
+     * could not be opened left the engine empty and silent instead of failed.
+     */
+    private var attachedItem: AVPlayerItem? = null
+
+    /**
+     * The seek a rebuilt, non-looping item still owes, held until that item is ready to play.
+     *
+     * A seek with a completion handler is only defined for an item that is ready, and a rebuilt
+     * item never is yet. The looping path already waits for readiness before it positions its
+     * looper; this is the same wait for the other half.
+     */
+    private var deferredSeek: DeferredSeek? = null
+
     private var readinessOperationId: Long? = null
     private var readinessStartedAt: TimeMark? = null
     private var loopPreparationPending = false
@@ -51,6 +71,7 @@ internal class IosPlaybackEngine(
 
     val isReadyToPlay: Boolean
         get() = !loopPreparationPending &&
+            deferredSeek == null &&
             player.currentItem?.status == AVPlayerItemStatusReadyToPlay
 
     val isWaitingToPlay: Boolean
@@ -60,10 +81,11 @@ internal class IosPlaybackEngine(
         get() = player.timeControlStatus == AVPlayerTimeControlStatusPlaying
 
     val hasItemFailure: Boolean
-        get() = player.currentItem?.status == AVPlayerItemStatusFailed
+        get() = player.currentItem?.status == AVPlayerItemStatusFailed ||
+            attachedItem?.status == AVPlayerItemStatusFailed
 
     val itemErrorMessage: String?
-        get() = player.currentItem?.error?.localizedDescription
+        get() = (player.currentItem?.error ?: attachedItem?.error)?.localizedDescription
 
     val loopErrorMessage: String?
         get() = loopPreparationErrorMessage ?: looper?.error?.localizedDescription
@@ -220,6 +242,20 @@ internal class IosPlaybackEngine(
             publishObservedStateIfChanged(force = true)
             return
         }
+        if (
+            loopPreparationPending ||
+            deferredSeek != null ||
+            (looper == null && player.currentItem?.status != AVPlayerItemStatusReadyToPlay)
+        ) {
+            // The item has not opened yet, so nothing has played and there is nothing to rewind —
+            // and it could not be seeked yet anyway. A position its preparation was going to restore
+            // is dropped instead: this is a stop, and a stop starts over.
+            loopPreparationPositionMs = 0L
+            deferredSeek = deferredSeek?.copy(positionMs = 0L)
+            completion(false)
+            publishObservedStateIfChanged(force = true)
+            return
+        }
         // Keep the existing AVPlayerItem and looper. Rebuilding the queue here
         // briefly changes the engine back to Loading after every timer expiry.
         seekNative(0L, version) { finished ->
@@ -297,6 +333,7 @@ internal class IosPlaybackEngine(
     private fun updateReadinessObservation() {
         val operationId = readinessOperationId ?: return
         completeLoopPreparationIfReady()
+        completeDeferredSeekIfReady()
         if (released || isReadyToPlay || hasItemFailure || loopErrorMessage != null) {
             clearReadinessObservation()
             return
@@ -316,6 +353,8 @@ internal class IosPlaybackEngine(
         loopPreparationPositionMs = 0L
         loopPreparationVersion = null
         loopPreparationCompletion = null
+        deferredSeek = null
+        attachedItem = null
         activeAsset = null
         activeUrl = null
         player.removeAllItems()
@@ -345,14 +384,9 @@ internal class IosPlaybackEngine(
             version = version,
             completion = completion,
         )
+        if (!looping) deferredSeek = DeferredSeek(positionMs, version, completion)
         observeReadiness()
         observeNativeState()
-        if (!looping) {
-            seekNative(positionMs, version) { finished ->
-                completion(finished)
-                publishObservedStateIfChanged(force = true)
-            }
-        }
     }
 
     /** Both first load and a seek/loop rebuild must keep the same HTTP identity. */
@@ -378,6 +412,7 @@ internal class IosPlaybackEngine(
             loopPreparationVersion = version
             loopPreparationCompletion = completion
         }
+        attachedItem = item
         player.replaceCurrentItemWithPlayerItem(item)
     }
 
@@ -400,6 +435,8 @@ internal class IosPlaybackEngine(
         val completion = loopPreparationCompletion
         player.pause()
         player.removeAllItems()
+        // The looper owns the queue from here and reports its own failures through `error`.
+        attachedItem = null
         looper = AVPlayerLooper(
             player = player,
             templateItem = item,
@@ -416,6 +453,17 @@ internal class IosPlaybackEngine(
                 completion(finished)
                 publishObservedStateIfChanged(force = true)
             }
+        }
+    }
+
+    private fun completeDeferredSeekIfReady() {
+        val seek = deferredSeek ?: return
+        if (player.currentItem?.status != AVPlayerItemStatusReadyToPlay) return
+
+        deferredSeek = null
+        seekNative(seek.positionMs, seek.version) { finished ->
+            seek.completion(finished)
+            publishObservedStateIfChanged(force = true)
         }
     }
 
@@ -461,11 +509,14 @@ internal class IosPlaybackEngine(
         val shouldObserve = !released &&
             !observationSuspendedForFailure &&
             shouldObserveEngineTransition(
-                hasCurrentItem = hasCurrentItem,
-                hasFailure = hasItemFailure || loopErrorMessage != null,
-                isReadyToPlay = isReadyToPlay,
-                isWaitingToPlay = isWaitingToPlay,
-                playTransitionTicksRemaining = minimumObservationTicks,
+                EngineTransitionState(
+                    hasCurrentItem = hasCurrentItem,
+                    hasFailure = hasItemFailure || loopErrorMessage != null,
+                    isReadyToPlay = isReadyToPlay,
+                    isWaitingToPlay = isWaitingToPlay,
+                    playTransitionTicksRemaining = minimumObservationTicks,
+                    awaitingReadiness = readinessOperationId != null,
+                ),
             )
         if (!shouldObserve) {
             stopNativeStateObservation()
@@ -498,6 +549,7 @@ internal class IosPlaybackEngine(
     private fun publishObservedStateIfChanged(force: Boolean = false) {
         if (released) return
         completeLoopPreparationIfReady()
+        completeDeferredSeekIfReady()
         val observedState = EngineObservation(
             hasCurrentItem = hasCurrentItem,
             isReadyToPlay = isReadyToPlay,
@@ -528,6 +580,12 @@ internal class IosPlaybackEngine(
         val asset = activeAsset ?: return null
         return item.takeIf { it.asset === asset }
     }
+
+    private data class DeferredSeek(
+        val positionMs: Long,
+        val version: Long,
+        val completion: (Boolean) -> Unit,
+    )
 
     private data class EngineObservation(
         val hasCurrentItem: Boolean,
