@@ -82,7 +82,10 @@ internal class IosPlaybackEngine(
             queue = NSOperationQueue.mainQueue,
         ) { notification ->
             weakThis.get()?.let { self ->
-                if (self.activeItemFrom(notification) != null) {
+                // Under a looper every lap ends an item, and the looper starts the next one itself.
+                // Reporting those would only re-issue play and start a burst of observation once a
+                // lap, so a looping item is left to loop, as it always has in practice.
+                if (self.looper == null && self.activeItemFrom(notification) != null) {
                     self.onPlaybackEnded(self.currentOperationId)
                 }
             }
@@ -526,7 +529,11 @@ internal class IosPlaybackEngine(
     private fun activeItemFrom(notification: NSNotification?): AVPlayerItem? {
         val item = notification?.`object` as? AVPlayerItem ?: return null
         val asset = activeAsset ?: return null
-        return item.takeIf { it.asset === asset }
+        // `==` is `isEqual:`, which for an asset is the object itself. `===` is not: Kotlin/Native
+        // can hand out a different wrapper for the same Objective-C object, and on a simulator
+        // running the app it did for every notification, so no item ever ended, failed or stalled
+        // as far as this engine could tell.
+        return item.takeIf { it.asset == asset }
     }
 
     private data class EngineObservation(
