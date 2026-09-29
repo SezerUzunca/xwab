@@ -34,7 +34,6 @@ internal class StoriesViewModel(
                 requestedStoryId = requestedStoryId,
                 playIntent = requestedStoryId != null && playback.playIntent,
                 isPreparing = requestedStoryId != null && playback.isPreparing,
-                sleepTimerRemainingMs = content.sleepTimerRemainingMs,
                 playbackFailure = failure,
             ))
         }.stateIn(
@@ -53,11 +52,4 @@ internal class StoriesViewModel(
         }
     }
 
-    fun startSleepTimer(durationMs: Long) {
-        val current = (state.value as? StoriesUiState.Ready)?.value ?: return
-        if (current.canStartSleepTimer) playbackPort.startSleepTimer(durationMs)
-    }
-
-    /** Still available if the catalog becomes empty while the session's timer is running. */
-    fun cancelSleepTimer() = playbackPort.cancelSleepTimer()
 }

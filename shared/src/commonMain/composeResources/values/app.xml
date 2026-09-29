@@ -1,5 +1,10 @@
 <resources>
-    <string name="tab_browse">Browse</string>
+    <string name="app_title">XWAB</string>
+    <string name="app_subtitle">Relax • Breathe • Sleep</string>
+    <string name="tab_browse">Sounds</string>
     <string name="tab_favorites">Favorites</string>
     <string name="tab_stories">Stories</string>
+    <string name="choose_category">Choose a category</string>
+    <string name="choose_sound">Choose a sound</string>
+    <string name="choose_story">Choose a story</string>
 </resources>

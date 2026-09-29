@@ -27,7 +27,6 @@ class ObserveStoriesContentUseCaseTest {
                 isPlaying = true,
             ),
         )
-        coordinator.publishSleepTimer(15 * 60_000L)
         val useCase = ObserveStoriesContentUseCase(catalog, coordinator)
 
         val content = useCase().first()
@@ -35,7 +34,6 @@ class ObserveStoriesContentUseCaseTest {
         assertEquals(listOf(nightCameSlowly, idleFellow), content.stories)
         assertEquals(PlaybackItemId(STORY_PLAYBACK_KIND, "night-came-slowly"), content.playback.requestedItemId)
         assertTrue(content.playback.isPlaying)
-        assertEquals(15 * 60_000L, content.sleepTimerRemainingMs)
     }
 
     @Test

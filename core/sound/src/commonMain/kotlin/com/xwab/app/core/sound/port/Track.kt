@@ -13,14 +13,13 @@ data class Track(
     val name: String,
     val categoryId: CategoryId,
     val durationSeconds: Int,
-    val playbackTitle: String = name,
+    /** Published to the platform media session. The title there is [name], as in every list. */
     val playbackArtist: String = "Sleep Sounds",
 ) {
     init {
         require(name.isNotBlank()) { "A track needs a name: ${id.value}" }
         // `CategoryId` already refuses a blank, so a track only has to hold one at all.
         require(durationSeconds > 0) { "A track needs a positive duration: ${id.value}" }
-        require(playbackTitle.isNotBlank()) { "A track's playback title cannot be blank: ${id.value}" }
         require(playbackArtist.isNotBlank()) { "A track's playback artist cannot be blank: ${id.value}" }
     }
 }

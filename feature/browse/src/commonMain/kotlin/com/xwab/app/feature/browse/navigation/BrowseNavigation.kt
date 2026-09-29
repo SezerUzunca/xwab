@@ -21,6 +21,6 @@ data object BrowseRoute : NavKey
 
 val browseNavigationSerializers = SerializersModule {
     polymorphic(NavKey::class) {
-        subclass(BrowseRoute.serializer())
+        subclass(BrowseRoute::class)
     }
 }

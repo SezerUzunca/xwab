@@ -13,6 +13,6 @@ data object FavoritesRoute : NavKey
 
 val favoritesNavigationSerializers = SerializersModule {
     polymorphic(NavKey::class) {
-        subclass(FavoritesRoute.serializer())
+        subclass(FavoritesRoute::class)
     }
 }

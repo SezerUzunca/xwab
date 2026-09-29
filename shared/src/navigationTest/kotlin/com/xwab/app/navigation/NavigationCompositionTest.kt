@@ -1,13 +1,12 @@
 @file:OptIn(
     androidx.compose.ui.test.ExperimentalTestApi::class,
-    androidx.compose.animation.ExperimentalSharedTransitionApi::class,
 )
 
 package com.xwab.app.navigation
 
-import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -21,9 +20,13 @@ import androidx.compose.runtime.saveable.SaveableStateRegistry
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleRegistry
@@ -35,17 +38,19 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.ui.NavDisplay
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.rememberNavigationEventDispatcherOwner
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.compose.LocalSavedStateRegistryOwner
-import com.xwab.app.composition.NowPlayingSceneDecoratorStrategy
+import com.xwab.app.feature.nowplaying.navigation.NowPlayingRoute
 import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
 import com.xwab.app.feature.sound.navigation.SoundRoute
+import com.xwab.app.composition.appEntryMetadata
+import com.xwab.app.designsystem.components.LocalBackButtonVisibility
+import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -54,9 +59,10 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Exercises the production navigation state, entry decorators and scene decorator in a composition.
+ * Exercises the production navigation state, entry decorators, navigation suite and player slot.
  * Plain Navigator tests cannot detect a ViewModel store collision or a lost rememberSaveable value.
- * The simulator is the existing project harness for common Compose code; no platform app is needed.
+ * The player slot sits outside `NavDisplay`, so it is drawn once and keeps the root ViewModel owner
+ * whatever the scenes do. Android device tests and iOS simulator tests share this suite.
  */
 class NavigationCompositionTest {
     @Test
@@ -141,7 +147,7 @@ class NavigationCompositionTest {
     }
 
     @Test
-    fun sceneChromeUsesOneRootViewModelWhileEntriesUseChildStores() = runComposeUiTest {
+    fun appChromeUsesOneRootViewModelWhileEntriesUseChildStores() = runComposeUiTest {
         withNavigation { harness ->
             val sound = SoundRoute("rain")
             navigate(harness, sound)
@@ -151,10 +157,62 @@ class NavigationCompositionTest {
             runOnIdle {
                 assertTrue(harness.chromeOwners.isNotEmpty())
                 harness.chromeOwners.forEach { assertSame(harness.rootOwner, it) }
-                assertEquals(1, harness.chromeModels.size, "both transition scenes must share chrome")
+                assertEquals(1, harness.chromeModels.size, "navigation must retain the app's chrome")
                 assertFalse(harness.chromeModels.single().cleared)
                 assertTrue(harness.models.first { it.route == sound }.cleared)
                 harness.entryOwners.forEach { assertNotSame(harness.rootOwner, it) }
+            }
+        }
+    }
+
+    @Test
+    fun thePlayerEntryClearsOnBackAndPreservesTheScreenBelowIt() = runComposeUiTest {
+        withNavigation { harness ->
+            val sound = SoundRoute("rain")
+            navigate(harness, sound)
+            val soundModel = runOnIdle { harness.lastModel(sound) }
+            onNodeWithText(soundModel.label(0)).performClick()
+            navigate(harness, NowPlayingRoute)
+            val playerModel = runOnIdle { harness.lastModel(NowPlayingRoute) }
+
+            back(harness)
+
+            onNodeWithText(soundModel.label(1)).assertExists()
+            runOnIdle {
+                assertTrue(playerModel.cleared)
+                assertFalse(soundModel.cleared)
+                assertEquals(BrowseRoute, harness.state.topLevelRoute)
+                assertFalse(harness.chromeModels.single().cleared)
+            }
+        }
+    }
+
+    @Test
+    fun changingBetweenCompactAndAdaptiveScenesRetainsStoresStateAndOneChrome() = runComposeUiTest {
+        withNavigation { harness ->
+            val category = CategoryRoute("rain")
+            val sound = SoundRoute("rain")
+            navigate(harness, category)
+            val categoryModel = runOnIdle { harness.lastModel(category) }
+            navigate(harness, sound)
+            val soundModel = runOnIdle { harness.lastModel(sound) }
+            onNodeWithText(soundModel.label(0)).performClick()
+
+            runOnIdle { harness.wide = true }
+            waitForIdle()
+            onNodeWithText(categoryModel.label(0)).assertExists()
+            onNodeWithText(soundModel.label(1)).assertExists()
+            onNodeWithText("Up:$sound").assertDoesNotExist()
+            onAllNodesWithText("Persistent chrome").assertCountEquals(1)
+
+            runOnIdle { harness.wide = false }
+            waitForIdle()
+            onNodeWithText(soundModel.label(1)).assertExists()
+            onNodeWithText("Up:$sound").assertExists()
+            runOnIdle {
+                assertSame(soundModel, harness.lastModel(sound))
+                assertFalse(categoryModel.cleared)
+                assertEquals(1, harness.chromeModels.size)
             }
         }
     }
@@ -185,6 +243,7 @@ private fun ComposeUiTest.back(harness: NavigationHarness) {
 
 private class NavigationHarness {
     var visible by mutableStateOf(true)
+    var wide by mutableStateOf(false)
     var rootOwner = TestRootOwner()
         private set
     var registry = SaveableStateRegistry(restoredValues = null, canBeSaved = { true })
@@ -209,33 +268,35 @@ private class NavigationHarness {
     fun Content() {
         if (!visible) return
         val dispatcher = rememberNavigationEventDispatcherOwner(parent = null)
+        val platformDensity = LocalDensity.current
         CompositionLocalProvider(
             LocalSaveableStateRegistry provides registry,
             LocalViewModelStoreOwner provides rootOwner,
             LocalLifecycleOwner provides rootOwner,
             LocalSavedStateRegistryOwner provides rootOwner,
             LocalNavigationEventDispatcherOwner provides dispatcher,
+            LocalDensity provides if (wide) Density(1f, platformDensity.fontScale) else platformDensity,
         ) {
-            val navigationState = rememberNavigationState()
-            val navigator = remember(navigationState) { Navigator(navigationState) }
-            val provider: (NavKey) -> NavEntry<NavKey> = remember {
-                { route -> NavEntry(route) { Entry(route) } }
-            }
-            SideEffect { state = navigationState }
-            SharedTransitionLayout {
-                val transitionScope = this
-                val decorator = remember(transitionScope) {
-                    NowPlayingSceneDecoratorStrategy<NavKey>(transitionScope) { Chrome() }
-                }
-                NavDisplay(
-                    entries = rememberTabEntries(navigationState, provider),
-                    sceneDecoratorStrategies = listOf(decorator),
-                    sharedTransitionScope = transitionScope,
-                    onBack = navigator::goBack,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
+            SleepRelaxTheme { NavigationContent() }
         }
+    }
+
+    @Composable
+    private fun NavigationContent() {
+        val navigationState = rememberNavigationState()
+        val navigator = remember(navigationState) { Navigator(navigationState) }
+        val provider: (NavKey) -> NavEntry<NavKey> = remember {
+            { route -> NavEntry(route) { Entry(route) } }
+        }
+        SideEffect { state = navigationState }
+        AppNavigationDisplay(
+            entries = rememberTabEntries(navigationState, provider, ::appEntryMetadata, navigator::goUp),
+            selectedTab = navigationState.topLevelRoute,
+            onSelectTab = navigator::selectTab,
+            onBack = navigator::goBack,
+            player = { Chrome() },
+            modifier = Modifier.fillMaxSize(),
+        )
     }
 
     @Composable
@@ -244,7 +305,12 @@ private class NavigationHarness {
         val model = viewModel { EntryViewModel(route, models.size).also { models.add(it) } }
         var savedCount by rememberSaveable { mutableIntStateOf(0) }
         SideEffect { entryOwners += owner }
-        BasicText(model.label(savedCount), Modifier.clickable { savedCount++ })
+        Column {
+            BasicText(model.label(savedCount), Modifier.clickable { savedCount++ })
+            if (route !in TOP_LEVEL_DESTINATIONS.map { it.route } && LocalBackButtonVisibility.current) {
+                BasicText("Up:$route")
+            }
+        }
     }
 
     @Composable

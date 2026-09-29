@@ -23,7 +23,6 @@ class SoundPlaybackResolverTest {
         name = "Rain on the Window",
         categoryId = CategoryId("rain"),
         durationSeconds = 60,
-        playbackTitle = "Gentle Rain",
         playbackArtist = "Field Recordings",
     )
     private val sources = SoundSources(
@@ -59,7 +58,7 @@ class SoundPlaybackResolverTest {
         val request = delivery.requests.single()
 
         assertEquals("file:///cache/heavy-rain-v2.mp3", result.uri)
-        assertEquals(track.playbackTitle, result.title)
+        assertEquals(track.name, result.title)
         assertEquals(track.name, result.displayName)
         assertEquals(track.playbackArtist, result.artist)
         assertTrue(result.policy.defaultLooping)
@@ -94,7 +93,6 @@ class SoundPlaybackResolverTest {
     private class RecordingDelivery(
         private val result: DeliveryResult = DeliveryResult.Resolved("https://example.test/audio.mp3"),
     ) : DeliveryPort {
-        override suspend fun retainOnly(namespaces: Set<String>) = Unit
 
         val requests = mutableListOf<DeliveryRequest>()
 

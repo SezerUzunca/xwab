@@ -242,7 +242,7 @@ class FavoritesViewModelTest {
             favoritesPort = favorites,
             playbackPort = coordinator,
         )
-        return FavoritesViewModel(useCase, coordinator)
+        return FavoritesViewModel(useCase, coordinator, favorites)
     }
 
     private fun TestScope.collectState(viewModel: FavoritesViewModel) =

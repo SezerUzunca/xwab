@@ -9,8 +9,8 @@
       per-track "is this cached" state the app does not keep and this header could not show anyway.
     -->
     <plurals name="category_track_count">
-        <item quantity="one">%1$d track</item>
-        <item quantity="other">%1$d tracks</item>
+        <item quantity="one">%1$d sound</item>
+        <item quantity="other">%1$d sounds</item>
     </plurals>
 
     <!--

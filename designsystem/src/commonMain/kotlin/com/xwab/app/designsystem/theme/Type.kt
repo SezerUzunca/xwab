@@ -10,49 +10,59 @@ import androidx.compose.ui.unit.sp
 data class SleepRelaxTypography(
     val headlineLarge: TextStyle = TextStyle(
         fontSize = 36.sp,
-        fontWeight = FontWeight.Thin,
-        letterSpacing = 6.sp
+        fontWeight = FontWeight.Normal,
+        lineHeight = 44.sp,
+        letterSpacing = 0.sp
     ),
     val headlineMedium: TextStyle = TextStyle(
         fontSize = 30.sp,
-        fontWeight = FontWeight.Thin,
-        letterSpacing = 4.sp
+        fontWeight = FontWeight.Normal,
+        lineHeight = 38.sp,
+        letterSpacing = 0.sp
     ),
     val headlineSmall: TextStyle = TextStyle(
         fontSize = 22.sp,
-        fontWeight = FontWeight.Thin,
-        letterSpacing = 2.sp
+        fontWeight = FontWeight.Normal,
+        lineHeight = 30.sp,
+        letterSpacing = 0.sp
     ),
     val titleLarge: TextStyle = TextStyle(
         fontSize = 26.sp,
-        fontWeight = FontWeight.Normal
+        fontWeight = FontWeight.Normal,
+        lineHeight = 34.sp
     ),
     val titleMedium: TextStyle = TextStyle(
-        fontSize = 15.sp,
-        fontWeight = FontWeight.Light
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Medium,
+        lineHeight = 24.sp
     ),
     val titleSmall: TextStyle = TextStyle(
-        fontSize = 14.sp,
-        fontWeight = FontWeight.Normal
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Normal,
+        lineHeight = 24.sp
     ),
     val bodyLarge: TextStyle = TextStyle(
-        fontSize = 13.sp,
-        fontWeight = FontWeight.Light,
-        letterSpacing = 1.sp
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Normal,
+        lineHeight = 24.sp,
+        letterSpacing = 0.sp
     ),
     val bodyMedium: TextStyle = TextStyle(
-        fontSize = 12.sp,
-        fontWeight = FontWeight.Normal
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Normal,
+        lineHeight = 20.sp
     ),
     val bodySmall: TextStyle = TextStyle(
-        fontSize = 11.sp,
+        fontSize = 13.sp,
         fontWeight = FontWeight.Medium,
-        letterSpacing = 3.sp
+        lineHeight = 18.sp,
+        letterSpacing = 0.sp
     ),
     val labelMedium: TextStyle = TextStyle(
-        fontSize = 10.sp,
+        fontSize = 13.sp,
         fontWeight = FontWeight.Normal,
-        letterSpacing = 1.sp
+        lineHeight = 18.sp,
+        letterSpacing = 0.sp
     )
 )
 

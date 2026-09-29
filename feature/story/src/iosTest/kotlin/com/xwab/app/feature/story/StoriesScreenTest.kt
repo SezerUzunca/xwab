@@ -2,80 +2,89 @@ package com.xwab.app.feature.story
 
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsProperties
+import com.xwab.app.core.story.port.StoryId
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
-/** Stories own these commands; no sound screen or feature-to-feature dependency is needed. */
 @OptIn(ExperimentalTestApi::class)
 class StoriesScreenTest {
     @Test
-    fun theTimerCanBeStartedDirectlyFromStories() = runComposeUiTest {
-        var durationMs: Long? = null
-        show(
-            StoriesState(stories = listOf(story("bedtime"))),
-            onTimerStart = { durationMs = it },
-        )
-
-        onNodeWithText("Sleep timer").assertExists()
-        onNodeWithText("Off").assertExists()
-        onNodeWithText("15 min").performScrollTo().performClick()
-
-        assertEquals(15 * 60_000L, durationMs)
-        onNodeWithText("Cancel timer").assertDoesNotExist()
+    fun rowBodyOpensDetailsWithoutChangingPlayback() = runComposeUiTest {
+        var opened: StoryId? = null
+        var played: StoryId? = null
+        showList(onStoryClick = { opened = it }, onPlaybackClick = { played = it })
+        onNodeWithText("bedtime").performClick()
+        assertEquals(StoryId("bedtime"), opened)
+        assertNull(played)
     }
 
     @Test
-    fun anExistingTimerCanBeChangedOrCancelledFromStories() = runComposeUiTest {
-        var durationMs: Long? = null
-        var cancellations = 0
-        show(
-            StoriesState(stories = listOf(story("bedtime")), sleepTimerRemainingMs = 90_000L),
-            onTimerStart = { durationMs = it },
-            onTimerCancel = { cancellations++ },
-        )
-
-        onNodeWithText("Stops in 1:30").assertExists()
-        onNodeWithText("30 min").performScrollTo().performClick()
-        onNodeWithText("Cancel timer").performScrollTo().performClick()
-
-        assertEquals(30 * 60_000L, durationMs)
-        assertEquals(1, cancellations)
+    fun playButtonChangesPlaybackWithoutOpeningDetails() = runComposeUiTest {
+        var opened: StoryId? = null
+        var played: StoryId? = null
+        showList(onStoryClick = { opened = it }, onPlaybackClick = { played = it })
+        onNodeWithContentDescription("Play bedtime").performClick()
+        assertEquals(StoryId("bedtime"), played)
+        assertNull(opened)
+        onNodeWithText("Sleep timer").assertDoesNotExist()
     }
 
     @Test
-    fun anEmptyCatalogDisablesPresetsButNeverDisablesCancellation() = runComposeUiTest {
-        var cancellations = 0
-        show(
-            StoriesState(sleepTimerRemainingMs = 60_000L),
-            onTimerCancel = { cancellations++ },
-        )
+    fun storyDetailsDescribeTheItemAndKeepPlayExplicit() = runComposeUiTest {
+        var plays = 0
+        var backs = 0
+        var timers = 0
+        setContent {
+            SleepRelaxTheme {
+                StoryDetailScreen(StoryDetailState(story = story("bedtime")), { backs++ }, { plays++ }, { timers++ })
+            }
+        }
+        onNodeWithText("A test story.").assertExists()
+        onNodeWithText("bedtime").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+        onNodeWithText("Narrated by A narrator").assertExists()
+        onNodeWithText("Kate Chopin • 3:00").assertExists()
+        onNodeWithText("Internet required").assertExists()
+        assertEquals(0, plays)
+        onNodeWithContentDescription("Play bedtime").performClick()
+        onNodeWithContentDescription("Back").performClick()
+        assertEquals(1, plays)
+        assertEquals(1, backs)
 
-        onNodeWithText("15 min").assertIsNotEnabled()
-        onNodeWithText("Cancel timer").assertIsEnabled().performScrollTo().performClick()
-
-        assertEquals(1, cancellations)
+        // The timer stops whatever is playing, so the detail leads to it instead of drawing it.
+        onNodeWithText("Sleep timer").assertDoesNotExist()
+        onNodeWithText("Set sleep timer").performClick()
+        assertEquals(1, timers)
+        assertEquals(1, plays)
     }
 
-    private fun ComposeUiTest.show(
-        state: StoriesState,
-        onTimerStart: (Long) -> Unit = {},
-        onTimerCancel: () -> Unit = {},
+    @Test
+    fun missingStoryHasAReadableErrorAndDisabledPlayback() = runComposeUiTest {
+        setContent {
+            SleepRelaxTheme { StoryDetailScreen(StoryDetailState(), {}, {}, {}) }
+        }
+        onNodeWithText("This story is no longer in the catalog")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
+        onNodeWithContentDescription("Play").assertIsNotEnabled()
+    }
+
+    private fun ComposeUiTest.showList(
+        onStoryClick: (StoryId) -> Unit,
+        onPlaybackClick: (StoryId) -> Unit,
     ) {
         setContent {
             SleepRelaxTheme {
-                StoriesScreen(
-                    state = state,
-                    onPlaybackClick = {},
-                    onTimerStart = onTimerStart,
-                    onTimerCancel = onTimerCancel,
-                )
+                StoriesScreen(StoriesState(stories = listOf(story("bedtime"))), onPlaybackClick, onStoryClick)
             }
         }
     }

@@ -1,9 +1,9 @@
 package com.xwab.app.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation3.runtime.NavKey
 import com.xwab.app.feature.browse.navigation.BrowseRoute
@@ -19,8 +19,8 @@ import xwab.shared.generated.resources.tab_stories
  * App-owned metadata for one root destination in the navigation bar.
  *
  * Which label and which icon belongs to a tab is application policy, so it is decided here. How
- * either one is drawn is not: this class carries the resource and the vector, and
- * [com.xwab.app.ui.AppNavigationBar] is the only place that emits a composable from them.
+ * either one is drawn is not: this class carries the resource and the vector, and Material's
+ * navigation suite draws them as a bar or a rail.
  */
 internal class TopLevelDestination(
     val route: NavKey,
@@ -41,7 +41,7 @@ internal val TOP_LEVEL_DESTINATIONS: List<TopLevelDestination> = listOf(
     TopLevelDestination(
         route = BrowseRoute,
         label = Res.string.tab_browse,
-        icon = Icons.Filled.Home,
+        icon = Icons.Filled.GraphicEq,
     ),
     TopLevelDestination(
         route = FavoritesRoute,
@@ -51,6 +51,6 @@ internal val TOP_LEVEL_DESTINATIONS: List<TopLevelDestination> = listOf(
     TopLevelDestination(
         route = StoriesRoute,
         label = Res.string.tab_stories,
-        icon = Icons.AutoMirrored.Filled.List,
+        icon = Icons.AutoMirrored.Filled.MenuBook,
     ),
 )

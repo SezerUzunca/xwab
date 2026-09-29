@@ -15,12 +15,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.dropUnlessResumed
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.tooling.preview.Preview
@@ -32,11 +41,10 @@ import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.ScreenContainer
 import com.xwab.app.designsystem.components.screenContentPadding
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import xwab.feature.browse.generated.resources.Res
-import xwab.feature.browse.generated.resources.app_subtitle
-import xwab.feature.browse.generated.resources.app_title
 import xwab.feature.browse.generated.resources.categories_title
 import xwab.feature.browse.generated.resources.track_count
 
@@ -44,24 +52,35 @@ private val CATEGORY_CARD_MIN_WIDTH = 150.dp
 
 @Composable
 internal fun BrowseScreenRoute(
+    title: StringResource,
+    subtitle: StringResource,
     onCategoryClick: (CategoryId) -> Unit,
     viewModel: BrowseViewModel,
+    reselectEvents: Flow<Unit> = emptyFlow(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val gridState = rememberLazyGridState()
+    LaunchedEffect(reselectEvents) { reselectEvents.collectLatest { gridState.animateScrollToItem(0) } }
     when (val content = state) {
         BrowseUiState.Loading -> LoadingContent()
-        is BrowseUiState.Ready -> BrowseScreen(content.value, onCategoryClick)
+        is BrowseUiState.Ready -> BrowseScreen(
+            content.value, stringResource(title), stringResource(subtitle), onCategoryClick, gridState,
+        )
     }
 }
 
 @Composable
 internal fun BrowseScreen(
     state: BrowseState,
+    title: String,
+    subtitle: String,
     onCategoryClick: (CategoryId) -> Unit,
+    gridState: LazyGridState = rememberLazyGridState(),
 ) {
     ScreenContainer {
         LazyVerticalGrid(
             columns = GridCells.Adaptive(CATEGORY_CARD_MIN_WIDTH),
+            state = gridState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = screenContentPadding(),
             verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingMedium),
@@ -70,13 +89,14 @@ internal fun BrowseScreen(
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Column {
                     Text(
-                        text = stringResource(Res.string.app_title),
+                        text = title,
+                        modifier = Modifier.semantics { heading() },
                         style = SleepRelaxTheme.typography.headlineLarge,
                         color = SleepRelaxTheme.colors.textPrimary,
                     )
                     Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraSmall))
                     Text(
-                        text = stringResource(Res.string.app_subtitle),
+                        text = subtitle,
                         style = SleepRelaxTheme.typography.bodyLarge,
                         color = SleepRelaxTheme.colors.textSecondary,
                     )
@@ -93,7 +113,7 @@ internal fun BrowseScreen(
             // hold one. Every other list in the app already unwraps here; this one was missed since
             // the first commit, and it crashes the screen rather than degrading.
             items(state.categories, key = { it.id.value }) { category ->
-                CategoryCard(category, onClick = { onCategoryClick(category.id) })
+                CategoryCard(category, onClick = dropUnlessResumed { onCategoryClick(category.id) })
             }
         }
     }
@@ -138,7 +158,7 @@ private fun CategoryCard(category: Category, onClick: () -> Unit) {
                 category.description,
                 style = SleepRelaxTheme.typography.labelMedium,
                 color = SleepRelaxTheme.colors.textSecondary,
-                maxLines = 1,
+                maxLines = 2,
             )
             Text(
                 pluralStringResource(Res.plurals.track_count, category.trackCount, category.trackCount),
@@ -155,6 +175,8 @@ private fun BrowseScreenPreview() {
     SleepRelaxTheme {
         BrowseScreen(
             BrowseState(listOf(Category(CategoryId("rain"), "Rain", "Gentle raindrops", "☂", 1))),
+            title = "XWAB",
+            subtitle = "Relax • Breathe • Sleep",
             onCategoryClick = {},
         )
     }

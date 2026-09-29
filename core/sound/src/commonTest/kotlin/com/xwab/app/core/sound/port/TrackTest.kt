@@ -19,13 +19,10 @@ class TrackTest {
         assertEquals(9, track.durationSeconds)
     }
 
-    /** The playback pair falls back to the track's own name and the app's own artist. */
+    /** Without a credited recordist, the platform media session names the app as the artist. */
     @Test
-    fun thePlaybackMetadataDefaultsToTheTrackItself() {
-        val track = track()
-
-        assertEquals("Rain on the Window", track.playbackTitle)
-        assertEquals("Sleep Sounds", track.playbackArtist)
+    fun thePlaybackArtistDefaultsToTheApp() {
+        assertEquals("Sleep Sounds", track().playbackArtist)
     }
 
     @Test
@@ -45,25 +42,23 @@ class TrackTest {
         assertFailsWith<IllegalArgumentException> { track(durationSeconds = -1) }
     }
 
-    /** These two are published to the platform media session, where a blank shows as a blank. */
+    /** Published to the platform media session, where a blank shows as a blank. */
     @Test
-    fun blankPlaybackMetadataIsRejected() {
-        assertFailsWith<IllegalArgumentException> { track(playbackTitle = " ") }
+    fun aBlankPlaybackArtistIsRejected() {
         assertFailsWith<IllegalArgumentException> { track(playbackArtist = "") }
+        assertFailsWith<IllegalArgumentException> { track(playbackArtist = " ") }
     }
 
     private fun track(
         name: String = "Rain on the Window",
         categoryId: String = "rain",
         durationSeconds: Int = 9,
-        playbackTitle: String = name,
         playbackArtist: String = "Sleep Sounds",
     ) = Track(
         id = TrackId("gentle-rain"),
         name = name,
         categoryId = CategoryId(categoryId),
         durationSeconds = durationSeconds,
-        playbackTitle = playbackTitle,
         playbackArtist = playbackArtist,
     )
 }

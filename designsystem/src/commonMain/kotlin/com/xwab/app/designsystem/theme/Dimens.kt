@@ -15,7 +15,7 @@ data class SleepRelaxDimens(
     val spacingHuge: Dp = 32.dp,
     
     val paddingScreenHorizontal: Dp = 24.dp,
-    val paddingScreenVertical: Dp = 48.dp,
+    val paddingScreenVertical: Dp = 24.dp,
     
     val iconSmall: Dp = 20.dp,
     val iconMedium: Dp = 24.dp,

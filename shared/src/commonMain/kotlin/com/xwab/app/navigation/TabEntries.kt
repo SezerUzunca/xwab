@@ -32,11 +32,13 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 internal fun rememberTabEntries(
     state: NavigationState,
     entryProvider: (NavKey) -> NavEntry<NavKey>,
+    metadataProvider: (NavKey, NavKey) -> Map<String, Any>,
+    onUp: (NavKey) -> Unit,
 ): List<NavEntry<NavKey>> {
     val entriesByTab = state.backStacks.mapValues { (route, backStack) ->
         key(route) {
-            val tabEntryProvider = remember(route, entryProvider) {
-                entryProviderForTab(route, entryProvider)
+            val tabEntryProvider = remember(route, entryProvider, metadataProvider, onUp) {
+                entryProviderForTab(route, entryProvider, metadataProvider, onUp)
             }
             rememberDecoratedNavEntries(
                 backStack = backStack,

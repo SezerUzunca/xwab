@@ -36,6 +36,9 @@ local.properties
 build/
 **/build/
 
+# Local validation logs, emulator captures, and temporary runtime files
+/tmp/
+
 # Accidental nested clone of this remote repository
 sleep-sounds/
 

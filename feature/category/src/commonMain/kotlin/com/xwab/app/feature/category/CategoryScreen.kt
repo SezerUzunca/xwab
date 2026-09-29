@@ -11,8 +11,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.sound.port.Category
 import com.xwab.app.core.sound.port.CategoryId
@@ -30,8 +33,8 @@ import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res as UiRes
-import xwab.designsystem.generated.resources.duration_public_domain
 import xwab.designsystem.generated.resources.preparing
+import xwab.designsystem.generated.resources.loop_duration
 import xwab.designsystem.generated.resources.favorites_read_failed
 import xwab.designsystem.generated.resources.favorite_write_failed
 import xwab.feature.category.generated.resources.Res
@@ -80,7 +83,7 @@ internal fun CategoryScreen(
             // in landscape or at large font sizes and leave a nested list no height to scroll in.
             item {
                 Column {
-                    BackButton(onClick = onBack)
+                    BackButton(onClick = dropUnlessResumed(block = onBack))
                     Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraLarge))
 
                     if (category == null) {
@@ -92,6 +95,7 @@ internal fun CategoryScreen(
                     } else {
                         Text(
                             text = category.name,
+                            modifier = Modifier.semantics { heading() },
                             style = SleepRelaxTheme.typography.headlineMedium,
                             color = SleepRelaxTheme.colors.textPrimary,
                         )
@@ -123,12 +127,9 @@ internal fun CategoryScreen(
                 items(state.tracks, key = { it.id.value }) { track ->
                     PlayableRow(
                         title = track.name,
-                        subtitle = stringResource(
-                            UiRes.string.duration_public_domain,
-                            formatDuration(track.durationSeconds),
-                        ),
-                        isPlaying = state.isRowPlaying(track.id),
-                        onClick = { onTrackClick(track.id) },
+                        subtitle = stringResource(UiRes.string.loop_duration, formatDuration(track.durationSeconds)),
+                        playRequested = state.isRowPlaying(track.id),
+                        onClick = dropUnlessResumed { onTrackClick(track.id) },
                         onPlayPauseClick = { onPlaybackClick(track.id) },
                         statusMessage = stringResource(UiRes.string.preparing)
                             .takeIf { state.isRowPreparing(track.id) },
@@ -136,6 +137,7 @@ internal fun CategoryScreen(
                             ?.let { stringResource(it.messageResource()) },
                         trailingContent = {
                             FavoriteButton(
+                                contentTitle = track.name,
                                 isFavorite = state.isRowFavorite(track.id),
                                 enabled = state.favoritesAvailable,
                                 isLoading = state.favoritesReadStatus == CategoryFavoritesReadStatus.Pending,

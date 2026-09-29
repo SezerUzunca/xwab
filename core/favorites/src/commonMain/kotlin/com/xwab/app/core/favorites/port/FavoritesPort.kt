@@ -15,6 +15,13 @@ interface FavoritesPort {
 
     /** Storage failures are returned to the caller; cancellation still propagates. */
     suspend fun toggle(namespace: String, itemId: String): FavoriteToggleResult
+
+    /**
+     * Atomically sets membership instead of inverting a separately read snapshot.
+     * Repeating the same desired value is harmless, including across different screens.
+     * Returns Updated when the desired value is already stored; cancellation propagates.
+     */
+    suspend fun setFavorite(namespace: String, itemId: String, isFavorite: Boolean): FavoriteToggleResult
 }
 
 /** IDs are the last successful read, or empty before the first successful read. */

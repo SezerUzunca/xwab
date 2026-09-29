@@ -40,11 +40,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 
-/**
- * This screen holds the most behaviour of any — the session's failure taxonomy translated
- * into this screen's own, the sleep timer refusing to start on a track that does not exist, and the
- * controls that pass straight through. Only the use case behind it was covered before.
- */
+/** Item playback, failure mapping and favorite recovery behavior. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SoundViewModelTest {
     private lateinit var mainDispatcher: TestDispatcher
@@ -57,6 +53,48 @@ class SoundViewModelTest {
 
     @AfterTest
     fun tearDown() = Dispatchers.resetMain()
+
+    @Test
+    fun openingThisDetailDoesNotChangeAnotherPlayingItem() = runTest(mainDispatcher) {
+        val port = FakePlaybackPort().apply {
+            publish(PlaybackSummary(requestedItemId = PlaybackItemId("story", "bedtime"), playIntent = true))
+        }
+        val viewModel = createViewModel(port)
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        assertFalse(readyState(viewModel).playIntent)
+        assertNull(port.playedItemId)
+        assertNull(port.looping)
+        assertNull(port.volume)
+        assertNull(port.startedTimerMs)
+        assertEquals(0, port.pauses)
+
+        viewModel.togglePlayback()
+        advanceUntilIdle()
+        assertEquals(RAIN_ITEM, port.playedItemId)
+        assertEquals(0, port.pauses)
+    }
+
+    /** The shortcut shows what is left; the ticks must not rebuild the rest of the screen's state. */
+    @Test
+    fun theTimerShortcutFollowsTheSessionWithoutRepublishingTheScreen() = runTest(mainDispatcher) {
+        val port = FakePlaybackPort()
+        val viewModel = createViewModel(port)
+        collectState(viewModel)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.sleepTimerRemainingMs.collect() }
+        advanceUntilIdle()
+        val before = viewModel.state.value
+
+        port.publishSleepTimer(90_000L)
+        advanceUntilIdle()
+
+        assertEquals(90_000L, viewModel.sleepTimerRemainingMs.value)
+        assertTrue(before === viewModel.state.value, "a timer tick must not publish a new screen state")
+        port.publishSleepTimer(null)
+        advanceUntilIdle()
+        assertNull(viewModel.sleepTimerRemainingMs.value)
+    }
 
     @Test
     fun translatesTheSessionFailureIntoThisScreensOwnError() = runTest(mainDispatcher) {
@@ -97,25 +135,6 @@ class SoundViewModelTest {
         assertEquals(SoundError.SoundNotFound, state.error)
     }
 
-    @Test
-    fun theSleepTimerOnlyStartsOnceThereIsATrackToStopPlaying() = runTest(mainDispatcher) {
-        val withoutTrack = FakePlaybackPort()
-        val missing = createViewModel(withoutTrack, catalogHasTrack = false)
-        collectState(missing)
-        advanceUntilIdle()
-
-        missing.startSleepTimer(FIFTEEN_MINUTES_MS)
-        assertNull(withoutTrack.startedTimerMs)
-
-        val withTrack = FakePlaybackPort()
-        val loaded = createViewModel(withTrack)
-        collectState(loaded)
-        advanceUntilIdle()
-
-        loaded.startSleepTimer(FIFTEEN_MINUTES_MS)
-        assertEquals(FIFTEEN_MINUTES_MS, withTrack.startedTimerMs)
-    }
-
     /** Whatever the icon says, the tap does: both branches read the session's own intent. */
     @Test
     fun tappingBranchesOnTheIntentTheControlRenders() = runTest(mainDispatcher) {
@@ -141,22 +160,6 @@ class SoundViewModelTest {
         assertEquals(0, idle.pauses)
     }
 
-    @Test
-    fun loopingAndVolumeReachTheSessionUnchanged() = runTest(mainDispatcher) {
-        val port = FakePlaybackPort()
-        val viewModel = createViewModel(port)
-        collectState(viewModel)
-        advanceUntilIdle()
-
-        viewModel.setLooping(false)
-        viewModel.setVolume(0.4f)
-        viewModel.cancelSleepTimer()
-
-        assertEquals(false, port.looping)
-        assertEquals(0.4f, port.volume)
-        assertEquals(1, port.cancelledTimers)
-    }
-
     /**
      * The favorites namespace a sound is stored under is shared by three screens, and a screen that
      * named a different one would read an empty store rather than fail to build. The value itself
@@ -178,26 +181,6 @@ class SoundViewModelTest {
     }
 
     /**
-     * The panel draws all three controls as disabled without a track. The ViewModel used to refuse
-     * only the sleep timer, so the same rule held in one layer and not the other.
-     */
-    @Test
-    fun noControlActsOnATrackThatDoesNotExist() = runTest(mainDispatcher) {
-        val port = FakePlaybackPort()
-        val viewModel = createViewModel(port, catalogHasTrack = false)
-        collectState(viewModel)
-        advanceUntilIdle()
-
-        viewModel.setLooping(false)
-        viewModel.setVolume(0.4f)
-        viewModel.startSleepTimer(FIFTEEN_MINUTES_MS)
-
-        assertNull(port.looping)
-        assertNull(port.volume)
-        assertNull(port.startedTimerMs)
-    }
-
-    /**
      * A sound the catalog does not hold offers nothing to do, and both layers now say so from the
      * same predicate. Play used to be refused by neither: the button looked live and asked the
      * session for a sound nothing could resolve, which took the session's claim off whatever was
@@ -213,7 +196,6 @@ class SoundViewModelTest {
         val state = readyState(viewModel)
         assertFalse(state.canPlay)
         assertFalse(state.canFavorite)
-        assertFalse(state.canConfigure)
 
         viewModel.togglePlayback()
         advanceUntilIdle()
@@ -284,7 +266,6 @@ class SoundViewModelTest {
         assertEquals(RAIN, pending.track?.id)
         assertEquals(SoundFavoriteReadStatus.Pending, pending.favoriteReadStatus)
         assertTrue(pending.canPlay)
-        assertTrue(pending.canConfigure)
         assertFalse(pending.canFavorite)
         viewModel.toggleFavorite()
         viewModel.togglePlayback()
@@ -376,6 +357,5 @@ class SoundViewModelTest {
     private companion object {
         val RAIN = TrackId("gentle-rain")
         val RAIN_ITEM = PlaybackItemId(SOUND_PLAYBACK_KIND, "gentle-rain")
-        const val FIFTEEN_MINUTES_MS = 15L * 60_000L
     }
 }

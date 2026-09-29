@@ -31,7 +31,11 @@ kotlin {
 
     android {
         namespace = "com.xwab.app.shared"
+        // Entry stores, movable chrome and recreation require a real Compose host.
+        withDeviceTestBuilder { sourceSetTreeName = "test" }
     }
+
+    applyDefaultHierarchyTemplate()
 
     sourceSets {
         commonMain.dependencies {
@@ -49,14 +53,15 @@ kotlin {
             implementation(projects.feature.category)
             implementation(projects.feature.sound)
             implementation(projects.feature.story)
-            // Chrome rather than a destination, so it is last: it has no route, and reaches the
-            // screen as a NavDisplay scene decorator instead of an entry.
             implementation(projects.feature.nowplaying)
 
             implementation(libs.compose.ui)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
-            // SharedTransitionLayout, for the now-playing scene decorator.
+            implementation(libs.compose.material3.adaptiveNavigation3)
+            // Material's own bar/rail switch for the top-level destinations.
+            implementation(libs.compose.material3.adaptiveNavigationSuite)
+            // Navigation scene transitions.
             implementation(libs.compose.animation)
             // The tab icons are this module's own, not something it borrows from `:designsystem`.
             implementation(libs.compose.material.icons.extended)
@@ -65,17 +70,30 @@ kotlin {
             implementation(libs.navigation3.ui)
             implementation(libs.androidx.lifecycle.viewmodelNavigation3)
             implementation(libs.kotlinx.serialization.core)
+            implementation(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {
             implementation(libs.kotlinx.serialization.json)
         }
-        // The same simulator harness used by feature screen tests also exercises the real
-        // navigation composition, including saved-state and ViewModel entry decorators.
-        if (gradle.extra["enableIos"] as Boolean) {
-            iosTest.dependencies {
+        val navigationTest = create("navigationTest") {
+            dependsOn(commonTest.get())
+            dependencies {
                 implementation(libs.compose.uiTest)
                 implementation(libs.androidx.lifecycle.viewmodelCompose)
             }
+        }
+        getByName("androidDeviceTest") {
+            dependsOn(navigationTest)
+            dependencies {
+                implementation(libs.androidx.test.core)
+                implementation(libs.androidx.test.runner)
+                // Compose's older transitive Espresso uses InputManager reflection removed in API 37.
+                implementation(libs.androidx.test.espressoCore)
+            }
+        }
+        // The same navigation composition tests run on Android devices and iOS simulators.
+        if (gradle.extra["enableIos"] as Boolean) {
+            iosTest.get().dependsOn(navigationTest)
         }
     }
 }

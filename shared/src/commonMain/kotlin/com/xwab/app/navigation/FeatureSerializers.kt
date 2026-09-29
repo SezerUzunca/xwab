@@ -6,6 +6,7 @@ import com.xwab.app.feature.category.navigation.categoryNavigationSerializers
 import com.xwab.app.feature.favorites.navigation.favoritesNavigationSerializers
 import com.xwab.app.feature.sound.navigation.soundNavigationSerializers
 import com.xwab.app.feature.story.navigation.storiesNavigationSerializers
+import com.xwab.app.feature.nowplaying.navigation.nowPlayingNavigationSerializers
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 
@@ -27,9 +28,10 @@ internal val FEATURE_SERIALIZERS: SerializersModule = SerializersModule {
     include(categoryNavigationSerializers)
     include(soundNavigationSerializers)
     include(storiesNavigationSerializers)
+    include(nowPlayingNavigationSerializers)
 
     // Not a feature's contribution, which is why this one is spelled out rather than included: it
-    // is the app's answer for a name none of the five above registers. A saved back stack is
+    // is the app's answer for a name none of the installed features registers. A saved back stack is
     // written by one build and read by the next, and a feature removed in between is exactly what
     // that looks like. Registered subclasses still win — the fallback is only consulted once the
     // lookup has already failed.

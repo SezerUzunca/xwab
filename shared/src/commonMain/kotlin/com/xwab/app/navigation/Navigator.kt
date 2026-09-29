@@ -1,52 +1,79 @@
 package com.xwab.app.navigation
 
 import androidx.navigation3.runtime.NavKey
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 
-/**
- * The one thing a screen may do to navigation: ask for a key, or ask to go back.
- *
- * Which of the three things [navigate] means — reselect, switch tab, or push — is decided here
- * rather than by the caller, because nothing outside this module has to know whether a key happens
- * to be a tab. Features never see this class at all: their entries take plain callbacks, and the
- * composition root is the only caller.
- */
+/** App policies around the Navigation 3 stacks; features receive only intent callbacks. */
 internal class Navigator(private val state: NavigationState) {
+    private val reselectEvents = MutableSharedFlow<NavKey>(extraBufferCapacity = 1)
+
+    fun reselections(route: NavKey): Flow<Unit> = reselectEvents.filter { it == route }.map { }
+
     /**
-     * Resets the current tab when it is reselected, switches to another top-level route, or moves
-     * a non-top-level route to the end of the current tab's stack.
+     * Switching tabs preserves history. Revisiting a key pops to it, preserving its entry store.
      *
-     * A tab is never pushed onto a stack. Doing that would put Stories on top of Sounds' history,
-     * and backing out of it would land in the middle of the other tab.
+     * Opening another destination of a kind already in the stack replaces that one and whatever
+     * was opened from it: choosing Ocean after Rain is a new selection, not a step deeper. Beside a
+     * list that is what a list–detail pane shows, and Back then leaves the selection instead of
+     * walking through every earlier one.
      */
     fun navigate(key: NavKey) {
-        when (key) {
-            state.topLevelRoute -> clearSubStack()
-            in state.backStacks -> state.topLevelRoute = key
-            else -> state.currentBackStack.apply {
-                remove(key)
-                add(key)
-            }
+        if (key in state.backStacks) {
+            state.topLevelRoute = key
+            return
         }
+        val stack = state.currentBackStack
+        val existing = stack.indexOf(key)
+        if (existing >= 0) {
+            stack.subList(existing + 1, stack.size).clear()
+            return
+        }
+        val sameKind = stack.indexOfFirst { it::class == key::class }
+        if (sameKind > 0) stack.subList(sameKind, stack.size).clear()
+        stack.add(key)
     }
 
-    /** Clears every entry above the current tab's root. */
-    private fun clearSubStack() {
-        state.currentBackStack.run {
-            if (size > 1) subList(1, size).clear()
+    /** Reselect returns to the root; another tap at the root asks the list to scroll to the start. */
+    fun selectTab(key: NavKey) {
+        require(key in state.backStacks) { "A tab needs its own back stack: $key" }
+        if (key != state.topLevelRoute) navigate(key)
+        else {
+            val stack = state.currentBackStack
+            if (stack.size > 1) stack.subList(1, stack.size).clear()
+            else reselectEvents.tryEmit(key)
         }
     }
 
     /**
-     * Pops within the tab, and falls through to the start tab once there is nothing left to pop.
-     *
-     * A tab's root is never popped: a back stack that empties has nothing for `NavDisplay` to
-     * render, and the tab would be gone rather than reset. From the start tab's own root this does
-     * nothing at all, and the platform takes the press as leaving the app.
+     * Replaces a transient screen (the player). Both changes land before the next frame, so no
+     * intermediate destination is ever drawn.
      */
+    fun replaceCurrent(key: NavKey) {
+        val stack = state.currentBackStack
+        if (stack.size > 1) stack.removeAt(stack.lastIndex)
+        navigate(key)
+    }
+
+    /**
+     * Up from a destination visible beside others: closes it and whatever was opened from it.
+     *
+     * Back removes only the latest entry, which in a list–detail–extra scene is the rightmost
+     * pane. An arrow drawn on the middle pane means that pane. A destination not in the current
+     * stack, or its root, falls back to [goBack].
+     */
+    fun goUp(from: NavKey) {
+        val stack = state.currentBackStack
+        val index = stack.indexOf(from)
+        if (index > 0) stack.subList(index, stack.size).clear() else goBack()
+    }
+
     fun goBack() {
         val stack = state.currentBackStack
         when {
-            stack.size > 1 -> stack.removeLastOrNull()
+            stack.size > 1 -> stack.removeAt(stack.lastIndex)
             state.topLevelRoute != state.startRoute -> state.topLevelRoute = state.startRoute
         }
     }

@@ -1,6 +1,5 @@
 package com.xwab.app.composition
 
-import com.xwab.app.content.ContentCacheMaintenance
 import com.xwab.app.di.AppGraph
 import com.xwab.app.feature.browse.di.BrowseDependencies
 import com.xwab.app.feature.category.di.CategoryDependencies
@@ -9,6 +8,7 @@ import com.xwab.app.feature.nowplaying.di.NowPlayingDependencies
 import com.xwab.app.feature.sound.di.SoundDependencies
 import com.xwab.app.feature.story.di.StoriesDependencies
 import com.xwab.app.navigation.SAVEABLE_ROUTES
+import kotlinx.coroutines.flow.emptyFlow
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -30,7 +30,9 @@ class AppEntryProviderTest {
 
     @Test
     fun everySaveableRouteHasAScreen() {
-        val entryProvider = appEntryProvider(NoDependencies, onNavigate = {}, onBack = {})
+        val entryProvider = appEntryProvider(
+            NoDependencies, onNavigate = {}, onBack = {}, onReplace = {}, onReselect = { emptyFlow() },
+        )
 
         // Resolving is the assertion: Navigation 3's `entryProvider` throws `Unknown screen` from
         // its fallback for a key it was never given. The content keys are kept because they carry a
@@ -55,5 +57,4 @@ private object NoDependencies : AppGraph {
     override val soundDependencies: () -> SoundDependencies = { unused() }
     override val storiesDependencies: () -> StoriesDependencies = { unused() }
     override val nowPlayingDependencies: () -> NowPlayingDependencies = { unused() }
-    override val contentCacheMaintenance: () -> ContentCacheMaintenance = { unused() }
 }

@@ -21,6 +21,11 @@ background download; it does not wait for a local file. Supported content types 
 size ceiling are caller-owned. The defaults accept any content type and limit downloads to 25 MiB.
 Change the cache filename when the bytes behind an item change. Cache access or prefetch startup failures are logged and fall back to HTTPS; cancellation still propagates.
 
+`observeCached(key)` checks the local file without resolving or downloading content. It rechecks
+on collection and after cache completion or cleanup. Only nonempty final files count as cached;
+staged downloads, missing files and filesystem read failures report false. Callers can use this
+status to show confirmed offline availability instead of assuming a streamed item is downloaded.
+
 Request headers are caller-owned too, because this module knows nothing about the host it fetches
 from — and some hosts, Wikimedia among them, refuse a request that does not identify its client.
 Such a refusal arrives as a 4xx, which is treated as a permanently unusable source, so the effect

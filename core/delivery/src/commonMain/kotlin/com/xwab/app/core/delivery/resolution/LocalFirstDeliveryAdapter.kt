@@ -2,10 +2,12 @@ package com.xwab.app.core.delivery.resolution
 
 import co.touchlab.kermit.Logger
 import com.xwab.app.core.delivery.cache.ContentFileStore
+import com.xwab.app.core.delivery.port.CacheKey
 import com.xwab.app.core.delivery.port.DeliveryPort
 import com.xwab.app.core.delivery.port.DeliveryRequest
 import com.xwab.app.core.delivery.port.DeliveryResult
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.flow.Flow
 
 internal class LocalFirstDeliveryAdapter(
     private val fileStore: ContentFileStore,
@@ -13,7 +15,7 @@ internal class LocalFirstDeliveryAdapter(
 ) : DeliveryPort {
     private val logger = Logger.withTag("DeliveryPort")
 
-    override suspend fun retainOnly(namespaces: Set<String>) = fileStore.retainOnly(namespaces)
+    override fun observeCached(key: CacheKey): Flow<Boolean> = fileStore.observeCached(key)
 
     override suspend fun resolve(request: DeliveryRequest): DeliveryResult = try {
         val cachedPath = fileStore.find(request.key)

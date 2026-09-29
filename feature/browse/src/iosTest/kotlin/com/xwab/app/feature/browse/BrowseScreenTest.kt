@@ -21,6 +21,8 @@ class BrowseScreenTest {
             SleepRelaxTheme {
                 BrowseScreen(
                     BrowseState(listOf(Category(CategoryId("rain"), "Rain", "Gentle rain", "☂", 2))),
+                    title = "App",
+                    subtitle = "Tagline",
                     onCategoryClick = {},
                 )
             }
@@ -29,7 +31,7 @@ class BrowseScreenTest {
         // Checking only the theme could not catch the old 55% alpha at this call site. Assert the
         // actual text style as well; ContrastTest checks that colour against the card gradient.
         val layouts = mutableListOf<TextLayoutResult>()
-        onNodeWithText("2 tracks", useUnmergedTree = true)
+        onNodeWithText("2 sounds", useUnmergedTree = true)
             .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
         assertEquals(darkColors.accent, layouts.single().layoutInput.style.color)
     }

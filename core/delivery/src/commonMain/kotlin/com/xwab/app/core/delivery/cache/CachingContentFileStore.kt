@@ -9,6 +9,11 @@ import kotlinx.coroutines.Dispatchers
 // Required on Kotlin/Native, where IO is an extension rather than a JVM member.
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import okio.FileSystem
 import okio.IOException
@@ -26,6 +31,19 @@ internal class CachingContentFileStore(
 ) : ContentFileStore {
     private val logger = Logger.withTag("CachingContentFileStore")
     private var legacyRootsPurged = false
+    private val cacheRevision = MutableStateFlow(0L)
+
+    override fun observeCached(key: CacheKey): Flow<Boolean> = cacheRevision.map {
+        try {
+            withContext(fileDispatcher) {
+                val metadata = fileSystem.metadataOrNull(pathOf(key))
+                metadata?.isRegularFile == true && (metadata.size ?: 0L) > 0L
+            }
+        } catch (error: IOException) {
+            logger.w(error) { "Could not inspect cached content for $key." }
+            false
+        }
+    }.distinctUntilChanged()
 
     override suspend fun find(key: CacheKey): String? = withContext(fileDispatcher) {
         val file = pathOf(key)
@@ -33,11 +51,15 @@ internal class CachingContentFileStore(
         if (metadata?.isRegularFile != true) return@withContext null
         if ((metadata.size ?: 0L) > 0L) return@withContext file.toString()
         fileSystem.delete(file, mustExist = false)
+        cacheRevision.update { it + 1 }
         null
     }
 
     override suspend fun download(request: DeliveryRequest) {
-        if (find(request.key) != null) return
+        if (find(request.key) != null) {
+            cacheRevision.update { it + 1 }
+            return
+        }
         val directory = root / request.key.namespace
         val partial = directory / partialCacheFileName(request.key.fileName)
         withContext(fileDispatcher) {
@@ -56,7 +78,13 @@ internal class CachingContentFileStore(
             }
         } finally {
             withContext(NonCancellable + fileDispatcher) {
-                fileSystem.delete(partial, mustExist = false)
+                try {
+                    fileSystem.delete(partial, mustExist = false)
+                } finally {
+                    // Publish only after promotion/cleanup. A partial transfer is never ready.
+                    // Also recheck files removed by a partially completed inventory sweep.
+                    cacheRevision.update { it + 1 }
+                }
             }
         }
     }
@@ -67,37 +95,6 @@ internal class CachingContentFileStore(
                 networkPort.downloadContent(request) { bytes, count -> sink.write(bytes, 0, count) }
             }
             handle.flush()
-        }
-    }
-
-    /**
-     * Removes the namespace directories no content module in this build claims any more.
-     *
-     * The within-namespace sweep in [download] cannot reach these: it only ever lists the namespace
-     * of the request that triggered it, and a removed content type produces no more requests. One
-     * directory listing at startup is what closes that.
-     *
-     * Refuses an empty set rather than deleting everything. A caller with no namespaces has almost
-     * certainly failed to assemble them, and obeying that literally would throw away every download
-     * on the device.
-     */
-    override suspend fun retainOnly(namespaces: Set<String>) = withContext(fileDispatcher) {
-        if (namespaces.isEmpty()) {
-            logger.w { "Refusing to sweep the cache for an empty namespace set." }
-            return@withContext
-        }
-        try {
-            fileSystem.list(root)
-                .filter { fileSystem.metadataOrNull(it)?.isDirectory == true }
-                .filterNot { it.name in namespaces }
-                .forEach { orphan ->
-                    logger.i { "Removing cached content for the uninstalled namespace ${orphan.name}." }
-                    fileSystem.deleteRecursively(orphan, mustExist = false)
-                }
-        } catch (error: IOException) {
-            // A cache that refuses to be listed or deleted is not worth failing a launch over; the
-            // files stay and the next start tries again.
-            logger.w(error) { "Could not sweep uninstalled namespaces from the cache at $root." }
         }
     }
 

@@ -3,7 +3,7 @@ package com.xwab.app.navigation
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import com.xwab.app.composition.appEntryProvider
-import com.xwab.app.content.ContentCacheMaintenance
+import com.xwab.app.composition.appEntryMetadata
 import com.xwab.app.di.AppGraph
 import com.xwab.app.feature.browse.di.BrowseDependencies
 import com.xwab.app.feature.browse.navigation.BrowseRoute
@@ -20,23 +20,24 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
-import kotlin.test.assertSame
+import androidx.navigation3.runtime.get
+import kotlinx.coroutines.flow.emptyFlow
 
 class TabEntryProviderTest {
     @Test
     fun registeringAndResolvingAllFeaturesDoesNotInitializeTheirDependencies() {
-        val provider = appEntryProvider(UnopenedFeaturesGraph, onNavigate = {}, onBack = {})
+        val provider = unopenedEntryProvider()
         val routes = listOf(BrowseRoute, FavoritesRoute, StoriesRoute, CategoryRoute("rain"), SoundRoute("rain"))
 
         // Inactive tab stacks also resolve entries. Their content has not been composed yet.
-        val entries = routes.map(entryProviderForTab(BrowseRoute, provider))
+        val entries = routes.map(tabEntries(BrowseRoute, provider))
 
         assertEquals(routes.size, entries.size)
     }
 
     @Test
     fun theSameSoundInBrowseAndFavoritesHasIndependentDisplayIdentity() {
-        val provider = appEntryProvider(UnopenedFeaturesGraph, onNavigate = {}, onBack = {})
+        val provider = unopenedEntryProvider()
         val state = NavigationState(
             startRoute = BrowseRoute,
             backStacks = mapOf(
@@ -51,7 +52,7 @@ class TabEntryProviderTest {
         navigator.navigate(SoundRoute("rain"))
 
         val entries = state.routesInUse.flatMap { tab ->
-            state.backStacks.getValue(tab).map(entryProviderForTab(tab, provider))
+            state.backStacks.getValue(tab).map(tabEntries(tab, provider))
         }
 
         assertEquals(5, entries.size)
@@ -61,10 +62,10 @@ class TabEntryProviderTest {
 
     @Test
     fun recreatingProvidersAndRoutesKeepsTheSameSaveableIdentity() {
-        val firstProvider = appEntryProvider(UnopenedFeaturesGraph, onNavigate = {}, onBack = {})
-        val restoredProvider = appEntryProvider(UnopenedFeaturesGraph, onNavigate = {}, onBack = {})
-        val first = entryProviderForTab(FavoritesRoute, firstProvider)(SoundRoute("rain"))
-        val restored = entryProviderForTab(FavoritesRoute, restoredProvider)(SoundRoute("rain"))
+        val firstProvider = unopenedEntryProvider()
+        val restoredProvider = unopenedEntryProvider()
+        val first = tabEntries(FavoritesRoute, firstProvider)(SoundRoute("rain"))
+        val restored = tabEntries(FavoritesRoute, restoredProvider)(SoundRoute("rain"))
 
         assertIs<String>(restored.contentKey)
         assertEquals(first.contentKey, restored.contentKey)
@@ -77,30 +78,33 @@ class TabEntryProviderTest {
             NavEntry(key = key, contentKey = contentKey, metadata = metadata) {}
         }
 
-        val first = entryProviderForTab(BrowseRoute, provider("first"))(SoundRoute("rain"))
-        val second = entryProviderForTab(BrowseRoute, provider("second"))(SoundRoute("rain"))
+        val first = tabEntries(BrowseRoute, provider("first"))(SoundRoute("rain"))
+        val second = tabEntries(BrowseRoute, provider("second"))(SoundRoute("rain"))
 
-        assertSame(metadata, first.metadata)
+        assertEquals(true, first.metadata["custom-scene"])
+        assertEquals(BrowseRoute.toString(), first.metadata[TabKey])
         assertNotEquals(first.contentKey, second.contentKey)
     }
 }
 
+private fun unopenedEntryProvider() = appEntryProvider(
+    UnopenedFeaturesGraph, onNavigate = {}, onBack = {}, onReplace = {}, onReselect = { emptyFlow() },
+)
+
 /** Fail immediately if entry registration or lookup eagerly opens any feature. */
 private object UnopenedFeaturesGraph : AppGraph {
     override val browseDependencies: () -> BrowseDependencies = { error("Browse initialized before rendering") }
-    override val favoritesDependencies: () -> FavoritesDependencies = { error("Favorites initialized before rendering") }
+    override val favoritesDependencies: () -> FavoritesDependencies =
+        { error("Favorites initialized before rendering") }
     override val categoryDependencies: () -> CategoryDependencies = { error("Category initialized before rendering") }
     override val soundDependencies: () -> SoundDependencies = { error("Sound initialized before rendering") }
     override val storiesDependencies: () -> StoriesDependencies = { error("Stories initialized before rendering") }
 
-    /**
-     * Chrome, not a destination — so this one holds the stronger claim: `appEntryProvider` never
-     * reaches for it at all, whether it is rendering or registering. The app shell places the bar
-     * itself, and nothing about navigation should be able to open it.
-     */
-    override val nowPlayingDependencies: () -> NowPlayingDependencies = { error("Now playing initialized by navigation") }
-
-    /** Housekeeping the shell runs once at launch; navigation has no business reaching it. */
-    override val contentCacheMaintenance: () -> ContentCacheMaintenance =
-        { error("Cache maintenance initialized by navigation") }
+    /** The player destination and persistent mini player resolve ports only when rendered. */
+    override val nowPlayingDependencies: () -> NowPlayingDependencies =
+        { error("Now playing initialized by navigation") }
 }
+
+/** The production metadata; these tests are about identity, not what the back arrow does. */
+private fun tabEntries(tab: NavKey, provider: (NavKey) -> NavEntry<NavKey>) =
+    entryProviderForTab(tab, provider, ::appEntryMetadata, onUp = {})

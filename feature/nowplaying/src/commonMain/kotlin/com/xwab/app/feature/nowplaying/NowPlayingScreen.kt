@@ -1,133 +1,180 @@
 package com.xwab.app.feature.nowplaying
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
-import com.xwab.app.core.session.port.PlaybackFailure
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import com.xwab.app.core.session.port.PlaybackItemId
+import com.xwab.app.designsystem.components.BackButton
 import com.xwab.app.designsystem.components.PlayPauseButton
+import com.xwab.app.designsystem.components.ScreenContainer
+import com.xwab.app.designsystem.components.SleepRelaxSlider
+import com.xwab.app.designsystem.components.SleepTimerControl
+import com.xwab.app.designsystem.components.glassCard
+import com.xwab.app.designsystem.components.screenContentPadding
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.stringResource
-import xwab.designsystem.generated.resources.Res as UiRes
-import xwab.designsystem.generated.resources.preparing
 import xwab.feature.nowplaying.generated.resources.Res
-import xwab.feature.nowplaying.generated.resources.item_could_not_open
-import xwab.feature.nowplaying.generated.resources.item_not_found
-import xwab.feature.nowplaying.generated.resources.item_unavailable
+import xwab.feature.nowplaying.generated.resources.device_volume_note
 import xwab.feature.nowplaying.generated.resources.now_playing
-import xwab.feature.nowplaying.generated.resources.open_now_playing
+import xwab.feature.nowplaying.generated.resources.player_empty
+import xwab.feature.nowplaying.generated.resources.player_volume
+import xwab.feature.nowplaying.generated.resources.player_volume_value
+import xwab.feature.nowplaying.generated.resources.repeat_playback
+import xwab.feature.nowplaying.generated.resources.view_details
 
-/**
- * What the session is on, wherever the listener is.
- *
- * The visibility rule lives here rather than in the shell that places it: whether there is anything
- * to show is this feature's own question, and a shell that answered it would need to know what an
- * idle session looks like.
- */
 @Composable
+internal fun NowPlayingScreenRoute(
+    onBack: () -> Unit,
+    onOpenDetails: (PlaybackItemId) -> Unit,
+    viewModel: NowPlayingViewModel,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    NowPlayingScreen(
+        state = state,
+        onBack = dropUnlessResumed { onBack() },
+        onPlayPause = viewModel::togglePlayback,
+        onVolumeChange = viewModel::setVolume,
+        onLoopingChange = viewModel::setLooping,
+        onTimerStart = viewModel::startSleepTimer,
+        onTimerCancel = viewModel::cancelSleepTimer,
+        onOpenDetails = dropUnlessResumed { state.itemId?.let(onOpenDetails) },
+    )
+}
+
+/** Stateless session controls, hosted and scoped by a Navigation 3 entry. */
+@Composable
+@Suppress("LongParameterList")
 internal fun NowPlayingScreen(
     state: NowPlayingState,
-    onPlayPauseClick: () -> Unit,
-    onOpenClick: () -> Unit,
-    modifier: Modifier = Modifier,
+    onBack: () -> Unit,
+    onPlayPause: () -> Unit,
+    onVolumeChange: (Float) -> Unit,
+    onLoopingChange: (Boolean) -> Unit,
+    onTimerStart: (Long) -> Unit,
+    onTimerCancel: () -> Unit,
+    onOpenDetails: () -> Unit,
 ) {
-    if (state.isIdle) return
-
-    Column(modifier = modifier.fillMaxWidth()) {
-        HorizontalDivider(color = SleepRelaxTheme.colors.glassWhiteOverlay)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(SleepRelaxTheme.colors.backgroundBottom)
-                // The whole bar except the transport control, which has its own. A listener who
-                // started something from a row and then walked away from that screen has no other
-                // way back to it.
-                .clickable(onClickLabel = stringResource(Res.string.open_now_playing)) {
-                    onOpenClick()
-                }
-                .padding(
-                    start = SleepRelaxTheme.dimens.spacingLarge,
-                    end = SleepRelaxTheme.dimens.spacingSmall,
-                    top = SleepRelaxTheme.dimens.spacingSmall,
-                    bottom = SleepRelaxTheme.dimens.spacingSmall,
-                ),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+    ScreenContainer {
+        Column(
+            modifier = Modifier.fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(screenContentPadding()),
+            verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingMedium),
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                BackButton(onClick = onBack)
                 Text(
-                    // The session withholds a title for exactly as long as it is switching, so this
-                    // fallback is what a bar reads during a switch rather than the outgoing name.
-                    text = state.title ?: stringResource(Res.string.now_playing),
-                    style = SleepRelaxTheme.typography.titleSmall,
+                    text = stringResource(Res.string.now_playing),
+                    modifier = Modifier.semantics { heading() },
+                    style = SleepRelaxTheme.typography.headlineSmall,
                     color = SleepRelaxTheme.colors.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
-                // One second line, and a failure outranks a status: an item that will not play is
-                // not still loading, and saying both would be saying one of them wrongly.
-                val failure = state.failure
-                when {
-                    failure != null -> Text(
-                        text = stringResource(
-                            when (failure) {
-                                is PlaybackFailure.ItemNotFound -> Res.string.item_not_found
-                                is PlaybackFailure.SourceUnavailable -> Res.string.item_unavailable
-                                is PlaybackFailure.EngineFailed -> Res.string.item_could_not_open
-                            },
-                        ),
-                        // The style every failure in this app is written in. This was the only one
-                        // in `labelMedium`, a size below the rest, which made the one message
-                        // with no screen behind it to repeat it the quietest of them all.
-                        style = SleepRelaxTheme.typography.bodyMedium,
-                        color = SleepRelaxTheme.colors.error,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    // The same word every list in this app uses for the same state, taken from the
-                    // design system rather than spelled again here.
-                    state.isPreparing -> Text(
-                        text = stringResource(UiRes.string.preparing),
-                        style = SleepRelaxTheme.typography.labelMedium,
-                        color = SleepRelaxTheme.colors.textSecondary,
-                        maxLines = 1,
-                    )
-                }
             }
-            PlayPauseButton(isPlaying = state.playIntent, onClick = onPlayPauseClick)
+            if (state.isIdle) {
+                Text(stringResource(Res.string.player_empty), color = SleepRelaxTheme.colors.textSecondary)
+            } else {
+                NowPlayingItem(state, onPlayPause, onOpenDetails)
+            }
+            // Directly under the transport, in a card of its own: the timer is what a sleep app is
+            // opened for at night. Usable with nothing requested — the timer is the session's, so it
+            // can be set before a sound is chosen, and one outliving playback can still be cancelled.
+            SleepTimerControl(
+                remainingMs = state.sleepTimerRemainingMs,
+                enabled = true,
+                onTimerStart = onTimerStart,
+                onTimerCancel = onTimerCancel,
+                modifier = Modifier.glassCard().padding(SleepRelaxTheme.dimens.spacingMedium),
+            )
+            if (!state.isIdle) {
+                PlayerVolumeControls(state.volume, onVolumeChange)
+                RepeatPlaybackControl(state.isLooping, onLoopingChange)
+            }
         }
     }
 }
 
-@Preview
+/** Centred like the sound and story details, so the item and its action read as one block. */
 @Composable
-private fun NowPlayingScreenPreview() {
-    SleepRelaxTheme {
-        NowPlayingScreen(
-            state = NowPlayingState(
-                itemId = PlaybackItemId(ANY_KIND, "calm-waves"),
-                title = "Calm Waves",
-                playIntent = true,
-            ),
-            onPlayPauseClick = {},
-            onOpenClick = {},
+private fun NowPlayingItem(state: NowPlayingState, onPlayPause: () -> Unit, onOpenDetails: () -> Unit) {
+    val title = state.title ?: stringResource(Res.string.now_playing)
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingSmall),
+    ) {
+        Text(
+            text = title,
+            modifier = Modifier.semantics { heading() },
+            style = SleepRelaxTheme.typography.headlineSmall,
+            color = SleepRelaxTheme.colors.textPrimary,
+            textAlign = TextAlign.Center,
         )
+        PlaybackStatus(state)
+        PlayPauseButton(
+            playRequested = state.playIntent,
+            onClick = onPlayPause,
+            large = true,
+            contentTitle = title,
+        )
+        TextButton(onClick = onOpenDetails) { Text(stringResource(Res.string.view_details)) }
     }
 }
 
-/**
- * This feature draws whatever is playing and never asks what kind it is, so its own fixtures
- * name a kind that belongs to no content module.
- */
-private const val ANY_KIND = "any-kind"
+@Composable
+private fun PlayerVolumeControls(volume: Float, onVolumeChange: (Float) -> Unit) {
+    val volumeLabel = stringResource(Res.string.player_volume)
+    Text(
+        text = stringResource(Res.string.player_volume_value, (volume * PERCENT_SCALE).toInt()),
+        style = SleepRelaxTheme.typography.titleSmall,
+        color = SleepRelaxTheme.colors.textPrimary,
+    )
+    SleepRelaxSlider(
+        value = volume,
+        onValueChange = onVolumeChange,
+        modifier = Modifier.fillMaxWidth().semantics { contentDescription = volumeLabel },
+    )
+    Text(
+        text = stringResource(Res.string.device_volume_note),
+        style = SleepRelaxTheme.typography.labelMedium,
+        color = SleepRelaxTheme.colors.textSecondary,
+    )
+}
+
+@Composable
+private fun RepeatPlaybackControl(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(Res.string.repeat_playback),
+            modifier = Modifier.weight(1f),
+            style = SleepRelaxTheme.typography.titleSmall,
+            color = SleepRelaxTheme.colors.textPrimary,
+        )
+        Switch(checked = checked, onCheckedChange = null)
+    }
+}
+
+private const val PERCENT_SCALE = 100

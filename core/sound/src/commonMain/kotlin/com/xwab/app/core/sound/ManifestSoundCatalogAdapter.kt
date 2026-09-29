@@ -1,5 +1,6 @@
 package com.xwab.app.core.sound
 
+import com.xwab.app.core.delivery.port.DeliveryPort
 import com.xwab.app.core.sound.port.Category
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Track
@@ -19,9 +20,12 @@ import kotlinx.coroutines.flow.map
 internal class ManifestSoundCatalogAdapter internal constructor(
     tracks: List<Track>,
     categories: List<Category> = emptyList(),
+    private val delivery: DeliveryPort? = null,
+    private val sources: SoundSources? = null,
 ) : SoundPort {
     @Inject
-    internal constructor() : this(catalogManifest, catalogCategories)
+    internal constructor(delivery: DeliveryPort, sources: SoundSources) :
+        this(catalogManifest, catalogCategories, delivery, sources)
 
     init {
         val duplicates = tracks.groupBy(Track::id).filterValues { it.size > 1 }.keys
@@ -31,6 +35,7 @@ internal class ManifestSoundCatalogAdapter internal constructor(
     }
 
     private val allTracks = flowOf(tracks)
+    private val trackIds = tracks.mapTo(mutableSetOf(), Track::id)
     private val allCategories = flowOf(categories)
 
     override fun observeCategories(): Flow<List<Category>> = allCategories
@@ -41,4 +46,9 @@ internal class ManifestSoundCatalogAdapter internal constructor(
         allTracks.map { values -> values.filter { it.categoryId == categoryId } }
     override fun observeTrack(trackId: TrackId): Flow<Track?> =
         allTracks.map { values -> values.find { it.id == trackId } }
+
+    override fun observeOfflineReady(trackId: TrackId): Flow<Boolean> {
+        val request = sources?.requestFor(trackId).takeIf { trackId in trackIds }
+        return request?.let { delivery?.observeCached(it.key) } ?: flowOf(false)
+    }
 }

@@ -28,6 +28,10 @@ internal object FeatureFirstRules {
     private val FEATURE_NAVIGATION_PACKAGE =
         Regex("""com\.xwab\.app\.feature\.[A-Za-z0-9_]+\.navigation""")
 
+    /** UI the app shell places around destinations, such as the persistent mini player. */
+    private val FEATURE_SHELL_PACKAGE =
+        Regex("""com\.xwab\.app\.feature\.[A-Za-z0-9_]+\.shell""")
+
     private val FEATURE_DI_PACKAGE =
         Regex("""com\.xwab\.app\.feature\.[A-Za-z0-9_]+\.di""")
 
@@ -695,7 +699,7 @@ internal object FeatureFirstRules {
 
                 val target = reference.removePrefix("com.xwab.app.feature.").split('.')
                 val allowed = when (boundary) {
-                    "navigation" -> target.size >= 3 && target[1] == "navigation"
+                    "navigation" -> target.size >= 3 && target[1] in setOf("navigation", "shell")
                     "di" -> target.size == 3 && target[1] == "di" &&
                         target[2].endsWith("Dependencies")
                     else -> false
@@ -703,7 +707,7 @@ internal object FeatureFirstRules {
                 if (allowed) return@mapNotNull null
 
                 "$path references $reference. Shared navigation/composition may reference only " +
-                    "feature navigation contracts; shared DI may reference only feature DI " +
+                    "feature navigation contracts and shell UI; shared DI may reference only feature DI " +
                     "Dependencies classes. Other shared packages may not reference features."
             }.toList()
         }.sorted()
@@ -712,7 +716,8 @@ internal object FeatureFirstRules {
     fun featureVisibilityViolations(sources: Map<String, String>): List<String> =
         sources.flatMap { (path, source) ->
             val packageName = PACKAGE.find(codeOnly(source))?.groupValues?.get(1).orEmpty()
-            val isNavigationPackage = FEATURE_NAVIGATION_PACKAGE.matches(packageName)
+            val isNavigationPackage = FEATURE_NAVIGATION_PACKAGE.matches(packageName) ||
+                FEATURE_SHELL_PACKAGE.matches(packageName)
             val isDiPackage = FEATURE_DI_PACKAGE.matches(packageName)
 
             declarations(source, includeNested = false).mapNotNull { parsed ->
@@ -726,8 +731,8 @@ internal object FeatureFirstRules {
                     return@mapNotNull null
                 }
 
-                "$path:${parsed.lineNumber} exposes $name outside feature navigation contracts " +
-                    "or a DI Dependencies class. Feature implementations must be internal or private."
+                "$path:${parsed.lineNumber} exposes $name outside feature navigation contracts, " +
+                    "shell UI or a DI Dependencies class. Feature implementations must be internal or private."
             }
         }.sorted()
 

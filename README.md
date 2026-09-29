@@ -185,31 +185,48 @@ Feature route keys and entry providers live in each feature's `.navigation` pack
 the app shell's navigation-composition boundary may import those packages; feature code publishes
 intent callbacks and does not name destination features.
 
-`BrowseRoute` is the initial destination. Browse and Favorites are top-level destinations;
-Category and Sound are nested destinations. Story remains a separate content feature while
-sharing the content-neutral playback port.
+`BrowseRoute` is the initial destination. Browse, Favorites and Stories are top-level destinations;
+Category, Sound and Story details are nested destinations. Every content row opens its detail from
+the row body; only its explicit play/pause button changes playback. `SoundRoute(trackId)` preserves
+the existing serialized route. `StoryRoute(storyId)` opens the selected story's description, author,
+narrator and duration. Each tab retains its own history and saved screen state.
 
-`feature:nowplaying` is the one feature with no route. It is chrome rather than a destination, and
-reaches the screen as a `NavDisplay` scene decorator: `NavDisplay` draws it around whichever scene
-is showing, so it survives every destination change and every tab switch. Its public contract is
-still a single declaration in its `.navigation` package, and the composition root is still the only
-module allowed to name it — a composable the shell decorates scenes with, where the others hand
-back an entry the shell registers. No feature knows it exists.
+`AppNavigationHost` wires features to `Navigator`; `AppNavigationDisplay` owns the actual
+`NavDisplay`. Saveable state and ViewModel entry decorators are retained for every tab, including
+inactive tabs, in the documented order. Tab-scoped content keys prevent the same sound in Browse
+and Favorites from sharing an entry store. A destination already on the stack is revisited by
+popping to it, preserving its parents and state. Opening another destination of the same kind
+(Ocean after Rain) replaces the earlier one and whatever it opened, so Back leaves the selection.
+Selecting another tab preserves its history; reselecting returns to its root, and a further tap
+at the root scrolls its list to the start.
 
-A scaffold slot would be simpler, and is what Google's Common UI recipe uses for the tab bar, which
-stays there. The bar is inside the navigation area instead because that is the only place it can
-reach `NavDisplay`'s `SharedTransitionScope` — a bar that expands into the screen for what it is
-playing has to hand its content to that screen, and shared elements only match within one
-`SharedTransitionLayout`. The bar opens the current sound's detail or the Stories tab; the
-expand-into-the-screen animation remains future work.
+The chrome is the same on every screen, so it sits outside `NavDisplay`: Material's
+`NavigationSuiteScaffold` chooses a short navigation bar or a wide rail from the window size
+class, and the mini player is drawn once below the content. Screens draw their own background
+behind the status bar and inset only their content. Material Adaptive Navigation 3 supplies list, detail, extra panes and empty-detail placeholders,
+including internal predictive Back. Pane metadata is scoped to a tab: unrelated content opened
+from the player falls back to a full-screen entry. The default display handles compact screens.
+Global forward, pop and predictive-pop transitions are explicit, with player-specific vertical
+metadata overrides. Back controls disappear only when the actual parent pane is visible. While
+several panes are visible, a pane's back arrow closes that pane and what was opened from it; system
+Back still removes the latest entry.
 
-`NavDisplay` animates between *decorated* scenes, so during a navigation the outgoing and incoming
-scenes both draw a bar. One shared-element key matches the two, which moves the bar rather than
-cross-fading it. Google's `navscenedecorator` recipe goes further — one `movableContentOf` carried
-between scenes, plus a size-caching modifier for the vacated space — because its navigation bar owns
-animation state that must not be duplicated. This bar owns none: its state is a ViewModel on the
-root store, so both compositions read the same instance. Give the bar state of its own and the
-recipe's version becomes the right one again.
+See [Navigation 3 coverage and official references](docs/NAVIGATION3_MIMARISI.md) for policies,
+optional recipes, validation and platform limits. The navigation composition test suite is shared
+by Android device tests and iOS simulator tests.
+
+`feature:nowplaying` owns `NowPlayingRoute`, its serializer and an entry provider like every other
+feature. Tapping the persistent mini player opens the player screen in the current tab's back
+stack. The mini player is hidden while that screen is selected. Back returns to the previous
+screen; the details action removes the player entry before opening `SoundRoute` or `StoryRoute`.
+The shell owns that mapping; nowplaying consumes only the content-neutral session port.
+
+The screen's ViewModel belongs to its navigation entry, while the mini player's presentation
+ViewModel belongs to the app root. Both observe the same app-scoped playback session through a
+feature-owned use case. Clearing either presentation scope does not stop playback. A player route
+with no active item shows an empty state, and its sleep timer can still be started or cancelled:
+the timer belongs to the session, so it can be set before anything plays. While a timer runs with
+nothing requested, the mini player stays on screen as a "Sleep timer" bar leading to the player.
 
 ## Playback and delivery
 
@@ -222,20 +239,27 @@ over whatever is playing without asking either catalog what a `PlaybackItemId` m
 published only while the engine holds the item the summary names as requested; mid-switch it is
 absent and `isPreparing` says so instead.
 
-That bar offers play/pause and an open-item intent. `shared.composition` maps that intent to a
-route; the bar never imports another feature. Its ViewModel is not scoped to a navigation entry:
-the scene decorator draws it beside the entry content, outside the entry's ViewModel decorator,
-so `viewModel` resolves the root owner. Both transitioning scenes share that one instance.
+The mini player shows play/pause, preparation or failure state, and the active sleep timer's
+remaining time. It steps aside while the playing item's own detail is showing, since that screen
+already has its play/pause and timer. Its Navigation 3 screen identifies the current item and puts
+the sleep timer directly under the transport, followed by volume and repeat. The player does not
+expose a playback progress bar or seeking controls. Sound durations read as one loop ("0:12 loop").
 
-Sound details and Stories both expose the session sleep timer. Each feature observes and controls
-it through `PlaybackPort`; only the stateless timer control and its labels live in `designsystem`.
+Sound and Story details expose item-specific playback, metadata and errors; Sound also exposes
+favorites. They do not change global volume, repeat or timer settings. Those settings are observed
+and controlled by `feature:nowplaying` through `PlaybackPort`; stateless controls and common labels
+live in `designsystem`. Both details offer "Set sleep timer", which the shell routes to the player.
 
 `SoundPlaybackResolver` reads metadata through `SoundPort`, looks up its own internal source and
 passes a request to `DeliveryPort`. The sound module owns its cache namespace, accepted MPEG types
 and complete retained-file inventory. Delivery prefers cached files; otherwise it returns the
 HTTPS source immediately and starts a background download.
+`SoundPort.observeOfflineReady` reports verified cache readiness without starting a download.
+Sound details show "Available offline" only while that signal is true, otherwise "Internet
+required". Readiness updates as cached files become available or are removed.
 `StoryPlaybackResolver` reads metadata through `StoryPort`, looks up its own internal HTTPS source
-and returns it for streaming without caching. Both resolvers supply metadata and loop policy through
+and returns it for streaming without caching; story details state that internet is required.
+Both resolvers supply metadata and loop policy through
 `PlaybackItemResolver`; neither the session nor the platform engine needs to know the content type.
 
 Android playback uses Media3; iOS playback uses AVFoundation. Platform implementations are
@@ -263,7 +287,8 @@ playback. The architecture check requires these values to agree with the downloa
    is non-public, or a cross-core reference bypasses the target module's `.port` package.
 5. Screen state or a feature-specific use case leaks into core; a `Repository` / DI-style
    `Provider` abstraction appears in core; or Koin is reintroduced.
-6. A feature exposes anything except navigation contracts or DI `*Dependencies` classes, or shared
+6. A feature exposes anything except navigation contracts, shell UI (`shell` package, e.g. the mini
+   player the app places below every screen) or DI `*Dependencies` classes, or shared
    references features outside the navigation/composition and DI boundaries.
 7. Designsystem depends on an application project.
 8. A module directory is absent from the build, or a core/feature module is absent from shared's

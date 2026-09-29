@@ -23,18 +23,21 @@ import com.xwab.app.designsystem.theme.SleepRelaxTheme
  * from the category list the first time.
  */
 @Composable
+// Named layout, action and accessibility options keep card call sites readable without a wrapper model.
+@Suppress("LongParameterList")
 internal fun ContentCard(
     title: String,
     subtitle: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onClickLabel: String? = null,
     trailingContent: (@Composable () -> Unit)? = null,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .glassCard()
-            .clickable(onClick = onClick)
+            .clickable(onClickLabel = onClickLabel, onClick = onClick)
             .padding(SleepRelaxTheme.dimens.spacingMedium),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -43,7 +46,7 @@ internal fun ContentCard(
                 text = title,
                 style = SleepRelaxTheme.typography.titleMedium,
                 color = SleepRelaxTheme.colors.textPrimary,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(

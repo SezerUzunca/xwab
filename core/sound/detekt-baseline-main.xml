@@ -3,7 +3,6 @@
   <ManuallySuppressedIssues/>
   <CurrentIssues>
     <ID>MaxLineLength:CatalogManifest.kt:Track(TrackId("chopin-berceuse"), "Chopin's Berceuse", CategoryId("lullaby"), 290, playbackArtist = "Veronica van der Knaap")</ID>
-    <ID>MaxLineLength:CatalogManifest.kt:Track(TrackId("igbo-lullaby"), "Igbo Lullaby", CategoryId("lullaby"), 37, playbackTitle = "Egwu Nwa", playbackArtist = "Akum20")</ID>
     <ID>MaxLineLength:CatalogManifest.kt:Track(TrackId("shorebirds"), "Shorebirds by the Sea", CategoryId("ocean"), 12, playbackArtist = "U.S. Fish and Wildlife Service")</ID>
     <ID>MaxLineLength:CatalogManifest.kt:Track(TrackId("south-carolina-beach"), "South Carolina Beach", CategoryId("ocean"), 62, playbackArtist = "Anthropic42")</ID>
     <ID>MaxLineLength:SoundSourceManifest.kt:soundSource("brahms-lullaby", "https://upload.wikimedia.org/wikipedia/commons/transcoded/c/cf/Lullaby_wound_up_clock_guten_abend_gute_nacht.ogg/Lullaby_wound_up_clock_guten_abend_gute_nacht.ogg.mp3")</ID>

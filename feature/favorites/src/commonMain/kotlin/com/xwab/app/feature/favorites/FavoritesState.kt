@@ -16,6 +16,7 @@ internal sealed interface FavoritesUiState {
 /** Content available in [FavoritesUiState.Ready]. */
 internal data class FavoritesState(
     val favoritesAvailable: Boolean = true,
+    val favoriteWriteFailed: Boolean = false,
     val tracks: List<Track> = emptyList(),
     val requestedTrackId: TrackId? = null,
     /** What the row's play/pause control shows: the session's intent, not audible sound. */

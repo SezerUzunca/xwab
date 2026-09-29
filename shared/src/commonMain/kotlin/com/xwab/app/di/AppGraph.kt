@@ -1,6 +1,5 @@
 package com.xwab.app.di
 
-import com.xwab.app.content.ContentCacheMaintenance
 import com.xwab.app.feature.browse.di.BrowseDependencies
 import com.xwab.app.feature.category.di.CategoryDependencies
 import com.xwab.app.feature.favorites.di.FavoritesDependencies
@@ -38,11 +37,4 @@ interface AppGraph {
      * that reads playback.
      */
     val nowPlayingDependencies: () -> NowPlayingDependencies
-
-    /**
-     * Not a screen: the one piece of housekeeping that has to happen whether anything is opened
-     * or not. Removing a content module leaves its downloads behind, and only this module knows
-     * which namespaces are still installed.
-     */
-    val contentCacheMaintenance: () -> ContentCacheMaintenance
 }
