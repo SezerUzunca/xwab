@@ -22,7 +22,7 @@ internal fun entryProviderForTab(
         val displayMetadata = entry.metadata + metadataProvider(tab, key) + metadata { put(TabKey, tabId) }
         NavEntry(
             key = key,
-            // A String is saveable on both platforms. The length prefix separates the tab from
+            // A String is savable on both platforms. The length prefix separates the tab from
             // the feature's content key even if either contains a delimiter.
             contentKey = "${tabId.length}:$tabId${entry.contentKey}",
             metadata = displayMetadata,
