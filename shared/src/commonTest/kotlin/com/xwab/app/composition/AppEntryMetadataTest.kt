@@ -18,8 +18,8 @@ import com.xwab.app.feature.nowplaying.navigation.NowPlayingRoute
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import com.xwab.app.feature.story.navigation.StoryRoute
-import com.xwab.app.navigation.ParentPaneKey
-import com.xwab.app.navigation.entryProviderForTab
+import com.xwab.app.ui.ParentPaneKey
+import com.xwab.app.ui.entryProviderForTab
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull

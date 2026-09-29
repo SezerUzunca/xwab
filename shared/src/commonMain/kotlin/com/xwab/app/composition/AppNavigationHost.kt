@@ -7,10 +7,10 @@ import androidx.compose.ui.Modifier
 import com.xwab.app.di.AppGraph
 import com.xwab.app.feature.nowplaying.navigation.NowPlayingRoute
 import com.xwab.app.feature.nowplaying.shell.NowPlayingBar
-import com.xwab.app.navigation.AppNavigationDisplay
 import com.xwab.app.navigation.Navigator
 import com.xwab.app.navigation.rememberNavigationState
-import com.xwab.app.navigation.rememberTabEntries
+import com.xwab.app.ui.AppNavigationDisplay
+import com.xwab.app.ui.rememberTabEntries
 
 /** Application wiring stays here; scenes, entry decorators and saved stacks live in navigation. */
 @Composable

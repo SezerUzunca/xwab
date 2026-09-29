@@ -1,4 +1,4 @@
-package com.xwab.app.navigation
+package com.xwab.app.ui
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform

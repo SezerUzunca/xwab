@@ -1,4 +1,4 @@
-package com.xwab.app.navigation
+package com.xwab.app.ui
 
 import androidx.navigation3.runtime.NavMetadataKey
 import androidx.compose.material3.adaptive.layout.ThreePaneScaffoldRole

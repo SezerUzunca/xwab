@@ -24,11 +24,17 @@ sürümlerle derlenir; örneklerdeki sürüm numaraları doğrudan kopyalanmaz.
 | `composition/AppNavigationHost` | Feature entry sözleşmelerini, callback'leri ve mini oynatıcıyı bağlama |
 | `composition/AppEntryMetadata` | Feature'lar arası sunum politikası; resmi pane metadata'sı |
 | `navigation/RememberNavigationState` | Her sekmenin `rememberNavBackStack` geçmişi ve seçili sekmenin seri hale getirilmesi |
-| `navigation/TabEntries` | Aktif olmayan sekmeler dahil saveable-state ve ViewModel dekoratörlerini yaşatma |
-| `navigation/TabEntryProvider` | Sekmeye özgü saveable content key ve metadata |
 | `navigation/Navigator` | Push, pop-to-existing, aynı türden hedefi değiştirme, sekme seçimi, yeniden seçim ve ekran değiştirme politikası |
-| `navigation/AppNavigationDisplay` | Resmi `NavigationSuiteScaffold` (bar/rail), içinde `NavDisplay`, Material list–detail sahne stratejisi, animasyonlar ve mini oynatıcı yuvası |
-| `navigation/AdaptiveBackControl` | Gerçek ebeveyn paneli görünüyorsa tekrarlı geri düğmesini gizleme; birden fazla panel görünürken geri okunu kendi panelini kapatan `Navigator.goUp`'a bağlama |
+| `navigation/TopLevelDestination`, `FeatureSerializers`, `RetiredRoute` | Sekme listesi, kayıtlı route'ların serileştirilmesi ve kaldırılmış route'ların güvenle atılması |
+| `ui/TabEntries` | Aktif olmayan sekmeler dahil saveable-state ve ViewModel dekoratörlerini yaşatma |
+| `ui/TabEntryProvider` | Sekmeye özgü saveable content key ve metadata; her entry'yi `AdaptiveBackControl` ile sarma |
+| `ui/AppNavigationDisplay` | Resmi `NavigationSuiteScaffold` (bar/rail), içinde `NavDisplay`, Material list–detail sahne stratejisi ve mini oynatıcı yuvası |
+| `ui/NavigationTransitions`, `ui/PaneMetadata` | Sekme, ileri/geri ve oynatıcı geçişleri; sekme ve ebeveyn panel metadata anahtarları |
+| `ui/AdaptiveBackControl` | Gerçek ebeveyn paneli görünüyorsa tekrarlı geri düğmesini gizleme; birden fazla panel görünürken geri okunu kendi panelini kapatan `Navigator.goUp`'a bağlama |
+
+`navigation` durumu ve kuralları tutar, Compose çizimi içermez; `ui` bu durumu ekrana taşır.
+Bağımlılık tek yönlüdür: `ui` → `navigation`. Mimari kural gereği `ui` feature'lara dokunamaz;
+feature bilen tek paketler `composition`, `navigation` ve `di`'dır.
 
 `NavController` ve feature'lar arası route bağımlılığı yoktur. Saved-state formatındaki mevcut
 `@SerialName` değerleri ve route argümanları değiştirilmez. KMP için açık serializer modülü

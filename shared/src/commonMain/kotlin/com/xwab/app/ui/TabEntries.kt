@@ -1,4 +1,4 @@
-package com.xwab.app.navigation
+package com.xwab.app.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
@@ -8,6 +8,7 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import com.xwab.app.navigation.NavigationState
 
 /**
  * The entries `NavDisplay` should render: the tab that is showing, and the start tab beneath it.

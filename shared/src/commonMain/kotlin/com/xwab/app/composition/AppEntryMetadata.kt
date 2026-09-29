@@ -21,8 +21,8 @@ import com.xwab.app.feature.nowplaying.navigation.NowPlayingRoute
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import com.xwab.app.feature.story.navigation.StoryRoute
-import com.xwab.app.navigation.ParentPaneKey
-import com.xwab.app.navigation.playerTransitionMetadata
+import com.xwab.app.ui.ParentPaneKey
+import com.xwab.app.ui.playerTransitionMetadata
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import xwab.shared.generated.resources.Res

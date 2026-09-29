@@ -1,4 +1,4 @@
-package com.xwab.app.navigation
+package com.xwab.app.ui
 
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
@@ -16,6 +16,8 @@ import com.xwab.app.feature.sound.di.SoundDependencies
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.di.StoriesDependencies
 import com.xwab.app.feature.story.navigation.StoriesRoute
+import com.xwab.app.navigation.NavigationState
+import com.xwab.app.navigation.Navigator
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs

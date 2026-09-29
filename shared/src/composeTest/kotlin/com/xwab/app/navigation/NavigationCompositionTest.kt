@@ -52,6 +52,8 @@ import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.composition.appEntryMetadata
 import com.xwab.app.designsystem.components.LocalBackButtonVisibility
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
+import com.xwab.app.ui.AppNavigationDisplay
+import com.xwab.app.ui.rememberTabEntries
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

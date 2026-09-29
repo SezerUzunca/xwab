@@ -1,4 +1,4 @@
-package com.xwab.app.navigation
+package com.xwab.app.ui
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -25,6 +25,7 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.ui.NavDisplay
 import androidx.navigationevent.NavigationEvent
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
+import com.xwab.app.navigation.TOP_LEVEL_DESTINATIONS
 import org.jetbrains.compose.resources.stringResource
 
 /**
