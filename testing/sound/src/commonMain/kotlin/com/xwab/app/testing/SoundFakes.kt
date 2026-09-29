@@ -7,7 +7,11 @@ import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.TrackId
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 
 /**
  * The sound catalog's stand-in, plus the builders that make a sound test's setup one line.
@@ -38,7 +42,9 @@ fun category(id: String, trackCount: Int = 0) = Category(
 class FakeSoundCatalog(
     private val categories: List<Category> = emptyList(),
     private val tracks: List<Track> = emptyList(),
+    offlineReady: Set<TrackId> = emptySet(),
 ) : SoundPort {
+    private val offlineReadyIds = MutableStateFlow(offlineReady)
     override fun observeCategories(): Flow<List<Category>> = flowOf(categories)
     override fun observeAllTracks(): Flow<List<Track>> = flowOf(tracks)
     override fun observeCategory(categoryId: CategoryId): Flow<Category?> =
@@ -48,6 +54,13 @@ class FakeSoundCatalog(
         flowOf(tracks.filter { it.categoryId == categoryId })
 
     override fun observeTrack(trackId: TrackId): Flow<Track?> = flowOf(tracks.find { it.id == trackId })
+
+    override fun observeOfflineReady(trackId: TrackId): Flow<Boolean> =
+        offlineReadyIds.map { trackId in it }.distinctUntilChanged()
+
+    fun setOfflineReady(trackId: TrackId, ready: Boolean) {
+        offlineReadyIds.update { if (ready) it + trackId else it - trackId }
+    }
 }
 
 /**

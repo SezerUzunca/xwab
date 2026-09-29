@@ -48,15 +48,9 @@ internal class SoundViewModel(
             favoriteReadStatus = content.favoriteReadStatus,
             favoriteWriteFailed = writeFailed,
             isFavorite = lastKnownFavorite ?: content.isFavorite,
+            availableOffline = content.availableOffline,
             playIntent = isRequested && playback.playIntent,
             isPreparing = isRequested && playback.isPreparing,
-            // Straight from the session, including before anything is loaded: the product default
-            // lives there, so this screen has no second opinion to disagree with it.
-            isLooping = playback.isLooping,
-            // Straight from the session, which states its range on the port and keeps it. This
-            // used to be clamped again here, back when the range was not written down anywhere.
-            volume = playback.volume,
-            sleepTimerRemainingMs = content.sleepTimerRemainingMs,
             error = when {
                 content.track == null -> SoundError.SoundNotFound
                 // Matched against the failure's own track, not the session's current one. A lookup
@@ -70,6 +64,16 @@ internal class SoundViewModel(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = SoundUiState.Loading,
+    )
+
+    /**
+     * The session's timer, for the shortcut that leads to it. Kept out of [state] on purpose: it
+     * ticks every second, and nothing else on this screen should be rebuilt that often.
+     */
+    val sleepTimerRemainingMs: StateFlow<Long?> = playbackPort.sleepTimerRemainingMs.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = null,
     )
 
     fun toggleFavorite() {
@@ -92,33 +96,6 @@ internal class SoundViewModel(
             viewModelScope.launch { playbackPort.play(itemId) }
         }
     }
-
-    /**
-     * The settings below reach the coordinator unchanged. They used to go through a use case each,
-     * and none of those held a decision — a use case has to earn its name.
-     *
-     * Each refuses what [SoundState.canConfigure] refuses, which is also what the panel drawing
-     * them renders as disabled — one predicate, read by both. It used to be spelled out in each
-     * layer separately, and applied to a different subset in each.
-     */
-    fun setLooping(enabled: Boolean) {
-        if (readyState()?.canConfigure == true) playbackPort.setLooping(enabled)
-    }
-
-    fun setVolume(volume: Float) {
-        if (readyState()?.canConfigure == true) playbackPort.setVolume(volume)
-    }
-
-    fun startSleepTimer(durationMs: Long) {
-        if (readyState()?.canConfigure == true) playbackPort.startSleepTimer(durationMs)
-    }
-
-    /**
-     * Neither guarded here nor disabled on screen: a timer only runs because there was a track to
-     * start it with, and a catalog that drops that track afterwards must not leave it running with
-     * nothing able to stop it.
-     */
-    fun cancelSleepTimer() = playbackPort.cancelSleepTimer()
 
     /** What the screen is showing, or null while the first content has not arrived. */
     private fun readyState(): SoundState? = (state.value as? SoundUiState.Ready)?.value

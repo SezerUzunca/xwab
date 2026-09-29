@@ -5,15 +5,23 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.collectLatest
 import com.xwab.app.core.story.port.Story
 import com.xwab.app.core.story.port.StoryId
 import com.xwab.app.core.session.port.PlaybackFailure
@@ -21,8 +29,6 @@ import com.xwab.app.designsystem.components.PlayableRow
 import com.xwab.app.designsystem.format.formatDuration
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.ScreenContainer
-import com.xwab.app.designsystem.components.SleepTimerControl
-import com.xwab.app.designsystem.components.glassCard
 import com.xwab.app.designsystem.components.screenContentPadding
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.stringResource
@@ -38,16 +44,22 @@ import xwab.feature.story.generated.resources.story_not_found
 import xwab.feature.story.generated.resources.story_unavailable
 
 @Composable
-internal fun StoriesScreenRoute(viewModel: StoriesViewModel) {
+internal fun StoriesScreenRoute(
+    viewModel: StoriesViewModel,
+    onStoryClick: (StoryId) -> Unit,
+    reselectEvents: Flow<Unit> = emptyFlow(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
+    LaunchedEffect(reselectEvents) { reselectEvents.collectLatest { listState.animateScrollToItem(0) } }
 
     when (val content = state) {
         StoriesUiState.Loading -> LoadingContent()
         is StoriesUiState.Ready -> StoriesScreen(
             state = content.value,
             onPlaybackClick = viewModel::togglePlayback,
-            onTimerStart = viewModel::startSleepTimer,
-            onTimerCancel = viewModel::cancelSleepTimer,
+            onStoryClick = onStoryClick,
+            listState = listState,
         )
     }
 }
@@ -57,11 +69,12 @@ internal fun StoriesScreenRoute(viewModel: StoriesViewModel) {
 internal fun StoriesScreen(
     state: StoriesState,
     onPlaybackClick: (storyId: StoryId) -> Unit,
-    onTimerStart: (Long) -> Unit,
-    onTimerCancel: () -> Unit,
+    onStoryClick: (StoryId) -> Unit,
+    listState: LazyListState = rememberLazyListState(),
 ) {
     ScreenContainer {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = screenContentPadding(),
             verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingSmall),
@@ -70,7 +83,9 @@ internal fun StoriesScreen(
                 Column {
                     Text(
                         text = stringResource(Res.string.stories_title),
-                        style = SleepRelaxTheme.typography.headlineSmall,
+                        modifier = Modifier.semantics { heading() },
+                        // The same size as the other two tab titles; a tab root is not a sub-page.
+                        style = SleepRelaxTheme.typography.headlineLarge,
                         color = SleepRelaxTheme.colors.textPrimary,
                     )
                     Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraSmall))
@@ -81,18 +96,6 @@ internal fun StoriesScreen(
                     )
                     Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
                 }
-            }
-
-            item(key = "sleep-timer") {
-                SleepTimerControl(
-                    remainingMs = state.sleepTimerRemainingMs,
-                    enabled = state.canStartSleepTimer,
-                    onTimerStart = onTimerStart,
-                    onTimerCancel = onTimerCancel,
-                    modifier = Modifier
-                        .glassCard()
-                        .padding(SleepRelaxTheme.dimens.spacingLarge),
-                )
             }
 
             if (state.stories.isEmpty()) {
@@ -110,10 +113,9 @@ internal fun StoriesScreen(
                 // comes back.
                 StoryRow(
                     story = story,
-                    isPlaying = state.isRowPlaying(story.id),
-                    isPreparing = state.isRowPreparing(story.id),
-                    failure = state.rowFailure(story.id),
-                    onClick = { onPlaybackClick(story.id) },
+                    state = state,
+                    onClick = dropUnlessResumed { onStoryClick(story.id) },
+                    onPlayPauseClick = { onPlaybackClick(story.id) },
                 )
             }
         }
@@ -123,13 +125,10 @@ internal fun StoriesScreen(
 @Composable
 private fun StoryRow(
     story: Story,
-    isPlaying: Boolean,
-    isPreparing: Boolean,
-    failure: PlaybackFailure?,
+    state: StoriesState,
     onClick: () -> Unit,
+    onPlayPauseClick: () -> Unit,
 ) {
-    // A story is played from its row and has no screen of its own, so opening it and starting it
-    // are the same gesture.
     PlayableRow(
         title = story.title,
         subtitle = stringResource(
@@ -137,11 +136,11 @@ private fun StoryRow(
             story.author,
             formatDuration(story.durationSeconds),
         ),
-        isPlaying = isPlaying,
+        playRequested = state.isRowPlaying(story.id),
         onClick = onClick,
-        onPlayPauseClick = onClick,
-        statusMessage = stringResource(UiRes.string.preparing).takeIf { isPreparing },
-        errorMessage = failure?.let { stringResource(it.messageResource()) },
+        onPlayPauseClick = onPlayPauseClick,
+        statusMessage = stringResource(UiRes.string.preparing).takeIf { state.isRowPreparing(story.id) },
+        errorMessage = state.rowFailure(story.id)?.let { stringResource(it.storyMessageResource()) },
     )
 }
 
@@ -149,7 +148,7 @@ private fun StoryRow(
  * A story the catalog has dropped and one that could not be reached read the same on screen
  * otherwise, and they are not the same advice: one is a dead end, the other is worth another tap.
  */
-private fun PlaybackFailure.messageResource() = when (this) {
+internal fun PlaybackFailure.storyMessageResource() = when (this) {
     is PlaybackFailure.ItemNotFound -> Res.string.story_not_found
     is PlaybackFailure.SourceUnavailable -> Res.string.story_unavailable
     is PlaybackFailure.EngineFailed -> Res.string.story_could_not_open
@@ -173,8 +172,7 @@ private fun StoriesScreenPreview() {
                 ),
             ),
             onPlaybackClick = {},
-            onTimerStart = {},
-            onTimerCancel = {},
+            onStoryClick = {},
         )
     }
 }

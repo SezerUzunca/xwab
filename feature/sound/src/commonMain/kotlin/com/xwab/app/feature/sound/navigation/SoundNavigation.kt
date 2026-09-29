@@ -22,6 +22,6 @@ data class SoundRoute(val trackId: String) : NavKey
 
 val soundNavigationSerializers = SerializersModule {
     polymorphic(NavKey::class) {
-        subclass(SoundRoute.serializer())
+        subclass(SoundRoute::class)
     }
 }

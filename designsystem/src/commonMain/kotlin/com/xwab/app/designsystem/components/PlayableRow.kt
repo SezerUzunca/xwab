@@ -8,7 +8,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
+import org.jetbrains.compose.resources.stringResource
+import xwab.designsystem.generated.resources.Res
+import xwab.designsystem.generated.resources.open_content_details
 
 /**
  * One row of something that can be played from the list it sits in, with whatever the session has
@@ -29,9 +35,9 @@ import com.xwab.app.designsystem.theme.SleepRelaxTheme
  * the wording for "this could not be reached" belongs to whichever feature knows whether the thing
  * is a sound or a story, and the design system has no business deciding that.
  *
- * @param onClick what tapping the row itself does — usually opening the thing.
- * @param onPlayPauseClick what the transport button does. Pass the same lambda as [onClick] for a
- *   list whose rows only play, like the story list, where there is nothing else to open.
+ * @param onClick opens the content's details, announced as "Open details for [title]".
+ * @param onPlayPauseClick starts or pauses the content without leaving the list.
+ * @param playRequested true while playback is requested, including loading or buffering.
  * @param statusMessage shown while the row is wanted but not yet audible. Null when it is not.
  * @param errorMessage shown when the session failed on this row. Null when it did not.
  * @param trailingContent drawn after the transport button, for a list whose rows carry one more
@@ -41,7 +47,7 @@ import com.xwab.app.designsystem.theme.SleepRelaxTheme
 fun PlayableRow(
     title: String,
     subtitle: String,
-    isPlaying: Boolean,
+    playRequested: Boolean,
     onClick: () -> Unit,
     onPlayPauseClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -54,9 +60,14 @@ fun PlayableRow(
             title = title,
             subtitle = subtitle,
             onClick = onClick,
+            onClickLabel = stringResource(Res.string.open_content_details, title),
             trailingContent = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    PlayPauseButton(isPlaying = isPlaying, onClick = onPlayPauseClick)
+                    PlayPauseButton(
+                        playRequested = playRequested,
+                        onClick = onPlayPauseClick,
+                        contentTitle = title,
+                    )
                     trailingContent?.invoke()
                 }
             },
@@ -66,10 +77,12 @@ fun PlayableRow(
                 text = it,
                 style = SleepRelaxTheme.typography.labelMedium,
                 color = SleepRelaxTheme.colors.textSecondary,
-                modifier = Modifier.padding(
-                    start = SleepRelaxTheme.dimens.spacingMedium,
-                    top = SleepRelaxTheme.dimens.spacingExtraSmall,
-                ),
+                modifier = Modifier
+                    .padding(
+                        start = SleepRelaxTheme.dimens.spacingMedium,
+                        top = SleepRelaxTheme.dimens.spacingExtraSmall,
+                    )
+                    .semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
         errorMessage?.let {
@@ -77,10 +90,12 @@ fun PlayableRow(
                 text = it,
                 style = SleepRelaxTheme.typography.bodyMedium,
                 color = SleepRelaxTheme.colors.error,
-                modifier = Modifier.padding(
-                    start = SleepRelaxTheme.dimens.spacingMedium,
-                    top = SleepRelaxTheme.dimens.spacingExtraSmall,
-                ),
+                modifier = Modifier
+                    .padding(
+                        start = SleepRelaxTheme.dimens.spacingMedium,
+                        top = SleepRelaxTheme.dimens.spacingExtraSmall,
+                    )
+                    .semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
     }

@@ -2,10 +2,18 @@
     <string name="back">Back</string>
     <string name="play">Play</string>
     <string name="pause">Pause</string>
-    <string name="add_favorite">Add to favorites</string>
-    <string name="remove_favorite">Remove from favorites</string>
+    <string name="play_content">Play %1$s</string>
+    <string name="pause_content">Pause %1$s</string>
+    <string name="open_content_details">Open details for %1$s</string>
+    <string name="favorite">Favorite</string>
+    <string name="favorite_content">Favorite %1$s</string>
     <string name="favorites_loading">Loading favorites</string>
     <string name="duration_public_domain">%1$s • Public Domain</string>
+    <!--
+      A sound's length is the length of one pass: it repeats by default, so "0:12" alone reads as
+      "stops after twelve seconds". Stories keep a plain duration.
+    -->
+    <string name="loop_duration">%1$s loop</string>
 
     <!--
       Shown by every list that plays inline, while a row is wanted but not yet audible. Shared
@@ -20,9 +28,15 @@
     <string name="sleep_timer">Sleep timer</string>
     <string name="sleep_timer_off">Off</string>
     <string name="sleep_timer_stops_in">Stops in %1$s</string>
+    <string name="sleep_timer_start_hint">Choose a duration to start the timer now.</string>
+    <string name="sleep_timer_restart_hint">Choose a duration to restart the timer from now.</string>
+    <string name="start_timer_duration">Stop playback in %1$s</string>
+    <string name="restart_timer_duration">Restart timer: stop playback in %1$s</string>
     <string name="timer_15_minutes">15 min</string>
     <string name="timer_30_minutes">30 min</string>
     <string name="timer_45_minutes">45 min</string>
     <string name="timer_60_minutes">60 min</string>
     <string name="cancel_timer">Cancel timer</string>
+    <string name="set_sleep_timer">Set sleep timer</string>
+    <string name="sleep_timer_running">Sleep timer · %1$s</string>
 </resources>

@@ -35,4 +35,7 @@ internal class IosFavoritesAdapter : FavoritesPort {
     override fun observe(namespace: String): Flow<FavoritesSnapshot> = delegate.observe(namespace)
 
     override suspend fun toggle(namespace: String, itemId: String) = delegate.toggle(namespace, itemId)
+
+    override suspend fun setFavorite(namespace: String, itemId: String, isFavorite: Boolean) =
+        delegate.setFavorite(namespace, itemId, isFavorite)
 }

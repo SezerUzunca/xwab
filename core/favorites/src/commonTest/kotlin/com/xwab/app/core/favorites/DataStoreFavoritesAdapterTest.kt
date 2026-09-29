@@ -8,6 +8,8 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,11 +26,70 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import com.xwab.app.core.favorites.port.FavoritesSnapshot
 import com.xwab.app.core.favorites.port.FavoriteToggleResult
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DataStoreFavoritesAdapterTest {
+    @Test
+    fun explicitMembershipIsIdempotentAndKeepsOtherIdsAndNamespaces() = runTest {
+        val store = FakePreferencesDataStore()
+        val adapter = DataStoreFavoritesAdapter(store)
+        adapter.setFavorite("sound", "rain", true)
+        adapter.setFavorite("sound", "rain", true)
+        adapter.setFavorite("sound", "ocean", true)
+        adapter.setFavorite("story", "rain", true)
+        assertEquals(setOf("rain", "ocean"), adapter.observe("sound").first().ids)
+
+        adapter.setFavorite("sound", "rain", false)
+        adapter.setFavorite("sound", "rain", false)
+        val reopened = DataStoreFavoritesAdapter(store)
+        assertEquals(setOf("ocean"), reopened.observe("sound").first().ids)
+        assertEquals(setOf("rain"), reopened.observe("story").first().ids)
+    }
+
+    @Test
+    fun concurrentRestoreRequestsFromSeparateAdaptersDoNotToggleTheItemOff() = runTest {
+        val store = FakePreferencesDataStore()
+        val firstScreen = DataStoreFavoritesAdapter(store)
+        val secondScreen = DataStoreFavoritesAdapter(store)
+        val entered = CompletableDeferred<Unit>()
+        val releaseWrite = CompletableDeferred<Unit>()
+        store.beforeNextWrite = {
+            entered.complete(Unit)
+            releaseWrite.await()
+        }
+        val first = launch { firstScreen.setFavorite("sound", "rain", true) }
+        runCurrent()
+        assertTrue(entered.isCompleted)
+        val second = launch { secondScreen.setFavorite("sound", "rain", true) }
+        runCurrent()
+        releaseWrite.complete(Unit)
+        first.join()
+        second.join()
+
+        assertEquals(setOf("rain"), firstScreen.observe("sound").first().ids)
+    }
+
+    @Test
+    fun explicitMembershipValidatesInputsAndPreservesFailureAndCancellation() = runTest {
+        val store = FakePreferencesDataStore()
+        val adapter = DataStoreFavoritesAdapter(store)
+        assertFailsWith<IllegalArgumentException> { adapter.setFavorite("../sound", "rain", true) }
+        assertFailsWith<IllegalArgumentException> { adapter.setFavorite("sound", " ", false) }
+        adapter.setFavorite("sound", "rain", true)
+
+        store.writeFailure = IllegalStateException("disk full")
+        assertEquals(FavoriteToggleResult.Unavailable, adapter.setFavorite("sound", "rain", false))
+        store.writeFailure = null
+        assertEquals(setOf("rain"), adapter.observe("sound").first().ids)
+
+        store.writeFailure = CancellationException("cancelled")
+        assertFailsWith<CancellationException> { adapter.setFavorite("sound", "rain", false) }
+    }
+
     @Test
     fun identicalIdsInDifferentNamespacesAreIndependentAndPersist() = runTest {
         val store = FakePreferencesDataStore()
@@ -162,6 +223,8 @@ class DataStoreFavoritesAdapterTest {
         val readable = MutableStateFlow(true)
         var failingReads: Int = 0
         var writeFailure: Throwable? = null
+        var beforeNextWrite: (suspend () -> Unit)? = null
+        private val writeMutex = Mutex()
 
         /** Puts ids straight into the store, including values the adapter would never write. */
         fun store(ids: Set<String>) {
@@ -181,9 +244,12 @@ class DataStoreFavoritesAdapterTest {
 
         override suspend fun updateData(
             transform: suspend (t: Preferences) -> Preferences,
-        ): Preferences {
+        ): Preferences = writeMutex.withLock {
             writeFailure?.let { throw it }
-            return transform(stored.value).also { stored.value = it }
+            val beforeWrite = beforeNextWrite
+            beforeNextWrite = null
+            beforeWrite?.invoke()
+            transform(stored.value).also { stored.value = it }
         }
     }
 }

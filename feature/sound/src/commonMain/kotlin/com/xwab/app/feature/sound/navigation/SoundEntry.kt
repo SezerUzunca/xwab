@@ -4,19 +4,26 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.xwab.app.core.sound.port.TrackId
-import com.xwab.app.feature.sound.SoundScreenRoute
+import com.xwab.app.feature.sound.SoundDetailScreenRoute
 import com.xwab.app.feature.sound.SoundViewModel
 import com.xwab.app.feature.sound.di.SoundDependencies
 import com.xwab.app.feature.sound.domain.ObserveSoundContentUseCase
 
-/** Where this feature's routes turn into screens. */
+/**
+ * Where this feature's routes turn into screens.
+ *
+ * @param onSleepTimerClick a sound's detail asks for the session's timer; where it lives is the
+ *   app's decision.
+ */
 fun EntryProviderScope<NavKey>.soundEntry(
     dependencies: () -> SoundDependencies,
     onBack: () -> Unit,
+    onSleepTimerClick: () -> Unit,
 ) {
     entry<SoundRoute> { route ->
-        SoundScreenRoute(
+        SoundDetailScreenRoute(
             onBack = onBack,
+            onSleepTimerClick = onSleepTimerClick,
             viewModel = viewModel {
                 val ports = dependencies()
                 SoundViewModel(

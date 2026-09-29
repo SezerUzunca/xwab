@@ -3,6 +3,8 @@ package com.xwab.app.feature.nowplaying
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
+import com.xwab.app.core.session.port.PlaybackPort
+import com.xwab.app.feature.nowplaying.domain.ObserveNowPlayingContentUseCase
 import com.xwab.app.testing.FakePlaybackPort
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -39,7 +41,7 @@ class NowPlayingViewModelTest {
 
     @Test
     fun aSessionThatHasNeverBeenAskedForAnythingShowsNothing() = runTest {
-        val viewModel = NowPlayingViewModel(FakePlaybackPort())
+        val viewModel = playerViewModel(FakePlaybackPort())
         collectState(viewModel)
         advanceUntilIdle()
 
@@ -51,7 +53,7 @@ class NowPlayingViewModelTest {
         val port = playing(
             PlaybackSummary(requestedItemId = RAIN, title = "Gentle Rain", playIntent = true),
         )
-        val viewModel = NowPlayingViewModel(port)
+        val viewModel = playerViewModel(port)
         collectState(viewModel)
         advanceUntilIdle()
 
@@ -75,7 +77,7 @@ class NowPlayingViewModelTest {
                 isPreparing = true,
             ),
         )
-        val viewModel = NowPlayingViewModel(port)
+        val viewModel = playerViewModel(port)
         collectState(viewModel)
         advanceUntilIdle()
 
@@ -88,7 +90,7 @@ class NowPlayingViewModelTest {
     @Test
     fun aTapPausesWhatTheControlShowsAsPlaying() = runTest {
         val port = playing(PlaybackSummary(requestedItemId = RAIN, playIntent = true))
-        val viewModel = NowPlayingViewModel(port)
+        val viewModel = playerViewModel(port)
         collectState(viewModel)
         advanceUntilIdle()
 
@@ -102,7 +104,7 @@ class NowPlayingViewModelTest {
     @Test
     fun aTapResumesWhatTheControlShowsAsStopped() = runTest {
         val port = playing(PlaybackSummary(requestedItemId = RAIN, playIntent = false))
-        val viewModel = NowPlayingViewModel(port)
+        val viewModel = playerViewModel(port)
         collectState(viewModel)
         advanceUntilIdle()
 
@@ -120,7 +122,7 @@ class NowPlayingViewModelTest {
     @Test
     fun aTapWithNothingToActOnDoesNothing() = runTest {
         val port = FakePlaybackPort()
-        val viewModel = NowPlayingViewModel(port)
+        val viewModel = playerViewModel(port)
         collectState(viewModel)
         advanceUntilIdle()
 
@@ -144,7 +146,7 @@ class NowPlayingViewModelTest {
                 failure = PlaybackFailure.SourceUnavailable(RAIN),
             ),
         )
-        val viewModel = NowPlayingViewModel(port)
+        val viewModel = playerViewModel(port)
         collectState(viewModel)
         advanceUntilIdle()
 
@@ -164,14 +166,172 @@ class NowPlayingViewModelTest {
                 failure = PlaybackFailure.SourceUnavailable(WAVES),
             ),
         )
-        val viewModel = NowPlayingViewModel(port)
+        val viewModel = playerViewModel(port)
         collectState(viewModel)
         advanceUntilIdle()
 
         assertNull(viewModel.state.value.failure)
     }
 
+    @Test
+    fun globalControlsOperateOnAnyContentKindWithoutOpeningItsDetails() = runTest {
+        val port = playing(PlaybackSummary(requestedItemId = RAIN, playIntent = true))
+        val viewModel = playerViewModel(port)
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        viewModel.setVolume(0.35f)
+        viewModel.setLooping(false)
+        viewModel.startSleepTimer(900_000L)
+        viewModel.cancelSleepTimer()
+
+        assertEquals(0.35f, port.volume)
+        assertEquals(false, port.looping)
+        assertEquals(900_000L, port.startedTimerMs)
+        assertEquals(1, port.cancelledTimers)
+        assertNull(port.playedItemId, "changing settings must not restart the item")
+        assertEquals(0, port.pauses)
+    }
+
+    @Test
+    fun timerTicksAndCancellationReachThePlayerWithoutAPlaybackUpdate() = runTest {
+        val port = playing(PlaybackSummary(requestedItemId = RAIN, title = "Rain", playIntent = true))
+        val viewModel = playerViewModel(port)
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        port.publishSleepTimer(900_000L)
+        advanceUntilIdle()
+        assertEquals(900_000L, viewModel.state.value.sleepTimerRemainingMs)
+        port.publishSleepTimer(899_000L)
+        advanceUntilIdle()
+        assertEquals(899_000L, viewModel.state.value.sleepTimerRemainingMs)
+        assertEquals(RAIN, viewModel.state.value.itemId)
+
+        port.publishSleepTimer(null)
+        advanceUntilIdle()
+        assertNull(viewModel.state.value.sleepTimerRemainingMs)
+        assertTrue(viewModel.state.value.playIntent)
+    }
+
+    @Test
+    fun settingsStayVisibleWhenPlaybackIsPaused() = runTest {
+        val port = playing(PlaybackSummary(
+            requestedItemId = RAIN,
+            playIntent = false,
+            isLooping = false,
+            volume = 0.4f,
+        ))
+        val viewModel = playerViewModel(port)
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertEquals(0.4f, state.volume)
+        assertFalse(state.isLooping)
+        assertFalse(state.playIntent)
+    }
+
+    /**
+     * Volume and repeat describe what is playing, so an idle session refuses them. The timer is the
+     * session's own and stops whatever starts next: it can be set before a sound is picked, and one
+     * that outlived playback can still be cancelled.
+     */
+    @Test
+    fun anIdleSessionTakesATimerButNotItemSettings() = runTest {
+        val port = FakePlaybackPort().apply { publishSleepTimer(300_000L) }
+        val viewModel = playerViewModel(port)
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        viewModel.setVolume(0.5f)
+        viewModel.setLooping(true)
+        viewModel.startSleepTimer(60_000L)
+        viewModel.cancelSleepTimer()
+
+        assertNull(port.volume)
+        assertNull(port.looping)
+        assertEquals(60_000L, port.startedTimerMs)
+        assertEquals(1, port.cancelledTimers)
+        assertNull(port.playedItemId, "setting a timer must not start anything")
+    }
+
+    /** The item's own screen already has its play/pause and timer; any other screen keeps the bar. */
+    @Test
+    fun theMiniPlayerStepsAsideOnlyForTheScreenOfTheItemItHolds() {
+        val playing = NowPlayingState(itemId = RAIN, playIntent = true)
+
+        assertFalse(playing.showsMiniPlayerBeside(RAIN))
+        assertTrue(playing.showsMiniPlayerBeside(WAVES))
+        assertTrue(playing.showsMiniPlayerBeside(null))
+
+        val timerOnly = NowPlayingState(sleepTimerRemainingMs = 60_000L)
+        assertTrue(timerOnly.showsMiniPlayerBeside(RAIN), "a timer with nothing requested keeps its bar")
+        assertFalse(NowPlayingState().showsMiniPlayerBeside(null))
+    }
+
+    @Test
+    fun aRunningTimerKeepsTheMiniPlayerWithNothingRequested() = runTest {
+        val port = FakePlaybackPort()
+        val viewModel = playerViewModel(port)
+        collectState(viewModel)
+        advanceUntilIdle()
+        assertFalse(viewModel.state.value.showsMiniPlayer)
+
+        port.publishSleepTimer(300_000L)
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.isIdle)
+        assertTrue(viewModel.state.value.showsMiniPlayer)
+
+        port.publishSleepTimer(null)
+        advanceUntilIdle()
+        assertFalse(viewModel.state.value.showsMiniPlayer)
+    }
+
+    @Test
+    fun invalidTimerAndVolumeInputsDoNotReachTheSession() = runTest {
+        val port = playing(PlaybackSummary(requestedItemId = RAIN))
+        val viewModel = playerViewModel(port)
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        viewModel.startSleepTimer(0L)
+        viewModel.startSleepTimer(-1L)
+        viewModel.setVolume(Float.NaN)
+        viewModel.setVolume(Float.POSITIVE_INFINITY)
+
+        assertNull(port.startedTimerMs)
+        assertNull(port.volume)
+    }
+
+    @Test
+    fun theEntryAndMiniPlayerObserveTheSameSessionAndReopeningDoesNotRestartIt() = runTest {
+        val port = playing(PlaybackSummary(requestedItemId = RAIN, title = "Rain", playIntent = true))
+        val miniPlayer = playerViewModel(port)
+        val player = playerViewModel(port)
+        collectState(miniPlayer)
+        val playerSubscription = collectState(player)
+        advanceUntilIdle()
+        assertEquals(miniPlayer.state.value, player.state.value)
+
+        playerSubscription.cancel()
+        port.publish(PlaybackSummary(requestedItemId = WAVES, title = "Waves", playIntent = false))
+        port.publishSleepTimer(300_000L)
+        val reopenedPlayer = playerViewModel(port)
+        collectState(reopenedPlayer)
+        advanceUntilIdle()
+
+        assertEquals(WAVES, reopenedPlayer.state.value.itemId)
+        assertEquals(miniPlayer.state.value, reopenedPlayer.state.value)
+        assertEquals(300_000L, reopenedPlayer.state.value.sleepTimerRemainingMs)
+        assertNull(port.playedItemId)
+        assertEquals(0, port.pauses)
+    }
+
     private fun playing(summary: PlaybackSummary) = FakePlaybackPort().apply { publish(summary) }
+
+    private fun playerViewModel(port: PlaybackPort) =
+        NowPlayingViewModel(ObserveNowPlayingContentUseCase(port), port)
 
     /** `WhileSubscribed` publishes nothing until something is listening. */
     private fun TestScope.collectState(viewModel: NowPlayingViewModel) =

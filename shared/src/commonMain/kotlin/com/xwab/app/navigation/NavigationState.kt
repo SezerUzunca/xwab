@@ -36,6 +36,10 @@ internal class NavigationState(
         require(topLevelRouteState.value in backStacks) {
             "The selected top-level route must have a back stack of its own: ${topLevelRouteState.value}"
         }
+        backStacks.forEach { (root, stack) ->
+            require(stack.firstOrNull() == root) { "A tab's stack must start at its root: $root" }
+            require(stack.distinct().size == stack.size) { "A tab cannot contain duplicate entry keys: $root" }
+        }
     }
 
     /** The tab currently showing. Set by [Navigator]; read by the navigation bar. */

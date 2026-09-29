@@ -267,9 +267,9 @@ internal constructor(
             requestedItemId = requested,
             activeItemId = active,
             playIntent = playIntent,
-            // The name this app lists the item under, which is not the one it hands the platform:
-            // a screen showing "Gentle Rain" two rows under a list that says "Rain on the Window"
-            // is naming the same sound twice. The engine's title is the fallback rather than the
+            // The name this app lists the item under, which a resolver may hand the platform
+            // differently: a screen showing one name two rows under a list that says another is
+            // naming the same item twice. The engine's title is the fallback rather than the
             // answer — it is all that survives a reconnect to a service that outlived the process,
             // and a notification's name beats no name. Both are gated on the engine actually
             // holding what was asked for; mid-switch neither belongs to the incoming item.

@@ -6,7 +6,18 @@
       What tapping the bar does, for a screen reader. Content-neutral like the rest of this
       feature: it does not know whether it is holding a sound or a story.
     -->
-    <string name="open_now_playing">Open what is playing</string>
+    <string name="open_now_playing">Open player and sleep timer</string>
+    <string name="player_stops_in">Stops in %1$s</string>
+    <!-- Says the timer exists and that it is off; a running timer replaces this line with its countdown. -->
+    <string name="player_playing">Playing · Timer off</string>
+    <string name="player_paused">Paused · Timer off</string>
+    <string name="player_loading">Loading…</string>
+    <string name="player_empty">Nothing is playing. Choose a sound or story to start.</string>
+    <string name="view_details">View details</string>
+    <string name="player_volume">Playback volume</string>
+    <string name="player_volume_value">Playback volume · %1$d%</string>
+    <string name="device_volume_note">Your device volume also affects how loud playback is.</string>
+    <string name="repeat_playback">Repeat playback</string>
 
     <!--
       The same three answers every list gives, with the noun taken out: this bar is content-neutral

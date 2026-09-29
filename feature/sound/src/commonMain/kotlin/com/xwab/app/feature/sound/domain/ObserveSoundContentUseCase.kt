@@ -23,12 +23,12 @@ internal data class SoundContent(
     val track: Track?,
     val isFavorite: Boolean,
     val playback: PlaybackSummary,
-    val sleepTimerRemainingMs: Long?,
+    val availableOffline: Boolean,
     val favoriteReadStatus: SoundFavoriteReadStatus,
 )
 
 /**
- * Joins the three domain ports plus the sleep timer into the one thing the sound screen shows.
+ * Joins catalog, favorites and playback for this sound's detail.
  * Feature-owned for the same reason as the other screen-owned use cases: only the ports it reads
  * are shared.
  */
@@ -49,14 +49,14 @@ internal class ObserveSoundContentUseCase(
             .onStart { emit(FavoriteStatus(false, SoundFavoriteReadStatus.Pending)) }
             .distinctUntilChanged(),
         playbackPort.playback,
-        playbackPort.sleepTimerRemainingMs,
-    ) { track, favorites, playback, sleepTimerRemainingMs ->
+        soundPort.observeOfflineReady(trackId),
+    ) { track, favorites, playback, availableOffline ->
         SoundContent(
             track = track,
             isFavorite = favorites.isFavorite,
             favoriteReadStatus = favorites.readStatus,
             playback = playback,
-            sleepTimerRemainingMs = sleepTimerRemainingMs,
+            availableOffline = availableOffline,
         )
     }
 

@@ -13,6 +13,6 @@ data class CategoryRoute(val categoryId: String) : NavKey
 
 val categoryNavigationSerializers = SerializersModule {
     polymorphic(NavKey::class) {
-        subclass(CategoryRoute.serializer())
+        subclass(CategoryRoute::class)
     }
 }

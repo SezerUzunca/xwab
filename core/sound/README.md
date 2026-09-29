@@ -1,7 +1,7 @@
 # Sound
 
-`port/SoundPort.kt` is the module's only port interface. It serves metadata to features and
-playback. This module also owns its physical addresses, stable cache filenames and host headers in
+`port/SoundPort.kt` is the module's only port interface. It serves metadata and confirmed offline
+availability to features and playback. This module also owns its physical addresses, stable cache filenames and host headers in
 an internal source manifest. `SoundSources` indexes validated download requests by `TrackId` and
 attaches the complete current sound cache inventory. `SoundPlaybackResolver` reads that internal
 catalog and calls `DeliveryPort`; it implements session's consumer-owned `PlaybackItemResolver`
@@ -9,6 +9,10 @@ port and contributes it to the application graph. Screens receive sound metadata
 playback session asks the contributed resolver for playable content. `:core:delivery` handles
 byte transfer and cache storage through its own
 content-neutral port. `ManifestSoundCatalogAdapter` implements the metadata port.
+
+`observeOfflineReady(trackId)` maps the sound ID to its current versioned cache key internally and
+observes delivery without starting a download. Unknown tracks, missing sources and unavailable
+cache files report false. Playback metadata uses the same track name shown in the catalog.
 
 Public contracts and models live in `com.xwab.app.core.sound.port`. The implementation and
 manifest files live separately in `com.xwab.app.core.sound` and remain internal.

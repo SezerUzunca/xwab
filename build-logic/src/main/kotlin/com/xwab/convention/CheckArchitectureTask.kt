@@ -26,15 +26,16 @@ import org.gradle.api.tasks.TaskAction
  * 5. Each core owns an architecture.properties file declaring its responsibility, feature access,
  *    exhaustive project dependency boundary and complete set of public callable interfaces.
  * 6. All shared production source sets may reference features only at the navigation/composition
- *    boundary (navigation contracts) or DI boundary (Dependencies classes).
+ *    boundary (navigation contracts and shell UI) or DI boundary (Dependencies classes).
  * 7. A core capability exposes declarations only from an explicit `port` package; everything else
  *    is internal or private.
  * 8. References crossing between core modules target only `port` packages.
  * 9. Core declares no repository/provider abstractions; a feature may own one if it truly needs it.
  * 10. Koin and physical `api` / `impl` source layouts may not return; Metro and cohesive modules
  *     are project-wide decisions.
- * 11. Features expose only navigation contracts and DI Dependencies classes; implementation
- *     declarations stay internal or private.
+ * 11. Features expose only navigation contracts, shell UI (`shell` package: what the app shell
+ *     places around destinations) and DI Dependencies classes; implementation declarations stay
+ *     internal or private.
  * 12. Designsystem has no application project dependencies; core cannot
  *     depend on it or on the app shell.
  * 13. Loading/Ready state types stay inside feature modules. Whether a screen has content yet is

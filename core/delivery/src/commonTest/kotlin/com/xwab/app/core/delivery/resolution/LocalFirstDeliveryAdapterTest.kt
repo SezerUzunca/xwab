@@ -12,6 +12,9 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlin.test.fail
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.first
 
 class LocalFirstDeliveryAdapterTest {
     private val request = DeliveryRequest(CacheKey("documents", "guide-v1.pdf"), "https://example.test/guide.pdf")
@@ -29,6 +32,15 @@ class LocalFirstDeliveryAdapterTest {
         val prefetcher = RecordingPrefetcher()
         val adapter = LocalFirstDeliveryAdapter(FakeContentFileStore("/content/documents/guide-v1.pdf"), prefetcher)
         assertEquals("/content/documents/guide-v1.pdf", assertIs<DeliveryResult.Resolved>(adapter.resolve(request)).uri)
+        assertTrue(prefetcher.requests.isEmpty())
+    }
+
+    @Test
+    fun observingAvailabilityNeverStartsPrefetch() = runBlocking {
+        val prefetcher = RecordingPrefetcher()
+        val adapter = LocalFirstDeliveryAdapter(FakeContentFileStore("/content/documents/guide-v1.pdf"), prefetcher)
+
+        assertTrue(adapter.observeCached(request.key).first())
         assertTrue(prefetcher.requests.isEmpty())
     }
 
@@ -59,7 +71,7 @@ class LocalFirstDeliveryAdapterTest {
     }
 
     private class FakeContentFileStore(private val path: String? = null, private val failure: Throwable? = null) : ContentFileStore {
-        override suspend fun retainOnly(namespaces: Set<String>) = Unit
+        override fun observeCached(key: CacheKey): Flow<Boolean> = flowOf(path != null)
 
         override suspend fun find(key: CacheKey): String? { failure?.let { throw it }; return path }
         override suspend fun download(request: DeliveryRequest): Unit = fail("Only the prefetcher downloads.")

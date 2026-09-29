@@ -7,6 +7,7 @@ project dependency on sound, story or another content module. Its only public in
 ```kotlin
 val storyIds = favoritesPort.observe("story") // Flow<FavoritesSnapshot>
 favoritesPort.toggle(namespace = "story", itemId = "night-came-slowly")
+favoritesPort.setFavorite(namespace = "story", itemId = "night-came-slowly", isFavorite = false)
 ```
 
 The same ID may be favorited in multiple namespaces independently. IDs must be nonblank;
@@ -25,5 +26,8 @@ failure it retains the last known IDs (empty before the first read), sets `isAva
 and retries with exponential delay capped at 4.8 seconds while the flow is collected. Successful
 reads restore availability; cancelling the collector stops retries.
 
-`toggle` returns `FavoriteToggleResult.Updated` or `Unavailable`. Features display read/write
+`toggle` and `setFavorite` return `FavoriteToggleResult.Updated` or `Unavailable`. `setFavorite`
+sets the requested membership atomically inside the DataStore transaction; repeating a removal or
+restore cannot invert the value when another screen also changes the same favorite.
+Features display read/write
 failures and decide which controls remain enabled. Cancellation propagates unchanged.

@@ -15,6 +15,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
@@ -112,7 +113,7 @@ class CategoryScreenTest {
             favoritesReadStatus = CategoryFavoritesReadStatus.Unavailable,
         ))
 
-        onNodeWithContentDescription(REMOVE_FAVORITE).assertIsNotEnabled()
+        onNodeWithContentDescription(GENTLE_RAIN_FAVORITE).assertIsNotEnabled().assertIsOn()
         onAllNodesWithContentDescription(FAVORITES_LOADING).assertCountEquals(0)
         onNodeWithText(FAVORITES_UNAVAILABLE).assertExists()
     }
@@ -185,6 +186,7 @@ class CategoryScreenTest {
         const val CATEGORY_NOT_FOUND = "This category is no longer in the catalog"
         const val FAVORITES_LOADING = "Loading favorites"
         const val FAVORITES_UNAVAILABLE = "Favorites are temporarily unavailable. Retrying\u2026"
-        const val REMOVE_FAVORITE = "Remove from favorites"
+        // A toggle keeps its name; the state is asserted separately with assertIsOn.
+        const val GENTLE_RAIN_FAVORITE = "Favorite Rain on the Window"
     }
 }

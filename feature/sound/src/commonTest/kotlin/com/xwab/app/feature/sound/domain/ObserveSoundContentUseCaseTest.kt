@@ -27,7 +27,28 @@ import kotlinx.coroutines.runBlocking
 class ObserveSoundContentUseCaseTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun unrelatedFavoritesDoNotRepublishButTimerAndAvailabilityChangesDo() = runTest {
+    fun offlineReadinessUpdatesWithoutStartingPlayback() = runTest {
+        val soundCatalog = FakeSoundCatalog(tracks = listOf(rain))
+        val playback = FakePlaybackPort()
+        val emissions = mutableListOf<SoundContent>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            ObserveSoundContentUseCase(soundCatalog, FakeFavorites(), playback)(rain.id).toList(emissions)
+        }
+        runCurrent()
+        assertFalse(emissions.last().availableOffline)
+        soundCatalog.setOfflineReady(rain.id, true)
+        runCurrent()
+        assertTrue(emissions.last().availableOffline)
+        soundCatalog.setOfflineReady(rain.id, false)
+        runCurrent()
+        assertFalse(emissions.last().availableOffline)
+        assertNull(playback.playedItemId)
+        assertEquals(0, playback.pauses)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun unrelatedFavoritesAndTimerDoNotRepublishButAvailabilityDoes() = runTest {
         val favorites = FakeFavorites(setOf(rain.id))
         val playback = FakePlaybackPort()
         val emissions = mutableListOf<SoundContent>()
@@ -44,7 +65,7 @@ class ObserveSoundContentUseCaseTest {
 
         playback.publishSleepTimer(59_000L)
         runCurrent()
-        assertEquals(59_000L, emissions.last().sleepTimerRemainingMs)
+        assertEquals(1, emissions.size)
         assertTrue(emissions.last().isFavorite)
 
         favorites.available.value = false
@@ -62,7 +83,7 @@ class ObserveSoundContentUseCaseTest {
     private val catalog = FakeSoundCatalog(tracks = listOf(rain))
 
     @Test
-    fun theSoundScreenCombinesTrackFavoritesPlaybackAndSleepTimer() = runBlocking {
+    fun theSoundScreenCombinesTrackFavoritesAndPlayback() = runBlocking {
         val coordinator = FakePlaybackPort()
         coordinator.publish(
             PlaybackSummary(requestedItemId = PlaybackItemId(SOUND_PLAYBACK_KIND, "gentle-rain"), playIntent = true, isPlaying = true),
@@ -79,7 +100,6 @@ class ObserveSoundContentUseCaseTest {
         assertEquals(rain, content.track)
         assertTrue(content.isFavorite)
         assertTrue(content.playback.isPlaying)
-        assertEquals(90_000L, content.sleepTimerRemainingMs)
     }
 
     @Test
@@ -89,6 +109,5 @@ class ObserveSoundContentUseCaseTest {
         val content = useCase(TrackId("no-such-track")).first()
 
         assertNull(content.track)
-        assertNull(content.sleepTimerRemainingMs)
     }
 }

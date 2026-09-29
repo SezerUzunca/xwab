@@ -3,8 +3,13 @@ package com.xwab.app.designsystem.components
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,6 +27,9 @@ import com.xwab.app.designsystem.theme.SleepRelaxTheme
  * A [BoxScope] rather than a column, because what a screen puts inside is its own business: three of
  * them are a lazy list, one is a scrolling column and one is a plain one. This owns where the
  * content sits, not what it is.
+ *
+ * The gradient runs under the status bar and only the content is inset from it, so the top edge is
+ * the screen's own colour rather than a band of the host behind it.
  */
 @Composable
 fun ScreenContainer(
@@ -33,6 +41,7 @@ fun ScreenContainer(
             modifier = Modifier
                 .widthIn(max = SleepRelaxTheme.dimens.contentMaxWidth)
                 .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
                 .align(Alignment.Center),
             content = content,
         )

@@ -261,6 +261,10 @@ class FeatureFirstRulesTest {
                         "composition",
                         "import com.xwab.app.feature.browse.navigation.browseEntry as entry",
                     ),
+                    "shared/src/commonMain/kotlin/AppNavigationHost.kt" to sharedSource(
+                        "composition",
+                        "import com.xwab.app.feature.nowplaying.shell.NowPlayingBar",
+                    ),
                     "shared/src/androidMain/kotlin/AndroidAppGraph.kt" to sharedSource(
                         "di",
                         "import com.xwab.app.feature.browse.di.BrowseDependencies",
@@ -350,6 +354,10 @@ class FeatureFirstRulesTest {
                     fun EntryProviderScope<NavKey>.browseEntry(dependencies: BrowseDependencies) {}
                 """.trimIndent(),
             ),
+            "feature/browse/src/commonMain/kotlin/Bar.kt" to featureSource(
+                ".shell",
+                "@Composable fun BrowseBar() = Unit",
+            ),
             "feature/browse/src/commonMain/kotlin/Dependencies.kt" to featureSource(
                 ".di",
                 """
@@ -387,8 +395,10 @@ class FeatureFirstRulesTest {
                 featureSource(".di", "class BrowseViewModelFactory"),
             "feature/browse/src/commonMain/kotlin/NavigationHelper.kt" to
                 featureSource(".navigation.internal", "class NavigationHelper"),
+            "feature/browse/src/commonMain/kotlin/ShellHelper.kt" to
+                featureSource(".shell.internal", "class ShellHelper"),
         )
-        assertEquals(6, FeatureFirstRules.featureVisibilityViolations(leaks).size)
+        assertEquals(7,FeatureFirstRules.featureVisibilityViolations(leaks).size)
     }
 
     /**

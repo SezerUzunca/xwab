@@ -42,20 +42,30 @@ internal class DataStoreFavoritesAdapter(
         }
     }
 
-    override suspend fun toggle(namespace: String, itemId: String): FavoriteToggleResult {
+    override suspend fun toggle(namespace: String, itemId: String): FavoriteToggleResult =
+        updateFavorite(namespace, itemId) { currentlyFavorite -> !currentlyFavorite }
+
+    override suspend fun setFavorite(namespace: String, itemId: String, isFavorite: Boolean): FavoriteToggleResult =
+        updateFavorite(namespace, itemId) { isFavorite }
+
+    private suspend fun updateFavorite(
+        namespace: String,
+        itemId: String,
+        desiredMembership: (Boolean) -> Boolean,
+    ): FavoriteToggleResult {
         val favoriteIdsKey = idsKey(namespace)
         require(itemId.isNotBlank()) { "Favorite IDs must not be blank." }
         return try {
             dataStore.edit { preferences ->
                 val current = preferences[favoriteIdsKey].orEmpty()
                 preferences[favoriteIdsKey] =
-                    if (itemId in current) current - itemId else current + itemId
+                    if (desiredMembership(itemId in current)) current + itemId else current - itemId
             }
             FavoriteToggleResult.Updated
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (error: Exception) {
-            logger.e(error) { "Could not persist the favorite toggle for $namespace/$itemId." }
+            logger.e(error) { "Could not persist the favorite change for $namespace/$itemId." }
             FavoriteToggleResult.Unavailable
         }
     }

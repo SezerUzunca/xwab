@@ -16,19 +16,27 @@ import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res
 import xwab.designsystem.generated.resources.pause
+import xwab.designsystem.generated.resources.pause_content
 import xwab.designsystem.generated.resources.play
+import xwab.designsystem.generated.resources.play_content
 
 /**
+ * @param playRequested true while playback is requested, including loading or buffering, so users
+ *   can cancel a pending start with the same pause action.
  * @param enabled false where there is nothing to play and nothing to pause. A list row always has
  *   both, so it is the screen for one sound that passes this.
+ * @param contentTitle identifies the content controlled by this button to assistive technology.
  */
 @Composable
+// Keep optional size, enabled state and accessibility naming explicit at Compose call sites.
+@Suppress("LongParameterList")
 fun PlayPauseButton(
-    isPlaying: Boolean,
+    playRequested: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     large: Boolean = false,
     enabled: Boolean = true,
+    contentTitle: String? = null,
 ) {
     val circleSize = if (large) {
         SleepRelaxTheme.dimens.largePlayCircleSize
@@ -50,8 +58,15 @@ fun PlayPauseButton(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = stringResource(if (isPlaying) Res.string.pause else Res.string.play),
+                imageVector = if (playRequested) Icons.Default.Pause else Icons.Default.PlayArrow,
+                contentDescription = if (contentTitle == null) {
+                    stringResource(if (playRequested) Res.string.pause else Res.string.play)
+                } else {
+                    stringResource(
+                        if (playRequested) Res.string.pause_content else Res.string.play_content,
+                        contentTitle,
+                    )
+                },
                 tint = if (enabled) {
                     SleepRelaxTheme.colors.accent
                 } else {
