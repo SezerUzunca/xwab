@@ -21,6 +21,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.onNodeWithText
@@ -269,13 +270,21 @@ private class NavigationHarness {
         if (!visible) return
         val dispatcher = rememberNavigationEventDispatcherOwner(parent = null)
         val platformDensity = LocalDensity.current
+        // The window size class is read in dp, so the density sets it. Platform defaults differ: an
+        // iOS test window is 1024 px at density 1, already wide, while a phone is compact.
+        val windowWidthPx = LocalWindowInfo.current.containerSize.width
+        val widthDp = if (wide) WIDE_WIDTH_DP else COMPACT_WIDTH_DP
         CompositionLocalProvider(
             LocalSaveableStateRegistry provides registry,
             LocalViewModelStoreOwner provides rootOwner,
             LocalLifecycleOwner provides rootOwner,
             LocalSavedStateRegistryOwner provides rootOwner,
             LocalNavigationEventDispatcherOwner provides dispatcher,
-            LocalDensity provides if (wide) Density(1f, platformDensity.fontScale) else platformDensity,
+            LocalDensity provides if (windowWidthPx > 0) {
+                Density(windowWidthPx / widthDp, platformDensity.fontScale)
+            } else {
+                platformDensity
+            },
         ) {
             SleepRelaxTheme { NavigationContent() }
         }
@@ -362,3 +371,7 @@ private class TestRootOwner : ViewModelStoreOwner, SavedStateRegistryOwner {
         viewModelStore.clear()
     }
 }
+
+/** Compact and expanded width classes, the latter with room for two panes. */
+private const val COMPACT_WIDTH_DP = 400f
+private const val WIDE_WIDTH_DP = 1000f
