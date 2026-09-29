@@ -21,7 +21,7 @@ import kotlin.test.assertEquals
  * Worth checking from the outside because the two kinds are answered differently for a reason, and
  * a mapping that quietly sent a story to a sound screen would compile.
  */
-class NowPlayingRouteTest {
+class PlaybackRoutesTest {
 
     @Test
     fun aPlayingSoundOpensItsOwnScreen() {

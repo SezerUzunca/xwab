@@ -75,7 +75,9 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlinx.serialization.json)
         }
-        val navigationTest = create("navigationTest") {
+        // Tests that need a real Compose host (entry stores, recreation, the adaptive layout).
+        // Written once, run on Android devices and iOS simulators; plain logic stays in commonTest.
+        val composeTest = create("composeTest") {
             dependsOn(commonTest.get())
             dependencies {
                 implementation(libs.compose.uiTest)
@@ -83,7 +85,7 @@ kotlin {
             }
         }
         getByName("androidDeviceTest") {
-            dependsOn(navigationTest)
+            dependsOn(composeTest)
             dependencies {
                 implementation(libs.androidx.test.core)
                 implementation(libs.androidx.test.runner)
@@ -91,9 +93,8 @@ kotlin {
                 implementation(libs.androidx.test.espressoCore)
             }
         }
-        // The same navigation composition tests run on Android devices and iOS simulators.
         if (gradle.extra["enableIos"] as Boolean) {
-            iosTest.get().dependsOn(navigationTest)
+            iosTest.get().dependsOn(composeTest)
         }
     }
 }

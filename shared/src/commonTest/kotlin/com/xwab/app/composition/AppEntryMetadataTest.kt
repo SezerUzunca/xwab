@@ -1,6 +1,6 @@
 @file:OptIn(androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi::class)
 
-package com.xwab.app.navigation
+package com.xwab.app.composition
 
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldDefaults
 import androidx.compose.material3.adaptive.layout.PaneScaffoldDirective
@@ -11,7 +11,6 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.get
 import androidx.navigation3.scene.SceneStrategyScope
 import androidx.navigation3.ui.NavDisplay
-import com.xwab.app.composition.appEntryMetadata
 import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
@@ -19,6 +18,8 @@ import com.xwab.app.feature.nowplaying.navigation.NowPlayingRoute
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import com.xwab.app.feature.story.navigation.StoryRoute
+import com.xwab.app.navigation.ParentPaneKey
+import com.xwab.app.navigation.entryProviderForTab
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -26,7 +27,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** Exercises the official Material strategy with the same tab metadata as the production display. */
-class ListDetailSceneTest {
+class AppEntryMetadataTest {
     private fun strategy(partitions: Int) = ListDetailSceneStrategy<NavKey>(
         shouldHandleSinglePaneLayout = false,
         backNavigationBehavior = BackNavigationBehavior.PopLatest,

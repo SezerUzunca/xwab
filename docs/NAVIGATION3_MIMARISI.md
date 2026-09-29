@@ -151,10 +151,10 @@ kendiliğinden uygulamaz; kullanım ve regresyon testleri olduğu için kaldır�
 
 - `NavigatorTest`: tab seçimi, reselect, tekrar dokunma, pop-to-existing, entry replacement,
   root koruması ve geçersiz stack'in reddi.
-- `ListDetailSceneTest`: resmi Material stratejisiyle compact fallback, list/detail/extra,
+- `AppEntryMetadataTest`: resmi Material stratejisiyle compact fallback, list/detail/extra,
   placeholder, sekme izolasyonu ve `PopLatest` geçmişi.
 - Serializer, retired-route ve content-key regresyon testleri korunur.
-- `src/navigationTest/.../NavigationCompositionTest`: gerçek `AppNavigationDisplay` üzerinden
+- `src/composeTest/.../NavigationCompositionTest`: gerçek `AppNavigationDisplay` üzerinden
   entry store ayrılığı, sekme değiştirme, recreation, saveable state, pop temizliği ve tek
   root chrome ViewModel'i. Compact/adaptif düzen değişiminde entry state'inin korunması ve
   görünür ebeveyn panelinde gereksiz geri kontrolünün gizlenmesi de sınanır. Android cihaz

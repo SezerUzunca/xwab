@@ -350,7 +350,7 @@ Two things the compiler cannot point at:
 
 - **The tab label** in `shared/src/commonMain/composeResources/values/app.xml`. Deleting a tab
   leaves its `tab_*` string behind, resolving happily to a name nothing asks for.
-  `TopLevelDestinationsTest` fails on it rather than letting it ship.
+  `TopLevelDestinationTest` fails on it rather than letting it ship.
 - **Saved back stacks in installed copies.** A listener who was on the removed screen when they last
   closed the app restores a route this build no longer registers. That no longer crashes — see
   `RetiredRoute` — but it is why a route's `@SerialName` is a wire format and why removing a feature

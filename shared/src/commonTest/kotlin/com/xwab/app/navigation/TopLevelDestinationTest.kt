@@ -20,7 +20,7 @@ import xwab.shared.generated.resources.allStringResources
  * `tab_` is the prefix, not the whole resource table: this module is free to own strings that are
  * not tab labels, and they are none of this test's business.
  */
-class TopLevelDestinationsTest {
+class TopLevelDestinationTest {
 
     @Test
     fun everyTabLabelBelongsToATabAndEveryTabHasOne() {
