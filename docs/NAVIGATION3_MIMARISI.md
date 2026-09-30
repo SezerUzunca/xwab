@@ -24,13 +24,13 @@ sürümlerle derlenir; örneklerdeki sürüm numaraları doğrudan kopyalanmaz.
 | `composition/AppNavigationHost` | Feature entry sözleşmelerini, callback'leri ve mini oynatıcıyı bağlama |
 | `composition/AppEntryMetadata` | Feature'lar arası sunum politikası; resmi pane metadata'sı |
 | `navigation/RememberNavigationState` | Her sekmenin `rememberNavBackStack` geçmişi ve seçili sekmenin seri hale getirilmesi |
-| `navigation/Navigator` | Push, pop-to-existing, aynı türden hedefi değiştirme, sekme seçimi, yeniden seçim ve ekran değiştirme politikası |
+| `navigation/Navigator` | Push, pop-to-existing, sekme seçimi, yeniden seçim, ekran değiştirme ve panel geri oku politikası |
 | `navigation/TopLevelDestination`, `FeatureSerializers`, `RetiredRoute` | Sekme listesi, kayıtlı route'ların serileştirilmesi ve kaldırılmış route'ların güvenle atılması |
 | `ui/TabEntries` | Aktif olmayan sekmeler dahil saveable-state ve ViewModel dekoratörlerini yaşatma |
-| `ui/TabEntryProvider` | Sekmeye özgü saveable content key ve metadata; her entry'yi `AdaptiveBackControl` ile sarma |
+| `ui/TabEntryProvider` | Sekmeye özgü saveable content key ve metadata (sekme, panel rolü, hedefin kendisi) |
 | `ui/AppNavigationDisplay` | Resmi `NavigationSuiteScaffold` (bar/rail), içinde `NavDisplay`, Material list–detail sahne stratejisi ve mini oynatıcı yuvası |
 | `ui/NavigationTransitions`, `ui/EntryMetadataKeys` | Sekme, ileri/geri ve oynatıcı geçişleri; sekme ve ebeveyn panel metadata anahtarları |
-| `ui/AdaptiveBackControl` | Gerçek ebeveyn paneli görünüyorsa tekrarlı geri düğmesini gizleme; birden fazla panel görünürken geri okunu kendi panelini kapatan `Navigator.goUp`'a bağlama |
+| `ui/AdaptiveBackControl` | Resmi `NavEntryDecorator` (saveable-state ve ViewModel dekoratörlerinden sonra): gerçek ebeveyn paneli görünüyorsa tekrarlı geri düğmesini gizleme; birden fazla panel görünürken geri okunu kendi panelini kapatan `Navigator.goUp`'a bağlama. `NavEntry` anahtarı dekoratöre kapalı olduğu için hedef `DestinationKey` metadata'sıyla taşınır |
 
 `navigation` durumu ve kuralları tutar, Compose çizimi içermez; `ui` bu durumu ekrana taşır.
 Bağımlılık tek yönlüdür: `ui` → `navigation`. Mimari kural gereği `ui` feature'lara dokunamaz;
@@ -55,7 +55,7 @@ kullanılır; Android'e özgü reflection çözümü common koduna taşınmaz.
 | Uygulama chrome'u | Resmi `NavigationSuiteScaffold` pencere boyutu sınıfına göre kısa bar veya geniş ray seçer; chrome her ekranda aynı olduğu için `NavDisplay` dışında durur ve tek örnektir |
 | Küçük ekran | `SinglePaneScene` fallback; tam ekran hedefler |
 | Adaptif list–detail | Resmi Material `rememberListDetailSceneStrategy` |
-| Extra pane | Browse listesinin yanında Category detail, ardından Sound extra pane |
+| Extra pane | Browse listesinin yanında Category detail, ardından Sound extra pane. Altında Category olmayan ses (oynatıcıdaki "View details" ile kökten açılan) tek panel gösterilir |
 | Boş detail | Resmi `listPane(detailPlaceholder=...)` ile kategori/ses/hikâye seçim mesajı |
 | İleri/geri animasyon | `transitionSpec` ve `popTransitionSpec`; RTL yönü korunur, sekmeler fade kullanır |
 | Predictive Back | `predictivePopTransitionSpec`; Material sahne içindeki geri hareketini kendi işler |
@@ -63,7 +63,7 @@ kullanılır; Android'e özgü reflection çözümü common koduna taşınmaz.
 | Yaşam döngüsüne bağlı dokunma | Feature navigation kontrollerinde `dropUnlessResumed` |
 | Sekme yeniden seçimi | Root'a dönme, root'ta yeniden seçim event'iyle listeyi başa kaydırma |
 | Geçici ekran değiştirme | Player detay intent'i mevcut entry'yi aynı karede değiştirir |
-| Seçim değiştirme | Aynı türden yeni hedef (ör. Rain açıkken Ocean) öncekini ve ondan açılanları değiştirir; list–detail'de geri tuşu eski seçimleri dolaşmaz |
+| Seçim değiştirme | Resmi tariflerdeki gibi yeni hedef eklenir (Rain açıkken Ocean). Aynı paneldeki eski seçimleri Material'in `PopUntilCurrentDestinationChange` geri davranışı tek geri işlemiyle atlar |
 | Sürüm geçişi | Kaldırılan route'ların güvenli okunması ve stack'ten çıkarılması korunur |
 
 Material sahne anahtarı sekmeye özgüdür. Browse içindeki Sound ile Favorites içindeki aynı
@@ -71,9 +71,21 @@ Sound'un content key'leri de farklıdır. Player'dan farklı içerik türüne a�
 pane grubuna ait değilse tek ekran olarak gösterilir. Böylece bir ses listesiyle hikâye
 detayının veya iki sekmenin sahnelerinin yanlış eşleşmesi engellenir.
 
-Material'in varsayılan `PopUntilScaffoldValueChange` politikası kullanılmaz: `PopLatest`
-ile panel sayısı değişmese bile geri işlemi en son hedefi kaldırır. Bu, telefon ve geniş
-ekran arasında tek-entry pop kuralını koruyan uygulama tercihidir.
+Geri davranışı Material'in resmi `BackNavigationBehavior.PopUntilCurrentDestinationChange`
+seçeneğidir: geri işlemi en son hedefin paneli değişene kadar geçmişi atlar. Liste yanında
+Rain, Ocean ve Forest sırayla seçildiyse tek geri işlemi listeye döner; kategori yanında seçilen
+sesler de tek geri işlemiyle kategoriye döner. 30 Eylül'de üç seçenek gerçek stack'lerle
+ölçüldü:
+
+- Varsayılan `PopUntilScaffoldValueChange`: liste boş detay yer tutucusunu gösterdiğinde
+  scaffold değeri değişmediği için geri hedefi bulunamaz; Favorites'teki bir sesten geri,
+  listeyi atlayıp başlangıç sekmesine geçer. Kullanılmaz.
+- `PopLatest`: her seferinde tek hedef kaldırır; eski seçimler tek tek dolaşılır. Bu yüzden
+  önceden `Navigator` aynı türden hedefi değiştiriyordu; bu özel kural kaldırıldı.
+- `PopUntilCurrentDestinationChange`: yukarıdaki davranış. Kullanılır.
+
+Telefonda liste ile detay aynı anda görünmediği için seçimler birikmez; oynatıcıdaki
+"View details" başka bir sesi mevcut detayın üstüne açar ve geri önce o detaya döner.
 [Resmi API açıklaması](https://developer.android.com/reference/kotlin/androidx/compose/material3/adaptive/navigation/BackNavigationBehavior)
 geniş ekranda aynı panelde farklı içeriklere gidildikten sonra pencere daraltılırsa
 geçmişin kullanıcı için beklenmedik olabileceğini belirtir; her iki düzende aynı ekranların
@@ -142,12 +154,12 @@ Temizlikte kaldırılanlar:
   navigation sözleşmeleri gibi public ve shared'dan erişilebilir sayar. Uygulama adı ve sloganı
   (`app_title`, `app_subtitle`) Browse'dan shared'a taşındı; shell bunları `browseEntry`'ye verir.
 
-Panel içi geri oku ile sistem geri işlemi ayrı kurallardır. Sistem geri işlemi (`PopLatest`)
-en son hedefi kaldırır. Kategori ve ses yan yana görünürken bu hedef sestir. Kategori panelindeki
-ok ise kategoriyi ve ondan açılan sesi kapatır (`Navigator.goUp`). Tek panelde ok, hedefin kendi
-geri eylemini kullanır; iki kural aynı sonucu verir.
+Panel içi geri oku ile sistem geri işlemi ayrı kurallardır. Sistem geri işlemi en sağdaki
+paneli kapatır. Kategori ve ses yan yana görünürken bu panel sestir. Kategori panelindeki
+ok ise kategori panelini ve ondan açılan sesleri kapatır; o panelde daha önce seçilmiş
+kategoriler de gider (`Navigator.goUp`). Tek panelde ok, hedefin kendi geri eylemini kullanır.
 
-`Navigator`'ın pop-to-existing, aynı türden hedefi değiştirme, reselect ve replacement kuralları, `TabKey` ile
+`Navigator`'ın pop-to-existing, reselect, replacement ve panel oku kuralları, `TabKey` ile
 sekme kimliği ve `ParentPaneKey` ile Up görünürlüğü uygulama politikasıdır; bunlar resmi
 API gibi sunulmaz. `RetiredRoute` de eski sürümden gelen tanınmayan kayıtlı hedefleri
 temizlemek için kullanılan aktif migration kodudur. Resmi kütüphane bu ürün politikasını
@@ -158,7 +170,8 @@ kendiliğinden uygulamaz; kullanım ve regresyon testleri olduğu için kaldır�
 - `NavigatorTest`: tab seçimi, reselect, tekrar dokunma, pop-to-existing, entry replacement,
   root koruması ve geçersiz stack'in reddi.
 - `AppEntryMetadataTest`: resmi Material stratejisiyle compact fallback, list/detail/extra,
-  placeholder, sekme izolasyonu ve `PopLatest` geçmişi.
+  placeholder, sekme izolasyonu ve `PopUntilCurrentDestinationChange` ile eski seçimlerin tek
+  geri işlemiyle atlanması.
 - Serializer, retired-route ve content-key regresyon testleri korunur.
 - `src/composeTest/.../NavigationCompositionTest`: gerçek `AppNavigationDisplay` üzerinden
   entry store ayrılığı, sekme değiştirme, recreation, saveable state, pop temizliği ve tek

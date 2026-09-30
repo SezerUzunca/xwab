@@ -6,10 +6,34 @@ import androidx.compose.material3.adaptive.layout.PaneAdaptedValue
 import androidx.compose.material3.adaptive.navigation3.LocalListDetailSceneScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.lifecycle.compose.dropUnlessResumed
+import androidx.navigation3.runtime.NavEntryDecorator
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.get
 import com.xwab.app.designsystem.components.LocalBackButtonAction
 import com.xwab.app.designsystem.components.LocalBackButtonVisibility
+
+/**
+ * Tells each entry's back arrow what it means in the pane it is drawn in; see [AdaptiveBackControl].
+ *
+ * A decorator, as Navigation 3 provides entry-scoped values: listed after the saveable state and
+ * ViewModel decorators, it wraps the content directly, inside the list–detail scene's pane scope.
+ *
+ * @param onUp closes the given destination's pane and what was opened from it.
+ */
+@Composable
+internal fun rememberAdaptiveBackNavEntryDecorator(onUp: (NavKey) -> Unit): NavEntryDecorator<NavKey> {
+    val latestOnUp by rememberUpdatedState(onUp)
+    return remember {
+        NavEntryDecorator { entry ->
+            val destination = entry.metadata[DestinationKey]
+            AdaptiveBackControl(entry.metadata, onUp = { destination?.let(latestOnUp) }) { entry.Content() }
+        }
+    }
+}
 
 /**
  * Hide Up only while the actual parent pane is visible; compact destinations retain their control.
@@ -20,7 +44,7 @@ import com.xwab.app.designsystem.components.LocalBackButtonVisibility
  */
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
-internal fun AdaptiveBackControl(metadata: Map<String, Any>, onUp: () -> Unit, content: @Composable () -> Unit) {
+private fun AdaptiveBackControl(metadata: Map<String, Any>, onUp: () -> Unit, content: @Composable () -> Unit) {
     val parent = metadata[ParentPaneKey]
     val scaffold = LocalListDetailSceneScope.current?.scaffoldTransitionScope?.scaffoldStateTransition?.targetState
     val parentVisible = parent != null && scaffold?.get(parent) == PaneAdaptedValue.Expanded

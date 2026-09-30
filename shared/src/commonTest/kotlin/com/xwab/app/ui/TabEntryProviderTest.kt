@@ -85,6 +85,8 @@ class TabEntryProviderTest {
 
         assertEquals(true, first.metadata["custom-scene"])
         assertEquals(BrowseRoute.toString(), first.metadata[TabKey])
+        // A decorator cannot read the entry's key; the back arrow's decorator reads it from here.
+        assertEquals(SoundRoute("rain"), first.metadata[DestinationKey])
         assertNotEquals(first.contentKey, second.contentKey)
     }
 }
@@ -109,4 +111,4 @@ private object UnopenedFeaturesGraph : AppGraph {
 
 /** The production metadata; these tests are about identity, not what the back arrow does. */
 private fun tabEntries(tab: NavKey, provider: (NavKey) -> NavEntry<NavKey>) =
-    entryProviderForTab(tab, provider, ::appEntryMetadata, onUp = {})
+    entryProviderForTab(tab, backStack = emptyList(), provider, ::appEntryMetadata)

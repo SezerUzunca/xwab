@@ -3,6 +3,7 @@
 package com.xwab.app.composition
 
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldDefaults
+import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.layout.PaneScaffoldDirective
 import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
 import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
@@ -30,7 +31,7 @@ import kotlin.test.assertTrue
 class AppEntryMetadataTest {
     private fun strategy(partitions: Int) = ListDetailSceneStrategy<NavKey>(
         shouldHandleSinglePaneLayout = false,
-        backNavigationBehavior = BackNavigationBehavior.PopLatest,
+        backNavigationBehavior = BackNavigationBehavior.PopUntilCurrentDestinationChange,
         directive = PaneScaffoldDirective.Default.copy(maxHorizontalPartitions = partitions),
         adaptStrategies = ListDetailPaneScaffoldDefaults.adaptStrategies(),
         paneExpansionDragHandle = null,
@@ -40,8 +41,9 @@ class AppEntryMetadataTest {
     private fun calculate(entries: List<NavEntry<NavKey>>, partitions: Int = 2) =
         with(strategy(partitions)) { with(SceneStrategyScope<NavKey>()) { calculateScene(entries) } }
 
+    /** One tab's stack, in order; each entry's metadata sees the destinations beneath it. */
     private fun entries(tab: NavKey, vararg routes: NavKey): List<NavEntry<NavKey>> = routes.map(
-        entryProviderForTab(tab, { route -> NavEntry(route) {} }, ::appEntryMetadata, onUp = {}),
+        entryProviderForTab(tab, routes.toList(), { route -> NavEntry(route) {} }, ::appEntryMetadata),
     )
 
     @Test
@@ -88,17 +90,38 @@ class AppEntryMetadataTest {
         assertEquals(entries, assertNotNull(calculate(entries)).entries)
     }
 
+    /** Choosing one story after another beside the list: one Back returns to the list. */
     @Test
-    fun detailChangesKeepTheSceneKeyAndBackPopsExactlyOneEntry() {
+    fun earlierSelectionsInThePaneAreSkippedByOneBack() {
         val first = entries(StoriesRoute, StoriesRoute, StoryRoute("first"))
-        val second = first + entries(StoriesRoute, StoryRoute("second"))
-        assertEquals(assertNotNull(calculate(first)).key, assertNotNull(calculate(second)).key)
-        assertEquals(first, assertNotNull(calculate(second)).previousEntries)
+        val stack = entries(StoriesRoute, StoriesRoute, StoryRoute("first"), StoryRoute("second"), StoryRoute("third"))
+        val scene = assertNotNull(calculate(stack))
+        assertEquals(assertNotNull(calculate(first)).key, scene.key)
+        assertEquals(stack.take(1), scene.previousEntries)
+    }
+
+    /** Another sound chosen in the category stays the extra pane; Back returns to the category. */
+    @Test
+    fun soundsChosenInTurnInACategoryShareTheExtraPane() {
+        val stack = entries(BrowseRoute, BrowseRoute, CategoryRoute("rain"), SoundRoute("a"), SoundRoute("b"))
+        assertEquals(ListDetailPaneScaffoldRole.Detail, stack.last().metadata[ParentPaneKey])
+        assertEquals(stack.take(2), assertNotNull(calculate(stack, partitions = 3)).previousEntries)
+    }
+
+    /** The player's "View details" opens a sound straight from the catalog root, with no category. */
+    @Test
+    fun aSoundWithNoCategoryBeneathIsASinglePaneNotAnOrphanedExtraPane() {
+        val fromPlayer = entries(BrowseRoute, BrowseRoute, SoundRoute("rain"))
+        assertNull(calculate(fromPlayer, partitions = 3))
+        assertNull(fromPlayer.last().metadata[ParentPaneKey])
+
+        val fromCategory = entries(BrowseRoute, BrowseRoute, CategoryRoute("rain"), SoundRoute("rain"))
+        assertEquals(ListDetailPaneScaffoldRole.Detail, fromCategory.last().metadata[ParentPaneKey])
     }
 
     @Test
     fun everyPlayerTransitionHasAnOfficialMetadataOverride() {
-        val metadata = appEntryMetadata(BrowseRoute, NowPlayingRoute)
+        val metadata = appEntryMetadata(BrowseRoute, NowPlayingRoute, beneath = listOf(BrowseRoute))
         assertTrue(metadata[NavDisplay.TransitionKey] != null)
         assertTrue(metadata[NavDisplay.PopTransitionKey] != null)
         assertTrue(metadata[NavDisplay.PredictivePopTransitionKey] != null)

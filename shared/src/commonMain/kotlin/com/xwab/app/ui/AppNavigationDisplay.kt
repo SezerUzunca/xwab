@@ -84,8 +84,11 @@ internal fun AppNavigationDisplay(
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 private fun AppNavDisplay(entries: List<NavEntry<NavKey>>, onBack: () -> Unit, modifier: Modifier) {
     val direction = if (LocalLayoutDirection.current == LayoutDirection.Ltr) 1 else -1
+    // Back leaves a pane at once, skipping earlier selections that held it. Material's default,
+    // PopUntilScaffoldValueChange, finds no change once a list shows its detail placeholder, and so
+    // skips past the list itself.
     val listDetailStrategy = rememberListDetailSceneStrategy<NavKey>(
-        backNavigationBehavior = BackNavigationBehavior.PopLatest,
+        backNavigationBehavior = BackNavigationBehavior.PopUntilCurrentDestinationChange,
     )
     NavDisplay(
         entries = entries,

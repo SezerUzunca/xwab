@@ -13,12 +13,12 @@ internal class Navigator(private val state: NavigationState) {
     fun reselections(route: NavKey): Flow<Unit> = reselectEvents.filter { it == route }.map { }
 
     /**
-     * Switching tabs preserves history. Revisiting a key pops to it, preserving its entry store.
+     * Switching tabs preserves history. Revisiting a key pops to it, preserving its entry store: a
+     * key can be on a stack only once, as its saveable state holder rejects a repeated key.
      *
-     * Opening another destination of a kind already in the stack replaces that one and whatever
-     * was opened from it: choosing Ocean after Rain is a new selection, not a step deeper. Beside a
-     * list that is what a list–detail pane shows, and Back then leaves the selection instead of
-     * walking through every earlier one.
+     * Anything else is pushed, as in the official recipes. Choosing Ocean after Rain beside a list
+     * keeps Rain in history; Material's list–detail scene skips both on Back, because they share a
+     * pane (`PopUntilCurrentDestinationChange`, set where the scene strategy is created).
      */
     fun navigate(key: NavKey) {
         if (key in state.backStacks) {
@@ -27,13 +27,7 @@ internal class Navigator(private val state: NavigationState) {
         }
         val stack = state.currentBackStack
         val existing = stack.indexOf(key)
-        if (existing >= 0) {
-            stack.subList(existing + 1, stack.size).clear()
-            return
-        }
-        val sameKind = stack.indexOfFirst { it::class == key::class }
-        if (sameKind > 0) stack.subList(sameKind, stack.size).clear()
-        stack.add(key)
+        if (existing >= 0) stack.subList(existing + 1, stack.size).clear() else stack.add(key)
     }
 
     /** Reselect returns to the root; another tap at the root asks the list to scroll to the start. */
@@ -58,15 +52,17 @@ internal class Navigator(private val state: NavigationState) {
     }
 
     /**
-     * Up from a destination visible beside others: closes it and whatever was opened from it.
+     * Up from a destination visible beside others: closes its pane and whatever was opened from it.
      *
-     * Back removes only the latest entry, which in a list–detail–extra scene is the rightmost
-     * pane. An arrow drawn on the middle pane means that pane. A destination not in the current
-     * stack, or its root, falls back to [goBack].
+     * Back leaves the rightmost pane of a list–detail–extra scene; an arrow drawn on the middle
+     * pane means that pane. Earlier selections directly beneath it, of the same kind, held the same
+     * pane and go too, as Back would skip them. A destination not in the current stack, or its
+     * root, falls back to [goBack].
      */
     fun goUp(from: NavKey) {
         val stack = state.currentBackStack
-        val index = stack.indexOf(from)
+        var index = stack.indexOf(from)
+        while (index > 1 && stack[index - 1]::class == from::class) index--
         if (index > 0) stack.subList(index, stack.size).clear() else goBack()
     }
 

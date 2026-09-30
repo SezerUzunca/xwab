@@ -79,7 +79,7 @@ class PlaybackRoutesTest {
 
     /** Details for another sound replace the sound already open, so Back does not revisit it. */
     @Test
-    fun detailsForAnotherItemReplaceTheOneAlreadyOpen() {
+    fun detailsForAnotherItemOpenAboveTheOneAlreadyOpen() {
         val state = navigationState()
         val navigator = Navigator(state)
         navigator.navigate(FavoritesRoute)
@@ -88,7 +88,10 @@ class PlaybackRoutesTest {
 
         openPlaybackDetails(PlaybackItemId(SOUND_PLAYBACK_KIND, "waves"), navigator::replaceCurrent)
 
-        assertEquals(listOf<NavKey>(FavoritesRoute, SoundRoute("waves")), state.currentBackStack)
+        assertEquals(
+            listOf<NavKey>(FavoritesRoute, SoundRoute("rain"), SoundRoute("waves")),
+            state.currentBackStack,
+        )
     }
 
     @Test

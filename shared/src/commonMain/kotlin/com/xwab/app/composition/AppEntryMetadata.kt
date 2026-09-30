@@ -30,12 +30,16 @@ import xwab.shared.generated.resources.choose_category
 import xwab.shared.generated.resources.choose_sound
 import xwab.shared.generated.resources.choose_story
 
-/** Each tab is a distinct Material scene. Catalog's category and sound occupy detail and extra panes. */
-internal fun appEntryMetadata(tab: NavKey, route: NavKey): Map<String, Any> {
+/**
+ * Each tab is a distinct Material scene. Catalog's category and sound occupy detail and extra panes.
+ *
+ * @param beneath the tab's destinations below this one, oldest first; empty at a tab's root.
+ */
+internal fun appEntryMetadata(tab: NavKey, route: NavKey, beneath: List<NavKey>): Map<String, Any> {
     if (route == NowPlayingRoute) return playerTransitionMetadata()
     val sceneKey = tab.toString()
     return when (tab) {
-        BrowseRoute -> catalogPaneMetadata(route, sceneKey)
+        BrowseRoute -> catalogPaneMetadata(route, beneath, sceneKey)
         FavoritesRoute -> when (route) {
             FavoritesRoute -> listPane(sceneKey, Res.string.choose_sound)
             is SoundRoute -> ListDetailSceneStrategy.detailPane(sceneKey) + parentPane(ListDetailPaneScaffoldRole.List)
@@ -50,12 +54,23 @@ internal fun appEntryMetadata(tab: NavKey, route: NavKey): Map<String, Any> {
     }
 }
 
-private fun catalogPaneMetadata(route: NavKey, sceneKey: String): Map<String, Any> = when (route) {
-    BrowseRoute -> listPane(sceneKey, Res.string.choose_category)
-    is CategoryRoute -> ListDetailSceneStrategy.detailPane(sceneKey) + parentPane(ListDetailPaneScaffoldRole.List)
-    is SoundRoute -> ListDetailSceneStrategy.extraPane(sceneKey) + parentPane(ListDetailPaneScaffoldRole.Detail)
-    else -> emptyMap()
-}
+/**
+ * A sound is the extra pane only beside the category it was opened from; earlier sounds chosen
+ * there sit between them. The player opens one straight from the catalog's root: with no category
+ * beneath, it is its own single pane, as a sound is in the stories tab, rather than an extra pane
+ * with no detail beside it.
+ */
+private fun catalogPaneMetadata(route: NavKey, beneath: List<NavKey>, sceneKey: String): Map<String, Any> =
+    when (route) {
+        BrowseRoute -> listPane(sceneKey, Res.string.choose_category)
+        is CategoryRoute -> ListDetailSceneStrategy.detailPane(sceneKey) + parentPane(ListDetailPaneScaffoldRole.List)
+        is SoundRoute -> if (beneath.lastOrNull { it !is SoundRoute } is CategoryRoute) {
+            ListDetailSceneStrategy.extraPane(sceneKey) + parentPane(ListDetailPaneScaffoldRole.Detail)
+        } else {
+            emptyMap()
+        }
+        else -> emptyMap()
+    }
 
 private fun parentPane(role: androidx.compose.material3.adaptive.layout.ThreePaneScaffoldRole) =
     metadata { put(ParentPaneKey, role) }

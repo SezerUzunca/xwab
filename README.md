@@ -195,8 +195,9 @@ narrator and duration. Each tab retains its own history and saved screen state.
 `NavDisplay`. Saveable state and ViewModel entry decorators are retained for every tab, including
 inactive tabs, in the documented order. Tab-scoped content keys prevent the same sound in Browse
 and Favorites from sharing an entry store. A destination already on the stack is revisited by
-popping to it, preserving its parents and state. Opening another destination of the same kind
-(Ocean after Rain) replaces the earlier one and whatever it opened, so Back leaves the selection.
+popping to it, preserving its parents and state. Anything else is pushed, as in the official
+recipes: choosing Ocean after Rain beside a list keeps Rain in history, and Material's
+`PopUntilCurrentDestinationChange` back behavior skips both on one Back to the list.
 Selecting another tab preserves its history; reselecting returns to its root, and a further tap
 at the root scrolls its list to the start.
 
