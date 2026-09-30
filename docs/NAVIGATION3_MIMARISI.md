@@ -55,14 +55,14 @@ kullanılır; Android'e özgü reflection çözümü common koduna taşınmaz.
 | Uygulama chrome'u | Resmi `NavigationSuiteScaffold` pencere boyutu sınıfına göre kısa bar veya geniş ray seçer; chrome her ekranda aynı olduğu için `NavDisplay` dışında durur ve tek örnektir |
 | Küçük ekran | `SinglePaneScene` fallback; tam ekran hedefler |
 | Adaptif list–detail | Resmi Material `rememberListDetailSceneStrategy` |
-| Extra pane | Browse listesinin yanında Category detail, ardından Sound extra pane. Altında Category olmayan ses (oynatıcıdaki "View details" ile kökten açılan) tek panel gösterilir |
+| Extra pane | Browse listesinin yanında Category detail, ardından Sound extra pane. Altında Category olmayan ses (oynatıcıdaki "View details" ile kökten açılan) tek panel gösterilir. Oynatıcı sesi her zaman kökten açtığı için altındaki kategori her zaman sesin kendi kategorisidir |
 | Boş detail | Resmi `listPane(detailPlaceholder=...)` ile kategori/ses/hikâye seçim mesajı |
 | İleri/geri animasyon | `transitionSpec` ve `popTransitionSpec`; RTL yönü korunur, sekmeler fade kullanır |
 | Predictive Back | `predictivePopTransitionSpec`; Material sahne içindeki geri hareketini kendi işler |
 | Hedefe özel animasyon | NowPlaying için resmi TransitionKey, PopTransitionKey ve PredictivePopTransitionKey metadata'sı |
 | Yaşam döngüsüne bağlı dokunma | Feature navigation kontrollerinde `dropUnlessResumed` |
 | Sekme yeniden seçimi | Root'a dönme, root'ta yeniden seçim event'iyle listeyi başa kaydırma |
-| Geçici ekran değiştirme | Player detay intent'i mevcut entry'yi aynı karede değiştirir |
+| Geçici ekran değiştirme | Player detay intent'i player'ı aynı karede kaldırır ve öğeyi sekmenin kökünden yeni seçim olarak açar; öğe stack'te zaten açıksa oraya döner |
 | Seçim değiştirme | Resmi tariflerdeki gibi yeni hedef eklenir (Rain açıkken Ocean). Aynı paneldeki eski seçimleri Material'in `PopUntilCurrentDestinationChange` geri davranışı tek geri işlemiyle atlar |
 | Sürüm geçişi | Kaldırılan route'ların güvenli okunması ve stack'ten çıkarılması korunur |
 
@@ -84,8 +84,15 @@ sesler de tek geri işlemiyle kategoriye döner. 30 Eylül'de üç seçenek ger�
   önceden `Navigator` aynı türden hedefi değiştiriyordu; bu özel kural kaldırıldı.
 - `PopUntilCurrentDestinationChange`: yukarıdaki davranış. Kullanılır.
 
-Telefonda liste ile detay aynı anda görünmediği için seçimler birikmez; oynatıcıdaki
-"View details" başka bir sesi mevcut detayın üstüne açar ve geri önce o detaya döner.
+Telefonda liste ile detay aynı anda görünmediği için seçimler birikmez. Oynatıcıdaki
+"View details" öğeyi sekmenin kökünden açar; geri sekmenin listesine döner.
+
+Bu kurallardaki özel kısım yalnızca politikadır; mekanizmalar resmidir. Sekme kimliği resmi
+`NavEntry.contentKey`, geri oku resmi `NavEntryDecorator`, iOS dahil kayıt resmi
+`SavedStateConfiguration` ve `rememberSerializable` ile kurulur. Aynı stack'te aynı içerik
+anahtarı iki kez bulunamaz (saveable state holder reddeder); var olan hedefe dönmek bunun
+çözümlerinden biridir ve uygulamanın seçimidir. Metadata birden fazla değer taşıyan bir haritadır;
+uygulamanın seçtiği şey, bir hedefin o geçmişte hangi panel rolünü alacağıdır.
 [Resmi API açıklaması](https://developer.android.com/reference/kotlin/androidx/compose/material3/adaptive/navigation/BackNavigationBehavior)
 geniş ekranda aynı panelde farklı içeriklere gidildikten sonra pencere daraltılırsa
 geçmişin kullanıcı için beklenmedik olabileceğini belirtir; her iki düzende aynı ekranların

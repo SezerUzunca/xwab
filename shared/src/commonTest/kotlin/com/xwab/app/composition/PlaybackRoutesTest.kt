@@ -7,6 +7,7 @@ import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoryRoute
 import androidx.navigation3.runtime.NavKey
 import com.xwab.app.feature.browse.navigation.BrowseRoute
+import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
 import com.xwab.app.feature.nowplaying.navigation.NowPlayingRoute
 import com.xwab.app.navigation.NavigationState
@@ -77,9 +78,9 @@ class PlaybackRoutesTest {
         assertEquals(listOf<NavKey>(FavoritesRoute), state.currentBackStack)
     }
 
-    /** Details for another sound replace the sound already open, so Back does not revisit it. */
+    /** Details for another item are a fresh selection from the list, not a step past the open one. */
     @Test
-    fun detailsForAnotherItemOpenAboveTheOneAlreadyOpen() {
+    fun detailsForAnotherItemOpenFromTheTabsRoot() {
         val state = navigationState()
         val navigator = Navigator(state)
         navigator.navigate(FavoritesRoute)
@@ -88,8 +89,38 @@ class PlaybackRoutesTest {
 
         openPlaybackDetails(PlaybackItemId(SOUND_PLAYBACK_KIND, "waves"), navigator::replaceCurrent)
 
+        assertEquals(listOf<NavKey>(FavoritesRoute, SoundRoute("waves")), state.currentBackStack)
+    }
+
+    /**
+     * The catalog case this guards: a sound from the player never lands beside a category it may
+     * not belong to, where it would take the extra pane beside the wrong list.
+     */
+    @Test
+    fun aSoundFromThePlayerLeavesTheCategoryItWasOpenedAbove() {
+        val state = navigationState()
+        val navigator = Navigator(state)
+        navigator.navigate(CategoryRoute("rain"))
+        navigator.navigate(NowPlayingRoute)
+
+        openPlaybackDetails(PlaybackItemId(SOUND_PLAYBACK_KIND, "waves"), navigator::replaceCurrent)
+
+        assertEquals(listOf<NavKey>(BrowseRoute, SoundRoute("waves")), state.currentBackStack)
+    }
+
+    /** The item's own detail, already open beneath the player, keeps the context it was opened in. */
+    @Test
+    fun detailsAlreadyOpenBeneathThePlayerAreReturnedTo() {
+        val state = navigationState()
+        val navigator = Navigator(state)
+        navigator.navigate(CategoryRoute("rain"))
+        navigator.navigate(SoundRoute("rain"))
+        navigator.navigate(NowPlayingRoute)
+
+        openPlaybackDetails(PlaybackItemId(SOUND_PLAYBACK_KIND, "rain"), navigator::replaceCurrent)
+
         assertEquals(
-            listOf<NavKey>(FavoritesRoute, SoundRoute("rain"), SoundRoute("waves")),
+            listOf<NavKey>(BrowseRoute, CategoryRoute("rain"), SoundRoute("rain")),
             state.currentBackStack,
         )
     }

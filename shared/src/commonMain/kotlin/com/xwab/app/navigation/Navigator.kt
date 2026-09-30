@@ -13,8 +13,11 @@ internal class Navigator(private val state: NavigationState) {
     fun reselections(route: NavKey): Flow<Unit> = reselectEvents.filter { it == route }.map { }
 
     /**
-     * Switching tabs preserves history. Revisiting a key pops to it, preserving its entry store: a
-     * key can be on a stack only once, as its saveable state holder rejects a repeated key.
+     * Switching tabs preserves history. Revisiting a key pops to it, preserving its entry store.
+     *
+     * An entry's content key derives from its key by default, and a stack's saveable state holder
+     * rejects a repeated content key. Popping to the existing entry is this app's answer; moving it
+     * to the top, or giving every push its own content key, would be others.
      *
      * Anything else is pushed, as in the official recipes. Choosing Ocean after Rain beside a list
      * keeps Rain in history; Material's list–detail scene skips both on Back, because they share a
@@ -42,12 +45,17 @@ internal class Navigator(private val state: NavigationState) {
     }
 
     /**
-     * Replaces a transient screen (the player). Both changes land before the next frame, so no
-     * intermediate destination is ever drawn.
+     * Opens [key] in place of a transient screen (the player), as a fresh selection from the tab's
+     * root.
+     *
+     * What was open beneath the player is not the new destination's parent: a sound opened from
+     * the player must not sit beside a category it does not belong to. A destination already on
+     * the stack is popped to instead, and keeps the context it was opened in. Both changes land
+     * before the next frame, so no intermediate destination is ever drawn.
      */
     fun replaceCurrent(key: NavKey) {
         val stack = state.currentBackStack
-        if (stack.size > 1) stack.removeAt(stack.lastIndex)
+        if (key !in stack && key !in state.backStacks && stack.size > 1) stack.subList(1, stack.size).clear()
         navigate(key)
     }
 

@@ -56,9 +56,10 @@ internal fun appEntryMetadata(tab: NavKey, route: NavKey, beneath: List<NavKey>)
 
 /**
  * A sound is the extra pane only beside the category it was opened from; earlier sounds chosen
- * there sit between them. The player opens one straight from the catalog's root: with no category
- * beneath, it is its own single pane, as a sound is in the stories tab, rather than an extra pane
- * with no detail beside it.
+ * there sit between them. That a category beneath is the sound's own holds because the player,
+ * the one other way to open a sound, opens it from the catalog's root (`Navigator.replaceCurrent`).
+ * With no category beneath, it is its own single pane, as a sound is in the stories tab, rather
+ * than an extra pane with no detail beside it.
  */
 private fun catalogPaneMetadata(route: NavKey, beneath: List<NavKey>, sceneKey: String): Map<String, Any> =
     when (route) {

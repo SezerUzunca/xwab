@@ -219,7 +219,8 @@ by Android device tests and iOS simulator tests.
 `feature:nowplaying` owns `NowPlayingRoute`, its serializer and an entry provider like every other
 feature. Tapping the persistent mini player opens the player screen in the current tab's back
 stack. The mini player is hidden while that screen is selected. Back returns to the previous
-screen; the details action removes the player entry before opening `SoundRoute` or `StoryRoute`.
+screen; the details action removes the player entry and opens `SoundRoute` or `StoryRoute` as a
+fresh selection from the tab's root, or returns to it if that detail is already open beneath.
 The shell owns that mapping; nowplaying consumes only the content-neutral session port.
 
 The screen's ViewModel belongs to its navigation entry, while the mini player's presentation

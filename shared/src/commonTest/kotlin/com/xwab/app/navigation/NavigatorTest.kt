@@ -174,6 +174,18 @@ class NavigatorTest {
     }
 
     @Test
+    fun aNewDestinationReplacingATransientEntryOpensFromTheTabsRoot() {
+        val state = state()
+        val navigator = Navigator(state)
+        navigator.navigate(DetailRoute)
+        navigator.navigate(AnotherDetailRoute)
+
+        navigator.replaceCurrent(ItemRoute("ocean"))
+
+        assertEquals(listOf<NavKey>(HomeRoute, ItemRoute("ocean")), state.currentBackStack)
+    }
+
+    @Test
     fun rootReselectionEmitsOnlyToThatTabsList() = runBlocking {
         val state = state()
         val navigator = Navigator(state)
