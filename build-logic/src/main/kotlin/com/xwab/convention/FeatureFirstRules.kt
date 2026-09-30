@@ -55,6 +55,13 @@ internal object FeatureFirstRules {
 
     private val EXPLICIT_SERIAL_NAME = Regex("""@SerialName\s*\(""")
 
+    /** `subclass(SoundRoute::class)` or `subclass(SoundRoute::class, SoundRouteSerializer)`. */
+    private val ROUTE_REGISTRATION = Regex("""\bsubclass\(\s*(\w+)::class""")
+
+    /** `val soundNavigationSerializers = SerializersModule {`, optionally with its type stated. */
+    private val ROUTE_MODULE_DECLARATION =
+        Regex("""\bval\s+(\w+NavigationSerializers)\s*(?::\s*SerializersModule\s*)?=\s*SerializersModule\b""")
+
     /** `@StringKey(SOUND_PLAYBACK_KIND)` — the kind a content module registers its resolver under. */
     private val CONTRIBUTED_PLAYBACK_KIND =
         Regex("""@StringKey\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)""")
@@ -466,6 +473,55 @@ internal object FeatureFirstRules {
                     "file would break the navigation every installed copy restores."
             }
         }.sorted()
+
+    /**
+     * Every route a feature declares is registered in that feature's serializers module.
+     *
+     * A route with an entry but no registration opens and saves nothing wrong in a single run. It
+     * fails on the next launch, when the saved back stack holding it is restored and the polymorphic
+     * lookup finds no serializer for it — or, with the shell's fallback, reads it as a removed route
+     * and silently drops the screen the listener had open. No test in `:shared` can list a feature's
+     * entries, so the build checks the declarations against the registrations instead.
+     */
+    fun unregisteredRouteViolations(featureSources: Map<String, String>): List<String> =
+        featureSources.entries.groupBy { (path, _) -> path.split('/').take(2).joinToString("/") }
+            .flatMap { (module, sources) ->
+                val registered = sources.flatMap { (_, source) ->
+                    ROUTE_REGISTRATION.findAll(codeOnly(source)).map { it.groupValues[1] }.toList()
+                }.toSet()
+                sources.flatMap { (path, source) ->
+                    codeOnly(source).lines().mapIndexedNotNull { index, line ->
+                        val route = ROUTE_DECLARATION.find(line)?.groupValues?.get(1)
+                            ?: return@mapIndexedNotNull null
+                        if (route in registered) return@mapIndexedNotNull null
+                        "$path:${index + 1} declares route $route, but no SerializersModule in $module " +
+                            "registers it with subclass($route::class). A saved back stack holding it " +
+                            "would not restore."
+                    }
+                }
+            }.sorted()
+
+    /**
+     * Every feature's route serializers module is included in the shell's `FEATURE_SERIALIZERS`.
+     *
+     * The shell assembles the modules by hand, because only it knows which features this build has.
+     * A feature whose module is left out registers its routes nowhere the saved state can see.
+     */
+    fun unassembledRouteModuleViolations(
+        featureSources: Map<String, String>,
+        shellSources: Map<String, String>,
+    ): List<String> {
+        val shell = shellSources.values.joinToString("\n", transform = ::codeOnly)
+        return featureSources.flatMap { (path, source) ->
+            ROUTE_MODULE_DECLARATION.findAll(codeOnly(source)).map { it.groupValues[1] }
+                .filterNot { module -> Regex("""\binclude\(\s*$module\s*\)""").containsMatchIn(shell) }
+                .map { module ->
+                    "$path declares $module, but $SHELL_MODULE never includes it in its route serializers " +
+                        "(include($module)). Saved back stacks holding this feature's routes would not restore."
+                }
+                .toList()
+        }.sorted()
+    }
 
     /** Neither modules nor source/package directories may recreate the old `api` / `impl` split. */
     fun legacySplitDirectoryViolations(paths: List<String>): List<String> =

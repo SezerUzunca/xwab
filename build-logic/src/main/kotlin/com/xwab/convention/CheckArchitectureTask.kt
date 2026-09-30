@@ -61,6 +61,9 @@ import org.gradle.api.tasks.TaskAction
  *     favourites and cache namespaces. Renaming one compiles, passes and breaks installed copies,
  *     so the constant and its pin must change together. Any `*_NAMESPACE` / `*_KIND` constant must
  *     be pinned.
+ * 23. Every route a feature declares is registered in that feature's serializers module, and every
+ *     feature's module is included in the shell's route serializers. Either gap compiles and runs,
+ *     and fails only when a saved back stack is restored on the next launch.
  *
  * The rules themselves live in [FeatureFirstRules], where they are unit-tested from both sides.
  * This task is only their plumbing: it reads the dependency report each module publishes about
@@ -109,6 +112,11 @@ abstract class CheckArchitectureTask : DefaultTask() {
             FeatureFirstRules.unregisteredModuleViolations(moduleDirectories(root), graph.keys) +
             FeatureFirstRules.unwiredModuleViolations(graph) +
             FeatureFirstRules.routeSerialNameViolations(productionSources(root, "feature")) +
+            FeatureFirstRules.unregisteredRouteViolations(productionSources(root, "feature")) +
+            FeatureFirstRules.unassembledRouteModuleViolations(
+                featureSources = productionSources(root, "feature"),
+                shellSources = productionSources(root, "shared"),
+            ) +
             FeatureFirstRules.unroutedPlaybackKindViolations(
                 coreSources = productionSources(root, "core"),
                 compositionSources = productionSources(root, "shared"),

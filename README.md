@@ -195,8 +195,9 @@ narrator and duration. Each tab retains its own history and saved screen state.
 `NavDisplay`. Saveable state and ViewModel entry decorators are retained for every tab, including
 inactive tabs, in the documented order. Tab-scoped content keys prevent the same sound in Browse
 and Favorites from sharing an entry store. A destination already on the stack is revisited by
-popping to it, preserving its parents and state. Opening another destination of the same kind
-(Ocean after Rain) replaces the earlier one and whatever it opened, so Back leaves the selection.
+popping to it, preserving its parents and state. Anything else is pushed, as in the official
+recipes: choosing Ocean after Rain beside a list keeps Rain in history, and Material's
+`PopUntilCurrentDestinationChange` back behavior skips both on one Back to the list.
 Selecting another tab preserves its history; reselecting returns to its root, and a further tap
 at the root scrolls its list to the start.
 
@@ -218,7 +219,8 @@ by Android device tests and iOS simulator tests.
 `feature:nowplaying` owns `NowPlayingRoute`, its serializer and an entry provider like every other
 feature. Tapping the persistent mini player opens the player screen in the current tab's back
 stack. The mini player is hidden while that screen is selected. Back returns to the previous
-screen; the details action removes the player entry before opening `SoundRoute` or `StoryRoute`.
+screen; the details action removes the player entry and opens `SoundRoute` or `StoryRoute` as a
+fresh selection from the tab's root, or returns to it if that detail is already open beneath.
 The shell owns that mapping; nowplaying consumes only the content-neutral session port.
 
 The screen's ViewModel belongs to its navigation entry, while the mini player's presentation
@@ -293,8 +295,9 @@ playback. The architecture check requires these values to agree with the downloa
 7. Designsystem depends on an application project.
 8. A module directory is absent from the build, or a core/feature module is absent from shared's
    compilation graph. Core registration is automatic; feature composition stays explicit.
-9. A feature route lacks `@SerialName`, or a contributed playback kind has no routing reference
-   in the shell.
+9. A feature route lacks `@SerialName` or is missing from its feature's serializers module, a
+   feature's serializers module is not included in the shell's route serializers, or a
+   contributed playback kind has no routing reference in the shell.
 10. The download source and native player application metadata disagree on the HTTP user agent.
 11. A capability renames a value it has already written onto devices. Playback kinds, favourites
     and cache namespaces are pinned in `wireFormat`; the constant and its pin must change together,

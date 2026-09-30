@@ -7,7 +7,10 @@ import com.xwab.app.core.story.port.STORY_PLAYBACK_KIND
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoryRoute
 
-/** Removes the player before opening details, so Back returns to the screen that opened it. */
+/**
+ * Opens the item's details in place of the player, as a fresh selection from the tab's root, so
+ * Back returns to the tab's list. An item already open in the stack is returned to instead.
+ */
 internal fun openPlaybackDetails(item: PlaybackItemId, onReplace: (NavKey) -> Unit) {
     val route = when (item.kind) {
         SOUND_PLAYBACK_KIND -> SoundRoute(item.value)

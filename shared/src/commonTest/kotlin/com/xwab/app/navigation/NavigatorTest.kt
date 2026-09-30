@@ -174,6 +174,18 @@ class NavigatorTest {
     }
 
     @Test
+    fun aNewDestinationReplacingATransientEntryOpensFromTheTabsRoot() {
+        val state = state()
+        val navigator = Navigator(state)
+        navigator.navigate(DetailRoute)
+        navigator.navigate(AnotherDetailRoute)
+
+        navigator.replaceCurrent(ItemRoute("ocean"))
+
+        assertEquals(listOf<NavKey>(HomeRoute, ItemRoute("ocean")), state.currentBackStack)
+    }
+
+    @Test
     fun rootReselectionEmitsOnlyToThatTabsList() = runBlocking {
         val state = state()
         val navigator = Navigator(state)
@@ -228,20 +240,31 @@ class NavigatorTest {
     }
 
     /**
-     * Choosing Ocean after Rain is a new selection, not a step deeper: beside a list it replaces the
-     * detail pane, and Back leaves the selection instead of walking through every earlier one.
+     * Choosing Ocean after Rain is pushed, as in the official recipes. Skipping both on Back is the
+     * list–detail scene's job, which AppEntryMetadataTest checks with the Material strategy.
      */
     @Test
-    fun openingAnotherDestinationOfTheSameKindReplacesItAndWhatItOpened() {
+    fun anotherDestinationOfTheSameKindIsPushedAboveTheEarlierOne() {
         val state = state()
         val navigator = Navigator(state)
         navigator.navigate(ItemRoute("rain"))
-        navigator.navigate(DetailRoute)
 
         navigator.navigate(ItemRoute("ocean"))
 
-        assertEquals(listOf<NavKey>(HomeRoute, ItemRoute("ocean")), state.currentBackStack)
-        navigator.goBack()
+        assertEquals(listOf<NavKey>(HomeRoute, ItemRoute("rain"), ItemRoute("ocean")), state.currentBackStack)
+    }
+
+    /** An arrow on a pane closes the pane, including earlier selections Back would skip with it. */
+    @Test
+    fun upFromAPaneAlsoClosesEarlierSelectionsThatHeldIt() {
+        val state = state()
+        val navigator = Navigator(state)
+        navigator.navigate(ItemRoute("rain"))
+        navigator.navigate(ItemRoute("ocean"))
+        navigator.navigate(DetailRoute)
+
+        navigator.goUp(ItemRoute("ocean"))
+
         assertEquals(listOf<NavKey>(HomeRoute), state.currentBackStack)
     }
 

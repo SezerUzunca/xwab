@@ -28,24 +28,26 @@ import com.xwab.app.navigation.NavigationState
  * @param state the back stack per tab, and which tab is showing.
  * @param entryProvider resolves a route to the entry that draws it. Navigation 3 1.1.x caches these
  *   entries by back-stack contents; changing only the provider does not invalidate them.
+ * @param onUp closes the given destination's pane; the back arrow's decorator calls it.
  */
 @Composable
 internal fun rememberTabEntries(
     state: NavigationState,
     entryProvider: (NavKey) -> NavEntry<NavKey>,
-    metadataProvider: (NavKey, NavKey) -> Map<String, Any>,
+    metadataProvider: (NavKey, NavKey, List<NavKey>) -> Map<String, Any>,
     onUp: (NavKey) -> Unit,
 ): List<NavEntry<NavKey>> {
     val entriesByTab = state.backStacks.mapValues { (route, backStack) ->
         key(route) {
-            val tabEntryProvider = remember(route, entryProvider, metadataProvider, onUp) {
-                entryProviderForTab(route, entryProvider, metadataProvider, onUp)
+            val tabEntryProvider = remember(route, backStack, entryProvider, metadataProvider) {
+                entryProviderForTab(route, backStack, entryProvider, metadataProvider)
             }
             rememberDecoratedNavEntries(
                 backStack = backStack,
                 entryDecorators = listOf(
                     rememberSaveableStateHolderNavEntryDecorator(),
                     rememberViewModelStoreNavEntryDecorator(),
+                    rememberAdaptiveBackNavEntryDecorator(onUp),
                 ),
                 entryProvider = tabEntryProvider,
             )

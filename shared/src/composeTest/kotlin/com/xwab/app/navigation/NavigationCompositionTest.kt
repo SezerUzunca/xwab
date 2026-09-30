@@ -39,6 +39,9 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
+import androidx.navigationevent.DirectNavigationEventInput
+import androidx.navigationevent.NavigationEvent
+import androidx.navigationevent.NavigationEventDispatcherOwner
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.rememberNavigationEventDispatcherOwner
 import androidx.savedstate.SavedStateRegistryController
@@ -219,6 +222,43 @@ class NavigationCompositionTest {
             }
         }
     }
+
+    /** Platform Back, completed or as a predictive gesture, reaches `NavDisplay` and pops one screen. */
+    @Test
+    fun systemBackPopsTheLatestScreenAndFallsThroughToTheStartTab() = runComposeUiTest {
+        withNavigation { harness ->
+            navigate(harness, CategoryRoute("rain"))
+            navigate(harness, SoundRoute("rain"))
+
+            systemBack(harness)
+            runOnIdle { assertEquals(listOf<NavKey>(BrowseRoute, CategoryRoute("rain")), harness.currentStack()) }
+
+            systemBack(harness, predictive = true)
+            runOnIdle { assertEquals(listOf<NavKey>(BrowseRoute), harness.currentStack()) }
+
+            navigate(harness, FavoritesRoute)
+            systemBack(harness)
+            runOnIdle { assertEquals(BrowseRoute, harness.state.topLevelRoute) }
+        }
+    }
+
+    /**
+     * Beside the list, one platform Back leaves the detail pane and every earlier selection in it:
+     * Material's scene asks `NavDisplay` for as many pops as `PopUntilCurrentDestinationChange` skips.
+     */
+    @Test
+    fun systemBackLeavesAPaneInOneStepBesideTheList() = runComposeUiTest {
+        withNavigation { harness ->
+            runOnIdle { harness.wide = true }
+            waitForIdle()
+            navigate(harness, CategoryRoute("rain"))
+            navigate(harness, CategoryRoute("ocean"))
+
+            systemBack(harness)
+
+            runOnIdle { assertEquals(listOf<NavKey>(BrowseRoute), harness.currentStack()) }
+        }
+    }
 }
 
 private fun ComposeUiTest.withNavigation(block: ComposeUiTest.(NavigationHarness) -> Unit) {
@@ -244,6 +284,22 @@ private fun ComposeUiTest.back(harness: NavigationHarness) {
     waitForIdle()
 }
 
+/** Back as the platform delivers it: through the dispatcher `NavDisplay` listens to. */
+private fun ComposeUiTest.systemBack(harness: NavigationHarness, predictive: Boolean = false) {
+    runOnIdle {
+        val dispatcher = harness.navigationEvents.navigationEventDispatcher
+        val input = DirectNavigationEventInput()
+        dispatcher.addInput(input)
+        if (predictive) {
+            input.backStarted(NavigationEvent(swipeEdge = NavigationEvent.EDGE_LEFT))
+            input.backProgressed(NavigationEvent(swipeEdge = NavigationEvent.EDGE_LEFT, progress = 0.5f))
+        }
+        input.backCompleted()
+        dispatcher.removeInput(input)
+    }
+    waitForIdle()
+}
+
 private class NavigationHarness {
     var visible by mutableStateOf(true)
     var wide by mutableStateOf(false)
@@ -253,7 +309,11 @@ private class NavigationHarness {
         private set
     lateinit var state: NavigationState
         private set
+    lateinit var navigationEvents: NavigationEventDispatcherOwner
+        private set
     val models = mutableListOf<EntryViewModel>()
+
+    fun currentStack(): List<NavKey> = state.currentBackStack.toList()
     val entryOwners = mutableSetOf<ViewModelStoreOwner>()
     val chromeOwners = mutableSetOf<ViewModelStoreOwner>()
     val chromeModels = mutableSetOf<ChromeViewModel>()
@@ -271,6 +331,7 @@ private class NavigationHarness {
     fun Content() {
         if (!visible) return
         val dispatcher = rememberNavigationEventDispatcherOwner(parent = null)
+        SideEffect { navigationEvents = dispatcher }
         val platformDensity = LocalDensity.current
         // The window size class is read in dp, so the density sets it. Platform defaults differ: an
         // iOS test window is 1024 px at density 1, already wide, while a phone is compact.

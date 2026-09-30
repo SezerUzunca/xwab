@@ -97,6 +97,20 @@ class FeatureSerializersTest {
         assertEquals(4, stack.size, "restoration must create an independent back stack")
     }
 
+    /**
+     * Content keys are built from this, so two routes must never share one, whatever their
+     * arguments contain. The length prefix is what keeps `"a|1:b"` from imitating two values.
+     */
+    @Test
+    fun everyRouteHasItsOwnSavedIdentity() {
+        val tricky = listOf(SoundRoute("a"), SoundRoute("a|1:b"), SoundRoute(""), CategoryRoute("a"))
+        val identities = (routes + tricky).map { it.savedIdentity() }
+
+        assertEquals(identities.size, identities.toSet().size, "two routes share an identity: $identities")
+        assertEquals("com.xwab.app.feature.sound.navigation.SoundRoute|1:a", SoundRoute("a").savedIdentity())
+        assertEquals("com.xwab.app.feature.browse.navigation.BrowseRoute", BrowseRoute.savedIdentity())
+    }
+
     @Test
     fun everySelectedTabRoundTripsAsAPolymorphicNavKey() {
         TOP_LEVEL_DESTINATIONS.forEach { destination ->
