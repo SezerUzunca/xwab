@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -18,31 +16,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 
-/** Shared control styling; callers own values, labels and actions. */
-@Composable
-fun SleepRelaxSlider(
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-) {
-    Slider(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier,
-        enabled = enabled,
-        colors = SliderDefaults.colors(
-            thumbColor = SleepRelaxTheme.colors.accent,
-            activeTrackColor = SleepRelaxTheme.colors.primary,
-            inactiveTrackColor = SleepRelaxTheme.colors.glassWhiteOverlay,
-        ),
-    )
-}
-
+/**
+ * Shared control styling; callers own values, labels and actions. [onCheckedChange] is null when
+ * the whole row is the toggle, as Material recommends.
+ */
 @Composable
 fun SleepRelaxSwitch(
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
+    onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {

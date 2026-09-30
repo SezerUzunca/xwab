@@ -7,7 +7,6 @@ import com.xwab.app.feature.favorites.navigation.FavoritesRoute
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import com.xwab.app.feature.story.navigation.StoryRoute
-import com.xwab.app.feature.nowplaying.navigation.NowPlayingRoute
 
 /**
  * Every route this app can put on a saved back stack, written out once.
@@ -31,5 +30,4 @@ internal val SAVEABLE_ROUTES: List<NavKey> = listOf(
     CategoryRoute("any-category"),
     SoundRoute("any-track"),
     StoryRoute("any-story"),
-    NowPlayingRoute,
 )

@@ -45,18 +45,29 @@ internal class Navigator(private val state: NavigationState) {
     }
 
     /**
-     * Opens [key] in place of a transient screen (the player), as a fresh selection from the tab's
-     * root.
+     * Opens [key] as a fresh selection from the current tab's root.
      *
-     * What was open beneath the player is not the new destination's parent: a sound opened from
-     * the player must not sit beside a category it does not belong to. A destination already on
-     * the stack is popped to instead, and keeps the context it was opened in. Both changes land
-     * before the next frame, so no intermediate destination is ever drawn.
+     * What was open is not the new destination's parent: a sound opened from the now-playing bar
+     * must not sit beside a category it does not belong to. A destination already on the stack is
+     * popped to instead, and keeps the context it was opened in. Both changes land before the next
+     * frame, so no intermediate destination is ever drawn.
      */
     fun replaceCurrent(key: NavKey) {
         val stack = state.currentBackStack
         if (key !in stack && key !in state.backStacks && stack.size > 1) stack.subList(1, stack.size).clear()
         navigate(key)
+    }
+
+    /**
+     * Opens [key] in [tab], the tab it belongs to, as [replaceCurrent] would there.
+     *
+     * The now-playing bar's way to an item: a sound opens under Sounds and a story under Stories,
+     * whichever tab the listener is on. Any other tab keeps its stack exactly as it was.
+     */
+    fun openInTab(tab: NavKey, key: NavKey) {
+        require(tab in state.backStacks) { "A tab needs its own back stack: $tab" }
+        state.topLevelRoute = tab
+        replaceCurrent(key)
     }
 
     /**

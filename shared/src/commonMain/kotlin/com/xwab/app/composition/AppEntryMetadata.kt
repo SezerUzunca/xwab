@@ -17,12 +17,10 @@ import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
-import com.xwab.app.feature.nowplaying.navigation.NowPlayingRoute
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import com.xwab.app.feature.story.navigation.StoryRoute
 import com.xwab.app.ui.ParentPaneKey
-import com.xwab.app.ui.playerTransitionMetadata
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import xwab.shared.generated.resources.Res
@@ -36,7 +34,6 @@ import xwab.shared.generated.resources.choose_story
  * @param beneath the tab's destinations below this one, oldest first; empty at a tab's root.
  */
 internal fun appEntryMetadata(tab: NavKey, route: NavKey, beneath: List<NavKey>): Map<String, Any> {
-    if (route == NowPlayingRoute) return playerTransitionMetadata()
     val sceneKey = tab.toString()
     return when (tab) {
         BrowseRoute -> catalogPaneMetadata(route, beneath, sceneKey)
@@ -56,8 +53,8 @@ internal fun appEntryMetadata(tab: NavKey, route: NavKey, beneath: List<NavKey>)
 
 /**
  * A sound is the extra pane only beside the category it was opened from; earlier sounds chosen
- * there sit between them. That a category beneath is the sound's own holds because the player,
- * the one other way to open a sound, opens it from the catalog's root (`Navigator.replaceCurrent`).
+ * there sit between them. That a category beneath is the sound's own holds because the now-playing
+ * bar, the one other way to open a sound, opens it from the catalog's root (`Navigator.openInTab`).
  * With no category beneath, it is its own single pane, as a sound is in the stories tab, rather
  * than an extra pane with no detail beside it.
  */

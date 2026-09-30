@@ -28,7 +28,7 @@ internal object FeatureFirstRules {
     private val FEATURE_NAVIGATION_PACKAGE =
         Regex("""com\.xwab\.app\.feature\.[A-Za-z0-9_]+\.navigation""")
 
-    /** UI the app shell places around destinations, such as the persistent mini player. */
+    /** UI the app shell places around destinations, such as the persistent now-playing bar. */
     private val FEATURE_SHELL_PACKAGE =
         Regex("""com\.xwab\.app\.feature\.[A-Za-z0-9_]+\.shell""")
 

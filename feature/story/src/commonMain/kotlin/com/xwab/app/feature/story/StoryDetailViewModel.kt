@@ -29,11 +29,12 @@ internal class StoryDetailViewModel(
                 story = content.story,
                 playIntent = isRequested && playback.playIntent,
                 isPreparing = isRequested && playback.isPreparing,
+                isLooping = playback.isLooping,
                 failure = playback.failure?.takeIf { it.itemId == itemId },
             ))
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StoryDetailUiState.Loading)
 
-    /** The session's timer for the shortcut; kept out of [state] because it ticks every second. */
+    /** The session's timer; kept out of [state] because it ticks every second. */
     val sleepTimerRemainingMs: StateFlow<Long?> =
         playbackPort.sleepTimerRemainingMs.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -43,4 +44,13 @@ internal class StoryDetailViewModel(
         if (current.playIntent) playbackPort.pause()
         else viewModelScope.launch { playbackPort.play(itemId) }
     }
+
+    /** The session's settings, straight to the session; neither starts the story. */
+    fun setLooping(enabled: Boolean) = playbackPort.setLooping(enabled)
+
+    fun startSleepTimer(durationMs: Long) {
+        if (durationMs > 0L) playbackPort.startSleepTimer(durationMs)
+    }
+
+    fun cancelSleepTimer() = playbackPort.cancelSleepTimer()
 }

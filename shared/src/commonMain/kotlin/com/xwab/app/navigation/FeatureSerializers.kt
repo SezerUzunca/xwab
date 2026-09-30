@@ -6,7 +6,6 @@ import com.xwab.app.feature.category.navigation.categoryNavigationSerializers
 import com.xwab.app.feature.favorites.navigation.favoritesNavigationSerializers
 import com.xwab.app.feature.sound.navigation.soundNavigationSerializers
 import com.xwab.app.feature.story.navigation.storiesNavigationSerializers
-import com.xwab.app.feature.nowplaying.navigation.nowPlayingNavigationSerializers
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.encoding.AbstractEncoder
 import kotlinx.serialization.modules.SerializersModule
@@ -32,7 +31,6 @@ internal val FEATURE_SERIALIZERS: SerializersModule = SerializersModule {
     include(categoryNavigationSerializers)
     include(soundNavigationSerializers)
     include(storiesNavigationSerializers)
-    include(nowPlayingNavigationSerializers)
 
     // Not a feature's contribution, which is why this one is spelled out rather than included: it
     // is the app's answer for a name none of the installed features registers. A saved back stack is

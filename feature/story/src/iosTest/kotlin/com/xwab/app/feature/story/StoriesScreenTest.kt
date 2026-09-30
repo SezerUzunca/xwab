@@ -5,9 +5,11 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -44,10 +46,18 @@ class StoriesScreenTest {
     fun storyDetailsDescribeTheItemAndKeepPlayExplicit() = runComposeUiTest {
         var plays = 0
         var backs = 0
-        var timers = 0
+        var timerStartedMs: Long? = null
+        var looping: Boolean? = null
         setContent {
             SleepRelaxTheme {
-                StoryDetailScreen(StoryDetailState(story = story("bedtime")), { backs++ }, { plays++ }, { timers++ })
+                StoryDetailScreen(
+                    StoryDetailState(story = story("bedtime")),
+                    onBack = { backs++ },
+                    onPlaybackClick = { plays++ },
+                    onLoopingChange = { looping = it },
+                    onTimerStart = { timerStartedMs = it },
+                    onTimerCancel = {},
+                )
             }
         }
         onNodeWithText("A test story.").assertExists()
@@ -61,17 +71,18 @@ class StoriesScreenTest {
         assertEquals(1, plays)
         assertEquals(1, backs)
 
-        // The timer stops whatever is playing, so the detail leads to it instead of drawing it.
-        onNodeWithText("Sleep timer").assertDoesNotExist()
-        onNodeWithText("Set sleep timer").performClick()
-        assertEquals(1, timers)
+        // The session's timer and repeat sit on the story's own screen; neither starts it.
+        onNodeWithText("30 min").performScrollTo().performClick()
+        assertEquals(1_800_000L, timerStartedMs)
+        onNodeWithText("Repeat playback").performScrollTo().assertIsOff().performClick()
+        assertEquals(true, looping)
         assertEquals(1, plays)
     }
 
     @Test
     fun missingStoryHasAReadableErrorAndDisabledPlayback() = runComposeUiTest {
         setContent {
-            SleepRelaxTheme { StoryDetailScreen(StoryDetailState(), {}, {}, {}) }
+            SleepRelaxTheme { StoryDetailScreen(StoryDetailState(), {}, {}, {}, {}, {}) }
         }
         onNodeWithText("This story is no longer in the catalog")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))

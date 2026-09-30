@@ -23,7 +23,7 @@ import com.xwab.app.feature.sound.domain.SoundFavoriteReadStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Detail controls act on this item; global session settings are absent. */
+/** The sound's own actions, and the session's timer and repeat in a card below them. */
 @OptIn(ExperimentalTestApi::class)
 class SoundDetailScreenTest {
     @Test
@@ -52,43 +52,33 @@ class SoundDetailScreenTest {
         onNodeWithText("Internet required").assertDoesNotExist()
     }
 
+    /** The item's own actions come first; the session's timer and repeat sit in a card below them. */
     @Test
-    fun theItemHasExplicitActionsWithoutGlobalSettings() = runComposeUiTest {
-        var playbackClicks = 0
-        var timerRequests = 0
-        show(SoundState(track = TRACK), onPlaybackClick = { playbackClicks++ }, onSleepTimerClick = { timerRequests++ })
+    fun theSessionSettingsSitBelowTheItemsOwnActions() = runComposeUiTest {
+        val actions = Actions()
+        show(SoundState(track = TRACK), actions)
         onNodeWithContentDescription("Play $TRACK_NAME").performClick()
-        assertEquals(1, playbackClicks)
-        // The timer stops whatever is playing, so the detail leads to it instead of drawing it.
-        onNodeWithText("Sleep timer").assertDoesNotExist()
-        onNodeWithText("Set sleep timer").performScrollTo().performClick()
-        assertEquals(1, timerRequests)
-        assertEquals(1, playbackClicks)
+        assertEquals(1, actions.playbackClicks)
+        onNodeWithText("15 min").performScrollTo().performClick()
+        assertEquals(900_000L, actions.timerStartedMs)
+        onNodeWithText("Repeat playback").performScrollTo().assertIsOff().performClick()
+        assertEquals(true, actions.looping)
+        assertEquals(1, actions.playbackClicks, "settings must not touch playback")
         onNodeWithText("Sound volume").assertDoesNotExist()
-        onNodeWithText("Loop sound").assertDoesNotExist()
         // One pass of a sound that repeats: a bare "4:46" would read as "stops after 4:46".
         onNodeWithText("4:46 loop • Public Domain").assertExists()
         onNodeWithText("Internet required").assertExists()
     }
 
     @Test
-    fun aRunningTimerShowsWhatIsLeftInsteadOfOfferingToSetOne() = runComposeUiTest {
-        setContent {
-            SleepRelaxTheme {
-                SoundDetailScreen(
-                    SoundState(track = TRACK),
-                    onBack = {},
-                    onFavoriteClick = {},
-                    onPlaybackClick = {},
-                    onSleepTimerClick = {},
-                    sleepTimerRemainingMs = 90_000L,
-                )
-            }
-        }
-        onNodeWithText("Sleep timer · 1:30").assertExists()
-        onNodeWithText("Set sleep timer").assertDoesNotExist()
+    fun aRunningTimerShowsWhatIsLeftBesideItsCancel() = runComposeUiTest {
+        val actions = Actions()
+        show(SoundState(track = TRACK, isLooping = true), actions, sleepTimerRemainingMs = 90_000L)
+        onNodeWithText("Stops in 1:30").performScrollTo().assertExists()
+        onNodeWithText("Repeat playback").performScrollTo().assertIsOn()
+        onNodeWithText("Cancel timer").performScrollTo().performClick()
+        assertEquals(1, actions.timerCancellations)
     }
-
     @Test
     fun verifiedCachedContentIsLabeledAvailableOffline() = runComposeUiTest {
         show(SoundState(track = TRACK, availableOffline = true))
@@ -112,8 +102,8 @@ class SoundDetailScreenTest {
 
     private fun ComposeUiTest.show(
         state: SoundState,
-        onPlaybackClick: () -> Unit = {},
-        onSleepTimerClick: () -> Unit = {},
+        actions: Actions = Actions(),
+        sleepTimerRemainingMs: Long? = null,
     ) {
         setContent {
             SleepRelaxTheme {
@@ -121,11 +111,21 @@ class SoundDetailScreenTest {
                     state,
                     onBack = {},
                     onFavoriteClick = {},
-                    onPlaybackClick = onPlaybackClick,
-                    onSleepTimerClick = onSleepTimerClick,
+                    onPlaybackClick = { actions.playbackClicks++ },
+                    onLoopingChange = { actions.looping = it },
+                    onTimerStart = { actions.timerStartedMs = it },
+                    onTimerCancel = { actions.timerCancellations++ },
+                    sleepTimerRemainingMs = sleepTimerRemainingMs,
                 )
             }
         }
+    }
+
+    private class Actions {
+        var playbackClicks = 0
+        var looping: Boolean? = null
+        var timerStartedMs: Long? = null
+        var timerCancellations = 0
     }
 
     private companion object {

@@ -33,7 +33,7 @@ import org.jetbrains.compose.resources.stringResource
  *
  * Material's [NavigationSuiteScaffold] picks the bar or rail from the window size class, as Material
  * recommends. The chrome is the same on every screen, so it lives outside [NavDisplay]: only the
- * content transitions, and there is one bar, one rail and one [player] by construction. Platform
+ * content transitions, and there is one bar, one rail and one [nowPlayingBar] by construction. Platform
  * Back is owned by [NavDisplay]; adaptive list, detail and extra panes come from Material's
  * list-detail scene strategy.
  *
@@ -42,13 +42,13 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
-@Suppress("LongParameterList") // Tabs, entries, Back and the player slot are independent contracts.
+@Suppress("LongParameterList") // Tabs, entries, Back and the now-playing bar slot are independent contracts.
 internal fun AppNavigationDisplay(
     entries: List<NavEntry<NavKey>>,
     selectedTab: NavKey,
     onSelectTab: (NavKey) -> Unit,
     onBack: () -> Unit,
-    player: @Composable () -> Unit,
+    nowPlayingBar: @Composable () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val background = SleepRelaxTheme.colors.backgroundBottom
@@ -75,7 +75,7 @@ internal fun AppNavigationDisplay(
         val unconsumedSides = WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(unconsumedSides))) {
             AppNavDisplay(entries, onBack, Modifier.weight(1f))
-            player()
+            nowPlayingBar()
         }
     }
 }

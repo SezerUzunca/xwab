@@ -104,7 +104,7 @@ class TabEntryProviderTest {
 }
 
 private fun unopenedEntryProvider() = appEntryProvider(
-    UnopenedFeaturesGraph, onNavigate = {}, onBack = {}, onReplace = {}, onReselect = { emptyFlow() },
+    UnopenedFeaturesGraph, onNavigate = {}, onBack = {}, onReselect = { emptyFlow() },
 )
 
 /** Fail immediately if entry registration or lookup eagerly opens any feature. */
@@ -116,7 +116,7 @@ private object UnopenedFeaturesGraph : AppGraph {
     override val soundDependencies: () -> SoundDependencies = { error("Sound initialized before rendering") }
     override val storiesDependencies: () -> StoriesDependencies = { error("Stories initialized before rendering") }
 
-    /** The player destination and persistent mini player resolve ports only when rendered. */
+    /** The persistent now-playing bar resolves its port only when rendered. */
     override val nowPlayingDependencies: () -> NowPlayingDependencies =
         { error("Now playing initialized by navigation") }
 }

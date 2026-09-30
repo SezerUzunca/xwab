@@ -6,7 +6,6 @@ import androidx.navigation3.runtime.serialization.NavBackStackSerializer
 import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.sound.navigation.SoundRoute
-import com.xwab.app.feature.nowplaying.navigation.NowPlayingRoute
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.json.Json
@@ -83,7 +82,6 @@ class FeatureSerializersTest {
             BrowseRoute,
             CategoryRoute("rain / yağmur:夜"),
             SoundRoute("rain|night"),
-            NowPlayingRoute,
         )
         val serializer = NavBackStackSerializer(routeSerializer)
 
@@ -94,7 +92,7 @@ class FeatureSerializersTest {
 
         assertEquals(stack.toList(), restored.toList())
         restored.removeLast()
-        assertEquals(4, stack.size, "restoration must create an independent back stack")
+        assertEquals(3, stack.size, "restoration must create an independent back stack")
     }
 
     /**
@@ -134,7 +132,6 @@ class FeatureSerializersTest {
                 "com.xwab.app.feature.category.navigation.CategoryRoute",
                 "com.xwab.app.feature.sound.navigation.SoundRoute",
                 "com.xwab.app.feature.story.navigation.StoryRoute",
-                "com.xwab.app.feature.nowplaying.navigation.NowPlayingRoute",
             ),
             routes.map { FEATURE_SERIALIZERS.serializerFor(it)?.descriptor?.serialName },
         )

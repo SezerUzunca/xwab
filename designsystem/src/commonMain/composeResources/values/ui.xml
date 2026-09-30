@@ -37,6 +37,5 @@
     <string name="timer_45_minutes">45 min</string>
     <string name="timer_60_minutes">60 min</string>
     <string name="cancel_timer">Cancel timer</string>
-    <string name="set_sleep_timer">Set sleep timer</string>
-    <string name="sleep_timer_running">Sleep timer · %1$s</string>
+    <string name="repeat_playback">Repeat playback</string>
 </resources>

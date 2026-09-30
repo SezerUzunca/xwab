@@ -11,11 +11,9 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.get
 import androidx.navigation3.scene.SceneStrategyScope
-import androidx.navigation3.ui.NavDisplay
 import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
-import com.xwab.app.feature.nowplaying.navigation.NowPlayingRoute
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import com.xwab.app.feature.story.navigation.StoryRoute
@@ -25,7 +23,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 /** Exercises the official Material strategy with the same tab metadata as the production display. */
 class AppEntryMetadataTest {
@@ -78,10 +75,9 @@ class AppEntryMetadataTest {
     }
 
     @Test
-    fun unrelatedContentKindsAndPlayerUseSinglePane() {
+    fun unrelatedContentKindsUseSinglePane() {
         assertNull(calculate(entries(FavoritesRoute, FavoritesRoute, StoryRoute("bedtime"))))
         assertNull(calculate(entries(StoriesRoute, StoriesRoute, SoundRoute("rain"))))
-        assertNull(calculate(entries(BrowseRoute, BrowseRoute, CategoryRoute("rain"), NowPlayingRoute)))
     }
 
     @Test
@@ -108,23 +104,14 @@ class AppEntryMetadataTest {
         assertEquals(stack.take(2), assertNotNull(calculate(stack, partitions = 3)).previousEntries)
     }
 
-    /** The player's "View details" opens a sound straight from the catalog root, with no category. */
+    /** The now-playing bar opens a sound straight from the catalog root, with no category. */
     @Test
     fun aSoundWithNoCategoryBeneathIsASinglePaneNotAnOrphanedExtraPane() {
-        val fromPlayer = entries(BrowseRoute, BrowseRoute, SoundRoute("rain"))
-        assertNull(calculate(fromPlayer, partitions = 3))
-        assertNull(fromPlayer.last().metadata[ParentPaneKey])
+        val fromBar = entries(BrowseRoute, BrowseRoute, SoundRoute("rain"))
+        assertNull(calculate(fromBar, partitions = 3))
+        assertNull(fromBar.last().metadata[ParentPaneKey])
 
         val fromCategory = entries(BrowseRoute, BrowseRoute, CategoryRoute("rain"), SoundRoute("rain"))
         assertEquals(ListDetailPaneScaffoldRole.Detail, fromCategory.last().metadata[ParentPaneKey])
-    }
-
-    @Test
-    fun everyPlayerTransitionHasAnOfficialMetadataOverride() {
-        val metadata = appEntryMetadata(BrowseRoute, NowPlayingRoute, beneath = listOf(BrowseRoute))
-        assertTrue(metadata[NavDisplay.TransitionKey] != null)
-        assertTrue(metadata[NavDisplay.PopTransitionKey] != null)
-        assertTrue(metadata[NavDisplay.PredictivePopTransitionKey] != null)
-        assertNull(metadata[ParentPaneKey])
     }
 }

@@ -8,9 +8,8 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             // One port. This feature has nothing to say about sounds or stories — the session
-            // already names what it is on, which is the whole reason this can be one screen.
+            // already names what it is on, which is the whole reason one bar serves every kind.
             implementation(projects.core.session)
-            implementation(libs.compose.material.icons.extended)
         }
         commonTest.dependencies {
             implementation(projects.testing.session)

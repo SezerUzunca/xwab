@@ -36,8 +36,8 @@ import com.xwab.app.designsystem.components.BackButton
 import com.xwab.app.designsystem.components.FavoriteButton
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.PlayPauseButton
+import com.xwab.app.designsystem.components.PlaybackSettingsCard
 import com.xwab.app.designsystem.components.ScreenContainer
-import com.xwab.app.designsystem.components.SleepTimerShortcut
 import com.xwab.app.designsystem.components.screenContentPadding
 import com.xwab.app.designsystem.format.formatDuration
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
@@ -61,7 +61,6 @@ private const val PREVIEW_DURATION_SECONDS = 286
 @Composable
 internal fun SoundDetailScreenRoute(
     onBack: () -> Unit,
-    onSleepTimerClick: () -> Unit,
     viewModel: SoundViewModel,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -73,21 +72,25 @@ internal fun SoundDetailScreenRoute(
             onBack = onBack,
             onFavoriteClick = viewModel::toggleFavorite,
             onPlaybackClick = viewModel::togglePlayback,
-            onSleepTimerClick = onSleepTimerClick,
+            onLoopingChange = viewModel::setLooping,
+            onTimerStart = viewModel::startSleepTimer,
+            onTimerCancel = viewModel::cancelSleepTimer,
             sleepTimerRemainingMs = sleepTimerRemainingMs,
         )
     }
 }
 
-/** Item actions only. Session-wide settings belong to the shared player, which this links to. */
+/** The sound and its actions, then the session's timer and repeat in one card. */
 @Composable
-@Suppress("LongParameterList") // Screen events plus the timer the shortcut reports.
+@Suppress("LongParameterList") // Screen events plus the timer the card reports.
 internal fun SoundDetailScreen(
     state: SoundState,
     onBack: () -> Unit,
     onFavoriteClick: () -> Unit,
     onPlaybackClick: () -> Unit,
-    onSleepTimerClick: () -> Unit,
+    onLoopingChange: (Boolean) -> Unit,
+    onTimerStart: (Long) -> Unit,
+    onTimerCancel: () -> Unit,
     sleepTimerRemainingMs: Long? = null,
 ) {
     ScreenContainer {
@@ -123,9 +126,13 @@ internal fun SoundDetailScreen(
                 contentTitle = state.track?.name,
             )
             SoundStatus(state)
-            SleepTimerShortcut(
-                onClick = dropUnlessResumed(block = onSleepTimerClick),
-                remainingMs = sleepTimerRemainingMs,
+            Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
+            PlaybackSettingsCard(
+                sleepTimerRemainingMs = sleepTimerRemainingMs,
+                isLooping = state.isLooping,
+                onTimerStart = onTimerStart,
+                onTimerCancel = onTimerCancel,
+                onLoopingChange = onLoopingChange,
             )
         }
     }
@@ -229,7 +236,9 @@ private fun SoundDetailScreenPreview() {
             onBack = {},
             onFavoriteClick = {},
             onPlaybackClick = {},
-            onSleepTimerClick = {},
+            onLoopingChange = {},
+            onTimerStart = {},
+            onTimerCancel = {},
         )
     }
 }

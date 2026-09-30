@@ -99,6 +99,27 @@ class StoryDetailViewModelTest {
         assertEquals(1, port.pauses)
     }
 
+    /** Repeat and the timer reach the session unchanged, and the switch shows the session's value. */
+    @Test
+    fun sessionSettingsReachTheSessionWithoutStartingTheStory() = runTest(dispatcher) {
+        val port = FakePlaybackPort().apply { publish(PlaybackSummary(isLooping = true)) }
+        val model = model(port)
+        collectState(model)
+        advanceUntilIdle()
+        assertTrue(ready(model).isLooping)
+
+        model.setLooping(false)
+        model.startSleepTimer(-1L)
+        model.startSleepTimer(600_000L)
+        model.cancelSleepTimer()
+        advanceUntilIdle()
+
+        assertEquals(false, port.looping)
+        assertEquals(600_000L, port.startedTimerMs)
+        assertEquals(1, port.cancelledTimers)
+        assertNull(port.playedItemId)
+    }
+
     private fun model(port: FakePlaybackPort, missing: Boolean = false): StoryDetailViewModel =
         StoryDetailViewModel(
             StoryId("bedtime"),
