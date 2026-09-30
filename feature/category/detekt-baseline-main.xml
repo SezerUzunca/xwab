@@ -8,6 +8,5 @@
     <ID>MaxLineLength:CategoryViewModel.kt:CategoryViewModel$favoriteWriteFailed.value = favoritesPort.toggle(SOUND_FAVORITES_NAMESPACE, trackId.value) == FavoriteToggleResult.Unavailable</ID>
     <ID>MaxLineLength:ObserveCategoryContentUseCase.kt:ObserveCategoryContentUseCase$CategoryContent(category.category, category.tracks, category.favoriteIds, playback, category.favoritesReadStatus)</ID>
     <ID>MaxLineLength:ObserveCategoryContentUseCase.kt:ObserveCategoryContentUseCase$if (it.isAvailable) CategoryFavoritesReadStatus.Available else CategoryFavoritesReadStatus.Unavailable</ID>
-    <ID>UnusedPrivateFunction:CategoryScreen.kt:@Preview @Composable private fun CategoryScreenPreview</ID>
   </CurrentIssues>
 </SmellBaseline>

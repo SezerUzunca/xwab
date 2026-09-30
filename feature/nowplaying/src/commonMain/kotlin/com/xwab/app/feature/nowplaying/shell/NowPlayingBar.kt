@@ -17,6 +17,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -159,4 +160,39 @@ private fun PlaybackFailureText(failure: PlaybackFailure) {
         style = SleepRelaxTheme.typography.bodyMedium,
         color = SleepRelaxTheme.colors.error,
     )
+}
+
+private const val PREVIEW_TIMER_MS = 899_000L
+
+@Preview
+@Composable
+private fun NowPlayingBarPreview() {
+    SleepRelaxTheme {
+        NowPlayingBarContent(
+            state = NowPlayingState(
+                itemId = PlaybackItemId("sound", "calm-waves"),
+                title = "Ontario Waves",
+                playIntent = true,
+            ),
+            onPlayPauseClick = {},
+            onOpenClick = {},
+            onTimerCancel = {},
+            sleepTimerRemainingMs = PREVIEW_TIMER_MS,
+        )
+    }
+}
+
+/** Nothing requested and a timer still running: the bar is not a link and offers the cancel. */
+@Preview
+@Composable
+private fun NowPlayingBarTimerOnlyPreview() {
+    SleepRelaxTheme {
+        NowPlayingBarContent(
+            state = NowPlayingState(),
+            onPlayPauseClick = {},
+            onOpenClick = {},
+            onTimerCancel = {},
+            sleepTimerRemainingMs = PREVIEW_TIMER_MS,
+        )
+    }
 }
