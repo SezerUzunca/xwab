@@ -22,7 +22,6 @@ import com.xwab.app.core.playback.port.PlaybackRequest
 import com.xwab.app.core.playback.port.SleepTimerState
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
@@ -317,13 +316,10 @@ class DefaultPlaybackAdapterTest {
         val adapter = adapter(player)
 
         adapter.setLooping(false)
-        adapter.setVolume(0.42f)
         adapter.play(sound("gentle-rain"))
 
         assertEquals(LoopMode.Off, player.lastLoadRequest?.loopMode)
-        assertEquals(0.42f, player.lastLoadRequest?.volume)
         assertEquals(false, player.lastLooping)
-        assertEquals(0.42f, player.lastVolume)
     }
 
     @Test
@@ -334,12 +330,10 @@ class DefaultPlaybackAdapterTest {
         player.attachRequestedSource()
 
         adapter.setLooping(false)
-        adapter.setVolume(0.42f)
         adapter.play(sound("calm-waves"))
 
         assertEquals("sound:calm-waves", player.lastLoadRequest?.source?.id)
         assertEquals(LoopMode.Off, player.lastLoadRequest?.loopMode)
-        assertEquals(0.42f, player.lastLoadRequest?.volume)
     }
 
     @Test
@@ -351,14 +345,29 @@ class DefaultPlaybackAdapterTest {
 
         // A notification or Bluetooth control changes the settings behind the app's back;
         // the reducer adopts them, so they reach the adapter through the published state.
-        player.mutableState.update { it.copy(isLooping = false, volume = 0.3f) }
+        player.mutableState.update { it.copy(isLooping = false) }
         // The service connection then drops, which clears only the *attached* source.
         player.mutableState.update { it.copy(source = null) }
 
         adapter.play(sound("calm-waves"))
 
         assertEquals(LoopMode.Off, player.lastLoadRequest?.loopMode)
-        assertEquals(0.3f, player.lastLoadRequest?.volume)
+    }
+
+    /**
+     * The phone's volume keys are the app's only volume control, so the session never carries a
+     * gain of its own into a load: whatever the engine reports, the next item starts at full gain
+     * and the device's volume decides how loud that is.
+     */
+    @Test
+    fun everyLoadPlaysAtFullGainWhateverTheEngineReports() = runBlocking {
+        val player = FakePlaybackEnginePort()
+        val adapter = adapter(player)
+        player.mutableState.update { it.copy(volume = 0.3f) }
+
+        adapter.play(sound("gentle-rain"))
+
+        assertEquals(1.0f, player.lastLoadRequest?.volume)
     }
 
     @Test
@@ -465,64 +474,6 @@ class DefaultPlaybackAdapterTest {
         assertEquals(1, player.cancelSleepTimerCalls)
     }
 
-    /**
-     * The port states a range, so the range is this adapter's to keep — in both directions.
-     *
-     * It was kept on the way in and not on the way out, and untested either way, so the one screen
-     * that renders a volume clamped it again for itself. A second screen would have had to know to
-     * do the same.
-     */
-    @Test
-    fun aVolumeOutsideTheRangeIsClampedGoingBothWays() = runBlocking {
-        val player = FakePlaybackEnginePort()
-        val adapter = adapter(player)
-
-        adapter.setVolume(1.4f)
-        assertEquals(1.0f, player.lastVolume)
-        adapter.setVolume(-0.2f)
-        assertEquals(0.0f, player.lastVolume)
-
-        // An engine reporting its own idea of loudness does not get to break the published range.
-        player.mutableState.update { it.copy(volume = 1.4f) }
-        assertEquals(1.0f, adapter.playback.first().volume)
-        player.mutableState.update { it.copy(volume = -0.2f) }
-        assertEquals(0.0f, adapter.playback.first().volume)
-    }
-
-    /**
-     * The load path has a sharper edge than the summary: a `PlaybackRequest` *refuses* a volume
-     * outside the range rather than rounding it. So an engine reporting its own idea of loudness
-     * would not show up as a wrong number — it would throw, on the next sound the listener asked
-     * for, for a reason nothing they did explains.
-     */
-    @Test
-    fun anEngineReportingAnOutOfRangeVolumeDoesNotBreakTheNextLoad() = runBlocking {
-        val player = FakePlaybackEnginePort()
-        val adapter = adapter(player)
-        player.mutableState.update { it.copy(volume = 1.4f) }
-
-        adapter.play(sound("gentle-rain"))
-
-        assertEquals(1.0f, player.lastLoadRequest?.volume)
-    }
-
-    @Test
-    fun nonFiniteVolumeIsRejectedWithoutPoisoningTheNextLoad() = runBlocking {
-        val player = FakePlaybackEnginePort()
-        val adapter = adapter(player)
-        adapter.setVolume(0.42f)
-
-        listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY).forEach { invalid ->
-            assertFailsWith<IllegalArgumentException> {
-                adapter.setVolume(invalid)
-            }
-        }
-        adapter.play(sound("gentle-rain"))
-
-        assertEquals(0.42f, player.lastVolume)
-        assertEquals(0.42f, player.lastLoadRequest?.volume)
-    }
-
     @Test
     fun publishedPlaybackIsADomainSummaryOfTheEngineState() = runBlocking {
         val player = FakePlaybackEnginePort().apply {
@@ -544,7 +495,6 @@ class DefaultPlaybackAdapterTest {
                 isPlaying = true,
                 isPreparing = false,
                 isLooping = true,
-                volume = 0.7f,
                 failure = PlaybackFailure.EngineFailed(sound("gentle-rain")),
             ),
             adapter(player).playback.first(),
@@ -959,7 +909,6 @@ class DefaultPlaybackAdapterTest {
         var playCalls = 0
         var pauseCalls = 0
         var lastLooping: Boolean? = null
-        var lastVolume: Float? = null
         var lastSleepTimerDurationMs: Long? = null
         var cancelSleepTimerCalls = 0
 
@@ -995,7 +944,6 @@ class DefaultPlaybackAdapterTest {
                     mutableState.update { it.copy(isLooping = command.enabled) }
                 }
                 is PlaybackCommand.SetVolume -> {
-                    lastVolume = command.volume
                     mutableState.update { it.copy(volume = command.volume) }
                 }
                 is PlaybackCommand.StartSleepTimer -> lastSleepTimerDurationMs = command.durationMs

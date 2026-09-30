@@ -242,8 +242,9 @@ absent and `isPreparing` says so instead.
 The now-playing bar shows play/pause, preparation or failure state, and the active sleep timer's
 remaining time. It steps aside while the playing item's own detail is showing, since that screen
 already has its play/pause and timer. The app does not expose a playback progress bar, seeking
-controls or an in-app volume slider; the device's volume keys set loudness. Sound durations read
-as one loop ("0:12 loop").
+controls or an in-app volume slider; the device's volume keys set loudness. `PlaybackPort` has no
+volume at all: the engine's gain stays inside `:core:playback`, which features cannot reach, and
+every load starts at full gain. Sound durations read as one loop ("0:12 loop").
 
 Sound and Story details expose item-specific playback, metadata and errors; Sound also exposes
 favorites. Under those, one `designsystem` card holds the session's sleep timer and repeat

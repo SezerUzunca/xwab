@@ -55,15 +55,8 @@ interface PlaybackPort {
 
     fun setLooping(enabled: Boolean)
 
-    /**
-     * Sets how loud the session is.
-     *
-     * A volume outside [VOLUME_RANGE] is clamped into it rather than refused — a control that
-     * overshoots its own bound by a rounding step should not be an error. A non-finite one is
-     * refused: it is not a loud or quiet sound, it is a broken caller, and handing it to the engine
-     * poisons every later load.
-     */
-    fun setVolume(volume: Float)
+    // No volume here, deliberately: the phone's volume keys are the app's only volume control, so
+    // no screen may set its own. The engine keeps its gain internal to `:core:playback`.
     fun startSleepTimer(durationMs: Long)
     fun cancelSleepTimer()
 }

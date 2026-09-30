@@ -66,7 +66,6 @@ class SoundViewModelTest {
         assertFalse(readyState(viewModel).playIntent)
         assertNull(port.playedItemId)
         assertNull(port.looping)
-        assertNull(port.volume)
         assertNull(port.startedTimerMs)
         assertEquals(0, port.pauses)
 
