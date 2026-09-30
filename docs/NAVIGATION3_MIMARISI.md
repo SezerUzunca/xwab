@@ -29,7 +29,7 @@ sürümlerle derlenir; örneklerdeki sürüm numaraları doğrudan kopyalanmaz.
 | `ui/TabEntries` | Aktif olmayan sekmeler dahil saveable-state ve ViewModel dekoratörlerini yaşatma |
 | `ui/TabEntryProvider` | Sekmeye özgü saveable content key ve metadata; her entry'yi `AdaptiveBackControl` ile sarma |
 | `ui/AppNavigationDisplay` | Resmi `NavigationSuiteScaffold` (bar/rail), içinde `NavDisplay`, Material list–detail sahne stratejisi ve mini oynatıcı yuvası |
-| `ui/NavigationTransitions`, `ui/PaneMetadata` | Sekme, ileri/geri ve oynatıcı geçişleri; sekme ve ebeveyn panel metadata anahtarları |
+| `ui/NavigationTransitions`, `ui/EntryMetadataKeys` | Sekme, ileri/geri ve oynatıcı geçişleri; sekme ve ebeveyn panel metadata anahtarları |
 | `ui/AdaptiveBackControl` | Gerçek ebeveyn paneli görünüyorsa tekrarlı geri düğmesini gizleme; birden fazla panel görünürken geri okunu kendi panelini kapatan `Navigator.goUp`'a bağlama |
 
 `navigation` durumu ve kuralları tutar, Compose çizimi içermez; `ui` bu durumu ekrana taşır.
