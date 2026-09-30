@@ -183,8 +183,21 @@ kendiliğinden uygulamaz; kullanım ve regresyon testleri olduğu için kaldır�
 - `src/composeTest/.../NavigationCompositionTest`: gerçek `AppNavigationDisplay` üzerinden
   entry store ayrılığı, sekme değiştirme, recreation, saveable state, pop temizliği ve tek
   root chrome ViewModel'i. Compact/adaptif düzen değişiminde entry state'inin korunması ve
-  görünür ebeveyn panelinde gereksiz geri kontrolünün gizlenmesi de sınanır. Android cihaz
-  ve iOS simulator source set'leri aynı testleri kullanır.
+  görünür ebeveyn panelinde gereksiz geri kontrolünün gizlenmesi de sınanır. Sistem geri işlemi
+  `Navigator` çağrılmadan, `NavDisplay`'in dinlediği navigation event dispatcher'ına gerçek
+  geri olayı (tamamlanan ve predictive) gönderilerek sınanır: telefonda tek ekran kapanır,
+  başlangıç sekmesine düşülür; liste yanında tek geri işlemi paneldeki eski seçimleri de atlar
+  (`PopLatest` ile bu test düşer). Android cihaz ve iOS simulator source set'leri aynı testleri
+  kullanır.
+- `src/composeTest/.../RetiredRouteRestoreTest`: eski bir sürümün kaydettiği, argüman taşıyan ve
+  bu sürümde olmayan bir route içeren back stack, `rememberNavBackStack`'in kullandığı saved-state
+  biçiminde gerçek platformda çözülür; route `RetiredRoute` olarak okunur ve temizlenir.
+- İçerik anahtarı ve sekme kimliği `toString()` yerine route'un kayıtlı biçiminden
+  (`@SerialName` ve argüman değerleri, `savedIdentity`) türetilir; sınıf adı değişse de kayıtlı
+  arayüz durumu korunur. Feature'ın kendi seçtiği içerik anahtarı korunur.
+- `checkArchitecture` kural 23: feature'da tanımlanan her route kendi serializer modülüne kayıtlı,
+  her feature'ın serializer modülü de shell'deki `FEATURE_SERIALIZERS`'a eklenmiş olmalıdır;
+  aksi durumda eksik yalnızca bir sonraki açılıştaki geri yüklemede ortaya çıkardı.
 - Statik analiz, mimari kontrol, Android lint ve APK derlemesi.
 
 Bu revizyonun doğrulama sonucu:

@@ -75,8 +75,9 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlinx.serialization.json)
         }
-        // Tests that need a real Compose host (entry stores, recreation, the adaptive layout).
-        // Written once, run on Android devices and iOS simulators; plain logic stays in commonTest.
+        // Tests that need a real platform: a Compose host (entry stores, recreation, the adaptive
+        // layout, platform Back) or its saved-state format (a Bundle on Android). Written once, run on
+        // Android devices and iOS simulators; plain logic stays in commonTest.
         val composeTest = create("composeTest") {
             dependsOn(commonTest.get())
             dependencies {

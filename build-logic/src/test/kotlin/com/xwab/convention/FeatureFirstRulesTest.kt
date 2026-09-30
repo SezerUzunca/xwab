@@ -1106,6 +1106,90 @@ class FeatureFirstRulesTest {
     }
 
     @Test
+    fun aRouteEveryFeatureRegistersInItsOwnModuleIsAccepted() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.unregisteredRouteViolations(
+                mapOf(
+                    "feature/story/src/commonMain/kotlin/StoriesNavigation.kt" to featureSource(
+                        ".navigation",
+                        """
+                        data object StoriesRoute : NavKey
+                        data class StoryRoute(val storyId: String) : NavKey
+                        val storiesNavigationSerializers = SerializersModule {
+                            polymorphic(NavKey::class) {
+                                subclass(StoriesRoute::class)
+                                subclass(StoryRoute::class, StoryRouteSerializer)
+                            }
+                        }
+                        """.trimIndent(),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    /** Registered by another feature, or only in a comment, is still not registered by this one. */
+    @Test
+    fun aRouteMissingFromItsFeaturesModuleIsReported() {
+        val violations = FeatureFirstRules.unregisteredRouteViolations(
+            mapOf(
+                "feature/story/src/commonMain/kotlin/StoriesNavigation.kt" to featureSource(
+                    ".navigation",
+                    """
+                    data object StoriesRoute : NavKey
+                    data class StoryRoute(val storyId: String) : NavKey
+                    val storiesNavigationSerializers = SerializersModule {
+                        polymorphic(NavKey::class) {
+                            subclass(StoriesRoute::class)
+                            // subclass(StoryRoute::class)
+                        }
+                    }
+                    """.trimIndent(),
+                ),
+                "feature/sound/src/commonMain/kotlin/SoundNavigation.kt" to featureSource(
+                    ".navigation",
+                    "val soundNavigationSerializers = SerializersModule { subclass(StoryRoute::class) }",
+                ),
+            ),
+        )
+
+        assertEquals(1, violations.size)
+        assertTrue(violations.single().contains("StoryRoute"))
+        assertTrue(violations.single().contains("feature/story"))
+    }
+
+    @Test
+    fun everyFeaturesRouteModuleMustBeIncludedByTheShell() {
+        val features = mapOf(
+            "feature/browse/src/commonMain/kotlin/BrowseNavigation.kt" to featureSource(
+                ".navigation",
+                "val browseNavigationSerializers = SerializersModule {}",
+            ),
+            "feature/story/src/commonMain/kotlin/StoriesNavigation.kt" to featureSource(
+                ".navigation",
+                "val storiesNavigationSerializers: SerializersModule = SerializersModule {}",
+            ),
+        )
+        val shell = mapOf(
+            "shared/src/commonMain/kotlin/FeatureSerializers.kt" to sharedSource(
+                "navigation",
+                """
+                internal val FEATURE_SERIALIZERS = SerializersModule {
+                    include(browseNavigationSerializers)
+                    // include(storiesNavigationSerializers)
+                }
+                """.trimIndent(),
+            ),
+        )
+
+        val violations = FeatureFirstRules.unassembledRouteModuleViolations(features, shell)
+
+        assertEquals(1, violations.size)
+        assertTrue(violations.single().contains("storiesNavigationSerializers"))
+    }
+
+    @Test
     fun aPlaybackKindWithNoRouteIsReported() {
         val violations = FeatureFirstRules.unroutedPlaybackKindViolations(
             coreSources = mapOf(

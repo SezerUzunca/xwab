@@ -295,8 +295,9 @@ playback. The architecture check requires these values to agree with the downloa
 7. Designsystem depends on an application project.
 8. A module directory is absent from the build, or a core/feature module is absent from shared's
    compilation graph. Core registration is automatic; feature composition stays explicit.
-9. A feature route lacks `@SerialName`, or a contributed playback kind has no routing reference
-   in the shell.
+9. A feature route lacks `@SerialName` or is missing from its feature's serializers module, a
+   feature's serializers module is not included in the shell's route serializers, or a
+   contributed playback kind has no routing reference in the shell.
 10. The download source and native player application metadata disagree on the HTTP user agent.
 11. A capability renames a value it has already written onto devices. Playback kinds, favourites
     and cache namespaces are pinned in `wireFormat`; the constant and its pin must change together,

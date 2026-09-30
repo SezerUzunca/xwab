@@ -18,10 +18,12 @@ import com.xwab.app.feature.story.di.StoriesDependencies
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import com.xwab.app.navigation.NavigationState
 import com.xwab.app.navigation.Navigator
+import com.xwab.app.navigation.savedIdentity
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 import androidx.navigation3.runtime.get
 import kotlinx.coroutines.flow.emptyFlow
 
@@ -73,6 +75,16 @@ class TabEntryProviderTest {
         assertEquals(first.contentKey, restored.contentKey)
     }
 
+    /** Saved UI state is keyed by the wire format, so renaming a route's class does not lose it. */
+    @Test
+    fun contentKeysFollowTheSavedNameRatherThanTheClassName() {
+        val entry = tabEntries(FavoritesRoute, unopenedEntryProvider())(SoundRoute("rain"))
+
+        val contentKey = entry.contentKey as String
+        assertTrue(contentKey.contains("com.xwab.app.feature.favorites.navigation.FavoritesRoute"))
+        assertTrue(contentKey.endsWith("com.xwab.app.feature.sound.navigation.SoundRoute|4:rain"))
+    }
+
     @Test
     fun tabIdentityPreservesFeatureMetadataAndCustomContentKeys() {
         val metadata = mapOf<String, Any>("custom-scene" to true)
@@ -84,7 +96,7 @@ class TabEntryProviderTest {
         val second = tabEntries(BrowseRoute, provider("second"))(SoundRoute("rain"))
 
         assertEquals(true, first.metadata["custom-scene"])
-        assertEquals(BrowseRoute.toString(), first.metadata[TabKey])
+        assertEquals(BrowseRoute.savedIdentity(), first.metadata[TabKey])
         // A decorator cannot read the entry's key; the back arrow's decorator reads it from here.
         assertEquals(SoundRoute("rain"), first.metadata[DestinationKey])
         assertNotEquals(first.contentKey, second.contentKey)
