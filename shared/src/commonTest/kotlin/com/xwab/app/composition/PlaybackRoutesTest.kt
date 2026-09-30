@@ -37,7 +37,9 @@ class PlaybackRoutesTest {
     fun aPlayingStoryOpensItsOwnDetailsUnderStories() {
         val opened = mutableListOf<Pair<NavKey, NavKey>>()
 
-        openPlaybackDetails(PlaybackItemId(STORY_PLAYBACK_KIND, "moonlit-forest")) { tab, route -> opened += tab to route }
+        openPlaybackDetails(PlaybackItemId(STORY_PLAYBACK_KIND, "moonlit-forest")) { tab, route ->
+            opened += tab to route
+        }
 
         assertEquals(listOf<Pair<NavKey, NavKey>>(StoriesRoute to StoryRoute("moonlit-forest")), opened)
     }
