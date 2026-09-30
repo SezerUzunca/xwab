@@ -41,7 +41,7 @@ class StorySourceManifestTest {
             assertEquals(story.title, resolved.title)
             assertEquals(story.title, resolved.displayName)
             assertEquals(story.narrator, resolved.artist)
-            assertEquals(false, resolved.policy.defaultLooping)
+            assertEquals(false, resolved.policy.looping)
         }
     }
 

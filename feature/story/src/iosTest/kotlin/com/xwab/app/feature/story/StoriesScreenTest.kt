@@ -5,7 +5,6 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -47,14 +46,12 @@ class StoriesScreenTest {
         var plays = 0
         var backs = 0
         var timerStartedMs: Long? = null
-        var looping: Boolean? = null
         setContent {
             SleepRelaxTheme {
                 StoryDetailScreen(
                     StoryDetailState(story = story("bedtime")),
                     onBack = { backs++ },
                     onPlaybackClick = { plays++ },
-                    onLoopingChange = { looping = it },
                     onTimerStart = { timerStartedMs = it },
                     onTimerCancel = {},
                 )
@@ -71,18 +68,18 @@ class StoriesScreenTest {
         assertEquals(1, plays)
         assertEquals(1, backs)
 
-        // The session's timer and repeat sit on the story's own screen; neither starts it.
+        // The session's timer sits on the story's own screen and does not start it. A story plays
+        // once, so there is no repeat control.
         onNodeWithText("30 min").performScrollTo().performClick()
         assertEquals(1_800_000L, timerStartedMs)
-        onNodeWithText("Repeat playback").performScrollTo().assertIsOff().performClick()
-        assertEquals(true, looping)
+        onNodeWithText("Repeat playback").assertDoesNotExist()
         assertEquals(1, plays)
     }
 
     @Test
     fun missingStoryHasAReadableErrorAndDisabledPlayback() = runComposeUiTest {
         setContent {
-            SleepRelaxTheme { StoryDetailScreen(StoryDetailState(), {}, {}, {}, {}, {}) }
+            SleepRelaxTheme { StoryDetailScreen(StoryDetailState(), {}, {}, {}, {}) }
         }
         onNodeWithText("This story is no longer in the catalog")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))

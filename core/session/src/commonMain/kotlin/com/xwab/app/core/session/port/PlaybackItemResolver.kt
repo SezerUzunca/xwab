@@ -45,12 +45,12 @@ fun interface PlaybackItemResolver {
 /**
  * What playing this item means, beyond where its bytes are.
  *
- * @param defaultLooping what looping should be when the listener has not said. A sleep sound
- *   repeats until the timer stops it; a story that repeats has not ended, it has restarted. An
- *   explicit choice still wins — this is the default, not the policy.
+ * @param looping whether items of this kind repeat. A sleep sound repeats until the timer stops it;
+ *   a story that repeats has not ended, it has restarted. There is no listener override: the app
+ *   offers no repeat control, so the kind decides every load.
  */
 @PlaybackResolverApi
-data class PlaybackPolicy(val defaultLooping: Boolean)
+data class PlaybackPolicy(val looping: Boolean)
 
 @PlaybackResolverApi
 sealed interface ItemResolution {

@@ -10,7 +10,7 @@
     <string name="favorites_loading">Loading favorites</string>
     <string name="duration_public_domain">%1$s • Public Domain</string>
     <!--
-      A sound's length is the length of one pass: it repeats by default, so "0:12" alone reads as
+      A sound's length is the length of one pass: it always repeats, so "0:12" alone reads as
       "stops after twelve seconds". Stories keep a plain duration.
     -->
     <string name="loop_duration">%1$s loop</string>
@@ -37,5 +37,4 @@
     <string name="timer_45_minutes">45 min</string>
     <string name="timer_60_minutes">60 min</string>
     <string name="cancel_timer">Cancel timer</string>
-    <string name="repeat_playback">Repeat playback</string>
 </resources>

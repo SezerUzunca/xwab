@@ -61,7 +61,7 @@ class SoundPlaybackResolverTest {
         assertEquals(track.name, result.title)
         assertEquals(track.name, result.displayName)
         assertEquals(track.playbackArtist, result.artist)
-        assertTrue(result.policy.defaultLooping)
+        assertTrue(result.policy.looping)
         assertEquals(CacheKey("sound", "heavy-rain-v2.mp3"), request.key)
         assertEquals("https://example.test/heavy-rain.mp3", request.httpsUrl)
         assertEquals(setOf("audio/mpeg", "application/octet-stream"), request.acceptedContentTypes)

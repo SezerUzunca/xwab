@@ -1,19 +1,6 @@
 package com.xwab.app.core.session.port
 
 /**
- * What looping should be before anything has been loaded and before the listener has chosen.
- *
- * The one place this default lives. It used to be stated twice — once in the session, deciding what
- * to hand the engine, and once in the player screen, which showed "looping" whenever no source was
- * attached yet. Turning the loop off before the first play made the two disagree.
- *
- * Once an item is loaded, the session applies that content kind's own default: a sleep sound
- * repeats until the timer stops it, while a story does not repeat. This constant controls only
- * what the session publishes until an item makes the question concrete.
- */
-const val DEFAULT_LOOPING: Boolean = true
-
-/**
  * Why the session could not play an item — and *which* item.
  *
  * The id is part of the failure because a lookup that fails releases the session's claim on the
@@ -103,7 +90,6 @@ data class PlaybackSummary(
      * name at all.
      */
     val title: String? = null,
-    val isLooping: Boolean = DEFAULT_LOOPING,
     val failure: PlaybackFailure? = null,
 )
 

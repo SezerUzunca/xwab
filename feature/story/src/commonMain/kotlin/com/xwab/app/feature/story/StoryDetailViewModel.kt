@@ -29,7 +29,6 @@ internal class StoryDetailViewModel(
                 story = content.story,
                 playIntent = isRequested && playback.playIntent,
                 isPreparing = isRequested && playback.isPreparing,
-                isLooping = playback.isLooping,
                 failure = playback.failure?.takeIf { it.itemId == itemId },
             ))
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StoryDetailUiState.Loading)
@@ -45,9 +44,7 @@ internal class StoryDetailViewModel(
         else viewModelScope.launch { playbackPort.play(itemId) }
     }
 
-    /** The session's settings, straight to the session; neither starts the story. */
-    fun setLooping(enabled: Boolean) = playbackPort.setLooping(enabled)
-
+    /** The session's timer, straight to the session; it does not start the story. */
     fun startSleepTimer(durationMs: Long) {
         if (durationMs > 0L) playbackPort.startSleepTimer(durationMs)
     }

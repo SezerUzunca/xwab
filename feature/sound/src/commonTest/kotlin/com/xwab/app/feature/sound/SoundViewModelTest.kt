@@ -65,7 +65,6 @@ class SoundViewModelTest {
 
         assertFalse(readyState(viewModel).playIntent)
         assertNull(port.playedItemId)
-        assertNull(port.looping)
         assertNull(port.startedTimerMs)
         assertEquals(0, port.pauses)
 
@@ -95,25 +94,19 @@ class SoundViewModelTest {
         assertNull(viewModel.sleepTimerRemainingMs.value)
     }
 
-    /**
-     * Repeat and the timer are the session's: they reach it unchanged, before anything plays, and
-     * the switch shows the session's value rather than one this screen keeps.
-     */
+    /** The timer is the session's: it reaches the session unchanged, before anything plays. */
     @Test
-    fun sessionSettingsReachTheSessionWithoutStartingPlayback() = runTest(mainDispatcher) {
-        val port = FakePlaybackPort().apply { publish(PlaybackSummary(isLooping = true)) }
+    fun theTimerReachesTheSessionWithoutStartingPlayback() = runTest(mainDispatcher) {
+        val port = FakePlaybackPort()
         val viewModel = createViewModel(port)
         collectState(viewModel)
         advanceUntilIdle()
-        assertTrue(readyState(viewModel).isLooping)
 
-        viewModel.setLooping(false)
         viewModel.startSleepTimer(0L)
         viewModel.startSleepTimer(900_000L)
         viewModel.cancelSleepTimer()
         advanceUntilIdle()
 
-        assertEquals(false, port.looping)
         assertEquals(900_000L, port.startedTimerMs)
         assertEquals(1, port.cancelledTimers)
         assertNull(port.playedItemId, "a setting must not start the sound")

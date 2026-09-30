@@ -8,40 +8,13 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 
-/**
- * Shared control styling; callers own values, labels and actions. [onCheckedChange] is null when
- * the whole row is the toggle, as Material recommends.
- */
-@Composable
-fun SleepRelaxSwitch(
-    checked: Boolean,
-    onCheckedChange: ((Boolean) -> Unit)?,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-) {
-    Switch(
-        checked = checked,
-        onCheckedChange = onCheckedChange,
-        modifier = modifier,
-        enabled = enabled,
-        colors = SwitchDefaults.colors(
-            checkedThumbColor = SleepRelaxTheme.colors.onSurface,
-            checkedTrackColor = SleepRelaxTheme.colors.primary,
-            uncheckedThumbColor = SleepRelaxTheme.colors.textSecondary,
-            uncheckedTrackColor = SleepRelaxTheme.colors.glassWhiteOverlay,
-            uncheckedBorderColor = SleepRelaxTheme.colors.glassWhite,
-        ),
-    )
-}
-
+/** Shared control styling; callers own values, labels and actions. */
 @Composable
 fun SleepRelaxTextButton(
     onClick: () -> Unit,

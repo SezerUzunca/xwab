@@ -33,8 +33,6 @@ internal data class SoundState(
     val playIntent: Boolean = false,
     /** Playback is wanted but not audible yet. */
     val isPreparing: Boolean = false,
-    /** The session's repeat setting, which the next item played keeps too — not this sound's alone. */
-    val isLooping: Boolean = false,
     val error: SoundError? = null,
 ) {
     val favoritesAvailable: Boolean get() = favoriteReadStatus == SoundFavoriteReadStatus.Available

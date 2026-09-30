@@ -28,7 +28,7 @@ class ContributorPortTest {
         fun interface PlaybackItemResolver {
             suspend fun resolve(value: String): ItemResolution
         }
-        data class PlaybackPolicy(val defaultLooping: Boolean)
+        data class PlaybackPolicy(val looping: Boolean)
         sealed interface ItemResolution {
             data class Resolved(val uri: String, val policy: PlaybackPolicy) : ItemResolution
         }

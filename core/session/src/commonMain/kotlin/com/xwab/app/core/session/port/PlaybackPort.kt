@@ -53,10 +53,10 @@ interface PlaybackPort {
      */
     fun pause()
 
-    fun setLooping(enabled: Boolean)
-
-    // No volume here, deliberately: the phone's volume keys are the app's only volume control, so
-    // no screen may set its own. The engine keeps its gain internal to `:core:playback`.
+    // No volume or repeat here, deliberately. The phone's volume keys are the app's only volume
+    // control, and each content kind decides whether it repeats (`PlaybackPolicy.looping`): a sleep
+    // sound always loops until the timer stops it, a story always ends. The engine keeps both
+    // internal to `:core:playback`.
     fun startSleepTimer(durationMs: Long)
     fun cancelSleepTimer()
 }

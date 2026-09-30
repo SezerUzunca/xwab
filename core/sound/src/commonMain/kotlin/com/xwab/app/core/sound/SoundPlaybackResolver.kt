@@ -65,4 +65,4 @@ internal class SoundPlaybackResolver(
 }
 
 /** Sleep sounds loop until something stops them; that is the product, not the engine's default. */
-private val SOUND_POLICY = PlaybackPolicy(defaultLooping = true)
+private val SOUND_POLICY = PlaybackPolicy(looping = true)

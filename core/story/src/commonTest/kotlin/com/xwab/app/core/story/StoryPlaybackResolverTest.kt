@@ -26,7 +26,7 @@ class StoryPlaybackResolverTest {
                 title = story.title,
                 displayName = story.title,
                 artist = story.narrator,
-                policy = PlaybackPolicy(defaultLooping = false),
+                policy = PlaybackPolicy(looping = false),
             ),
             resolver.resolve(story.id.value),
         )

@@ -39,9 +39,9 @@ class ObserveCategoryContentUseCaseTest {
         runCurrent()
         val favoriteIds = emissions.single().favoriteIds
 
-        playback.publish(PlaybackSummary(isLooping = false))
+        playback.publish(PlaybackSummary(isPreparing = true))
         runCurrent()
-        assertEquals(false, emissions.last().playback.isLooping)
+        assertEquals(true, emissions.last().playback.isPreparing)
         assertSame(favoriteIds, emissions.last().favoriteIds)
 
         favorites.available.value = false

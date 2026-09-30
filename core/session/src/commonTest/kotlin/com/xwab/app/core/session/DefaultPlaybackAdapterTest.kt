@@ -2,7 +2,6 @@
 
 package com.xwab.app.core.session
 
-import com.xwab.app.core.session.port.DEFAULT_LOOPING
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackSummary
@@ -35,26 +34,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.withTimeout
 
 class DefaultPlaybackAdapterTest {
-    @Test
-    fun turningLoopOffBeforeLoadingNotifiesAnExistingCollector() = runBlocking {
-        val session = adapter(FakePlaybackEnginePort())
-        val values = Channel<Boolean>(Channel.UNLIMITED)
-        val collector = launch { session.playback.collect { values.send(it.isLooping) } }
-        try {
-            assertEquals(true, withTimeout(1_000) { values.receive() })
-            session.setLooping(false)
-            assertEquals(false, withTimeout(1_000) { values.receive() })
-        } finally {
-            collector.cancelAndJoin()
-            values.close()
-        }
-    }
-
     /**
      * How the session is told what an item turns out to be.
      *
@@ -69,7 +51,7 @@ class DefaultPlaybackAdapterTest {
             title = SOUND_TITLES.getValue(value),
             displayName = SOUND_NAMES.getValue(value),
             artist = "Sleep Sounds",
-            policy = PlaybackPolicy(defaultLooping = true),
+            policy = PlaybackPolicy(looping = true),
         )
 
     @Test
@@ -289,69 +271,21 @@ class DefaultPlaybackAdapterTest {
     }
 
     /**
-     * The default has one owner. It used to have two — the session, deciding what to load, and the
-     * player screen, which showed "looping" whenever no source was attached — so a loop turned off
-     * before the first play was obeyed by the engine and denied by the UI.
+     * The kind decides every load. A loop changed outside the app — a notification, a Bluetooth
+     * control — applies to the item it was changed on and is not carried into the next one: a
+     * sound that stopped repeating would end a sleep sound after a few seconds.
      */
     @Test
-    fun theLoopDefaultIsPublishedBeforeAnythingIsLoaded() = runBlocking {
-        assertEquals(DEFAULT_LOOPING, adapter(FakePlaybackEnginePort()).playback.first().isLooping)
-    }
-
-    @Test
-    fun aLoopTurnedOffBeforeTheFirstLoadIsPublishedAsOff() = runBlocking {
-        val player = FakePlaybackEnginePort()
-        val adapter = adapter(player)
-
-        adapter.setLooping(false)
-
-        assertEquals(false, adapter.playback.first().isLooping)
-        adapter.play(sound("gentle-rain"))
-        assertEquals(LoopMode.Off, player.lastLoadRequest?.loopMode)
-    }
-
-    @Test
-    fun settingsChosenBeforeTheFirstLoadBeatTheProductDefault() = runBlocking {
-        val player = FakePlaybackEnginePort()
-        val adapter = adapter(player)
-
-        adapter.setLooping(false)
-        adapter.play(sound("gentle-rain"))
-
-        assertEquals(LoopMode.Off, player.lastLoadRequest?.loopMode)
-        assertEquals(false, player.lastLooping)
-    }
-
-    @Test
-    fun playbackSettingsAreRetainedWhenAnotherSoundIsLoaded() = runBlocking {
+    fun aLoopChangedOutsideTheAppDoesNotCarryIntoTheNextItem() = runBlocking {
         val player = FakePlaybackEnginePort()
         val adapter = adapter(player)
         adapter.play(sound("gentle-rain"))
         player.attachRequestedSource()
 
-        adapter.setLooping(false)
-        adapter.play(sound("calm-waves"))
-
-        assertEquals("sound:calm-waves", player.lastLoadRequest?.source?.id)
-        assertEquals(LoopMode.Off, player.lastLoadRequest?.loopMode)
-    }
-
-    @Test
-    fun settingsChangedOutsideTheAppSurviveALostServiceConnection() = runBlocking {
-        val player = FakePlaybackEnginePort()
-        val adapter = adapter(player)
-        adapter.play(sound("gentle-rain"))
-        player.attachRequestedSource()
-
-        // A notification or Bluetooth control changes the settings behind the app's back;
-        // the reducer adopts them, so they reach the adapter through the published state.
         player.mutableState.update { it.copy(isLooping = false) }
-        // The service connection then drops, which clears only the *attached* source.
-        player.mutableState.update { it.copy(source = null) }
-
         adapter.play(sound("calm-waves"))
 
-        assertEquals(LoopMode.Off, player.lastLoadRequest?.loopMode)
+        assertEquals(LoopMode.One, player.lastLoadRequest?.loopMode)
     }
 
     /**
@@ -494,7 +428,6 @@ class DefaultPlaybackAdapterTest {
                 playIntent = true,
                 isPlaying = true,
                 isPreparing = false,
-                isLooping = true,
                 failure = PlaybackFailure.EngineFailed(sound("gentle-rain")),
             ),
             adapter(player).playback.first(),
@@ -779,25 +712,12 @@ class DefaultPlaybackAdapterTest {
         assertEquals(LoopMode.Off, player.lastLoadRequest?.loopMode)
     }
 
-    /** The listener meant it, whatever they switch to next. */
-    @Test
-    fun aLoopTheListenerTurnedOnSurvivesASwitchToAStory() = runBlocking {
-        val player = FakePlaybackEnginePort()
-        val adapter = storyAdapter(player)
-
-        adapter.setLooping(true)
-        adapter.play(story("night-came-slowly"))
-
-        assertEquals(LoopMode.One, player.lastLoadRequest?.loopMode)
-    }
-
     /**
-     * Without an explicit preference, a sound playing first must not decide what a story plays as
-     * next. Nothing here calls `setLooping` — only the sound's own default is engine state by the
-     * time the story is requested, and that is not a preference.
+     * A sound playing first must not decide what a story plays as next: the sound's own loop is
+     * engine state by the time the story is requested, and each kind decides its own.
      */
     @Test
-    fun aSoundsLoopDoesNotLeakIntoAStoryPlayedNextWithoutAPreference() = runBlocking {
+    fun aSoundsLoopDoesNotLeakIntoAStoryPlayedNext() = runBlocking {
         val player = FakePlaybackEnginePort()
         val adapter = storyAdapter(player)
 
@@ -809,7 +729,7 @@ class DefaultPlaybackAdapterTest {
 
     /** The same gap in the other direction: a story's non-looping default must not carry to a sound. */
     @Test
-    fun aStorysLoopDoesNotLeakIntoASoundPlayedNextWithoutAPreference() = runBlocking {
+    fun aStorysLoopDoesNotLeakIntoASoundPlayedNext() = runBlocking {
         val player = FakePlaybackEnginePort()
         val adapter = storyAdapter(player)
 
@@ -889,7 +809,7 @@ class DefaultPlaybackAdapterTest {
             // A story is listed and announced under the same name; it has no second one.
             displayName = "The Night Came Slowly",
             artist = "Alan Davis Drake",
-            policy = PlaybackPolicy(defaultLooping = false),
+            policy = PlaybackPolicy(looping = false),
         )
         "an-idle-fellow" -> ItemResolution.Unavailable("story source is missing")
         else -> ItemResolution.NotFound
@@ -908,7 +828,6 @@ class DefaultPlaybackAdapterTest {
         var lastLoadRequest: PlaybackRequest? = null
         var playCalls = 0
         var pauseCalls = 0
-        var lastLooping: Boolean? = null
         var lastSleepTimerDurationMs: Long? = null
         var cancelSleepTimerCalls = 0
 
@@ -940,7 +859,6 @@ class DefaultPlaybackAdapterTest {
                     mutableState.update { it.copy(playRequested = false) }
                 }
                 is PlaybackCommand.SetLooping -> {
-                    lastLooping = command.enabled
                     mutableState.update { it.copy(isLooping = command.enabled) }
                 }
                 is PlaybackCommand.SetVolume -> {

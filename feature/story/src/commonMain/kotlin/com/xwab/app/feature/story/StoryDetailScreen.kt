@@ -25,7 +25,7 @@ import com.xwab.app.core.story.port.Story
 import com.xwab.app.designsystem.components.BackButton
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.PlayPauseButton
-import com.xwab.app.designsystem.components.PlaybackSettingsCard
+import com.xwab.app.designsystem.components.SleepTimerCard
 import com.xwab.app.designsystem.components.ScreenContainer
 import com.xwab.app.designsystem.components.screenContentPadding
 import com.xwab.app.designsystem.format.formatDuration
@@ -52,7 +52,6 @@ internal fun StoryDetailScreenRoute(
             state = content.value,
             onBack = onBack,
             onPlaybackClick = viewModel::togglePlayback,
-            onLoopingChange = viewModel::setLooping,
             onTimerStart = viewModel::startSleepTimer,
             onTimerCancel = viewModel::cancelSleepTimer,
             sleepTimerRemainingMs = sleepTimerRemainingMs,
@@ -62,8 +61,8 @@ internal fun StoryDetailScreenRoute(
 
 /**
  * Opening a story is informational; only the explicit transport button changes playback.
- * Laid out like the sound detail: the story's name and its action centred, the session's timer and
- * repeat in a card, then the story's text left-aligned.
+ * Laid out like the sound detail: the story's name and its action centred, the session's sleep
+ * timer in a card, then the story's text left-aligned. A story plays once and ends.
  */
 @Composable
 @Suppress("LongParameterList") // Screen events plus the timer the card reports.
@@ -71,7 +70,6 @@ internal fun StoryDetailScreen(
     state: StoryDetailState,
     onBack: () -> Unit,
     onPlaybackClick: () -> Unit,
-    onLoopingChange: (Boolean) -> Unit,
     onTimerStart: (Long) -> Unit,
     onTimerCancel: () -> Unit,
     sleepTimerRemainingMs: Long? = null,
@@ -94,12 +92,10 @@ internal fun StoryDetailScreen(
             )
             StoryStatus(state)
             Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
-            PlaybackSettingsCard(
-                sleepTimerRemainingMs = sleepTimerRemainingMs,
-                isLooping = state.isLooping,
+            SleepTimerCard(
+                remainingMs = sleepTimerRemainingMs,
                 onTimerStart = onTimerStart,
                 onTimerCancel = onTimerCancel,
-                onLoopingChange = onLoopingChange,
             )
             state.story?.let { story ->
                 Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))

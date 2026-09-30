@@ -23,7 +23,7 @@ import com.xwab.app.feature.sound.domain.SoundFavoriteReadStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** The sound's own actions, and the session's timer and repeat in a card below them. */
+/** The sound's own actions, and the session's sleep timer in a card below them. */
 @OptIn(ExperimentalTestApi::class)
 class SoundDetailScreenTest {
     @Test
@@ -52,18 +52,20 @@ class SoundDetailScreenTest {
         onNodeWithText("Internet required").assertDoesNotExist()
     }
 
-    /** The item's own actions come first; the session's timer and repeat sit in a card below them. */
+    /**
+     * The item's own actions come first; the session's timer sits in a card below them. There is
+     * no repeat or volume control: a sound always loops, and the phone's keys set loudness.
+     */
     @Test
-    fun theSessionSettingsSitBelowTheItemsOwnActions() = runComposeUiTest {
+    fun theTimerSitsBelowTheItemsOwnActions() = runComposeUiTest {
         val actions = Actions()
         show(SoundState(track = TRACK), actions)
         onNodeWithContentDescription("Play $TRACK_NAME").performClick()
         assertEquals(1, actions.playbackClicks)
         onNodeWithText("15 min").performScrollTo().performClick()
         assertEquals(900_000L, actions.timerStartedMs)
-        onNodeWithText("Repeat playback").performScrollTo().assertIsOff().performClick()
-        assertEquals(true, actions.looping)
-        assertEquals(1, actions.playbackClicks, "settings must not touch playback")
+        assertEquals(1, actions.playbackClicks, "the timer must not touch playback")
+        onNodeWithText("Repeat playback").assertDoesNotExist()
         onNodeWithText("Sound volume").assertDoesNotExist()
         // One pass of a sound that repeats: a bare "4:46" would read as "stops after 4:46".
         onNodeWithText("4:46 loop • Public Domain").assertExists()
@@ -73,12 +75,12 @@ class SoundDetailScreenTest {
     @Test
     fun aRunningTimerShowsWhatIsLeftBesideItsCancel() = runComposeUiTest {
         val actions = Actions()
-        show(SoundState(track = TRACK, isLooping = true), actions, sleepTimerRemainingMs = 90_000L)
+        show(SoundState(track = TRACK), actions, sleepTimerRemainingMs = 90_000L)
         onNodeWithText("Stops in 1:30").performScrollTo().assertExists()
-        onNodeWithText("Repeat playback").performScrollTo().assertIsOn()
         onNodeWithText("Cancel timer").performScrollTo().performClick()
         assertEquals(1, actions.timerCancellations)
     }
+
     @Test
     fun verifiedCachedContentIsLabeledAvailableOffline() = runComposeUiTest {
         show(SoundState(track = TRACK, availableOffline = true))
@@ -112,7 +114,6 @@ class SoundDetailScreenTest {
                     onBack = {},
                     onFavoriteClick = {},
                     onPlaybackClick = { actions.playbackClicks++ },
-                    onLoopingChange = { actions.looping = it },
                     onTimerStart = { actions.timerStartedMs = it },
                     onTimerCancel = { actions.timerCancellations++ },
                     sleepTimerRemainingMs = sleepTimerRemainingMs,
@@ -123,7 +124,6 @@ class SoundDetailScreenTest {
 
     private class Actions {
         var playbackClicks = 0
-        var looping: Boolean? = null
         var timerStartedMs: Long? = null
         var timerCancellations = 0
     }

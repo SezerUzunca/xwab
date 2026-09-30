@@ -47,17 +47,18 @@ on network, delivery or the engine, including re-exported dependencies. Every cr
 dependency uses a port package.
 
 The content resolvers own metadata/source pairing and content-specific playback defaults. The
-session applies those results and listener preferences; it never looks up a catalog or downloads
+session applies those results; it never looks up a catalog or downloads
 content itself. The screen-facing boundary remains `PlaybackPort`.
 
 ## What it decides
 
 Things the engine cannot know on its own:
 
-- **What looping means for this item.** The engine's own default is "no loop". A sleep sound repeats
-  until the timer stops it, a story that repeats has not ended — so the default comes from the
-  resolved item's `PlaybackPolicy`, while `DEFAULT_LOOPING` covers the moment before anything is
-  loaded. An explicit choice by the listener is session-wide and outranks both.
+- **Whether this item loops.** The engine's own default is "no loop". A sleep sound repeats until
+  the timer stops it, a story that repeats has not ended — so every load takes `looping` from the
+  resolved item's `PlaybackPolicy`. There is no listener override and nothing carries from the
+  previous item: the app has no repeat control, and `PlaybackPort` exposes neither repeat nor
+  volume.
 - **A listener action invalidates an older source lookup.** Resolving is suspending, so a second
   tap while the first is still resolving must not load the item the listener moved on from. A
   lookup that is *cancelled* — a screen left mid-resolve — releases its claim in a `finally`, or the

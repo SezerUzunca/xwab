@@ -105,7 +105,7 @@ uygulamaya eklemek veya kullanılmayan route/dekoratör üretmek kapsamı tamaml
 
 | Tarif / seçenek | Bu projedeki durum |
 |---|---|
-| DialogScene / BottomSheet OverlayScene | Back stack'e ait dialog/sheet hedefi yok. Tam ekran oynatıcı yoktur; zamanlayıcı ve tekrar ses/hikâye detayındaki ekran içi karttır. Böyle bir hedef eklenirse resmi overlay çözümü kullanılmalıdır. |
+| DialogScene / BottomSheet OverlayScene | Back stack'e ait dialog/sheet hedefi yok. Tam ekran oynatıcı yoktur; zamanlayıcı ses/hikâye detayındaki ekran içi karttır. Böyle bir hedef eklenirse resmi overlay çözümü kullanılmalıdır. |
 | Supporting pane / el yapımı iki panel | Mevcut hiyerarşi resmi list–detail–extra ile karşılanır; paralel alternatif sahne eklenmez. |
 | Pane genişliği için sürükleme | Adaptif sahnenin isteğe bağlı drag handle'ı etkin değildir; otomatik yerleşim kullanılır. |
 | Deep link ve sentetik geçmiş | Mevcut uygulamada dış URL/intent navigation sözleşmesi yoktur; bu revizyon deep link yayınlamaz. URL biçimi ve platform girişleri tanımlandığında resmi deep-link tarifine göre ayrıca uygulanmalıdır. |

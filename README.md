@@ -247,9 +247,9 @@ volume at all: the engine's gain stays inside `:core:playback`, which features c
 every load starts at full gain. Sound durations read as one loop ("0:12 loop").
 
 Sound and Story details expose item-specific playback, metadata and errors; Sound also exposes
-favorites. Under those, one `designsystem` card holds the session's sleep timer and repeat
-setting. Both act on the session — on whatever is playing, and carried to the next item — so they
-can be set before pressing play.
+favorites. Under those, a `designsystem` card holds the session's sleep timer; it acts on whatever
+is playing and can be set before pressing play. There is no repeat control: a sound always loops
+until the timer stops it, and a story plays once.
 
 `SoundPlaybackResolver` reads metadata through `SoundPort`, looks up its own internal source and
 passes a request to `DeliveryPort`. The sound module owns its cache namespace, accepted MPEG types

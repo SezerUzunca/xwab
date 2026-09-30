@@ -36,7 +36,7 @@ import com.xwab.app.designsystem.components.BackButton
 import com.xwab.app.designsystem.components.FavoriteButton
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.PlayPauseButton
-import com.xwab.app.designsystem.components.PlaybackSettingsCard
+import com.xwab.app.designsystem.components.SleepTimerCard
 import com.xwab.app.designsystem.components.ScreenContainer
 import com.xwab.app.designsystem.components.screenContentPadding
 import com.xwab.app.designsystem.format.formatDuration
@@ -72,7 +72,6 @@ internal fun SoundDetailScreenRoute(
             onBack = onBack,
             onFavoriteClick = viewModel::toggleFavorite,
             onPlaybackClick = viewModel::togglePlayback,
-            onLoopingChange = viewModel::setLooping,
             onTimerStart = viewModel::startSleepTimer,
             onTimerCancel = viewModel::cancelSleepTimer,
             sleepTimerRemainingMs = sleepTimerRemainingMs,
@@ -80,7 +79,7 @@ internal fun SoundDetailScreenRoute(
     }
 }
 
-/** The sound and its actions, then the session's timer and repeat in one card. */
+/** The sound and its actions, then the session's sleep timer in a card. A sound always loops. */
 @Composable
 @Suppress("LongParameterList") // Screen events plus the timer the card reports.
 internal fun SoundDetailScreen(
@@ -88,7 +87,6 @@ internal fun SoundDetailScreen(
     onBack: () -> Unit,
     onFavoriteClick: () -> Unit,
     onPlaybackClick: () -> Unit,
-    onLoopingChange: (Boolean) -> Unit,
     onTimerStart: (Long) -> Unit,
     onTimerCancel: () -> Unit,
     sleepTimerRemainingMs: Long? = null,
@@ -127,12 +125,10 @@ internal fun SoundDetailScreen(
             )
             SoundStatus(state)
             Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
-            PlaybackSettingsCard(
-                sleepTimerRemainingMs = sleepTimerRemainingMs,
-                isLooping = state.isLooping,
+            SleepTimerCard(
+                remainingMs = sleepTimerRemainingMs,
                 onTimerStart = onTimerStart,
                 onTimerCancel = onTimerCancel,
-                onLoopingChange = onLoopingChange,
             )
         }
     }
@@ -236,7 +232,6 @@ private fun SoundDetailScreenPreview() {
             onBack = {},
             onFavoriteClick = {},
             onPlaybackClick = {},
-            onLoopingChange = {},
             onTimerStart = {},
             onTimerCancel = {},
         )
