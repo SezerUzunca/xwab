@@ -2,6 +2,7 @@ package com.xwab.app.designsystem.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -12,6 +13,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res
@@ -74,6 +76,19 @@ fun PlayPauseButton(
                 },
                 modifier = Modifier.size(if (large) SleepRelaxTheme.dimens.iconLarge else SleepRelaxTheme.dimens.iconMedium),
             )
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun PlayPauseButtonPreview() {
+    SleepRelaxTheme {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PlayPauseButton(playRequested = false, onClick = {})
+            PlayPauseButton(playRequested = true, onClick = {})
+            PlayPauseButton(playRequested = false, onClick = {}, large = true)
+            PlayPauseButton(playRequested = true, onClick = {}, enabled = false)
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.xwab.app.designsystem.components
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -8,6 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -96,6 +98,28 @@ fun PlayableRow(
                         top = SleepRelaxTheme.dimens.spacingExtraSmall,
                     )
                     .semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun PlayableRowPreview() {
+    SleepRelaxTheme {
+        Column(verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingSmall)) {
+            PlayableRow(
+                title = "Rain", subtitle = "Gentle rain", playRequested = false,
+                onClick = {}, onPlayPauseClick = {},
+                trailingContent = { FavoriteButton(isFavorite = true, onClick = {}) },
+            )
+            PlayableRow(
+                title = "Forest", subtitle = "Birds and wind", playRequested = true,
+                onClick = {}, onPlayPauseClick = {}, statusMessage = "Loading audio…",
+            )
+            PlayableRow(
+                title = "Ocean", subtitle = "Rolling waves", playRequested = false,
+                onClick = {}, onPlayPauseClick = {}, errorMessage = "Audio unavailable",
             )
         }
     }
