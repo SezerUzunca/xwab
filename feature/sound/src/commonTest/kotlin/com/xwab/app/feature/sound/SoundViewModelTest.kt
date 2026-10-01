@@ -94,23 +94,55 @@ class SoundViewModelTest {
         assertNull(viewModel.sleepTimerRemainingMs.value)
     }
 
-    /** The timer is the session's: it reaches the session unchanged, before anything plays. */
+    /** A timer started from a sound's page is for that sound, so it starts the sound too. */
     @Test
-    fun theTimerReachesTheSessionWithoutStartingPlayback() = runTest(mainDispatcher) {
+    fun startingTheTimerPlaysThisSoundWhenItIsNotPlaying() = runTest(mainDispatcher) {
         val port = FakePlaybackPort()
         val viewModel = createViewModel(port)
         collectState(viewModel)
         advanceUntilIdle()
 
         viewModel.startSleepTimer(0L)
+        assertNull(port.playedItemId, "an invalid duration starts nothing")
         viewModel.startSleepTimer(900_000L)
-        viewModel.cancelSleepTimer()
         advanceUntilIdle()
 
         assertEquals(900_000L, port.startedTimerMs)
+        assertEquals(RAIN_ITEM, port.playedItemId)
+        viewModel.cancelSleepTimer()
         assertEquals(1, port.cancelledTimers)
-        assertNull(port.playedItemId, "a setting must not start the sound")
+        assertEquals(0, port.pauses, "cancelling the timer leaves playback alone")
+    }
+
+    @Test
+    fun restartingTheTimerWhileThisSoundPlaysLeavesPlaybackAlone() = runTest(mainDispatcher) {
+        val port = FakePlaybackPort().apply {
+            publish(PlaybackSummary(requestedItemId = RAIN_ITEM, playIntent = true))
+        }
+        val viewModel = createViewModel(port)
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        viewModel.startSleepTimer(1_800_000L)
+        advanceUntilIdle()
+
+        assertEquals(1_800_000L, port.startedTimerMs)
+        assertNull(port.playedItemId)
         assertEquals(0, port.pauses)
+    }
+
+    @Test
+    fun aSoundTheCatalogNoLongerHoldsIsNotStartedByTheTimer() = runTest(mainDispatcher) {
+        val port = FakePlaybackPort()
+        val viewModel = createViewModel(port, catalogHasTrack = false)
+        collectState(viewModel)
+        advanceUntilIdle()
+
+        viewModel.startSleepTimer(900_000L)
+        advanceUntilIdle()
+
+        assertEquals(900_000L, port.startedTimerMs)
+        assertNull(port.playedItemId)
     }
 
     @Test

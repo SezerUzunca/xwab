@@ -70,7 +70,8 @@ class StoriesScreenTest {
 
         // The session's timer sits on the story's own screen and does not start it. A story plays
         // once, so there is no repeat control.
-        onNodeWithText("30 min").performScrollTo().performClick()
+        assertNull(timerStartedMs)
+        onNodeWithText("Start timer").performScrollTo().performClick()
         assertEquals(1_800_000L, timerStartedMs)
         onNodeWithText("Repeat playback").assertDoesNotExist()
         assertEquals(1, plays)

@@ -28,6 +28,9 @@ import co.touchlab.kermit.Logger
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.xwab.app.core.playback.store.remainingDurationUntil
+import com.xwab.app.core.playback.timer.SLEEP_TIMER_FADE_MS
+import com.xwab.app.core.playback.timer.SLEEP_TIMER_FADE_STEP_MS
+import com.xwab.app.core.playback.timer.sleepTimerFadeVolume
 
 /**
  * Where the application states the user agent its playback should present.
@@ -51,6 +54,7 @@ internal class PlaybackService : MediaSessionService() {
                 seekTo(0L)
             }
         },
+        onFadeVolume = { volume -> player?.volume = volume },
     )
 
     override fun onCreate() {
@@ -272,48 +276,71 @@ internal class PlaybackService : MediaSessionService() {
     }
 }
 
+/**
+ * The service-owned sleep timer: stops playback at the deadline, fading it out over the last
+ * [SLEEP_TIMER_FADE_MS] first.
+ *
+ * @param onFadeVolume receives the player volume while fading, and full volume again once the
+ *   timer expires (after [onExpired] has paused, so it is never heard), is cancelled or is restarted.
+ */
 private class SleepTimer(
     private val onExpired: () -> Unit,
+    private val onFadeVolume: (Float) -> Unit,
 ) {
     private val handler = Handler(Looper.getMainLooper())
+    private var appliedVolume = FULL_VOLUME
 
     var deadlineElapsedRealtimeMs: Long? = null
         private set
 
-    private val expiration = object : Runnable {
+    private val tick = object : Runnable {
         override fun run() {
             reconcileDeadline()
         }
     }
 
     fun startUntil(deadlineElapsedRealtimeMs: Long) {
-        val remainingMs = remainingDurationUntil(
-            deadlineElapsedRealtimeMs,
-            SystemClock.elapsedRealtime(),
-        ) ?: 0L
         this.deadlineElapsedRealtimeMs = deadlineElapsedRealtimeMs
-        handler.removeCallbacks(expiration)
-        handler.postDelayed(expiration, remainingMs)
+        reconcileDeadline()
     }
 
     /**
      * Re-arms the uptime-based Handler from the elapsed-realtime deadline, or expires immediately.
-     * This is called whenever playback resumes and whenever a controller reads timer state.
+     * This is called whenever playback resumes, whenever a controller reads timer state, and on each
+     * step of the fade.
+     *
+     * Before the fade window it sleeps until the window opens; inside it, it wakes every
+     * [SLEEP_TIMER_FADE_STEP_MS] to lower the volume.
      */
     fun reconcileDeadline() {
         val deadline = deadlineElapsedRealtimeMs ?: return
         val remainingMs = remainingDurationUntil(deadline, SystemClock.elapsedRealtime())
-        handler.removeCallbacks(expiration)
+        handler.removeCallbacks(tick)
         if (remainingMs == null) {
             deadlineElapsedRealtimeMs = null
             onExpired()
-        } else {
-            handler.postDelayed(expiration, remainingMs)
+            applyVolume(FULL_VOLUME)
+            return
         }
+        applyVolume(sleepTimerFadeVolume(remainingMs))
+        val untilFadeMs = remainingMs - SLEEP_TIMER_FADE_MS
+        val nextTickMs = if (untilFadeMs > 0) untilFadeMs else remainingMs.coerceAtMost(SLEEP_TIMER_FADE_STEP_MS)
+        handler.postDelayed(tick, nextTickMs)
     }
 
     fun cancel() {
-        handler.removeCallbacks(expiration)
+        handler.removeCallbacks(tick)
         deadlineElapsedRealtimeMs = null
+        applyVolume(FULL_VOLUME)
+    }
+
+    private fun applyVolume(volume: Float) {
+        if (volume == appliedVolume) return
+        appliedVolume = volume
+        onFadeVolume(volume)
+    }
+
+    private companion object {
+        const val FULL_VOLUME = 1.0f
     }
 }

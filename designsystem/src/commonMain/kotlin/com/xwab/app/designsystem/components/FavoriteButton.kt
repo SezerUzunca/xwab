@@ -1,6 +1,7 @@
 package com.xwab.app.designsystem.components
 
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -9,6 +10,8 @@ import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
@@ -70,5 +73,18 @@ fun FavoriteButton(
                 else -> SleepRelaxTheme.colors.textSecondary
             },
         )
+    }
+}
+
+@Preview
+@Composable
+private fun FavoriteButtonPreview() {
+    SleepRelaxTheme {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            FavoriteButton(isFavorite = false, onClick = {}, contentTitle = "Rain")
+            FavoriteButton(isFavorite = true, onClick = {}, contentTitle = "Rain")
+            FavoriteButton(isFavorite = false, onClick = {}, isLoading = true)
+            FavoriteButton(isFavorite = true, onClick = {}, enabled = false)
+        }
     }
 }

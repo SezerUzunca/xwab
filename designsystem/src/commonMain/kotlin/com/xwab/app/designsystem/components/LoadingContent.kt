@@ -4,6 +4,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 
 /** Full-screen loading treatment shared by feature routes before their first content emission. */
@@ -15,4 +16,10 @@ fun LoadingContent(modifier: Modifier = Modifier) {
             color = SleepRelaxTheme.colors.accent,
         )
     }
+}
+
+@Preview
+@Composable
+private fun LoadingContentPreview() {
+    SleepRelaxTheme { LoadingContent() }
 }

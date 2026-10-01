@@ -35,16 +35,23 @@ internal interface TickScheduler {
  * [applyDeadline] must therefore come from the *same* monotonic clock.
  *
  * Must be used from the platform's main thread.
+ *
+ * @param onFadeVolume receives the player volume over the last [SLEEP_TIMER_FADE_MS], and full
+ *   volume again once the timer expires, is cancelled or is restarted — after [onExpired] has
+ *   stopped playback, so the restored level is never heard. Left as a no-op where this ticker
+ *   only mirrors a timer another component plays out (Android's PlaybackService fades itself).
  */
 internal class SleepTimerTicker(
     private val nowMs: () -> Long,
     private val scheduler: TickScheduler,
     private val onExpired: () -> Unit,
+    private val onFadeVolume: (Float) -> Unit = {},
 ) {
     private val mutableState = MutableStateFlow(SleepTimerState())
     val state: StateFlow<SleepTimerState> = mutableState.asStateFlow()
 
     private var deadlineMs: Long? = null
+    private var appliedVolume = FULL_VOLUME
 
     /** Adopt [newDeadlineMs] (null clears the timer) and restart the countdown. */
     fun applyDeadline(newDeadlineMs: Long?) {
@@ -66,6 +73,7 @@ internal class SleepTimerTicker(
     private fun publishRemainingTime() {
         val deadline = deadlineMs ?: run {
             mutableState.value = SleepTimerState()
+            applyVolume(FULL_VOLUME)
             return
         }
 
@@ -74,14 +82,23 @@ internal class SleepTimerTicker(
             deadlineMs = null
             mutableState.value = SleepTimerState()
             onExpired()
+            applyVolume(FULL_VOLUME)
             return
         }
 
         mutableState.value = SleepTimerState(remainingMs)
-        scheduler.schedule(remainingMs.coerceAtMost(UPDATE_INTERVAL_MS)) { publishRemainingTime() }
+        applyVolume(sleepTimerFadeVolume(remainingMs))
+        scheduler.schedule(sleepTimerTickDelay(remainingMs, UPDATE_INTERVAL_MS)) { publishRemainingTime() }
+    }
+
+    private fun applyVolume(volume: Float) {
+        if (volume == appliedVolume) return
+        appliedVolume = volume
+        onFadeVolume(volume)
     }
 
     private companion object {
         const val UPDATE_INTERVAL_MS = 1_000L
+        const val FULL_VOLUME = 1.0f
     }
 }

@@ -7,6 +7,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res
@@ -37,4 +38,10 @@ fun BackButton(
             tint = SleepRelaxTheme.colors.textSecondary,
         )
     }
+}
+
+@Preview
+@Composable
+private fun BackButtonPreview() {
+    SleepRelaxTheme { BackButton(onClick = {}) }
 }

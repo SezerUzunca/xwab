@@ -25,7 +25,7 @@ import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.designsystem.components.PlayPauseButton
 import com.xwab.app.designsystem.components.SleepRelaxTextButton
-import com.xwab.app.designsystem.format.formatRemaining
+import com.xwab.app.designsystem.format.remainingWholeMinutes
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import com.xwab.app.feature.nowplaying.NowPlayingState
 import com.xwab.app.feature.nowplaying.NowPlayingUiState
@@ -35,6 +35,7 @@ import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res as UiRes
 import xwab.designsystem.generated.resources.cancel_timer
 import xwab.designsystem.generated.resources.sleep_timer
+import xwab.designsystem.generated.resources.timer_duration_minutes
 import xwab.feature.nowplaying.generated.resources.Res
 import xwab.feature.nowplaying.generated.resources.item_could_not_open
 import xwab.feature.nowplaying.generated.resources.item_not_found
@@ -122,12 +123,15 @@ internal fun NowPlayingBarContent(
                 Text(title, style = SleepRelaxTheme.typography.titleSmall,
                     color = SleepRelaxTheme.colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 // One status line. Loading says what is happening now, so it goes before the timer;
-                // the tap target's own label is never shown as text.
+                // the tap target's own label is never shown as text. The timer reads in whole
+                // minutes, exactly as the timer card on an item's screen shows it.
+                val timerLeft = sleepTimerRemainingMs?.let {
+                    stringResource(UiRes.string.timer_duration_minutes, remainingWholeMinutes(it))
+                }
                 Text(
                     text = when {
                         state.isPreparing -> stringResource(Res.string.player_loading)
-                        sleepTimerRemainingMs != null ->
-                            stringResource(Res.string.player_stops_in, formatRemaining(sleepTimerRemainingMs))
+                        timerLeft != null -> stringResource(Res.string.player_stops_in, timerLeft)
                         state.playIntent -> stringResource(Res.string.player_playing)
                         else -> stringResource(Res.string.player_paused)
                     },

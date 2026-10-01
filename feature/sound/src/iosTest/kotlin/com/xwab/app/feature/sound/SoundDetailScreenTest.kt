@@ -13,8 +13,10 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.SemanticsActions
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.TrackId
@@ -22,6 +24,7 @@ import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import com.xwab.app.feature.sound.domain.SoundFavoriteReadStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 /** The sound's own actions, and the session's sleep timer in a card below them. */
 @OptIn(ExperimentalTestApi::class)
@@ -62,7 +65,10 @@ class SoundDetailScreenTest {
         show(SoundState(track = TRACK), actions)
         onNodeWithContentDescription("Play $TRACK_NAME").performClick()
         assertEquals(1, actions.playbackClicks)
-        onNodeWithText("15 min").performScrollTo().performClick()
+        onNodeWithContentDescription("Minutes").performScrollTo()
+            .performSemanticsAction(SemanticsActions.SetProgress) { it(0f) }
+        assertNull(actions.timerStartedMs, "selecting a duration must not start the timer")
+        onNodeWithText("Start timer").performScrollTo().performClick()
         assertEquals(900_000L, actions.timerStartedMs)
         assertEquals(1, actions.playbackClicks, "the timer must not touch playback")
         onNodeWithText("Repeat playback").assertDoesNotExist()
@@ -76,9 +82,39 @@ class SoundDetailScreenTest {
     fun aRunningTimerShowsWhatIsLeftBesideItsCancel() = runComposeUiTest {
         val actions = Actions()
         show(SoundState(track = TRACK), actions, sleepTimerRemainingMs = 90_000L)
-        onNodeWithText("Stops in 1:30").performScrollTo().assertExists()
+        onNodeWithText("Stops in 2 min").performScrollTo().assertExists()
         onNodeWithText("Cancel timer").performScrollTo().performClick()
         assertEquals(1, actions.timerCancellations)
+    }
+
+    @Test
+    fun changingTheWheelOnlyRestartsTheTimerWhenConfirmed() = runComposeUiTest {
+        val actions = Actions()
+        show(SoundState(track = TRACK), actions, sleepTimerRemainingMs = 90_000L)
+        onNodeWithContentDescription("Minutes").performScrollTo()
+            .performSemanticsAction(SemanticsActions.SetProgress) { it(3f) }
+        assertNull(actions.timerStartedMs)
+        onNodeWithText("Stops in 2 min").assertExists()
+        onNodeWithText("Restart timer").performScrollTo().performClick()
+        assertEquals(5_400_000L, actions.timerStartedMs)
+        assertEquals(0, actions.playbackClicks)
+    }
+
+    @Test
+    fun onlyTheOriginalMinuteDurationsCanBeSelected() = runComposeUiTest {
+        val actions = Actions()
+        show(SoundState(track = TRACK), actions)
+        onNodeWithContentDescription("Hours").assertDoesNotExist()
+        onNodeWithContentDescription("Seconds").assertDoesNotExist()
+        listOf(15, 30, 60, 90).forEachIndexed { index, minutes ->
+            val previousTimer = actions.timerStartedMs
+            onNodeWithContentDescription("Minutes").performScrollTo()
+                .performSemanticsAction(SemanticsActions.SetProgress) { it(index.toFloat()) }
+                .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "$minutes min"))
+            assertEquals(previousTimer, actions.timerStartedMs, "scrolling must not change the timer")
+            onNodeWithText("Start timer").performScrollTo().performClick()
+            assertEquals(minutes * 60_000L, actions.timerStartedMs)
+        }
     }
 
     @Test
