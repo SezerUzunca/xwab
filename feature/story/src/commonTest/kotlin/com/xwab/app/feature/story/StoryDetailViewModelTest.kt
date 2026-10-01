@@ -99,21 +99,50 @@ class StoryDetailViewModelTest {
         assertEquals(1, port.pauses)
     }
 
-    /** The timer reaches the session unchanged and does not start the story. */
+    /** A timer started from a story's page is for that story, so it starts the story too. */
     @Test
-    fun theTimerReachesTheSessionWithoutStartingTheStory() = runTest(dispatcher) {
+    fun startingTheTimerPlaysThisStoryWhenItIsNotPlaying() = runTest(dispatcher) {
         val port = FakePlaybackPort()
         val model = model(port)
         collectState(model)
         advanceUntilIdle()
 
         model.startSleepTimer(-1L)
+        assertNull(port.playedItemId, "an invalid duration starts nothing")
         model.startSleepTimer(600_000L)
-        model.cancelSleepTimer()
         advanceUntilIdle()
 
         assertEquals(600_000L, port.startedTimerMs)
+        assertEquals(ITEM, port.playedItemId)
+        model.cancelSleepTimer()
         assertEquals(1, port.cancelledTimers)
+    }
+
+    @Test
+    fun restartingTheTimerWhileThisStoryPlaysLeavesPlaybackAlone() = runTest(dispatcher) {
+        val port = FakePlaybackPort().apply { publish(PlaybackSummary(requestedItemId = ITEM, playIntent = true)) }
+        val model = model(port)
+        collectState(model)
+        advanceUntilIdle()
+
+        model.startSleepTimer(600_000L)
+        advanceUntilIdle()
+
+        assertNull(port.playedItemId)
+        assertEquals(0, port.pauses)
+    }
+
+    @Test
+    fun aStoryTheCatalogNoLongerHoldsIsNotStartedByTheTimer() = runTest(dispatcher) {
+        val port = FakePlaybackPort()
+        val model = model(port, missing = true)
+        collectState(model)
+        advanceUntilIdle()
+
+        model.startSleepTimer(600_000L)
+        advanceUntilIdle()
+
+        assertEquals(600_000L, port.startedTimerMs)
         assertNull(port.playedItemId)
     }
 

@@ -44,9 +44,16 @@ internal class StoryDetailViewModel(
         else viewModelScope.launch { playbackPort.play(itemId) }
     }
 
-    /** The session's timer, straight to the session; it does not start the story. */
+    /**
+     * Starts the session's timer and, when this story is not already playing, plays it. Restarting
+     * it while the story plays leaves playback alone; a story the catalog no longer holds is not
+     * started.
+     */
     fun startSleepTimer(durationMs: Long) {
-        if (durationMs > 0L) playbackPort.startSleepTimer(durationMs)
+        if (durationMs <= 0L) return
+        playbackPort.startSleepTimer(durationMs)
+        val current = (state.value as? StoryDetailUiState.Ready)?.value ?: return
+        if (!current.playIntent && current.canPlay) viewModelScope.launch { playbackPort.play(itemId) }
     }
 
     fun cancelSleepTimer() = playbackPort.cancelSleepTimer()

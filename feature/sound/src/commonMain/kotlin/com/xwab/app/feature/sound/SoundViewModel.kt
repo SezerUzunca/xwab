@@ -98,11 +98,15 @@ internal class SoundViewModel(
     }
 
     /**
-     * The session's timer, straight to the session. Not gated on this sound being in the catalog or
-     * playing: it stops whatever plays, and setting it before pressing play is the usual way round.
+     * Starts the session's timer and, when this sound is not already playing, plays it: a timer
+     * started from a sound's page is a timer for that sound. Restarting it while the sound plays
+     * leaves playback alone, and a sound the catalog no longer holds is not started.
      */
     fun startSleepTimer(durationMs: Long) {
-        if (durationMs > 0L) playbackPort.startSleepTimer(durationMs)
+        if (durationMs <= 0L) return
+        playbackPort.startSleepTimer(durationMs)
+        val current = readyState() ?: return
+        if (!current.playIntent && current.canPlay) viewModelScope.launch { playbackPort.play(itemId) }
     }
 
     fun cancelSleepTimer() = playbackPort.cancelSleepTimer()

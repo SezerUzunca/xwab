@@ -21,19 +21,18 @@ fun formatDuration(totalSeconds: Int): String {
 }
 
 /**
- * A countdown as `m:ss`, for a deadline a screen is showing while it runs down.
+ * What is left on a countdown in whole minutes, for every place the sleep timer is shown.
  *
- * Rounded **up**, not down: with 200 ms left this answers `0:01`, not `0:00`. A countdown that
- * reads zero while the thing it counts is still running looks stuck, and the last second is the
- * one a listener is most likely to be watching.
+ * Minutes rather than `m:ss`: at night a number changing every second is one more thing moving in
+ * the dark, and nobody setting a sleep timer needs the seconds. One function, so the bar and the
+ * timer card never show the same timer two ways.
  *
- * Beside [formatDuration] for the reason that one gives — it is presentation, and a formatter
- * owned by one caller leaves the next reimplementing it. This one lived as a private function at
- * the bottom of a screen file, untested, with the rounding above nowhere stated.
+ * Rounded **up**, not down: with 20 seconds left this answers 1, not 0. A countdown that reads zero
+ * while the sound is still playing looks stuck.
  */
-fun formatRemaining(remainingMs: Long): String {
-    val totalSeconds = (remainingMs.coerceAtLeast(0L) + 999L) / 1_000L
-    val minutes = totalSeconds / 60L
-    val seconds = totalSeconds % 60L
-    return "$minutes:${seconds.toString().padStart(2, '0')}"
+fun remainingWholeMinutes(remainingMs: Long): Long {
+    val safeMs = remainingMs.coerceAtLeast(0L)
+    return (safeMs + MINUTE_MS - 1L) / MINUTE_MS
 }
+
+private const val MINUTE_MS = 60_000L

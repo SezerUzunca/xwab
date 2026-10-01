@@ -38,7 +38,7 @@ class NowPlayingBarTest {
             }
         }
 
-        onNodeWithText("Stops in 15:00").assertIsDisplayed()
+        onNodeWithText("Stops in 15 min").assertIsDisplayed()
         assertEquals(
             "Open details and sleep timer",
             onNodeWithText(TITLE).fetchSemanticsNode().config[SemanticsActions.OnClick].label,
@@ -59,14 +59,14 @@ class NowPlayingBarTest {
             SleepRelaxTheme { NowPlayingBarContent(state(), {}, {}, {}, sleepTimerRemainingMs = remainingMs.value) }
         }
 
-        val timer = onNodeWithText("Stops in 15:00", useUnmergedTree = true)
+        val timer = onNodeWithText("Stops in 15 min", useUnmergedTree = true)
         timer.assertIsDisplayed()
         assertNull(timer.fetchSemanticsNode().config.getOrNull(SemanticsProperties.LiveRegion))
 
-        runOnIdle { remainingMs.value = 899_000L }
-        onNodeWithText("Stops in 14:59").assertIsDisplayed()
+        runOnIdle { remainingMs.value = 840_000L }
+        onNodeWithText("Stops in 14 min").assertIsDisplayed()
         runOnIdle { remainingMs.value = null }
-        onNodeWithText("Stops in 14:59").assertDoesNotExist()
+        onNodeWithText("Stops in 14 min").assertDoesNotExist()
         onNodeWithText("Playing · Timer off").assertIsDisplayed()
     }
 
@@ -104,7 +104,7 @@ class NowPlayingBarTest {
             }
         }
 
-        onNodeWithText("Stops in 1:00").assertIsDisplayed()
+        onNodeWithText("Stops in 1 min").assertIsDisplayed()
         onNodeWithContentDescription("Play", substring = true).assertDoesNotExist()
         assertNull(onNodeWithText("Sleep timer").fetchSemanticsNode().config.getOrNull(SemanticsActions.OnClick))
         onNodeWithText("Cancel timer").performClick()

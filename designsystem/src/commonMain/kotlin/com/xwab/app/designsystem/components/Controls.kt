@@ -1,17 +1,19 @@
 package com.xwab.app.designsystem.components
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 
 /** Shared control styling; callers own values, labels and actions. */
@@ -27,30 +29,6 @@ fun SleepRelaxTextButton(
         modifier = modifier,
         enabled = enabled,
         colors = ButtonDefaults.textButtonColors(contentColor = SleepRelaxTheme.colors.accent),
-        content = content,
-    )
-}
-
-/**
- * A choice among several, drawn as a pill so it reads as a button rather than a label.
- * Narrower padding than Material's default, so a short row of them fits one line on a phone.
- */
-@Composable
-fun SleepRelaxOutlinedButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    content: @Composable RowScope.() -> Unit,
-) {
-    val border = SleepRelaxTheme.colors.accent.copy(alpha = if (enabled) BORDER_ALPHA else DISABLED_BORDER_ALPHA)
-    OutlinedButton(
-        onClick = onClick,
-        modifier = modifier,
-        enabled = enabled,
-        shape = SleepRelaxTheme.shapes.full,
-        border = BorderStroke(1.dp, border),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = SleepRelaxTheme.colors.accent),
         content = content,
     )
 }
@@ -76,5 +54,23 @@ fun SleepRelaxSnackbarHost(hostState: SnackbarHostState, modifier: Modifier = Mo
     }
 }
 
-private const val BORDER_ALPHA = 0.6f
-private const val DISABLED_BORDER_ALPHA = 0.2f
+@Preview
+@Composable
+private fun SleepRelaxTextButtonPreview() {
+    SleepRelaxTheme {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SleepRelaxTextButton(onClick = {}) { Text("Cancel") }
+            SleepRelaxTextButton(onClick = {}, enabled = false) { Text("Disabled") }
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun SleepRelaxSnackbarHostPreview() {
+    SleepRelaxTheme {
+        val hostState = remember { SnackbarHostState() }
+        LaunchedEffect(hostState) { hostState.showSnackbar("Audio unavailable") }
+        SleepRelaxSnackbarHost(hostState)
+    }
+}
