@@ -12,7 +12,7 @@ import com.xwab.app.designsystem.theme.SleepRelaxTheme
  *
  * It acts on the session, so on whatever is playing, not only on the item this card sits under, and
  * it can be set before pressing play. The caller observes the timer and owns every command;
- * the control keeps only the duration being selected.
+ * the control keeps only which preset was tapped.
  */
 @Composable
 fun SleepTimerCard(

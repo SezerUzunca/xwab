@@ -1,5 +1,6 @@
 package com.xwab.app.feature.sound
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
@@ -8,15 +9,15 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.semantics.SemanticsActions
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.TrackId
@@ -65,10 +66,8 @@ class SoundDetailScreenTest {
         show(SoundState(track = TRACK), actions)
         onNodeWithContentDescription("Play $TRACK_NAME").performClick()
         assertEquals(1, actions.playbackClicks)
-        onNodeWithContentDescription("Minutes").performScrollTo()
-            .performSemanticsAction(SemanticsActions.SetProgress) { it(0f) }
-        assertNull(actions.timerStartedMs, "selecting a duration must not start the timer")
-        onNodeWithText("Start timer").performScrollTo().performClick()
+        assertNull(actions.timerStartedMs)
+        onNodeWithText("15 min").performScrollTo().performClick()
         assertEquals(900_000L, actions.timerStartedMs)
         assertEquals(1, actions.playbackClicks, "the timer must not touch playback")
         onNodeWithText("Repeat playback").assertDoesNotExist()
@@ -78,43 +77,69 @@ class SoundDetailScreenTest {
         onNodeWithText("Internet required").assertExists()
     }
 
+    /** With no timer, All night is the selected choice: playback goes on until it ends or is stopped. */
     @Test
-    fun aRunningTimerShowsWhatIsLeftBesideItsCancel() = runComposeUiTest {
+    fun withNoTimerAllNightIsSelected() = runComposeUiTest {
+        val actions = Actions()
+        show(SoundState(track = TRACK), actions)
+        onNodeWithText("Off").performScrollTo().assertExists()
+        onNodeWithText("All night").assertIsSelected()
+        listOf(15, 30, 60, 90).forEach { onNodeWithText("$it min").assertIsNotSelected() }
+        // Already all night: tapping it again has nothing to cancel.
+        onNodeWithText("All night").performClick()
+        assertEquals(0, actions.timerCancellations)
+        assertNull(actions.timerStartedMs)
+    }
+
+    @Test
+    fun choosingAllNightCancelsARunningTimer() = runComposeUiTest {
         val actions = Actions()
         show(SoundState(track = TRACK), actions, sleepTimerRemainingMs = 90_000L)
         onNodeWithText("Stops in 2 min").performScrollTo().assertExists()
-        onNodeWithText("Cancel timer").performScrollTo().performClick()
+        onNodeWithText("All night").assertIsNotSelected().performClick()
         assertEquals(1, actions.timerCancellations)
-    }
-
-    @Test
-    fun changingTheWheelOnlyRestartsTheTimerWhenConfirmed() = runComposeUiTest {
-        val actions = Actions()
-        show(SoundState(track = TRACK), actions, sleepTimerRemainingMs = 90_000L)
-        onNodeWithContentDescription("Minutes").performScrollTo()
-            .performSemanticsAction(SemanticsActions.SetProgress) { it(3f) }
         assertNull(actions.timerStartedMs)
-        onNodeWithText("Stops in 2 min").assertExists()
-        onNodeWithText("Restart timer").performScrollTo().performClick()
-        assertEquals(5_400_000L, actions.timerStartedMs)
-        assertEquals(0, actions.playbackClicks)
     }
 
     @Test
-    fun onlyTheOriginalMinuteDurationsCanBeSelected() = runComposeUiTest {
+    fun eachDurationStartsTheTimerInOneTap() = runComposeUiTest {
         val actions = Actions()
         show(SoundState(track = TRACK), actions)
-        onNodeWithContentDescription("Hours").assertDoesNotExist()
-        onNodeWithContentDescription("Seconds").assertDoesNotExist()
-        listOf(15, 30, 60, 90).forEachIndexed { index, minutes ->
-            val previousTimer = actions.timerStartedMs
-            onNodeWithContentDescription("Minutes").performScrollTo()
-                .performSemanticsAction(SemanticsActions.SetProgress) { it(index.toFloat()) }
-                .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "$minutes min"))
-            assertEquals(previousTimer, actions.timerStartedMs, "scrolling must not change the timer")
-            onNodeWithText("Start timer").performScrollTo().performClick()
+        listOf(15, 30, 60, 90).forEach { minutes ->
+            onNodeWithText("$minutes min").performScrollTo().performClick()
             assertEquals(minutes * 60_000L, actions.timerStartedMs)
         }
+        assertEquals(0, actions.playbackClicks, "the card leaves playback to the screen's own button")
+    }
+
+    /**
+     * A timer running when the screen opens shows the preset it most likely came from, and the
+     * selection holds as time passes instead of sliding down to a shorter preset.
+     */
+    @Test
+    fun aRunningTimersPresetStaysSelectedAsItCountsDown() = runComposeUiTest {
+        val remainingMs = mutableStateOf<Long?>(58L * 60_000L)
+        setContent {
+            SleepRelaxTheme {
+                SoundDetailScreen(
+                    SoundState(track = TRACK),
+                    onBack = {},
+                    onFavoriteClick = {},
+                    onPlaybackClick = {},
+                    onTimerStart = {},
+                    onTimerCancel = {},
+                    sleepTimerRemainingMs = remainingMs.value,
+                )
+            }
+        }
+        onNodeWithText("60 min").performScrollTo().assertIsSelected()
+        runOnIdle { remainingMs.value = 20L * 60_000L }
+        onNodeWithText("Stops in 20 min").assertExists()
+        onNodeWithText("60 min").assertIsSelected()
+        onNodeWithText("30 min").assertIsNotSelected()
+        runOnIdle { remainingMs.value = null }
+        onNodeWithText("All night").assertIsSelected()
+        onNodeWithText("60 min").assertIsNotSelected()
     }
 
     @Test
