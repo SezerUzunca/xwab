@@ -17,6 +17,7 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Track
@@ -133,6 +134,10 @@ class SoundDetailScreenTest {
             }
         }
         onNodeWithText("60 min").performScrollTo().assertIsSelected()
+        assertEquals(
+            "Restart timer",
+            onNodeWithText("60 min").fetchSemanticsNode().config[SemanticsActions.OnClick].label,
+        )
         runOnIdle { remainingMs.value = 20L * 60_000L }
         onNodeWithText("Stops in 20 min").assertExists()
         onNodeWithText("60 min").assertIsSelected()

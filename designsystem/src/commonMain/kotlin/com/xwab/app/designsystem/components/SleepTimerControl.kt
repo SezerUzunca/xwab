@@ -1,13 +1,17 @@
 package com.xwab.app.designsystem.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,14 +22,19 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.xwab.app.designsystem.format.remainingWholeMinutes
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res
+import xwab.designsystem.generated.resources.restart_timer
 import xwab.designsystem.generated.resources.sleep_timer
 import xwab.designsystem.generated.resources.sleep_timer_off
 import xwab.designsystem.generated.resources.sleep_timer_stops_in
@@ -36,7 +45,7 @@ private const val MINUTE_MS = 60_000L
 private val TIMER_PRESET_MINUTES = listOf(15, 30, 60, 90)
 
 /**
- * One row of choices: all night, or one of the presets. The selected choice is what is set, so
+ * Five choices: all night, or one of the presets. The selected choice is what is set, so
  * there is no separate Start, Restart or Cancel.
  *
  * - A duration sets the timer from now; the selected one again restarts it. The caller decides
@@ -80,48 +89,72 @@ private fun TimerChoices(remainingMs: Long?, onTimerStart: (Long) -> Unit, onTim
     LaunchedEffect(isRunning) { if (!isRunning) chosenMinutes = null }
     val selectedMinutes = if (isRunning) chosenMinutes ?: inferredMinutes else null
 
-    FlowRow(
+    val restartLabel = stringResource(Res.string.restart_timer)
+
+    // Off on its own line, the durations together below it. Each chip keeps its own width so that
+    // large text wraps to another line instead of being cut off.
+    Column(
         modifier = Modifier.fillMaxWidth().selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingSmall),
+        verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingSmall),
     ) {
         TimerChip(
             label = stringResource(Res.string.timer_all_night),
             selected = !isRunning,
             onClick = { if (isRunning) onTimerCancel() },
         )
-        TIMER_PRESET_MINUTES.forEach { minutes ->
-            TimerChip(
-                label = stringResource(Res.string.timer_duration_minutes, minutes),
-                selected = selectedMinutes == minutes,
-                onClick = {
-                    chosenMinutes = minutes
-                    onTimerStart(minutes * MINUTE_MS)
-                },
-            )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingSmall),
+            verticalArrangement = Arrangement.spacedBy(SleepRelaxTheme.dimens.spacingSmall),
+        ) {
+            TIMER_PRESET_MINUTES.forEach { minutes ->
+                val selected = selectedMinutes == minutes
+                TimerChip(
+                    label = stringResource(Res.string.timer_duration_minutes, minutes),
+                    selected = selected,
+                    // The selected duration still acts: it starts the countdown again.
+                    onClickLabel = restartLabel.takeIf { selected },
+                    onClick = {
+                        chosenMinutes = minutes
+                        onTimerStart(minutes * MINUTE_MS)
+                    },
+                )
+            }
         }
     }
 }
 
+/**
+ * A single-choice pill. Not Material's FilterChip: that one tells a screen reader it is a checkbox,
+ * and these are one choice out of five.
+ */
 @Composable
-private fun TimerChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(label, maxLines = 1) },
-        shape = SleepRelaxTheme.shapes.full,
-        colors = FilterChipDefaults.filterChipColors(
-            containerColor = Color.Transparent,
-            labelColor = SleepRelaxTheme.colors.textPrimary,
-            selectedContainerColor = SleepRelaxTheme.colors.accent,
-            selectedLabelColor = SleepRelaxTheme.colors.backgroundBottom,
-        ),
-        border = FilterChipDefaults.filterChipBorder(
-            enabled = true,
-            selected = selected,
-            borderColor = SleepRelaxTheme.colors.glassWhiteOverlay,
-            selectedBorderColor = Color.Transparent,
-        ),
-    )
+private fun TimerChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onClickLabel: String? = null,
+) {
+    val shape = SleepRelaxTheme.shapes.full
+    Box(
+        modifier = modifier
+            .minimumInteractiveComponentSize()
+            .clip(shape)
+            .background(if (selected) SleepRelaxTheme.colors.accent else Color.Transparent)
+            .border(1.dp, if (selected) Color.Transparent else SleepRelaxTheme.colors.glassWhiteOverlay, shape)
+            .semantics { this.selected = selected }
+            .clickable(onClickLabel = onClickLabel, role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = SleepRelaxTheme.dimens.spacingMedium, vertical = SleepRelaxTheme.dimens.spacingSmall),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = if (selected) SleepRelaxTheme.colors.backgroundBottom else SleepRelaxTheme.colors.textPrimary,
+            style = SleepRelaxTheme.typography.bodyMedium,
+            maxLines = 1,
+        )
+    }
 }
 
 /**

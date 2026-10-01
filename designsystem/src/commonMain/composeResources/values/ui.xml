@@ -29,6 +29,7 @@
     <string name="sleep_timer_off">Off</string>
     <string name="sleep_timer_stops_in">Stops in %1$s</string>
     <string name="timer_all_night">All night</string>
+    <string name="restart_timer">Restart timer</string>
     <string name="cancel_timer">Cancel timer</string>
     <string name="timer_duration_minutes">%1$d min</string>
 </resources>
