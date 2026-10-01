@@ -14,17 +14,11 @@ import com.xwab.app.feature.story.domain.ObserveStoryContentUseCase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
-/**
- * Where this feature's routes turn into screens.
- *
- * @param onSleepTimerClick a story's detail asks for the session's timer; where it lives is the
- *   app's decision.
- */
+/** Where this feature's routes turn into screens. */
 fun EntryProviderScope<NavKey>.storiesEntry(
     dependencies: () -> StoriesDependencies,
     onStoryClick: (StoryId) -> Unit,
     onBack: () -> Unit,
-    onSleepTimerClick: () -> Unit,
     reselectEvents: Flow<Unit> = emptyFlow(),
 ) {
     entry<StoriesRoute> {
@@ -46,7 +40,6 @@ fun EntryProviderScope<NavKey>.storiesEntry(
     entry<StoryRoute> { route ->
         StoryDetailScreenRoute(
             onBack = onBack,
-            onSleepTimerClick = onSleepTimerClick,
             viewModel = viewModel {
                 val ports = dependencies()
                 StoryDetailViewModel(

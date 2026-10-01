@@ -4,6 +4,5 @@
   <CurrentIssues>
     <ID>MatchingDeclarationName:SoundNavigation.kt:SoundRoute : NavKey</ID>
     <ID>MaxLineLength:SoundViewModel.kt:SoundViewModel$favoriteWriteFailed.value = favoritesPort.toggle(SOUND_FAVORITES_NAMESPACE, trackId.value) == FavoriteToggleResult.Unavailable</ID>
-    <ID>UnusedPrivateFunction:SoundDetailScreen.kt:@Preview @Composable private fun SoundDetailScreenPreview</ID>
   </CurrentIssues>
 </SmellBaseline>

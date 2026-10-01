@@ -9,116 +9,85 @@ import androidx.navigation3.runtime.NavKey
 import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
-import com.xwab.app.feature.nowplaying.navigation.NowPlayingRoute
+import com.xwab.app.feature.story.navigation.StoriesRoute
 import com.xwab.app.navigation.NavigationState
 import com.xwab.app.navigation.Navigator
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Player entry navigation and the content-neutral details intent.
+ * Where the now-playing bar takes a listener.
  *
- * The player screen hands over a [PlaybackItemId]; this module turns it into a destination route.
- * Worth checking from the outside because the two kinds are answered differently for a reason, and
- * a mapping that quietly sent a story to a sound screen would compile.
+ * The bar hands over a [PlaybackItemId]; this module turns it into a tab and a route. Worth checking
+ * from the outside because the two kinds are answered differently for a reason, and a mapping that
+ * quietly sent a story to a sound screen would compile.
  */
 class PlaybackRoutesTest {
 
     @Test
-    fun aPlayingSoundOpensItsOwnScreen() {
-        val opened = mutableListOf<NavKey>()
+    fun aPlayingSoundOpensItsOwnScreenUnderSounds() {
+        val opened = mutableListOf<Pair<NavKey, NavKey>>()
 
-        openPlaybackDetails(PlaybackItemId(SOUND_PLAYBACK_KIND, "gentle-rain"), opened::add)
+        openPlaybackDetails(PlaybackItemId(SOUND_PLAYBACK_KIND, "gentle-rain")) { tab, route -> opened += tab to route }
 
-        assertEquals(listOf<NavKey>(SoundRoute("gentle-rain")), opened)
+        assertEquals(listOf<Pair<NavKey, NavKey>>(BrowseRoute to SoundRoute("gentle-rain")), opened)
     }
 
     @Test
-    fun aPlayingStoryOpensItsOwnDetails() {
-        val opened = mutableListOf<NavKey>()
+    fun aPlayingStoryOpensItsOwnDetailsUnderStories() {
+        val opened = mutableListOf<Pair<NavKey, NavKey>>()
 
-        openPlaybackDetails(PlaybackItemId(STORY_PLAYBACK_KIND, "moonlit-forest"), opened::add)
+        openPlaybackDetails(PlaybackItemId(STORY_PLAYBACK_KIND, "moonlit-forest")) { tab, route ->
+            opened += tab to route
+        }
 
-        assertEquals(listOf<NavKey>(StoryRoute("moonlit-forest")), opened)
+        assertEquals(listOf<Pair<NavKey, NavKey>>(StoriesRoute to StoryRoute("moonlit-forest")), opened)
     }
 
+    /** The tab the listener was on keeps its stack; Back from the item returns to its own list. */
     @Test
-    fun openingThePlayerKeepsTheSelectedTabAndBackReturnsToItsPreviousScreen() {
-        val state = navigationState()
-        val navigator = Navigator(state)
-        val sound = SoundRoute("rain")
-        navigator.navigate(FavoritesRoute)
-        navigator.navigate(sound)
-
-        navigator.navigate(NowPlayingRoute)
-        navigator.navigate(NowPlayingRoute)
-
-        assertEquals(FavoritesRoute, state.topLevelRoute)
-        assertEquals(listOf<NavKey>(FavoritesRoute, sound, NowPlayingRoute), state.currentBackStack)
-        navigator.goBack()
-        assertEquals(listOf<NavKey>(FavoritesRoute, sound), state.currentBackStack)
-        assertEquals(listOf<NavKey>(BrowseRoute), state.backStacks.getValue(BrowseRoute))
-    }
-
-    @Test
-    fun openingDetailsRemovesThePlayerSoBackCannotReopenIt() {
-        val state = navigationState()
-        val navigator = Navigator(state)
-        navigator.navigate(FavoritesRoute)
-        navigator.navigate(NowPlayingRoute)
-
-        openPlaybackDetails(
-            PlaybackItemId(STORY_PLAYBACK_KIND, "bedtime"),
-            navigator::replaceCurrent,
-        )
-
-        assertEquals(FavoritesRoute, state.topLevelRoute)
-        assertEquals(listOf<NavKey>(FavoritesRoute, StoryRoute("bedtime")), state.currentBackStack)
-        navigator.goBack()
-        assertEquals(listOf<NavKey>(FavoritesRoute), state.currentBackStack)
-    }
-
-    /** Details for another item are a fresh selection from the list, not a step past the open one. */
-    @Test
-    fun detailsForAnotherItemOpenFromTheTabsRoot() {
+    fun theBarOpensTheItemInItsOwnTabAndLeavesTheCurrentTabAlone() {
         val state = navigationState()
         val navigator = Navigator(state)
         navigator.navigate(FavoritesRoute)
         navigator.navigate(SoundRoute("rain"))
-        navigator.navigate(NowPlayingRoute)
 
-        openPlaybackDetails(PlaybackItemId(SOUND_PLAYBACK_KIND, "waves"), navigator::replaceCurrent)
+        openPlaybackDetails(PlaybackItemId(STORY_PLAYBACK_KIND, "bedtime"), navigator::openInTab)
 
-        assertEquals(listOf<NavKey>(FavoritesRoute, SoundRoute("waves")), state.currentBackStack)
+        assertEquals(StoriesRoute, state.topLevelRoute)
+        assertEquals(listOf<NavKey>(StoriesRoute, StoryRoute("bedtime")), state.currentBackStack)
+        assertEquals(listOf<NavKey>(FavoritesRoute, SoundRoute("rain")), state.backStacks.getValue(FavoritesRoute))
+        navigator.goBack()
+        assertEquals(listOf<NavKey>(StoriesRoute), state.currentBackStack)
     }
 
     /**
-     * The catalog case this guards: a sound from the player never lands beside a category it may
-     * not belong to, where it would take the extra pane beside the wrong list.
+     * The catalog case this guards: a sound from the bar never lands beside a category it may not
+     * belong to, where it would take the extra pane beside the wrong list.
      */
     @Test
-    fun aSoundFromThePlayerLeavesTheCategoryItWasOpenedAbove() {
+    fun aSoundFromTheBarLeavesACategoryItDoesNotBelongTo() {
         val state = navigationState()
         val navigator = Navigator(state)
         navigator.navigate(CategoryRoute("rain"))
-        navigator.navigate(NowPlayingRoute)
 
-        openPlaybackDetails(PlaybackItemId(SOUND_PLAYBACK_KIND, "waves"), navigator::replaceCurrent)
+        openPlaybackDetails(PlaybackItemId(SOUND_PLAYBACK_KIND, "waves"), navigator::openInTab)
 
         assertEquals(listOf<NavKey>(BrowseRoute, SoundRoute("waves")), state.currentBackStack)
     }
 
-    /** The item's own detail, already open beneath the player, keeps the context it was opened in. */
+    /** The item's own screen, already open in its tab, keeps the context it was opened in. */
     @Test
-    fun detailsAlreadyOpenBeneathThePlayerAreReturnedTo() {
+    fun anItemAlreadyOpenInItsTabIsReturnedTo() {
         val state = navigationState()
         val navigator = Navigator(state)
         navigator.navigate(CategoryRoute("rain"))
         navigator.navigate(SoundRoute("rain"))
-        navigator.navigate(NowPlayingRoute)
+        navigator.navigate(FavoritesRoute)
 
-        openPlaybackDetails(PlaybackItemId(SOUND_PLAYBACK_KIND, "rain"), navigator::replaceCurrent)
+        openPlaybackDetails(PlaybackItemId(SOUND_PLAYBACK_KIND, "rain"), navigator::openInTab)
 
+        assertEquals(BrowseRoute, state.topLevelRoute)
         assertEquals(
             listOf<NavKey>(BrowseRoute, CategoryRoute("rain"), SoundRoute("rain")),
             state.currentBackStack,
@@ -126,23 +95,24 @@ class PlaybackRoutesTest {
     }
 
     @Test
-    fun anUnknownContentKindDoesNotPopThePlayerOrNavigate() {
+    fun anUnknownContentKindOpensNothing() {
         val state = navigationState()
         val navigator = Navigator(state)
-        navigator.navigate(NowPlayingRoute)
+        navigator.navigate(FavoritesRoute)
 
-        openPlaybackDetails(PlaybackItemId("removed-kind", "item"), navigator::replaceCurrent)
+        openPlaybackDetails(PlaybackItemId("removed-kind", "item"), navigator::openInTab)
 
-        assertEquals(listOf<NavKey>(BrowseRoute, NowPlayingRoute), state.currentBackStack)
+        assertEquals(FavoritesRoute, state.topLevelRoute)
+        assertEquals(listOf<NavKey>(FavoritesRoute), state.currentBackStack)
     }
 
-    /** A detail is its item's own screen; the mini player hides only for that same item. */
+    /** A detail is its item's own screen; the now-playing bar hides only for that same item. */
     @Test
     fun detailsNameTheItemTheyShowAndOtherScreensNameNone() {
         assertEquals(PlaybackItemId(SOUND_PLAYBACK_KIND, "rain"), SoundRoute("rain").playbackItem())
         assertEquals(PlaybackItemId(STORY_PLAYBACK_KIND, "bedtime"), StoryRoute("bedtime").playbackItem())
         assertEquals(null, BrowseRoute.playbackItem())
-        assertEquals(null, NowPlayingRoute.playbackItem())
+        assertEquals(null, CategoryRoute("rain").playbackItem())
     }
 
     private fun navigationState() = NavigationState(
@@ -150,6 +120,7 @@ class PlaybackRoutesTest {
         backStacks = mapOf(
             BrowseRoute to mutableListOf<NavKey>(BrowseRoute),
             FavoritesRoute to mutableListOf<NavKey>(FavoritesRoute),
+            StoriesRoute to mutableListOf<NavKey>(StoriesRoute),
         ),
     )
 }

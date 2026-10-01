@@ -47,7 +47,6 @@ import androidx.navigationevent.compose.rememberNavigationEventDispatcherOwner
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.compose.LocalSavedStateRegistryOwner
-import com.xwab.app.feature.nowplaying.navigation.NowPlayingRoute
 import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
@@ -65,9 +64,9 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Exercises the production navigation state, entry decorators, navigation suite and player slot.
+ * Exercises the production navigation state, entry decorators, navigation suite and now-playing bar slot.
  * Plain Navigator tests cannot detect a ViewModel store collision or a lost rememberSaveable value.
- * The player slot sits outside `NavDisplay`, so it is drawn once and keeps the root ViewModel owner
+ * The now-playing bar slot sits outside `NavDisplay`, so it is drawn once and keeps the root ViewModel owner
  * whatever the scenes do. Android device tests and iOS simulator tests share this suite.
  */
 class NavigationCompositionTest {
@@ -167,28 +166,6 @@ class NavigationCompositionTest {
                 assertFalse(harness.chromeModels.single().cleared)
                 assertTrue(harness.models.first { it.route == sound }.cleared)
                 harness.entryOwners.forEach { assertNotSame(harness.rootOwner, it) }
-            }
-        }
-    }
-
-    @Test
-    fun thePlayerEntryClearsOnBackAndPreservesTheScreenBelowIt() = runComposeUiTest {
-        withNavigation { harness ->
-            val sound = SoundRoute("rain")
-            navigate(harness, sound)
-            val soundModel = runOnIdle { harness.lastModel(sound) }
-            onNodeWithText(soundModel.label(0)).performClick()
-            navigate(harness, NowPlayingRoute)
-            val playerModel = runOnIdle { harness.lastModel(NowPlayingRoute) }
-
-            back(harness)
-
-            onNodeWithText(soundModel.label(1)).assertExists()
-            runOnIdle {
-                assertTrue(playerModel.cleared)
-                assertFalse(soundModel.cleared)
-                assertEquals(BrowseRoute, harness.state.topLevelRoute)
-                assertFalse(harness.chromeModels.single().cleared)
             }
         }
     }
@@ -366,7 +343,7 @@ private class NavigationHarness {
             selectedTab = navigationState.topLevelRoute,
             onSelectTab = navigator::selectTab,
             onBack = navigator::goBack,
-            player = { Chrome() },
+            nowPlayingBar = { Chrome() },
             modifier = Modifier.fillMaxSize(),
         )
     }

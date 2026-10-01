@@ -203,12 +203,12 @@ at the root scrolls its list to the start.
 
 The chrome is the same on every screen, so it sits outside `NavDisplay`: Material's
 `NavigationSuiteScaffold` chooses a short navigation bar or a wide rail from the window size
-class, and the mini player is drawn once below the content. Screens draw their own background
+class, and the now-playing bar is drawn once below the content. Screens draw their own background
 behind the status bar and inset only their content. Material Adaptive Navigation 3 supplies list, detail, extra panes and empty-detail placeholders,
-including internal predictive Back. Pane metadata is scoped to a tab: unrelated content opened
-from the player falls back to a full-screen entry. The default display handles compact screens.
-Global forward, pop and predictive-pop transitions are explicit, with player-specific vertical
-metadata overrides. Back controls disappear only when the actual parent pane is visible. While
+including internal predictive Back. Pane metadata is scoped to a tab: a sound opened from the
+now-playing bar, with no category beneath it, falls back to a full-screen entry. The default
+display handles compact screens. Global forward, pop and predictive-pop transitions are explicit.
+Back controls disappear only when the actual parent pane is visible. While
 several panes are visible, a pane's back arrow closes that pane and what was opened from it; system
 Back still removes the latest entry.
 
@@ -216,19 +216,17 @@ See [Navigation 3 coverage and official references](docs/NAVIGATION3_MIMARISI.md
 optional recipes, validation and platform limits. The navigation composition test suite is shared
 by Android device tests and iOS simulator tests.
 
-`feature:nowplaying` owns `NowPlayingRoute`, its serializer and an entry provider like every other
-feature. Tapping the persistent mini player opens the player screen in the current tab's back
-stack. The mini player is hidden while that screen is selected. Back returns to the previous
-screen; the details action removes the player entry and opens `SoundRoute` or `StoryRoute` as a
-fresh selection from the tab's root, or returns to it if that detail is already open beneath.
-The shell owns that mapping; nowplaying consumes only the content-neutral session port.
+`feature:nowplaying` is only the persistent now-playing bar, in its `shell` package; it has no
+route or screen of its own. Tapping the bar opens the playing item's own screen in the tab it
+belongs to — `SoundRoute` under Sounds, `StoryRoute` under Stories — as a fresh selection from that
+tab's root, or returns to it if that detail is already open there. The tab the listener was on
+keeps its stack. The shell owns that mapping; nowplaying consumes only the content-neutral session
+port.
 
-The screen's ViewModel belongs to its navigation entry, while the mini player's presentation
-ViewModel belongs to the app root. Both observe the same app-scoped playback session through a
-feature-owned use case. Clearing either presentation scope does not stop playback. A player route
-with no active item shows an empty state, and its sleep timer can still be started or cancelled:
-the timer belongs to the session, so it can be set before anything plays. While a timer runs with
-nothing requested, the mini player stays on screen as a "Sleep timer" bar leading to the player.
+The bar's presentation ViewModel belongs to the app root and observes the app-scoped playback
+session; clearing it does not stop playback. While a timer runs with nothing requested, the bar
+stays on screen as a "Sleep timer" bar with its own cancel action, since there is no item screen
+to open.
 
 ## Playback and delivery
 
@@ -241,16 +239,17 @@ over whatever is playing without asking either catalog what a `PlaybackItemId` m
 published only while the engine holds the item the summary names as requested; mid-switch it is
 absent and `isPreparing` says so instead.
 
-The mini player shows play/pause, preparation or failure state, and the active sleep timer's
+The now-playing bar shows play/pause, preparation or failure state, and the active sleep timer's
 remaining time. It steps aside while the playing item's own detail is showing, since that screen
-already has its play/pause and timer. Its Navigation 3 screen identifies the current item and puts
-the sleep timer directly under the transport, followed by volume and repeat. The player does not
-expose a playback progress bar or seeking controls. Sound durations read as one loop ("0:12 loop").
+already has its play/pause and timer. The app does not expose a playback progress bar, seeking
+controls or an in-app volume slider; the device's volume keys set loudness. `PlaybackPort` has no
+volume at all: the engine's gain stays inside `:core:playback`, which features cannot reach, and
+every load starts at full gain. Sound durations read as one loop ("0:12 loop").
 
 Sound and Story details expose item-specific playback, metadata and errors; Sound also exposes
-favorites. They do not change global volume, repeat or timer settings. Those settings are observed
-and controlled by `feature:nowplaying` through `PlaybackPort`; stateless controls and common labels
-live in `designsystem`. Both details offer "Set sleep timer", which the shell routes to the player.
+favorites. Under those, a `designsystem` card holds the session's sleep timer; it acts on whatever
+is playing and can be set before pressing play. There is no repeat control: a sound always loops
+until the timer stops it, and a story plays once.
 
 `SoundPlaybackResolver` reads metadata through `SoundPort`, looks up its own internal source and
 passes a request to `DeliveryPort`. The sound module owns its cache namespace, accepted MPEG types
@@ -289,8 +288,8 @@ playback. The architecture check requires these values to agree with the downloa
    is non-public, or a cross-core reference bypasses the target module's `.port` package.
 5. Screen state or a feature-specific use case leaks into core; a `Repository` / DI-style
    `Provider` abstraction appears in core; or Koin is reintroduced.
-6. A feature exposes anything except navigation contracts, shell UI (`shell` package, e.g. the mini
-   player the app places below every screen) or DI `*Dependencies` classes, or shared
+6. A feature exposes anything except navigation contracts, shell UI (`shell` package, e.g. the
+   now-playing bar the app places below every screen) or DI `*Dependencies` classes, or shared
    references features outside the navigation/composition and DI boundaries.
 7. Designsystem depends on an application project.
 8. A module directory is absent from the build, or a core/feature module is absent from shared's

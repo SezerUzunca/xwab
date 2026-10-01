@@ -53,17 +53,10 @@ interface PlaybackPort {
      */
     fun pause()
 
-    fun setLooping(enabled: Boolean)
-
-    /**
-     * Sets how loud the session is.
-     *
-     * A volume outside [VOLUME_RANGE] is clamped into it rather than refused — a control that
-     * overshoots its own bound by a rounding step should not be an error. A non-finite one is
-     * refused: it is not a loud or quiet sound, it is a broken caller, and handing it to the engine
-     * poisons every later load.
-     */
-    fun setVolume(volume: Float)
+    // No volume or repeat here, deliberately. The phone's volume keys are the app's only volume
+    // control, and each content kind decides whether it repeats (`PlaybackPolicy.looping`): a sleep
+    // sound always loops until the timer stops it, a story always ends. The engine keeps both
+    // internal to `:core:playback`.
     fun startSleepTimer(durationMs: Long)
     fun cancelSleepTimer()
 }

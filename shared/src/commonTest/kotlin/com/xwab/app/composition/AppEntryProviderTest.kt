@@ -31,7 +31,7 @@ class AppEntryProviderTest {
     @Test
     fun everySaveableRouteHasAScreen() {
         val entryProvider = appEntryProvider(
-            NoDependencies, onNavigate = {}, onBack = {}, onReplace = {}, onReselect = { emptyFlow() },
+            NoDependencies, onNavigate = {}, onBack = {}, onReselect = { emptyFlow() },
         )
 
         // Resolving is the assertion: Navigation 3's `entryProvider` throws `Unknown screen` from

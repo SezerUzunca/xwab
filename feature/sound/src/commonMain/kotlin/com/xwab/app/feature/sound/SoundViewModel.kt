@@ -67,8 +67,8 @@ internal class SoundViewModel(
     )
 
     /**
-     * The session's timer, for the shortcut that leads to it. Kept out of [state] on purpose: it
-     * ticks every second, and nothing else on this screen should be rebuilt that often.
+     * The session's timer. Kept out of [state] on purpose: it ticks every second, and nothing else
+     * on this screen should be rebuilt that often.
      */
     val sleepTimerRemainingMs: StateFlow<Long?> = playbackPort.sleepTimerRemainingMs.stateIn(
         scope = viewModelScope,
@@ -96,6 +96,16 @@ internal class SoundViewModel(
             viewModelScope.launch { playbackPort.play(itemId) }
         }
     }
+
+    /**
+     * The session's timer, straight to the session. Not gated on this sound being in the catalog or
+     * playing: it stops whatever plays, and setting it before pressing play is the usual way round.
+     */
+    fun startSleepTimer(durationMs: Long) {
+        if (durationMs > 0L) playbackPort.startSleepTimer(durationMs)
+    }
+
+    fun cancelSleepTimer() = playbackPort.cancelSleepTimer()
 
     /** What the screen is showing, or null while the first content has not arrived. */
     private fun readyState(): SoundState? = (state.value as? SoundUiState.Ready)?.value

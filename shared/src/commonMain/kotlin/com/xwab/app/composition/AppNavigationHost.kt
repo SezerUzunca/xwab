@@ -5,7 +5,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.xwab.app.di.AppGraph
-import com.xwab.app.feature.nowplaying.navigation.NowPlayingRoute
 import com.xwab.app.feature.nowplaying.shell.NowPlayingBar
 import com.xwab.app.navigation.Navigator
 import com.xwab.app.navigation.rememberNavigationState
@@ -18,24 +17,19 @@ internal fun AppNavigationHost(graph: AppGraph) {
     val state = rememberNavigationState()
     val navigator = remember(state) { Navigator(state) }
     val provider = remember(navigator, graph) {
-        appEntryProvider(
-            graph, navigator::navigate, navigator::goBack, navigator::replaceCurrent, navigator::reselections,
-        )
+        appEntryProvider(graph, navigator::navigate, navigator::goBack, navigator::reselections)
     }
     AppNavigationDisplay(
         entries = rememberTabEntries(state, provider, ::appEntryMetadata, navigator::goUp),
         selectedTab = state.topLevelRoute,
         onSelectTab = navigator::selectTab,
         onBack = navigator::goBack,
-        player = {
-            val current = state.currentBackStack.last()
-            if (current != NowPlayingRoute) {
-                NowPlayingBar(
-                    graph.nowPlayingDependencies,
-                    onOpen = { navigator.navigate(NowPlayingRoute) },
-                    hiddenFor = current.playbackItem(),
-                )
-            }
+        nowPlayingBar = {
+            NowPlayingBar(
+                graph.nowPlayingDependencies,
+                onOpen = { item -> openPlaybackDetails(item, navigator::openInTab) },
+                hiddenFor = state.currentBackStack.last().playbackItem(),
+            )
         },
         modifier = Modifier.fillMaxSize(),
     )

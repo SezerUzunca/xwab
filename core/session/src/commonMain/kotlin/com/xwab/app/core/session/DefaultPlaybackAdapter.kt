@@ -4,12 +4,10 @@
 
 package com.xwab.app.core.session
 
-import com.xwab.app.core.session.port.DEFAULT_LOOPING
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
-import com.xwab.app.core.session.port.VOLUME_RANGE
 import com.xwab.app.core.session.port.ItemResolution
 import com.xwab.app.core.session.port.PlaybackItemResolver
 import com.xwab.app.core.session.port.PlaybackResolverApi
@@ -82,27 +80,6 @@ internal constructor(
 
     override val sleepTimerRemainingMs: Flow<Long?> = enginePort.sleepTimerState.map { it.remainingMs }
 
-    /**
-     * The controller owns loop and volume: it reconciles them across the engine, a remote
-     * controller and reconnects, then publishes the result. The one thing it cannot know is what
-     * looping should mean for the item being loaded. This flag marks the point where the default —
-     * the session's [DEFAULT_LOOPING], or the item's own — stops applying because a real preference
-     * exists to read.
-     */
-    private val loopPreferenceEstablished: Boolean get() = intent.value.loopPreferenceEstablished
-
-    /**
-     * The loop value this adapter itself last sent as part of a [PlaybackCommand.Load], or `null`
-     * before the first one.
-     *
-     * The only way to tell a genuine preference — one adopted from a remote controller, which never
-     * runs through [setLooping] — apart from a value that is merely sitting there because the last
-     * item's own default put it there: compare the engine's current `isLooping` against this. Equal
-     * means nothing has touched it since; different means something did, most likely a remote
-     * control, and that counts exactly like an explicit choice.
-     */
-    private var lastAppliedLooping: Boolean? = null
-
     override suspend fun play(itemId: PlaybackItemId) {
         val resolver = resolversByKind[itemId.kind]
         val engine = enginePort.state.value
@@ -158,16 +135,6 @@ internal constructor(
         enginePort.submit(PlaybackCommand.Pause)
     }
 
-    override fun setLooping(enabled: Boolean) {
-        enginePort.submit(PlaybackCommand.SetLooping(enabled))
-        intent.update { it.copy(loopPreferenceEstablished = true) }
-    }
-
-    override fun setVolume(volume: Float) {
-        require(volume.isFinite()) { "Volume must be finite." }
-        enginePort.submit(PlaybackCommand.SetVolume(volume.coerceIn(VOLUME_RANGE)))
-    }
-
     override fun startSleepTimer(durationMs: Long) {
         enginePort.submit(PlaybackCommand.StartSleepTimer(durationMs))
     }
@@ -219,41 +186,13 @@ internal constructor(
     ): PlaybackRequest = PlaybackRequest(
         source = AudioSource(itemId.toEngineId(), resolved.uri, resolved.title, resolved.artist),
         autoplay = true,
-        loopMode = if (loadLooping(resolved.policy.defaultLooping)) LoopMode.One else LoopMode.Off,
-        // Clamped for the same reason the published summary is, but with a sharper edge: a
-        // `PlaybackRequest` *refuses* a volume outside the range, so an engine reporting its own
-        // idea of loudness would not produce a wrong number here — it would throw, and take the
-        // next load with it. The engine is only ever sent values inside the range, so this catches
-        // nothing today; what it removes is a load that fails for a reason no listener caused.
-        volume = enginePort.state.value.volume.coerceIn(VOLUME_RANGE),
+        // The kind decides, on every load: there is no repeat control, so nothing the outgoing item
+        // was set to — by its own kind or by a remote controller — carries into the next one. A
+        // sound after a story still loops, and a story after a sound still ends.
+        loopMode = if (resolved.policy.looping) LoopMode.One else LoopMode.Off,
+        // Volume is left at the request's full gain: the phone's volume keys are the only volume
+        // control, so every load plays at the level the device is set to.
     )
-
-    /**
-     * What looping should be for the item about to replace whatever the engine currently holds.
-     *
-     * [defaultLooping] wins unless [loopPreferenceEstablished] says the listener chose explicitly,
-     * or the engine's current `isLooping` has drifted from [lastAppliedLooping] — the value this
-     * adapter itself set for the outgoing item, which a drift means a remote controller changed
-     * since. Comparing against that recorded value, rather than reusing [effectiveLooping]'s cruder
-     * "something is attached" check, is what keeps a switch between kinds from inheriting whatever
-     * loop value the outgoing item's own default happened to leave behind: without it, a sound
-     * playing first made every story after it loop, and a story playing first made every sound
-     * after it not loop, with no preference — local or remote — ever established.
-     */
-    private fun loadLooping(defaultLooping: Boolean): Boolean {
-        val currentLooping = enginePort.state.value.isLooping
-        val looping = when {
-            loopPreferenceEstablished -> currentLooping
-            lastAppliedLooping != null && currentLooping != lastAppliedLooping -> {
-                // Nothing this adapter did changed it since the last load — a remote controller did.
-                intent.update { it.copy(loopPreferenceEstablished = true) }
-                currentLooping
-            }
-            else -> defaultLooping
-        }
-        lastAppliedLooping = looping
-        return looping
-    }
 
     private fun summaryOf(engine: AudioPlayerState, wanted: SessionIntent): PlaybackSummary {
         // What was asked for, and what is actually attached. They differ for the whole of a switch:
@@ -281,12 +220,6 @@ internal constructor(
             isPreparing = playIntent &&
                 (requested != active || !engine.isPlaying) &&
                 engine.phase != PlaybackPhase.Failed,
-            isLooping = engine.effectiveLooping(wanted.loopPreferenceEstablished),
-            // Clamped on the way out as well as in. Everything this adapter sends the engine is
-            // already inside the range, so this only catches an engine reporting its own idea of
-            // loudness — but the published range is a promise to every reader, and a promise kept
-            // only while the layer below behaves is not one a screen can build on.
-            volume = engine.volume.coerceIn(VOLUME_RANGE),
             failure = wanted.failure ?: engine.engineFailure(),
         )
     }
@@ -294,22 +227,6 @@ internal constructor(
     /** The item an engine source names, or null when the id names nothing this session can act on. */
     private fun itemOf(source: AudioSource?): PlaybackItemId? =
         source?.id?.let { playbackItemIdOf(it) }
-
-    /**
-     * What the summary should show as the current loop state, before or after anything has loaded.
-     *
-     * Uses the same session snapshot as [summaryOf]. Once anything is attached or requested, the screen
-     * shows the engine's real, reconciled [AudioPlayerState.isLooping] instead of a re-derived
-     * default — [AudioPlayerState.activeSource], not `source`, is the test for that: a dropped
-     * service connection clears only the *attached* source while the session's reconciled settings
-     * live on, so keying off `source` would show a listener's choice reverting mid-reconnect.
-     *
-     * Deciding a *new* item's own loop default is a different question, answered by [loadLooping]:
-     * a previous item merely being attached is not a listener preference, and must not leak into
-     * whatever plays next.
-     */
-    private fun AudioPlayerState.effectiveLooping(preferenceEstablished: Boolean): Boolean =
-        if (preferenceEstablished || activeSource != null) isLooping else DEFAULT_LOOPING
 
     /**
      * Reads the engine's own verdict instead of flattening every failure into one.
@@ -343,7 +260,6 @@ internal constructor(
      *   engine is.
      */
     private data class SessionIntent(
-        val loopPreferenceEstablished: Boolean = false,
         val generation: Long = 0L,
         val pendingItemId: PlaybackItemId? = null,
         val failure: PlaybackFailure? = null,

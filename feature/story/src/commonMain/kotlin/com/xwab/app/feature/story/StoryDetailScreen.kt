@@ -25,8 +25,8 @@ import com.xwab.app.core.story.port.Story
 import com.xwab.app.designsystem.components.BackButton
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.PlayPauseButton
+import com.xwab.app.designsystem.components.SleepTimerCard
 import com.xwab.app.designsystem.components.ScreenContainer
-import com.xwab.app.designsystem.components.SleepTimerShortcut
 import com.xwab.app.designsystem.components.screenContentPadding
 import com.xwab.app.designsystem.format.formatDuration
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
@@ -43,28 +43,35 @@ import xwab.feature.story.generated.resources.internet_required
 internal fun StoryDetailScreenRoute(
     viewModel: StoryDetailViewModel,
     onBack: () -> Unit,
-    onSleepTimerClick: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val sleepTimerRemainingMs by viewModel.sleepTimerRemainingMs.collectAsStateWithLifecycle()
     when (val content = state) {
         StoryDetailUiState.Loading -> LoadingContent()
         is StoryDetailUiState.Ready -> StoryDetailScreen(
-            content.value, onBack, viewModel::togglePlayback, onSleepTimerClick, sleepTimerRemainingMs,
+            state = content.value,
+            onBack = onBack,
+            onPlaybackClick = viewModel::togglePlayback,
+            onTimerStart = viewModel::startSleepTimer,
+            onTimerCancel = viewModel::cancelSleepTimer,
+            sleepTimerRemainingMs = sleepTimerRemainingMs,
         )
     }
 }
 
 /**
  * Opening a story is informational; only the explicit transport button changes playback.
- * Laid out like the sound detail: the story's name and its action centred, its text left-aligned.
+ * Laid out like the sound detail: the story's name and its action centred, the session's sleep
+ * timer in a card, then the story's text left-aligned. A story plays once and ends.
  */
 @Composable
+@Suppress("LongParameterList") // Screen events plus the timer the card reports.
 internal fun StoryDetailScreen(
     state: StoryDetailState,
     onBack: () -> Unit,
     onPlaybackClick: () -> Unit,
-    onSleepTimerClick: () -> Unit,
+    onTimerStart: (Long) -> Unit,
+    onTimerCancel: () -> Unit,
     sleepTimerRemainingMs: Long? = null,
 ) {
     ScreenContainer {
@@ -84,9 +91,11 @@ internal fun StoryDetailScreen(
                 contentTitle = state.story?.title,
             )
             StoryStatus(state)
-            SleepTimerShortcut(
-                onClick = dropUnlessResumed(block = onSleepTimerClick),
+            Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))
+            SleepTimerCard(
                 remainingMs = sleepTimerRemainingMs,
+                onTimerStart = onTimerStart,
+                onTimerCancel = onTimerCancel,
             )
             state.story?.let { story ->
                 Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingLarge))

@@ -4,6 +4,5 @@
   <CurrentIssues>
     <ID>LongParameterList:FavoritesScreen.kt:@Composable private fun FavoriteRow</ID>
     <ID>MatchingDeclarationName:FavoritesNavigation.kt:FavoritesRoute : NavKey</ID>
-    <ID>UnusedPrivateFunction:FavoritesScreen.kt:@Preview @Composable private fun FavoritesScreenPreview</ID>
   </CurrentIssues>
 </SmellBaseline>

@@ -99,6 +99,24 @@ class StoryDetailViewModelTest {
         assertEquals(1, port.pauses)
     }
 
+    /** The timer reaches the session unchanged and does not start the story. */
+    @Test
+    fun theTimerReachesTheSessionWithoutStartingTheStory() = runTest(dispatcher) {
+        val port = FakePlaybackPort()
+        val model = model(port)
+        collectState(model)
+        advanceUntilIdle()
+
+        model.startSleepTimer(-1L)
+        model.startSleepTimer(600_000L)
+        model.cancelSleepTimer()
+        advanceUntilIdle()
+
+        assertEquals(600_000L, port.startedTimerMs)
+        assertEquals(1, port.cancelledTimers)
+        assertNull(port.playedItemId)
+    }
+
     private fun model(port: FakePlaybackPort, missing: Boolean = false): StoryDetailViewModel =
         StoryDetailViewModel(
             StoryId("bedtime"),

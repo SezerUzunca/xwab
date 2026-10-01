@@ -22,8 +22,6 @@ class FakePlaybackPort : PlaybackPort {
 
     var playedItemId: PlaybackItemId? = null
     var pauses = 0
-    var looping: Boolean? = null
-    var volume: Float? = null
     var startedTimerMs: Long? = null
     var cancelledTimers = 0
 
@@ -41,14 +39,6 @@ class FakePlaybackPort : PlaybackPort {
 
     override fun pause() {
         pauses++
-    }
-
-    override fun setLooping(enabled: Boolean) {
-        looping = enabled
-    }
-
-    override fun setVolume(volume: Float) {
-        this.volume = volume
     }
 
     override fun startSleepTimer(durationMs: Long) {

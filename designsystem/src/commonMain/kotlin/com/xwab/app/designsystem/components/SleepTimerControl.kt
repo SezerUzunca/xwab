@@ -25,8 +25,6 @@ import xwab.designsystem.generated.resources.sleep_timer_start_hint
 import xwab.designsystem.generated.resources.sleep_timer_restart_hint
 import xwab.designsystem.generated.resources.start_timer_duration
 import xwab.designsystem.generated.resources.restart_timer_duration
-import xwab.designsystem.generated.resources.set_sleep_timer
-import xwab.designsystem.generated.resources.sleep_timer_running
 import xwab.designsystem.generated.resources.timer_15_minutes
 import xwab.designsystem.generated.resources.timer_30_minutes
 import xwab.designsystem.generated.resources.timer_45_minutes
@@ -51,7 +49,6 @@ private val SLEEP_TIMER_PRESETS: List<Pair<Long, StringResource>> = listOf(
 @Composable
 fun SleepTimerControl(
     remainingMs: Long?,
-    enabled: Boolean,
     onTimerStart: (Long) -> Unit,
     onTimerCancel: () -> Unit,
     modifier: Modifier = Modifier,
@@ -88,7 +85,6 @@ fun SleepTimerControl(
                 )
                 SleepRelaxOutlinedButton(
                     onClick = { onTimerStart(durationMs) },
-                    enabled = enabled,
                     modifier = Modifier.semantics { contentDescription = actionDescription },
                 ) {
                     Text(text = durationLabel, style = SleepRelaxTheme.typography.labelMedium)
@@ -119,22 +115,5 @@ private fun SleepTimerStatus(remainingMs: Long?, onTimerCancel: () -> Unit) {
         SleepRelaxTextButton(onClick = onTimerCancel) {
             Text(stringResource(Res.string.cancel_timer))
         }
-    }
-}
-
-/**
- * Where a screen about one item leads to the session's timer without drawing it.
- *
- * The timer stops whatever is playing, not the item on screen, so a content screen offers a way to
- * it rather than a copy of it: the one [SleepTimerControl] stays where it names what it will stop.
- * A running timer shows what is left, so the shortcut never offers to "set" one that is already on.
- */
-@Composable
-fun SleepTimerShortcut(onClick: () -> Unit, modifier: Modifier = Modifier, remainingMs: Long? = null) {
-    SleepRelaxTextButton(onClick = onClick, modifier = modifier) {
-        Text(
-            remainingMs?.let { stringResource(Res.string.sleep_timer_running, formatRemaining(it)) }
-                ?: stringResource(Res.string.set_sleep_timer),
-        )
     }
 }

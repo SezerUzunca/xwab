@@ -1,28 +1,6 @@
 package com.xwab.app.core.session.port
 
 /**
- * What looping should be before anything has been loaded and before the listener has chosen.
- *
- * The one place this default lives. It used to be stated twice — once in the session, deciding what
- * to hand the engine, and once in the player screen, which showed "looping" whenever no source was
- * attached yet. Turning the loop off before the first play made the two disagree.
- *
- * Once an item is loaded, the session applies that content kind's own default: a sleep sound
- * repeats until the timer stops it, while a story does not repeat. This constant controls only
- * what the session publishes until an item makes the question concrete.
- */
-const val DEFAULT_LOOPING: Boolean = true
-
-/**
- * The volume a session accepts and reports.
- *
- * Stated on the port because it is part of the contract, not a property of one adapter: callers
- * pass a fraction of full volume, and a screen rendering [PlaybackSummary.volume] can trust the
- * bound rather than defend against it.
- */
-val VOLUME_RANGE: ClosedFloatingPointRange<Float> = 0.0f..1.0f
-
-/**
  * Why the session could not play an item — and *which* item.
  *
  * The id is part of the failure because a lookup that fails releases the session's claim on the
@@ -112,16 +90,6 @@ data class PlaybackSummary(
      * name at all.
      */
     val title: String? = null,
-    val isLooping: Boolean = DEFAULT_LOOPING,
-    /**
-     * How loud the session is, always within [VOLUME_RANGE].
-     *
-     * Guaranteed here rather than left to whoever renders it. This is the projection features read
-     * instead of the engine's own state model, and a raw engine float with no stated range is
-     * exactly the technical detail that projection exists to keep out: a slider reading it had to
-     * clamp defensively, and a second screen reading it would have had to remember to.
-     */
-    val volume: Float = 1.0f,
     val failure: PlaybackFailure? = null,
 )
 

@@ -13,8 +13,6 @@ import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.sound.navigation.soundEntry
 import com.xwab.app.feature.story.navigation.storiesEntry
 import com.xwab.app.feature.story.navigation.StoryRoute
-import com.xwab.app.feature.nowplaying.navigation.NowPlayingRoute
-import com.xwab.app.feature.nowplaying.navigation.nowPlayingEntry
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import kotlinx.coroutines.flow.Flow
@@ -32,7 +30,6 @@ internal fun appEntryProvider(
     graph: AppGraph,
     onNavigate: (NavKey) -> Unit,
     onBack: () -> Unit,
-    onReplace: (NavKey) -> Unit,
     onReselect: (NavKey) -> Flow<Unit>,
 ): (NavKey) -> NavEntry<NavKey> = entryProvider {
     browseEntry(
@@ -53,23 +50,14 @@ internal fun appEntryProvider(
         onTrackClick = { onNavigate(SoundRoute(it.value)) },
         onBack = onBack,
     )
-    // The session's timer lives on the player, which works with nothing playing yet; a detail
-    // leads there rather than drawing a second copy of it.
     soundEntry(
         dependencies = graph.soundDependencies,
         onBack = onBack,
-        onSleepTimerClick = { onNavigate(NowPlayingRoute) },
     )
     storiesEntry(
         dependencies = graph.storiesDependencies,
         onStoryClick = { onNavigate(StoryRoute(it.value)) },
         reselectEvents = onReselect(StoriesRoute),
         onBack = onBack,
-        onSleepTimerClick = { onNavigate(NowPlayingRoute) },
-    )
-    nowPlayingEntry(
-        dependencies = graph.nowPlayingDependencies,
-        onBack = onBack,
-        onOpenDetails = { item -> openPlaybackDetails(item, onReplace) },
     )
 }

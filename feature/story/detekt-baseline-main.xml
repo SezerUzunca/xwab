@@ -3,6 +3,5 @@
   <ManuallySuppressedIssues/>
   <CurrentIssues>
     <ID>MatchingDeclarationName:StoriesNavigation.kt:StoriesRoute : NavKey</ID>
-    <ID>UnusedPrivateFunction:StoriesScreen.kt:@Preview @Composable private fun StoriesScreenPreview</ID>
   </CurrentIssues>
 </SmellBaseline>

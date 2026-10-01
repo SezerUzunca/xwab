@@ -60,4 +60,4 @@ internal class StoryPlaybackResolver internal constructor(
 }
 
 /** A story that repeats has not ended, it has started again. The listener can still turn it on. */
-private val STORY_POLICY = PlaybackPolicy(defaultLooping = false)
+private val STORY_POLICY = PlaybackPolicy(looping = false)

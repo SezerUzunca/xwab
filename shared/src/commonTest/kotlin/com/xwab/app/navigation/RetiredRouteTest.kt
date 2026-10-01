@@ -41,6 +41,17 @@ class RetiredRouteTest {
     }
 
     /**
+     * The full-screen player's route, removed when the now-playing bar became the only player.
+     * Installed copies may hold it in a saved back stack; the update must read it as retired.
+     */
+    @Test
+    fun theRemovedPlayerRouteRestoresAsRetired() {
+        val name = "com.xwab.app.feature.nowplaying.navigation.NowPlayingRoute"
+
+        assertSame(RetiredRouteSerializer, FEATURE_SERIALIZERS.getPolymorphic(NavKey::class, name))
+    }
+
+    /**
      * The regression this change could cause, rather than the one it fixes: a fallback that also
      * answered for registered names would turn every route into [RetiredRoute] and empty every
      * back stack the app ever restored.

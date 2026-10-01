@@ -1,6 +1,7 @@
 package com.xwab.app
 
 import android.graphics.Color
+import android.media.AudioManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -24,5 +25,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             App(appGraph)
         }
+    }
+
+    /**
+     * The phone's volume keys are the app's only volume control, so they must reach the media
+     * stream even while nothing plays — otherwise they change the ringer. The stream matches the
+     * player's `USAGE_MEDIA` attributes; `onResume` is where the official media guide makes this call.
+     */
+    override fun onResume() {
+        super.onResume()
+        volumeControlStream = AudioManager.STREAM_MUSIC
     }
 }

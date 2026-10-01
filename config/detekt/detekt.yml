@@ -6,3 +6,8 @@ naming:
     # Composables are named like the UI they emit — `SoundScreen`, `PlayPauseButton` — which is
     # the Compose API guideline, not an exception to it.
     ignoreAnnotated: ['Composable']
+
+style:
+  UnusedPrivateFunction:
+    # A `@Preview` is called by the IDE's preview renderer, never by code, so it always looks unused.
+    ignoreAnnotated: ['Preview']

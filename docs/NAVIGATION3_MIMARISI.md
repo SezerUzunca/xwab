@@ -21,15 +21,15 @@ sürümlerle derlenir; örneklerdeki sürüm numaraları doğrudan kopyalanmaz.
 | Parça | Sorumluluk |
 |---|---|
 | `App` | Tema |
-| `composition/AppNavigationHost` | Feature entry sözleşmelerini, callback'leri ve mini oynatıcıyı bağlama |
+| `composition/AppNavigationHost` | Feature entry sözleşmelerini, callback'leri ve now-playing şeridini bağlama |
 | `composition/AppEntryMetadata` | Feature'lar arası sunum politikası; resmi pane metadata'sı |
 | `navigation/RememberNavigationState` | Her sekmenin `rememberNavBackStack` geçmişi ve seçili sekmenin seri hale getirilmesi |
-| `navigation/Navigator` | Push, pop-to-existing, sekme seçimi, yeniden seçim, ekran değiştirme ve panel geri oku politikası |
+| `navigation/Navigator` | Push, pop-to-existing, sekme seçimi, yeniden seçim, öğeyi kendi sekmesinde açma ve panel geri oku politikası |
 | `navigation/TopLevelDestination`, `FeatureSerializers`, `RetiredRoute` | Sekme listesi, kayıtlı route'ların serileştirilmesi ve kaldırılmış route'ların güvenle atılması |
 | `ui/TabEntries` | Aktif olmayan sekmeler dahil saveable-state ve ViewModel dekoratörlerini yaşatma |
 | `ui/TabEntryProvider` | Sekmeye özgü saveable content key ve metadata (sekme, panel rolü, hedefin kendisi) |
-| `ui/AppNavigationDisplay` | Resmi `NavigationSuiteScaffold` (bar/rail), içinde `NavDisplay`, Material list–detail sahne stratejisi ve mini oynatıcı yuvası |
-| `ui/NavigationTransitions`, `ui/EntryMetadataKeys` | Sekme, ileri/geri ve oynatıcı geçişleri; sekme ve ebeveyn panel metadata anahtarları |
+| `ui/AppNavigationDisplay` | Resmi `NavigationSuiteScaffold` (bar/rail), içinde `NavDisplay`, Material list–detail sahne stratejisi ve now-playing şeridi yuvası |
+| `ui/NavigationTransitions`, `ui/EntryMetadataKeys` | Sekme ve ileri/geri geçişleri; sekme ve ebeveyn panel metadata anahtarları |
 | `ui/AdaptiveBackControl` | Resmi `NavEntryDecorator` (saveable-state ve ViewModel dekoratörlerinden sonra): gerçek ebeveyn paneli görünüyorsa tekrarlı geri düğmesini gizleme; birden fazla panel görünürken geri okunu kendi panelini kapatan `Navigator.goUp`'a bağlama. `NavEntry` anahtarı dekoratöre kapalı olduğu için hedef `DestinationKey` metadata'sıyla taşınır |
 
 `navigation` durumu ve kuralları tutar, Compose çizimi içermez; `ui` bu durumu ekrana taşır.
@@ -55,20 +55,19 @@ kullanılır; Android'e özgü reflection çözümü common koduna taşınmaz.
 | Uygulama chrome'u | Resmi `NavigationSuiteScaffold` pencere boyutu sınıfına göre kısa bar veya geniş ray seçer; chrome her ekranda aynı olduğu için `NavDisplay` dışında durur ve tek örnektir |
 | Küçük ekran | `SinglePaneScene` fallback; tam ekran hedefler |
 | Adaptif list–detail | Resmi Material `rememberListDetailSceneStrategy` |
-| Extra pane | Browse listesinin yanında Category detail, ardından Sound extra pane. Altında Category olmayan ses (oynatıcıdaki "View details" ile kökten açılan) tek panel gösterilir. Oynatıcı sesi her zaman kökten açtığı için altındaki kategori her zaman sesin kendi kategorisidir |
+| Extra pane | Browse listesinin yanında Category detail, ardından Sound extra pane. Altında Category olmayan ses (now-playing şeridinden kökten açılan) tek panel gösterilir. Şerit sesi her zaman kökten açtığı için altındaki kategori her zaman sesin kendi kategorisidir |
 | Boş detail | Resmi `listPane(detailPlaceholder=...)` ile kategori/ses/hikâye seçim mesajı |
 | İleri/geri animasyon | `transitionSpec` ve `popTransitionSpec`; RTL yönü korunur, sekmeler fade kullanır |
 | Predictive Back | `predictivePopTransitionSpec`; Material sahne içindeki geri hareketini kendi işler |
-| Hedefe özel animasyon | NowPlaying için resmi TransitionKey, PopTransitionKey ve PredictivePopTransitionKey metadata'sı |
 | Yaşam döngüsüne bağlı dokunma | Feature navigation kontrollerinde `dropUnlessResumed` |
 | Sekme yeniden seçimi | Root'a dönme, root'ta yeniden seçim event'iyle listeyi başa kaydırma |
-| Geçici ekran değiştirme | Player detay intent'i player'ı aynı karede kaldırır ve öğeyi sekmenin kökünden yeni seçim olarak açar; öğe stack'te zaten açıksa oraya döner |
+| Şeritten öğe açma | Now-playing şeridi çalan öğeyi kendi sekmesinde (ses → Sounds, hikâye → Stories) sekmenin kökünden yeni seçim olarak açar; öğe o stack'te zaten açıksa oraya döner. Bulunulan sekmenin stack'i değişmez |
 | Seçim değiştirme | Resmi tariflerdeki gibi yeni hedef eklenir (Rain açıkken Ocean). Aynı paneldeki eski seçimleri Material'in `PopUntilCurrentDestinationChange` geri davranışı tek geri işlemiyle atlar |
 | Sürüm geçişi | Kaldırılan route'ların güvenli okunması ve stack'ten çıkarılması korunur |
 
 Material sahne anahtarı sekmeye özgüdür. Browse içindeki Sound ile Favorites içindeki aynı
-Sound'un content key'leri de farklıdır. Player'dan farklı içerik türüne açılan hedef uygun
-pane grubuna ait değilse tek ekran olarak gösterilir. Böylece bir ses listesiyle hikâye
+Sound'un content key'leri de farklıdır. Uygun pane grubuna ait olmayan hedef tek ekran olarak
+gösterilir. Böylece bir ses listesiyle hikâye
 detayının veya iki sekmenin sahnelerinin yanlış eşleşmesi engellenir.
 
 Geri davranışı Material'in resmi `BackNavigationBehavior.PopUntilCurrentDestinationChange`
@@ -84,8 +83,8 @@ sesler de tek geri işlemiyle kategoriye döner. 30 Eylül'de üç seçenek ger�
   önceden `Navigator` aynı türden hedefi değiştiriyordu; bu özel kural kaldırıldı.
 - `PopUntilCurrentDestinationChange`: yukarıdaki davranış. Kullanılır.
 
-Telefonda liste ile detay aynı anda görünmediği için seçimler birikmez. Oynatıcıdaki
-"View details" öğeyi sekmenin kökünden açar; geri sekmenin listesine döner.
+Telefonda liste ile detay aynı anda görünmediği için seçimler birikmez. Now-playing şeridi
+öğeyi kendi sekmesinin kökünden açar; geri o sekmenin listesine döner.
 
 Bu kurallardaki özel kısım yalnızca politikadır; mekanizmalar resmidir. Sekme kimliği resmi
 `NavEntry.contentKey`, geri oku resmi `NavEntryDecorator`, iOS dahil kayıt resmi
@@ -106,7 +105,7 @@ uygulamaya eklemek veya kullanılmayan route/dekoratör üretmek kapsamı tamaml
 
 | Tarif / seçenek | Bu projedeki durum |
 |---|---|
-| DialogScene / BottomSheet OverlayScene | Back stack'e ait dialog/sheet hedefi yok. Player tam ekran route olarak kalır. Timer'ın açılır kontrolü ekran içi UI'dır. Böyle bir hedef eklenirse resmi overlay çözümü kullanılmalıdır. |
+| DialogScene / BottomSheet OverlayScene | Back stack'e ait dialog/sheet hedefi yok. Tam ekran oynatıcı yoktur; zamanlayıcı ses/hikâye detayındaki ekran içi karttır. Böyle bir hedef eklenirse resmi overlay çözümü kullanılmalıdır. |
 | Supporting pane / el yapımı iki panel | Mevcut hiyerarşi resmi list–detail–extra ile karşılanır; paralel alternatif sahne eklenmez. |
 | Pane genişliği için sürükleme | Adaptif sahnenin isteğe bağlı drag handle'ı etkin değildir; otomatik yerleşim kullanılır. |
 | Deep link ve sentetik geçmiş | Mevcut uygulamada dış URL/intent navigation sözleşmesi yoktur; bu revizyon deep link yayınlamaz. URL biçimi ve platform girişleri tanımlandığında resmi deep-link tarifine göre ayrıca uygulanmalıdır. |
@@ -131,7 +130,7 @@ karşılıklar aşağıdadır; tablo uygulama politikası ile kütüphane API'si
 |---|---|---|
 | Uygulama chrome'u | Chrome her sahnede aynı olduğundan `NavDisplay` dışında, Material `NavigationSuiteScaffold` içindedir (resmi `commonui` tarifinin yaklaşımı). Sahne dekoratörü, chrome sahneye göre değiştiğinde gerekir; burada gerekmez. | [Common navigation UI tarifi](https://github.com/android/nav3-recipes), [NavigationSuiteScaffold](https://developer.android.com/develop/ui/compose/layouts/adaptive/build-adaptive-navigation) |
 | Adaptif ekranlar | Resmi `rememberListDetailSceneStrategy`, `listPane/detailPane/extraPane` ve `detailPlaceholder` kullanılır. Özel list–detail sahnesi yoktur. | [Material Adaptive sahneleri](https://developer.android.com/guide/navigation/navigation-3/scenes) |
-| Animasyon | `NavDisplay` üç transition spec'i kullanır; player üç resmi metadata anahtarıyla bunları özelleştirir. | [Navigation animasyonları](https://developer.android.com/guide/navigation/navigation-3/animate-destinations) |
+| Animasyon | `NavDisplay` üç transition spec'i kullanır; hedefe özel metadata geçişi yoktur. | [Navigation animasyonları](https://developer.android.com/guide/navigation/navigation-3/animate-destinations) |
 | State ve ViewModel | Her sekmenin decorator sırası saveable-state, ardından ViewModel store'dur. Aktif olmayan sekmelerin decorator'ları composition'da tutulur. | [State ve ViewModel](https://developer.android.com/guide/navigation/navigation-3/save-state), [Çoklu geçmiş](https://developer.android.com/guide/navigation/navigation-3/recipes/multiple-backstacks) |
 | KMP serialization | Feature serializer modülleri birleşir; `rememberNavBackStack` açık `SavedStateConfiguration` alır. Android reflection overload'u common kodda kullanılmaz. | [KMP route serialization](https://kotlinlang.org/docs/multiplatform/compose-navigation-3.html) |
 
