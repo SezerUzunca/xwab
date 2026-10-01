@@ -57,6 +57,7 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
         nowMs = nowMs,
         scheduler = CoroutineTickScheduler(),
         onExpired = { dispatch(PlaybackMessage.SleepTimerExpired) },
+        onFadeVolume = { engine.volume = it },
     )
     override val sleepTimerState: StateFlow<SleepTimerState> = sleepTimer.state
     private val logger = Logger.withTag("IosPlaybackFacade")
