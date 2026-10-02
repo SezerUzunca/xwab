@@ -20,7 +20,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.designsystem.components.PlayPauseButton
@@ -30,7 +29,7 @@ import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import com.xwab.app.feature.nowplaying.NowPlayingState
 import com.xwab.app.feature.nowplaying.NowPlayingUiState
 import com.xwab.app.feature.nowplaying.NowPlayingViewModel
-import com.xwab.app.feature.nowplaying.di.NowPlayingDependencies
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import org.jetbrains.compose.resources.stringResource
 import xwab.designsystem.generated.resources.Res as UiRes
 import xwab.designsystem.generated.resources.cancel_timer
@@ -61,15 +60,11 @@ import xwab.feature.nowplaying.generated.resources.player_stops_in
  */
 @Composable
 fun NowPlayingBar(
-    dependencies: () -> NowPlayingDependencies,
     onOpen: (PlaybackItemId) -> Unit,
     modifier: Modifier = Modifier,
     hiddenFor: PlaybackItemId? = null,
 ) {
-    val viewModel = viewModel {
-        val ports = dependencies()
-        NowPlayingViewModel(playbackPort = ports.playbackPort)
-    }
+    val viewModel: NowPlayingViewModel = metroViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val sleepTimerRemainingMs by viewModel.sleepTimerRemainingMs.collectAsStateWithLifecycle()
     // A bar has no loading look of its own: until the session answers there is nothing to draw.

@@ -4,6 +4,11 @@ import co.touchlab.kermit.Logger
 import com.xwab.app.core.delivery.port.CacheKey
 import com.xwab.app.core.delivery.port.DeliveryRequest
 import com.xwab.app.core.network.port.NetworkPort
+import com.xwab.app.core.delivery.ContentCacheLocation
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 // Required on Kotlin/Native, where IO is an extension rather than a JVM member.
@@ -22,13 +27,29 @@ import okio.buffer
 // Required on Kotlin/Native for FileHandle; the JVM stdlib equivalent does not cover it.
 import okio.use
 
+// Scoped, not merely injected: the prefetcher writes into the same store the delivery adapter
+// observes, and only that shared instance tells an open screen a download has finished.
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
 internal class CachingContentFileStore(
     private val fileSystem: FileSystem,
     private val root: Path,
     private val networkPort: NetworkPort,
-    private val fileDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val fileDispatcher: CoroutineDispatcher,
     private val legacyRoots: List<Path> = emptyList(),
 ) : ContentFileStore {
+    /**
+     * The platform names the directories. The file system and dispatcher are the real ones unless
+     * a graph binds others, which is how a test graph substitutes fakes.
+     */
+    @Inject
+    constructor(
+        location: ContentCacheLocation,
+        networkPort: NetworkPort,
+        fileSystem: FileSystem = FileSystem.SYSTEM,
+        fileDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    ) : this(fileSystem, location.root, networkPort, fileDispatcher, location.legacyRoots)
+
     private val logger = Logger.withTag("CachingContentFileStore")
     private var legacyRootsPurged = false
     private val cacheRevision = MutableStateFlow(0L)

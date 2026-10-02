@@ -14,6 +14,13 @@ import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.feature.category.domain.CategoryContent
 import com.xwab.app.feature.category.domain.CategoryFavoritesReadStatus
 import com.xwab.app.feature.category.domain.ObserveCategoryContentUseCase
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -21,12 +28,23 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@AssistedInject
 internal class CategoryViewModel(
-    categoryId: CategoryId,
+    @Assisted categoryId: CategoryId,
     observeCategoryContentUseCase: ObserveCategoryContentUseCase,
     private val favoritesPort: FavoritesPort,
     private val playbackPort: PlaybackPort,
 ) : ViewModel() {
+    // Internal like the ViewModel it creates. Metro binds an assisted factory as itself rather
+    // than through a generated provider, and an internal one still reaches the app graph.
+    @Suppress("NON_PUBLIC_CONTRIBUTION_WARNING")
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(categoryId: CategoryId): CategoryViewModel
+    }
+
     private val favoriteWriteFailed = MutableStateFlow(false)
     // Read failures after resubscribing must not clear the last successful membership.
     private var lastKnownFavoriteIds: Set<TrackId>? = null

@@ -1,37 +1,23 @@
 package com.xwab.app.feature.sound.navigation
 
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.feature.sound.SoundDetailScreenRoute
 import com.xwab.app.feature.sound.SoundViewModel
-import com.xwab.app.feature.sound.di.SoundDependencies
-import com.xwab.app.feature.sound.domain.ObserveSoundContentUseCase
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
 
 /** Where this feature's routes turn into screens. */
 fun EntryProviderScope<NavKey>.soundEntry(
-    dependencies: () -> SoundDependencies,
     onBack: () -> Unit,
 ) {
     entry<SoundRoute> { route ->
         SoundDetailScreenRoute(
             onBack = onBack,
-            viewModel = viewModel {
-                val ports = dependencies()
-                SoundViewModel(
-                    // A route is a serialized wire format, so it carries the plain id and the
-                    // wrapper goes back on here — the one place this feature handles a bare
-                    // track string.
-                    trackId = TrackId(route.trackId),
-                    observeSoundContentUseCase = ObserveSoundContentUseCase(
-                        ports.soundPort,
-                        ports.favoritesPort,
-                        ports.playbackPort,
-                    ),
-                    favoritesPort = ports.favoritesPort,
-                    playbackPort = ports.playbackPort,
-                )
+            // A route is a serialized wire format, so it carries the plain id and the wrapper goes
+            // back on here — the one place this feature handles a bare track string.
+            viewModel = assistedMetroViewModel<SoundViewModel, SoundViewModel.Factory> {
+                create(TrackId(route.trackId))
             },
         )
     }

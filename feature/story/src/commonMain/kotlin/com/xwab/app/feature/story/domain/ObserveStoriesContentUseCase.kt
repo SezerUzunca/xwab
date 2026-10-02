@@ -1,5 +1,7 @@
 package com.xwab.app.feature.story.domain
 
+import dev.zacsweers.metro.Inject
+
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.core.story.port.Story
@@ -17,6 +19,7 @@ internal data class StoriesContent(
  *
  * This feature owns the combination of its catalog and the session's playback state.
  */
+@Inject
 internal class ObserveStoriesContentUseCase(
     private val storyPort: StoryPort,
     private val playbackPort: PlaybackPort,

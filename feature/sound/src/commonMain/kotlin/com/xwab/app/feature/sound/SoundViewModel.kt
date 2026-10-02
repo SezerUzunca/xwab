@@ -13,6 +13,13 @@ import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.feature.sound.domain.ObserveSoundContentUseCase
 import com.xwab.app.feature.sound.domain.SoundContent
 import com.xwab.app.feature.sound.domain.SoundFavoriteReadStatus
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -20,12 +27,23 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@AssistedInject
 internal class SoundViewModel(
-    private val trackId: TrackId,
+    @Assisted private val trackId: TrackId,
     observeSoundContentUseCase: ObserveSoundContentUseCase,
     private val favoritesPort: FavoritesPort,
     private val playbackPort: PlaybackPort,
 ) : ViewModel() {
+    // Internal like the ViewModel it creates. Metro binds an assisted factory as itself rather
+    // than through a generated provider, and an internal one still reaches the app graph.
+    @Suppress("NON_PUBLIC_CONTRIBUTION_WARNING")
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(trackId: TrackId): SoundViewModel
+    }
+
     private val favoriteWriteFailed = MutableStateFlow(false)
     // Survives an upstream restart while this ViewModel is still on the back stack.
     private var lastKnownFavorite: Boolean? = null

@@ -8,6 +8,16 @@ import okio.Path
 
 internal const val DATA_STORE_FILE_NAME = "xwab.preferences_pb"
 
+/**
+ * Where the platform keeps the favorites file. Each platform contributes its own; DataStore asks
+ * on first access, off the main thread, so building the adapter touches no file system.
+ */
+internal fun interface FavoritesFile {
+    fun path(): Path
+}
+
+/** DataStore resolves [producePath] on first access, off the main thread, not when it is created. */
+
 internal fun createDataStore(producePath: () -> Path): DataStore<Preferences> = try {
     PreferenceDataStoreFactory.createWithPath(produceFile = producePath)
 } catch (error: Throwable) {

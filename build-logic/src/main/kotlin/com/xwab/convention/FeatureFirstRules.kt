@@ -32,9 +32,6 @@ internal object FeatureFirstRules {
     private val FEATURE_SHELL_PACKAGE =
         Regex("""com\.xwab\.app\.feature\.[A-Za-z0-9_]+\.shell""")
 
-    private val FEATURE_DI_PACKAGE =
-        Regex("""com\.xwab\.app\.feature\.[A-Za-z0-9_]+\.di""")
-
     private val CORE_PORT_PACKAGE =
         Regex("""com\.xwab\.app\.core\.[a-z][A-Za-z0-9]*\.port""")
 
@@ -47,6 +44,15 @@ internal object FeatureFirstRules {
 
     /** A single-line `key = { ... }` lambda, which is how every list in this app spells one. */
     private val LAZY_LIST_KEY = Regex("""\bkey\s*=\s*\{([^{}\n]*)\}""")
+
+    /** `class FooViewModel(...) : ViewModel()`, without running on into a later declaration. */
+    private val VIEW_MODEL_DECLARATION = Regex("""\bclass\s+(\w+)\b(?:(?!\bclass\b)[^{])*?:\s*ViewModel\(\)""")
+
+    private val APP_SCOPE_MAP_CONTRIBUTION = Regex("""@ContributesIntoMap\(\s*AppScope::class""")
+
+    private val VIEW_MODEL_KEY = Regex("""@ViewModelKey\b""")
+
+    private val ASSISTED_FACTORY_KEY = Regex("""@(?:Manual)?ViewModelAssistedFactoryKey\b""")
 
     /** `data object BrowseRoute : NavKey`, `data class SoundRoute(val trackId: String) : NavKey`. */
     private val ROUTE_DECLARATION = Regex(
@@ -738,33 +744,27 @@ internal object FeatureFirstRules {
         return cycles.map { "Core capability dependencies must be acyclic: $it." }
     }
 
-    /** Every shared source set observes the same composition, navigation and DI boundaries. */
+    /**
+     * Every shared source set observes the same composition and navigation boundary. Shared DI
+     * names no feature type: feature ViewModels reach the graph through Metro contributions.
+     */
     fun sharedFeatureReferenceViolations(sources: Map<String, String>): List<String> =
         sources.flatMap { (path, source) ->
             val code = codeOnly(source)
             val packageName = PACKAGE.find(code)?.groupValues?.get(1).orEmpty()
-            val boundary = when {
-                packageName.isWithin("com.xwab.app.navigation") ||
-                    packageName.isWithin("com.xwab.app.composition") -> "navigation"
-                packageName.isWithin("com.xwab.app.di") -> "di"
-                else -> null
-            }
+            val isCompositionBoundary = packageName.isWithin("com.xwab.app.navigation") ||
+                packageName.isWithin("com.xwab.app.composition")
 
             references(code, QUALIFIED_FEATURE_REFERENCE).mapNotNull { reference ->
                 if (!reference.isWithin("com.xwab.app.feature")) return@mapNotNull null
 
                 val target = reference.removePrefix("com.xwab.app.feature.").split('.')
-                val allowed = when (boundary) {
-                    "navigation" -> target.size >= 3 && target[1] in setOf("navigation", "shell")
-                    "di" -> target.size == 3 && target[1] == "di" &&
-                        target[2].endsWith("Dependencies")
-                    else -> false
-                }
+                val allowed = isCompositionBoundary && target.size >= 3 &&
+                    target[1] in setOf("navigation", "shell")
                 if (allowed) return@mapNotNull null
 
                 "$path references $reference. Shared navigation/composition may reference only " +
-                    "feature navigation contracts and shell UI; shared DI may reference only feature DI " +
-                    "Dependencies classes. Other shared packages may not reference features."
+                    "feature navigation contracts and shell UI. Other shared packages may not reference features."
             }.toList()
         }.sorted()
 
@@ -774,23 +774,65 @@ internal object FeatureFirstRules {
             val packageName = PACKAGE.find(codeOnly(source))?.groupValues?.get(1).orEmpty()
             val isNavigationPackage = FEATURE_NAVIGATION_PACKAGE.matches(packageName) ||
                 FEATURE_SHELL_PACKAGE.matches(packageName)
-            val isDiPackage = FEATURE_DI_PACKAGE.matches(packageName)
+            if (isNavigationPackage) return@flatMap emptyList()
 
             declarations(source, includeNested = false).mapNotNull { parsed ->
                 val declaration = parsed.match
                 val modifiers = declaration.groupValues[1].trim().split(Regex("""\s+"""))
                 if (modifiers.any { it == "internal" || it == "private" }) return@mapNotNull null
 
-                val kind = declaration.groupValues[2]
                 val name = declaration.groupValues[3].removeSurrounding("`").substringAfterLast('.')
-                if (isNavigationPackage || isDiPackage && kind == "class" && name.endsWith("Dependencies")) {
-                    return@mapNotNull null
-                }
-
-                "$path:${parsed.lineNumber} exposes $name outside feature navigation contracts, " +
-                    "shell UI or a DI Dependencies class. Feature implementations must be internal or private."
+                "$path:${parsed.lineNumber} exposes $name outside feature navigation contracts " +
+                    "or shell UI. Feature implementations must be internal or private."
             }
         }.sorted()
+
+    /**
+     * Every ViewModel a feature declares is registered in the app graph's ViewModel map.
+     *
+     * Screens resolve their ViewModel from Metro's map at runtime (`metroViewModel`,
+     * `assistedMetroViewModel`), so a ViewModel nobody contributed compiles, passes every unit test
+     * that constructs it directly, and throws the moment its screen opens. A plain one carries
+     * `@ViewModelKey` and `@ContributesIntoMap(AppScope::class)`; an `@AssistedInject` one declares,
+     * inside its body, a factory with an assisted-factory key and the same contribution.
+     */
+    fun unregisteredViewModelViolations(featureSources: Map<String, String>): List<String> =
+        featureSources.flatMap { (path, source) ->
+            val code = codeOnly(source)
+            val lines = code.lines()
+            VIEW_MODEL_DECLARATION.findAll(code).mapNotNull { match ->
+                val lineIndex = code.take(match.range.first).count { it == '\n' }
+                val annotations = lines.take(lineIndex).asReversed()
+                    .takeWhile { it.isBlank() || it.trimStart().startsWith("@") }
+                    .joinToString("\n")
+                val registered = if ("@AssistedInject" in annotations) {
+                    val body = classBody(code, match.range.last + 1)
+                    ASSISTED_FACTORY_KEY.containsMatchIn(body) && APP_SCOPE_MAP_CONTRIBUTION.containsMatchIn(body)
+                } else {
+                    VIEW_MODEL_KEY.containsMatchIn(annotations) &&
+                        APP_SCOPE_MAP_CONTRIBUTION.containsMatchIn(annotations)
+                }
+                if (registered) return@mapNotNull null
+
+                "$path:${lineIndex + 1} declares ViewModel ${match.groupValues[1]} without registering it " +
+                    "in the app graph. Add @ViewModelKey and @ContributesIntoMap(AppScope::class), or for an " +
+                    "@AssistedInject one a nested factory with @ManualViewModelAssistedFactoryKey and the same " +
+                    "contribution; otherwise its screen throws when it opens."
+            }.toList()
+        }.sorted()
+
+    /** The text between the first `{` at or after [from] and its matching `}`; empty if none. */
+    private fun classBody(code: String, from: Int): String {
+        val open = code.indexOf('{', from).takeIf { it >= 0 } ?: return ""
+        var depth = 0
+        for (index in open until code.length) {
+            when (code[index]) {
+                '{' -> depth++
+                '}' -> if (--depth == 0) return code.substring(open + 1, index)
+            }
+        }
+        return code.substring(open + 1)
+    }
 
     private val DECLARED_TYPE_KINDS = setOf("class", "interface", "object", "typealias")
 

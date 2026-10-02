@@ -265,14 +265,6 @@ class FeatureFirstRulesTest {
                         "composition",
                         "import com.xwab.app.feature.nowplaying.shell.NowPlayingBar",
                     ),
-                    "shared/src/androidMain/kotlin/AndroidAppGraph.kt" to sharedSource(
-                        "di",
-                        "import com.xwab.app.feature.browse.di.BrowseDependencies",
-                    ),
-                    "shared/src/iosMain/kotlin/IosAppGraph.kt" to sharedSource(
-                        "di",
-                        "internal val dependencies: com.xwab.app.feature.story.di.StoriesDependencies? = null",
-                    ),
                 ),
             ),
         )
@@ -310,9 +302,14 @@ class FeatureFirstRulesTest {
                     "navigation",
                     "import com.xwab.app.feature.browse.*",
                 ),
+                // Metro contributions reach the graph without the shell naming a feature type.
+                "shared/src/androidMain/kotlin/AndroidAppGraph.kt" to sharedSource(
+                    "di",
+                    "import com.xwab.app.feature.browse.di.BrowseDependencies",
+                ),
             ),
         )
-        assertEquals(7, violations.size)
+        assertEquals(8, violations.size)
         assertTrue(violations.any { it.contains("androidMain") })
         assertTrue(violations.any { it.contains("iosMain") })
         assertTrue(violations.all { it.contains("Other shared packages may not reference features") })
@@ -344,31 +341,19 @@ class FeatureFirstRulesTest {
     }
 
     @Test
-    fun featurePublicSurfaceIsLimitedToNavigationAndDependencyBags() {
+    fun featurePublicSurfaceIsLimitedToNavigationAndShell() {
         val sources = mapOf(
             "feature/browse/src/commonMain/kotlin/Navigation.kt" to featureSource(
                 ".navigation",
                 """
                     data object BrowseRoute : NavKey
                     val browseNavigationSerializers = SerializersModule {}
-                    fun EntryProviderScope<NavKey>.browseEntry(dependencies: BrowseDependencies) {}
+                    fun EntryProviderScope<NavKey>.browseEntry(onCategoryClick: (CategoryId) -> Unit) {}
                 """.trimIndent(),
             ),
             "feature/browse/src/commonMain/kotlin/Bar.kt" to featureSource(
                 ".shell",
                 "@Composable fun BrowseBar() = Unit",
-            ),
-            "feature/browse/src/commonMain/kotlin/Dependencies.kt" to featureSource(
-                ".di",
-                """
-                    @Inject
-                    class BrowseDependencies(
-                        internal val catalog: SoundPort,
-                    )
-                    internal class Helper {
-                        fun localMember() = Unit
-                    }
-                """.trimIndent(),
             ),
             "feature/browse/src/commonMain/kotlin/Screen.kt" to featureSource(
                 "",
@@ -397,8 +382,80 @@ class FeatureFirstRulesTest {
                 featureSource(".navigation.internal", "class NavigationHelper"),
             "feature/browse/src/commonMain/kotlin/ShellHelper.kt" to
                 featureSource(".shell.internal", "class ShellHelper"),
+            // A ViewModel contributes itself to the graph; no public dependency bag is needed.
+            "feature/browse/src/commonMain/kotlin/Dependencies.kt" to
+                featureSource(".di", "class BrowseDependencies(internal val catalog: SoundPort)"),
         )
-        assertEquals(7,FeatureFirstRules.featureVisibilityViolations(leaks).size)
+        assertEquals(8, FeatureFirstRules.featureVisibilityViolations(leaks).size)
+    }
+
+    @Test
+    fun everyFeatureViewModelIsRegisteredInTheAppGraph() {
+        val registered = mapOf(
+            "feature/browse/src/commonMain/kotlin/BrowseViewModel.kt" to featureSource(
+                "",
+                """
+                    internal data class BrowseState(val loading: Boolean)
+
+                    /** A { brace } in a comment is not the class body. */
+                    @Inject
+                    @ViewModelKey
+                    @ContributesIntoMap(AppScope::class)
+                    internal class BrowseViewModel(
+                        port: SoundPort,
+                    ) : ViewModel() {
+                        val title = "}"
+                    }
+                """.trimIndent(),
+            ),
+            "feature/browse/src/commonMain/kotlin/DetailViewModel.kt" to featureSource(
+                "",
+                """
+                    @AssistedInject
+                    internal class DetailViewModel(@Assisted id: String) : ViewModel() {
+                        @AssistedFactory
+                        @ManualViewModelAssistedFactoryKey
+                        @ContributesIntoMap(AppScope::class)
+                        fun interface Factory : ManualViewModelAssistedFactory {
+                            fun create(id: String): DetailViewModel
+                        }
+                    }
+                """.trimIndent(),
+            ),
+        )
+        assertEquals(emptyList(), FeatureFirstRules.unregisteredViewModelViolations(registered))
+
+        val unregistered = mapOf(
+            "feature/browse/src/commonMain/kotlin/Plain.kt" to featureSource(
+                "",
+                "@Inject\ninternal class PlainViewModel(port: SoundPort) : ViewModel()",
+            ),
+            "feature/browse/src/commonMain/kotlin/KeyOnly.kt" to featureSource(
+                "",
+                "@Inject\n@ViewModelKey\ninternal class KeyOnlyViewModel : ViewModel()",
+            ),
+            "feature/browse/src/commonMain/kotlin/Assisted.kt" to featureSource(
+                "",
+                """
+                    @AssistedInject
+                    internal class AssistedViewModel(@Assisted id: String) : ViewModel() {
+                        @AssistedFactory
+                        fun interface Factory {
+                            fun create(id: String): AssistedViewModel
+                        }
+                    }
+                    // A later registered class must not lend its contribution to the one above.
+                    @ContributesIntoMap(AppScope::class)
+                    @ManualViewModelAssistedFactoryKey
+                    internal class Unrelated
+                """.trimIndent(),
+            ),
+        )
+        val violations = FeatureFirstRules.unregisteredViewModelViolations(unregistered)
+        assertEquals(3, violations.size)
+        assertTrue(violations.any { "PlainViewModel" in it && "Plain.kt:3" in it })
+        assertTrue(violations.any { "KeyOnlyViewModel" in it })
+        assertTrue(violations.any { "AssistedViewModel" in it })
     }
 
     /**

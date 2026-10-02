@@ -9,12 +9,19 @@ import com.xwab.app.core.story.port.STORY_PLAYBACK_KIND
 import com.xwab.app.core.story.port.StoryId
 import com.xwab.app.feature.story.domain.ObserveStoriesContentUseCase
 import com.xwab.app.feature.story.domain.StoriesContent
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class)
 internal class StoriesViewModel(
     observeStoriesContentUseCase: ObserveStoriesContentUseCase,
     private val playbackPort: PlaybackPort,

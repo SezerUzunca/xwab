@@ -1,5 +1,7 @@
 package com.xwab.app.feature.favorites.domain
 
+import dev.zacsweers.metro.Inject
+
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
 import com.xwab.app.core.sound.port.SoundPort
@@ -17,6 +19,7 @@ internal data class FavoritesContent(
 )
 
 /** Joins only the ports required by the user's saved-sounds capability. */
+@Inject
 internal class ObserveFavoritesContentUseCase(
     private val soundPort: SoundPort,
     private val favoritesPort: FavoritesPort,

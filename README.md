@@ -24,10 +24,9 @@ iosApp ─────┘        │
                                       └── internal Metro adapters
 ```
 
-Every feature is one Gradle module. Routes, entry providers, UI, state, ViewModels, use cases and
-the feature's Metro dependency bag live together; there is no feature API/implementation module
-split. Features never depend on one another. The app shell connects outgoing feature intents to
-destination routes.
+Every feature is one Gradle module. Routes, entry providers, UI, state, ViewModels and use cases
+live together; there is no feature API/implementation module split. Features never depend on one
+another. The app shell connects outgoing feature intents to destination routes.
 
 `designsystem` and the `testing` modules are top-level support modules. They are deliberately
 outside `core`: core reserves its public surface for ports, while UI components and reusable test
@@ -69,11 +68,35 @@ internal. Metro discovers them through `@ContributesBinding(AppScope::class)`; `
 them and `@SingleIn(AppScope::class)` owns their lifetime. Android and iOS graphs are generated at
 compile time, so missing or ambiguous bindings fail compilation.
 
+Internal services contribute the same way, including to internal interfaces: the delivery cache
+store and prefetcher bind `ContentFileStore` and `ContentPrefetcher`, and `@SingleIn(AppScope::class)`
+is what makes the prefetcher and the delivery adapter share one store. A platform value is an
+internal interface each platform contributes (`ContentCacheLocation`, `FavoritesFile`). Library
+objects — the `HttpClient`, the DataStore — are created by the adapter that owns them, in its
+`@Inject` constructor. Metro offers two other ways, and both were weighed: a binding container
+contributed to `AppScope` reaches the application graph only when it is public (an internal
+`@ContributesTo` container is silently left out), which would break the core visibility rule; a
+graph private to the module, with a binding container and `@Provides`, works but costs a graph and
+a delegating adapter per module for one object only that module reads.
+
 Metro's generated public contribution providers return ports, keeping the concrete adapter types
-hidden. Feature `*Dependencies` classes are public DI contracts containing ports with internal
-properties; `shared.di` exposes `() -> Dependencies` providers so the composition root can register
-feature entries without initializing their ports. Each feature invokes its provider only inside
-the entry's ViewModel initializer.
+hidden.
+
+ViewModels use Metro's own integration, [MetroX ViewModel](https://github.com/ZacSweers/metro/tree/1.4.4/metrox-viewmodel-compose).
+Each internal ViewModel contributes itself with `@ViewModelKey` and
+`@ContributesIntoMap(AppScope::class)`, and Metro constructs it and its use cases from the ports.
+A screen that needs its route's id (category, sound and story detail) is `@AssistedInject`: its
+nested `@AssistedFactory` is a `ManualViewModelAssistedFactory` contributed the same way, and the
+entry calls `assistedMetroViewModel<VM, VM.Factory> { create(id) }`. `AppGraph` extends
+`ViewModelGraph`; `App` places the graph's factory in `LocalMetroViewModelFactory`, and entries call
+`metroViewModel()`. The maps hold providers, so registering entries creates nothing; the navigation
+entry's ViewModelStore retains and clears each ViewModel.
+
+Core modules treat Metro's non-public contribution diagnostic as an error, because the contribution
+it reports would silently miss the application graph. Feature modules report it as a warning: an
+assisted factory contributes as its own internal type, which does reach the graph, so each one
+suppresses the warning where it is declared (`@Suppress("NON_PUBLIC_CONTRIBUTION_WARNING")`), while
+any other non-public contribution in a feature is still reported.
 
 ```text
 core/
@@ -288,9 +311,9 @@ playback. The architecture check requires these values to agree with the downloa
    is non-public, or a cross-core reference bypasses the target module's `.port` package.
 5. Screen state or a feature-specific use case leaks into core; a `Repository` / DI-style
    `Provider` abstraction appears in core; or Koin is reintroduced.
-6. A feature exposes anything except navigation contracts, shell UI (`shell` package, e.g. the
-   now-playing bar the app places below every screen) or DI `*Dependencies` classes, or shared
-   references features outside the navigation/composition and DI boundaries.
+6. A feature exposes anything except navigation contracts and shell UI (`shell` package, e.g. the
+   now-playing bar the app places below every screen), or shared references features outside the
+   navigation/composition boundary.
 7. Designsystem depends on an application project.
 8. A module directory is absent from the build, or a core/feature module is absent from shared's
    compilation graph. Core registration is automatic; feature composition stays explicit.
@@ -302,6 +325,10 @@ playback. The architecture check requires these values to agree with the downloa
     and cache namespaces are pinned in `wireFormat`; the constant and its pin must change together,
     which is the moment to decide whether a migration is owed. Any `*_NAMESPACE` / `*_KIND`
     constant must be pinned, so a new content type joins the check by being named.
+12. A feature ViewModel is not registered in the app graph's ViewModel map: a plain one lacks
+    `@ViewModelKey` and `@ContributesIntoMap(AppScope::class)`, or an `@AssistedInject` one has no
+    nested factory with an assisted-factory key and that contribution. Screens resolve ViewModels
+    from the map at runtime, so this would otherwise compile and throw when the screen opens.
 
 The core policy is module-owned rather than a central list of sound/story-specific exceptions.
 For example, `core/session/architecture.properties` permits only playback and declares its screen
@@ -327,8 +354,9 @@ configurations, which keeps the check compatible with Gradle's isolated projects
 that does not apply the plugin makes the check fail with Gradle's "no matching variant" error
 naming it, rather than letting the rules run without it.
 
-The Metro convention additionally treats non-public contribution problems as errors and generates
-providers that allow internal contributed adapters to remain hidden across modules.
+The Metro convention additionally reports non-public contributions (errors outside feature modules,
+warnings inside them) and generates providers that allow internal contributed adapters to remain
+hidden across modules.
 
 ## Adding a feature
 
@@ -336,17 +364,17 @@ providers that allow internal contributed adapters to remain hidden across modul
 ./tools/new-feature.ps1 sleep-timer
 ```
 
-The script creates one `:feature:sleep-timer` module. Then wire its dependency bag, entry provider
-and serializer into `shared`, and make the route reachable from either a top-level destination or
-an existing feature intent.
+The script creates one `:feature:sleep-timer` module whose ViewModel contributes itself to the
+graph. Then add the module, its entry provider and its serializer to `shared`, and make the route
+reachable from either a top-level destination or an existing feature intent.
 
 ## Removing a feature
 
 Delete the `feature/<name>` directory. Gradle stops including it on its own, and every remaining
 reference is a compile error: the `projects.feature.<name>` accessor in `shared/build.gradle.kts`,
-the accessor in `AppGraph`, the registration in `AppEntryProvider`, the entry in
-`FEATURE_SERIALIZERS`, and the tab in `TOP_LEVEL_DESTINATIONS` if it had one. Follow the compiler
-until it stops, then run the checks below.
+the registration in `AppEntryProvider`, the entry in `FEATURE_SERIALIZERS`, and the tab in
+`TOP_LEVEL_DESTINATIONS` if it had one. Its ViewModels leave the graph with the module. Follow the
+compiler until it stops, then run the checks below.
 
 Two things the compiler cannot point at:
 
