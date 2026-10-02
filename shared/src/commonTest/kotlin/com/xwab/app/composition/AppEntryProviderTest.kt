@@ -1,12 +1,5 @@
 package com.xwab.app.composition
 
-import com.xwab.app.di.AppGraph
-import com.xwab.app.feature.browse.di.BrowseDependencies
-import com.xwab.app.feature.category.di.CategoryDependencies
-import com.xwab.app.feature.favorites.di.FavoritesDependencies
-import com.xwab.app.feature.nowplaying.di.NowPlayingDependencies
-import com.xwab.app.feature.sound.di.SoundDependencies
-import com.xwab.app.feature.story.di.StoriesDependencies
 import com.xwab.app.navigation.SAVEABLE_ROUTES
 import kotlinx.coroutines.flow.emptyFlow
 import kotlin.test.Test
@@ -21,17 +14,15 @@ import kotlin.test.assertEquals
  * perfectly and then throws the moment `NavDisplay` asks what to draw — on the launch after an
  * update, for a listener who was simply where they left off.
  *
- * [NoDependencies] is what lets this run outside a composition, and it carries an assertion of its
- * own: registering an entry must not build a feature's dependency bag. `appEntryProvider` states
- * that providers are invoked inside ViewModel initializers, and a graph that throws on every
- * accessor is what keeps that true rather than merely written down.
+ * It runs outside a composition because registering an entry takes nothing from the graph: a
+ * feature resolves its ViewModel from `LocalMetroViewModelFactory` only when the entry is drawn.
  */
 class AppEntryProviderTest {
 
     @Test
     fun everySaveableRouteHasAScreen() {
         val entryProvider = appEntryProvider(
-            NoDependencies, onNavigate = {}, onBack = {}, onReselect = { emptyFlow() },
+            onNavigate = {}, onBack = {}, onReselect = { emptyFlow() },
         )
 
         // Resolving is the assertion: Navigation 3's `entryProvider` throws `Unknown screen` from
@@ -47,14 +38,3 @@ class AppEntryProviderTest {
     }
 }
 
-private fun unused(): Nothing =
-    error("Registering an entry must not build a feature's dependencies.")
-
-private object NoDependencies : AppGraph {
-    override val browseDependencies: () -> BrowseDependencies = { unused() }
-    override val favoritesDependencies: () -> FavoritesDependencies = { unused() }
-    override val categoryDependencies: () -> CategoryDependencies = { unused() }
-    override val soundDependencies: () -> SoundDependencies = { unused() }
-    override val storiesDependencies: () -> StoriesDependencies = { unused() }
-    override val nowPlayingDependencies: () -> NowPlayingDependencies = { unused() }
-}

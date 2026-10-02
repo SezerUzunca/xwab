@@ -69,6 +69,9 @@ kotlin {
             implementation(libs.navigation3.runtime)
             implementation(libs.navigation3.ui)
             implementation(libs.androidx.lifecycle.viewmodelNavigation3)
+            // The graph owns the ViewModel factory that feature entries read from composition.
+            implementation(libs.metrox.viewmodel)
+            implementation(libs.metrox.viewmodel.compose)
             implementation(libs.kotlinx.serialization.core)
             implementation(libs.kotlinx.coroutines.core)
         }

@@ -1,5 +1,7 @@
 package com.xwab.convention
 
+import dev.zacsweers.metro.gradle.DiagnosticSeverity
+import dev.zacsweers.metro.gradle.MetroPluginExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
@@ -22,6 +24,15 @@ class KmpFeatureConventionPlugin : Plugin<Project> {
         with(target) {
             pluginManager.apply(KmpComposeConventionPlugin::class.java)
             pluginManager.apply("org.jetbrains.kotlin.plugin.serialization")
+            // A feature contributes MetroX ViewModel entries. An assisted ViewModel registers its
+            // nested `@AssistedFactory`, which Metro binds as itself rather than through a generated
+            // provider, so core's error would reject every one, and Kotlin cannot suppress an error.
+            // A warning can be: each such factory suppresses it where it is declared, and any other
+            // non-public contribution in a feature, such as an internal binding container that would
+            // never reach the app graph, is still reported.
+            extensions.configure(MetroPluginExtension::class.java) { metro ->
+                metro.nonPublicContributionSeverity.set(DiagnosticSeverity.WARN)
+            }
 
             kotlinMultiplatform {
                 dependenciesOf("commonMain") {
@@ -34,6 +45,9 @@ class KmpFeatureConventionPlugin : Plugin<Project> {
                     implementation(libs.library("compose-components-resources"))
                     implementation(libs.library("compose-uiToolingPreview"))
                     implementation(libs.library("androidx-lifecycle-viewmodelCompose"))
+                    // ViewModels contribute themselves to the app graph and entries resolve them.
+                    implementation(libs.library("metrox-viewmodel"))
+                    implementation(libs.library("metrox-viewmodel-compose"))
                 }
             }
 

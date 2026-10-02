@@ -1,5 +1,7 @@
 package com.xwab.app.feature.story.domain
 
+import dev.zacsweers.metro.Inject
+
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
 import com.xwab.app.core.story.port.Story
@@ -11,6 +13,7 @@ import kotlinx.coroutines.flow.combine
 internal data class StoryContent(val story: Story?, val playback: PlaybackSummary)
 
 /** The detail observes one catalog entry, independently of the list's lifecycle. */
+@Inject
 internal class ObserveStoryContentUseCase(
     private val storyPort: StoryPort,
     private val playbackPort: PlaybackPort,

@@ -40,9 +40,8 @@ import kotlinx.coroutines.flow.updateAndGet
  */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
-internal class DefaultPlaybackAdapter
 @Inject
-internal constructor(
+internal class DefaultPlaybackAdapter(
     private val enginePort: PlaybackEnginePort,
     /**
      * One resolver per content kind, keyed by the kind each module registered itself under.

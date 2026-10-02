@@ -15,6 +15,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.okio.fakefilesystem)
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

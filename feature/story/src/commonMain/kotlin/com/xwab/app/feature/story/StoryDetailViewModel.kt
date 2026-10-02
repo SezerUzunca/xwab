@@ -8,17 +8,35 @@ import com.xwab.app.core.story.port.STORY_PLAYBACK_KIND
 import com.xwab.app.core.story.port.StoryId
 import com.xwab.app.feature.story.domain.ObserveStoryContentUseCase
 import com.xwab.app.feature.story.domain.StoryContent
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@AssistedInject
 internal class StoryDetailViewModel(
-    storyId: StoryId,
+    @Assisted storyId: StoryId,
     observeStoryContentUseCase: ObserveStoryContentUseCase,
     private val playbackPort: PlaybackPort,
 ) : ViewModel() {
+    // Internal like the ViewModel it creates. Metro binds an assisted factory as itself rather
+    // than through a generated provider, and an internal one still reaches the app graph.
+    @Suppress("NON_PUBLIC_CONTRIBUTION_WARNING")
+    @AssistedFactory
+    @ManualViewModelAssistedFactoryKey
+    @ContributesIntoMap(AppScope::class)
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(storyId: StoryId): StoryDetailViewModel
+    }
+
     private val itemId = PlaybackItemId(STORY_PLAYBACK_KIND, storyId.value)
 
     val state: StateFlow<StoryDetailUiState> = observeStoryContentUseCase(storyId)

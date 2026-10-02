@@ -1,5 +1,7 @@
 package com.xwab.app.feature.sound.domain
 
+import dev.zacsweers.metro.Inject
+
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.sound.port.SOUND_FAVORITES_NAMESPACE
@@ -32,6 +34,7 @@ internal data class SoundContent(
  * Feature-owned for the same reason as the other screen-owned use cases: only the ports it reads
  * are shared.
  */
+@Inject
 internal class ObserveSoundContentUseCase(
     private val soundPort: SoundPort,
     private val favoritesPort: FavoritesPort,

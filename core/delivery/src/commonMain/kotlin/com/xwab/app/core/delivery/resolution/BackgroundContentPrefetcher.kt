@@ -1,6 +1,10 @@
 package com.xwab.app.core.delivery.resolution
 
 import co.touchlab.kermit.Logger
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import com.xwab.app.core.delivery.port.CacheKey
 import com.xwab.app.core.delivery.port.DeliveryRequest
 import com.xwab.app.core.delivery.cache.ContentFileStore
@@ -29,6 +33,9 @@ import kotlinx.coroutines.withContext
  * The in-flight set is keyed by cache file name, which already carries the track id and its
  * version, so two requests for the same file share one transfer while a version bump gets its own.
  */
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
+@Inject
 internal class BackgroundContentPrefetcher(
     private val fileStore: ContentFileStore,
     private val backgroundScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),

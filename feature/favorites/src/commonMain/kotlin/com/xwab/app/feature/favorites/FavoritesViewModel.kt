@@ -13,6 +13,10 @@ import com.xwab.app.core.favorites.port.FavoritesPort
 import com.xwab.app.core.favorites.port.FavoriteToggleResult
 import com.xwab.app.feature.favorites.domain.FavoritesContent
 import com.xwab.app.feature.favorites.domain.ObserveFavoritesContentUseCase
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -30,6 +34,9 @@ import kotlin.time.TimeSource
 /** How long after a removal the list may offer Undo again when it is shown anew. */
 private val UNDO_OFFER_WINDOW = 10.seconds
 
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class)
 internal class FavoritesViewModel(
     observeFavoritesContentUseCase: ObserveFavoritesContentUseCase,
     private val playbackPort: PlaybackPort,

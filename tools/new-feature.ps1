@@ -3,7 +3,7 @@
     Writes a single-module feature skeleton.
 
 .DESCRIPTION
-    Creates feature/<name> with navigation, UI, state, ViewModel, Metro dependencies and tests in
+    Creates feature/<name> with navigation, UI, state, a Metro-contributed ViewModel and tests in
     one Gradle module. Gradle discovers the module automatically.
 
     The feature is intentionally not self-registering. The script prints the explicit app-shell
@@ -101,7 +101,7 @@ data object ${Pascal}Route : NavKey
 
 val ${camel}NavigationSerializers = SerializersModule {
     polymorphic(NavKey::class) {
-        subclass(${Pascal}Route.serializer())
+        subclass(${Pascal}Route::class)
     }
 }
 "@
@@ -118,10 +118,18 @@ Write-GeneratedFile (Join-Path $mainSrc "${Pascal}ViewModel.kt") @"
 package com.xwab.app.feature.${pkg}
 
 import androidx.lifecycle.ViewModel
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+/** Constructor parameters are the core ports this screen reads; the app graph supplies them. */
+@Inject
+@ViewModelKey
+@ContributesIntoMap(AppScope::class)
 internal class ${Pascal}ViewModel : ViewModel() {
     val state: StateFlow<${Pascal}State> = MutableStateFlow(${Pascal}State()).asStateFlow()
 }
@@ -156,33 +164,18 @@ private fun ${Pascal}Screen(
 }
 "@
 
-Write-GeneratedFile (Join-Path $mainSrc "di\${Pascal}Dependencies.kt") @"
-package com.xwab.app.feature.${pkg}.di
-
-import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.SingleIn
-
-/** Public graph entry; the ports held by a real feature remain internal properties. */
-@SingleIn(AppScope::class)
-@Inject
-class ${Pascal}Dependencies
-"@
-
 Write-GeneratedFile (Join-Path $navSrc "${Pascal}Entry.kt") @"
 package com.xwab.app.feature.${pkg}.navigation
 
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.xwab.app.feature.${pkg}.${Pascal}ScreenRoute
-import com.xwab.app.feature.${pkg}.${Pascal}ViewModel
-import com.xwab.app.feature.${pkg}.di.${Pascal}Dependencies
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 
 /** Converts this feature's route into its internal UI. */
-fun EntryProviderScope<NavKey>.${camel}Entry(dependencies: () -> ${Pascal}Dependencies) {
+fun EntryProviderScope<NavKey>.${camel}Entry() {
     entry<${Pascal}Route> {
-        ${Pascal}ScreenRoute(viewModel = viewModel { ${Pascal}ViewModel() })
+        ${Pascal}ScreenRoute(viewModel = metroViewModel())
     }
 }
 "@
@@ -203,9 +196,8 @@ class ${Pascal}ViewModelTest {
 
 Write-Host ""
 Write-Host "Done. Wire the feature in the app shell:" -ForegroundColor Green
-Write-Host "  1. Add implementation(projects.feature.${camel}) to shared/build.gradle.kts."
-Write-Host "  2. Expose ${camel}Dependencies as () -> ${Pascal}Dependencies in shared/.../di/AppGraph.kt."
-Write-Host "  3. Register ${camel}Entry in AppEntryProvider.kt and ${camel}NavigationSerializers in FEATURE_SERIALIZERS (FeatureSerializers.kt)."
-Write-Host "  4. Add ${Pascal}Route as a top-level route or connect it to an existing intent."
+Write-Host "  1. Add implementation(projects.feature.${camel}) to shared/build.gradle.kts. Metro finds the ViewModel there."
+Write-Host "  2. Register ${camel}Entry in AppEntryProvider.kt and ${camel}NavigationSerializers in FEATURE_SERIALIZERS (FeatureSerializers.kt)."
+Write-Host "  3. Add ${Pascal}Route as a top-level route or connect it to an existing intent."
 Write-Host ""
 Write-Host "Then: ./gradlew :feature:${Name}:compileCommonMainKotlinMetadata checkArchitecture"

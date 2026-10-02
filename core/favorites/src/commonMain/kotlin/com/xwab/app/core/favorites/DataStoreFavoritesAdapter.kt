@@ -8,6 +8,10 @@ import co.touchlab.kermit.Logger
 import com.xwab.app.core.favorites.port.FavoritesPort
 import com.xwab.app.core.favorites.port.FavoritesSnapshot
 import com.xwab.app.core.favorites.port.FavoriteToggleResult
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
@@ -17,9 +21,20 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.retryWhen
 
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
 internal class DataStoreFavoritesAdapter(
     private val dataStore: DataStore<Preferences>,
 ) : FavoritesPort {
+    /**
+     * The store is created here because nothing outside this module reads it. Binding it in the app
+     * graph would need a public binding container, and a module-private graph would add a graph
+     * and a wrapper for one object (see the README's DI section). Being scoped, this adapter is
+     * also what keeps it one store per file.
+     */
+    @Inject
+    constructor(file: FavoritesFile) : this(createDataStore(file::path))
+
     private val logger = Logger.withTag("FavoritesPort")
 
     override fun observe(namespace: String): Flow<FavoritesSnapshot> {

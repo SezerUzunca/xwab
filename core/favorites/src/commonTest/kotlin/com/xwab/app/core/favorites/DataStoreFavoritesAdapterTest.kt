@@ -33,6 +33,14 @@ import com.xwab.app.core.favorites.port.FavoriteToggleResult
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DataStoreFavoritesAdapterTest {
+    /** The app graph may build the adapter on the main thread, so building it must touch no file. */
+    @Test
+    fun theInjectedAdapterLeavesTheFileForItsFirstAccess() {
+        DataStoreFavoritesAdapter(
+            FavoritesFile { error("The DataStore file was resolved while the adapter was built.") },
+        )
+    }
+
     @Test
     fun explicitMembershipIsIdempotentAndKeepsOtherIdsAndNamespaces() = runTest {
         val store = FakePreferencesDataStore()

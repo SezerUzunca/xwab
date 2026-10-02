@@ -9,6 +9,7 @@ import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.favorites.port.FavoritesPort
 import com.xwab.app.core.session.port.PlaybackPort
 import com.xwab.app.core.session.port.PlaybackSummary
+import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -33,6 +34,7 @@ internal data class CategoryContent(
  * Joins the three domain ports into the one thing a category screen shows. Feature-owned for the
  * same reason as the other screen-owned use cases: only the ports it reads are shared.
  */
+@Inject
 internal class ObserveCategoryContentUseCase(
     private val soundPort: SoundPort,
     private val favoritesPort: FavoritesPort,
