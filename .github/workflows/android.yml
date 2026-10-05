@@ -178,7 +178,7 @@ jobs:
   device-test:
     name: Run Android device tests
     runs-on: ubuntu-latest
-    # Two emulator attempts have to fit, and one costs roughly thirteen minutes.
+    # Two emulator attempts have to fit, and one with both modules costs roughly seventeen minutes.
     timeout-minutes: 45
 
     env:
