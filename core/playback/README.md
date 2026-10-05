@@ -24,7 +24,9 @@ observes `state` / `sleepTimerState` and drives playback through the single
 that declare this one — a feature may not, which `checkArchitecture` enforces as a
 dependency edge, so screens reach playback through `PlaybackPort` and never see this
 engine's state model. Use one app-scoped
-controller instance and call it only from the main thread; DI owns the engine's `release()`. Every
+controller instance and call it only from the main thread. The engine lives as long as the
+application process: nothing in the app calls `release()`, and the playback service keeps running
+on its own; `release()` is for a host that tears the engine down itself, such as a test. Every
 `AudioSource` needs a stable non-blank ID and a non-blank playable URI.
 
 ## Host-level background integration
