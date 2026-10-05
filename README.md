@@ -63,25 +63,29 @@ There is no shared repository abstraction. A feature consumes the narrow capabil
 | `:core:playback` | `PlaybackEnginePort` and engine command/state types |
 | `:core:network` | `NetworkPort` and transport-neutral response/error types |
 
-Implementations such as manifest, DataStore, Ktor, cache and platform playback adapters stay
-internal. Metro discovers them through `@ContributesBinding(AppScope::class)`; `@Inject` constructs
-them and `@SingleIn(AppScope::class)` owns their lifetime. Android and iOS graphs are generated at
-compile time, so missing or ambiguous bindings fail compilation.
+Every core module wires its own implementation in its own internal Metro graph (`NetworkGraph`,
+`DeliveryGraph`, `FavoritesGraph`, `SoundGraph`, `StoryGraph`, `SessionGraph`, and per platform
+`AndroidPlaybackGraph` / `IosPlaybackGraph`), scoped to that module (`@SingleIn(DeliveryScope::class)`
+and so on). Library objects are provided there with `@Provides` — the `HttpClient`, the DataStore —
+and internal services bind their internal interfaces there, so the delivery cache store and the
+prefetcher share one store because the module graph scopes it.
 
-Internal services contribute the same way, including to internal interfaces: the delivery cache
-store and prefetcher bind `ContentFileStore` and `ContentPrefetcher`, and `@SingleIn(AppScope::class)`
-is what makes the prefetcher and the delivery adapter share one store. A platform value is an
-internal interface each platform contributes (`ContentCacheLocation`, `FavoritesFile`).
+Only ports leave a module. A small `*GraphAdapter` contributes the module graph's port to `AppScope`
+with `@ContributesBinding` (or, for a content resolver, `@ContributesIntoMap` under its playback
+kind); a module that hands out two things builds its graph once in a `*GraphHolder` both adapters
+share. What a module needs from another — `NetworkPort` for delivery, `DeliveryPort` for sounds, the
+engine and the resolver map for the session, the platform's `Context` or cache location — the
+adapter takes from `AppScope` and passes to its graph's factory. The resolver map therefore stays a
+multibinding of the application graph, and content modules still plug in and out there. Android and
+iOS application graphs and every module graph are generated at compile time, so a missing binding
+inside a module fails that module's own compilation.
 
-Library objects stay in the module that owns them. `core:network` and `core:favorites` each have
-their own internal Metro graph (`NetworkGraph`, `FavoritesGraph`) that provides the `HttpClient` or
-the DataStore with `@Provides` and constructs the adapter around it; a small `@ContributesBinding`
-adapter hands that graph's port to `AppScope`. A binding container contributed to `AppScope` would
-reach the application graph only if it were public — an internal `@ContributesTo` container is
-silently left out — and core declarations outside `.port` stay internal. Only these two modules
-use a graph of their own: the rest are wired to each other through `AppScope` (the session's
-resolver map, the engine, delivery), which separate graphs would turn back into hand-passed
-parameters.
+Each module's tests build its production graph directly (`DeliveryGraphTest`, `SoundGraphTest`,
+`StoryGraphTest`, `SessionGraphTest`, `NetworkGraphTest`, the favorites graph test) with plain test
+doubles for its inputs. A binding container contributed to `AppScope` would reach the application
+graph only if it were public — an internal `@ContributesTo` container is silently left out — and
+core declarations outside `.port` stay internal, which is the other reason module graphs carry
+`@Provides`.
 
 Metro's generated public contribution providers return ports, keeping the concrete adapter types
 hidden.
@@ -188,9 +192,11 @@ check verifies that the app shell names every registered playback kind in its ro
 1. Add a flat `core/<name>` module with `build.gradle.kts` and `architecture.properties`.
 2. Declare its owned responsibility and exact public interfaces; specify only required core
    dependencies. Empty `dependencies=` means the module is independent.
-3. Keep public contracts in `.port` and contribute internal implementations through Metro.
-   Playable content modules contribute a playback resolver under a stable key and keep physical
-   sources private to that module.
+3. Keep public contracts in `.port`. Wire the internal implementation in the module's own
+   internal Metro graph, and contribute only its port to `AppScope` through a `*GraphAdapter`
+   that passes the graph whatever it needs from other modules. Playable content modules also
+   contribute their resolver under a stable key and keep physical sources private to the module.
+   Test the module graph directly.
 4. Wire any feature and route that presents the new capability in the app shell.
 5. Run `:check`, Android host tests and `:androidApp:assembleDebug`.
 

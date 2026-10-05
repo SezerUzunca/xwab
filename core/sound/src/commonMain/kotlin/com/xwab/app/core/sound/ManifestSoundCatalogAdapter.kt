@@ -6,8 +6,6 @@ import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.sound.port.TrackId
-import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.Flow
@@ -15,8 +13,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 /** Serves metadata from one immutable manifest. */
-@ContributesBinding(AppScope::class)
-@SingleIn(AppScope::class)
+@SingleIn(SoundScope::class)
 internal class ManifestSoundCatalogAdapter internal constructor(
     tracks: List<Track>,
     categories: List<Category> = emptyList(),

@@ -19,8 +19,6 @@ import com.xwab.app.core.playback.port.PlaybackEnginePort
 import com.xwab.app.core.playback.port.PlaybackErrorCode
 import com.xwab.app.core.playback.port.PlaybackPhase
 import com.xwab.app.core.playback.port.PlaybackRequest
-import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.Flow
@@ -38,8 +36,7 @@ import kotlinx.coroutines.flow.updateAndGet
  * is true of a session regardless of content — one item at a time, the newest request wins, a claim
  * that lasts no longer than the request that made it, and a summary a screen can draw.
  */
-@ContributesBinding(AppScope::class)
-@SingleIn(AppScope::class)
+@SingleIn(SessionScope::class)
 @Inject
 internal class DefaultPlaybackAdapter(
     private val enginePort: PlaybackEnginePort,
@@ -48,11 +45,12 @@ internal class DefaultPlaybackAdapter(
      *
      * Injected as a multibinding rather than built here, which is the whole of this module's
      * independence from content: a new content type contributes its own entry from its own module
-     * and this constructor never changes. Metro aggregates the map from the compile classpath, so
-     * the map holds exactly the content modules the composition root declares — a removed one is
-     * simply absent, and the kind it used to answer for reports `ItemNotFound`.
-     * With no contributions Metro uses the optional empty map, so the session still exists after
-     * the last content module is removed.
+     * and this constructor never changes. Metro aggregates the map in the application graph from
+     * the compile classpath, and [SessionGraphAdapter] hands it to this module's graph, so the map
+     * holds exactly the content modules the composition root declares — a removed one is simply
+     * absent, and the kind it used to answer for reports `ItemNotFound`. With no contributions the
+     * adapter passes an empty map, so the session still exists after the last content module is
+     * removed.
      *
      * Keys cannot collide: a map is a map, and two modules registering the same kind is a Metro
      * duplicate-binding error at compile time rather than one resolver silently never running.
