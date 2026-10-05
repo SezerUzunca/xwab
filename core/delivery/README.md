@@ -19,7 +19,8 @@ val result = deliveryPort.resolve(
 A cache hit returns an absolute local path. A miss returns HTTPS immediately and starts a
 background download; it does not wait for a local file. Supported content types and the download
 size ceiling are caller-owned. The defaults accept any content type and limit downloads to 25 MiB.
-Change the cache filename when the bytes behind an item change. Cache access or prefetch startup failures are logged and fall back to HTTPS; cancellation still propagates.
+Change the cache filename when the bytes behind an item change. Cache access or prefetch startup
+failures are logged and fall back to HTTPS; cancellation still propagates.
 
 `observeCached(key)` checks the local file without resolving or downloading content. It rechecks
 on collection and after cache completion or cleanup. Only nonempty final files count as cached;
@@ -49,7 +50,7 @@ namespace directory, so no sweep would ever reach it again. The platform adapter
 legacy root and the store deletes it once, on the first download after an upgrade; those tracks are
 then fetched again on demand in the `sound` namespace. Favorites storage is unaffected.
 
-The composition root includes delivery and network so Metro can supply their platform bindings.
-Core modules consume `DeliveryPort`; the existing architecture rule still routes feature playback
-through `PlaybackPort`. Tests cover different content types, namespace isolation, inventory
+Each platform's graph adapter builds the cache location and passes it to this module's own graph;
+only `DeliveryPort` reaches the application graph. Features cannot depend on delivery; they play
+content through `PlaybackPort`. Tests cover different content types, namespace isolation, inventory
 cleanup, retry/cancellation, unsafe keys and configurable size limits.

@@ -46,8 +46,8 @@ Designsystem is independent of application projects; core cannot depend on it or
 ## Core boundary
 
 Every type crossing a core-module boundary lives in a `.port` package and is public. Kotlin's
-implicit public visibility and an explicit `public` modifier are both valid; the current port code
-uses the implicit style. Hand-written production declarations outside `.port` packages are
+implicit public visibility and an explicit `public` modifier are both valid, and the port code uses
+both. Hand-written production declarations outside `.port` packages are
 `internal` or `private`. Core modules may import another core module only through that module's
 `.port` package.
 
@@ -78,21 +78,17 @@ engine and the resolver map for the session — the adapter takes from `AppScope
 graph's factory. The resolver map therefore stays a multibinding of the application graph, and
 content modules still plug in and out there. A platform value — the favorites file, the cache
 directory — is built by that platform's adapter (`AndroidDeliveryGraphAdapter`,
-`IosFavoritesGraphAdapter`, …) from the application `Context` it takes, so it never becomes an
-application binding either; delivery, favorites and playback have one adapter per platform for that
+`IosFavoritesGraphAdapter`, …), on Android from the application `Context` it takes, so it never
+becomes an application binding either; delivery, favorites and playback have one adapter per platform for that
 reason. Beyond ports, a core module adds only its `*GraphHolder`, where it has one, to the
 application graph. Android and iOS application graphs and every module graph are generated at
 compile time, so a missing binding inside a module fails that module's own compilation.
 
-Each module's tests build its production graph directly (`DeliveryGraphTest`, `SoundGraphTest`,
-`StoryGraphTest`, `SessionGraphTest`, `NetworkGraphTest`, the favorites graph test) with plain test
-doubles for its inputs. A binding container contributed to `AppScope` would reach the application
-graph only if it were public — an internal `@ContributesTo` container is silently left out — and
-core declarations outside `.port` stay internal, which is the other reason module graphs carry
-`@Provides`.
-
-Metro's generated public contribution providers return ports, keeping the concrete adapter types
-hidden.
+Each module's tests build its module graph (`DeliveryGraphTest`, `SoundGraphTest`,
+`StoryGraphTest`, `SessionGraphTest`, `NetworkGraphTest`, the favorites graph test) with test
+doubles for its inputs. Library objects are provided inside module graphs rather than by a binding
+container contributed to `AppScope`, because such a container would have to be public, and core
+declarations outside `.port` stay internal.
 
 ViewModels use Metro's own integration, [MetroX ViewModel](https://github.com/ZacSweers/metro/tree/1.4.5/metrox-viewmodel-compose).
 Each internal ViewModel contributes itself with `@ViewModelKey` and
@@ -102,7 +98,7 @@ nested `@AssistedFactory` is a `ManualViewModelAssistedFactory` contributed the 
 entry calls `assistedMetroViewModel<VM, VM.Factory> { create(id) }`. `AppGraph` extends
 `ViewModelGraph`; `App` places the graph's factory in `LocalMetroViewModelFactory`, and entries call
 `metroViewModel()`. The maps hold providers, so registering entries creates nothing; the navigation
-entry's ViewModelStore retains and clears each ViewModel.
+entry's ViewModelStore retains and clears each screen's ViewModel.
 
 Core modules treat Metro's non-public contribution diagnostic as an error, because the contribution
 it reports would silently miss the application graph. Feature modules report it as a warning: an
@@ -134,14 +130,10 @@ feature/
 └── story
 ```
 
-The seven directories directly under `core` are Gradle modules, discovered automatically by Gradle.
+Every directory under `core` with a build script is a Gradle module, discovered by settings.
 `shared` automatically includes those modules on Metro's compilation classpath: settings publishes
 the discovered list, so `shared` never reads another project's state to find them. Application
 routes remain explicitly composed by the shell.
-
-`SOUND_CACHE_NAMESPACE` is public for one reader, the composition root. Only the module that
-assembles the app knows which cache namespaces are still installed, and it names them so that
-downloads left behind by a removed content type can be swept at launch.
 
 | Module | Owns | Delegates |
 |---|---|---|
@@ -215,6 +207,7 @@ rejects duplicate single bindings or duplicate contribution keys. Preserve store
 namespaces, favorite namespaces and route serial names, or provide an explicit migration. Removing
 a feature also requires the shell changes described below; unrelated core implementations remain
 untouched.
+
 ## Navigation 3
 
 `shared` owns the app-level navigation policy and one back stack per top-level destination.
@@ -224,9 +217,8 @@ intent callbacks and does not name destination features.
 
 `BrowseRoute` is the initial destination. Browse, Favorites and Stories are top-level destinations;
 Category, Sound and Story details are nested destinations. Every content row opens its detail from
-the row body; only its explicit play/pause button changes playback. `SoundRoute(trackId)` preserves
-the existing serialized route. `StoryRoute(storyId)` opens the selected story's description, author,
-narrator and duration. Each tab retains its own history and saved screen state.
+the row body; only its explicit play/pause button changes playback. `StoryRoute(storyId)` opens the
+selected story's description, author, narrator and duration. Each tab retains its own history and saved screen state.
 
 `AppNavigationHost` wires features to `Navigator`; `AppNavigationDisplay` owns the actual
 `NavDisplay`. Saveable state and ViewModel entry decorators are retained for every tab, including
@@ -241,8 +233,8 @@ at the root scrolls its list to the start.
 The chrome is the same on every screen, so it sits outside `NavDisplay`: Material's
 `NavigationSuiteScaffold` chooses a short navigation bar or a wide rail from the window size
 class, and the now-playing bar is drawn once below the content. Screens draw their own background
-behind the status bar and inset only their content. Material Adaptive Navigation 3 supplies list, detail, extra panes and empty-detail placeholders,
-including internal predictive Back. Pane metadata is scoped to a tab: a sound opened from the
+behind the status bar and inset only their content. Material Adaptive Navigation 3 supplies list,
+detail, extra panes and empty-detail placeholders, including internal predictive Back. Pane metadata is scoped to a tab: a sound opened from the
 now-playing bar, with no category beneath it, falls back to a full-screen entry. The default
 display handles compact screens. Global forward, pop and predictive-pop transitions are explicit.
 Back controls disappear only when the actual parent pane is visible. While
@@ -250,8 +242,9 @@ several panes are visible, a pane's back arrow closes that pane and what was ope
 Back still removes the latest entry.
 
 See [Navigation 3 coverage and official references](docs/NAVIGATION3_MIMARISI.md) for policies,
-optional recipes, validation and platform limits. The navigation composition test suite is shared
-by Android device tests and iOS simulator tests.
+optional recipes, validation and platform limits. The navigation composition test suite is written
+once for Android devices and the iOS simulator. CI runs it on the simulator; on Android it runs on
+local devices, because on CI's emulator it exceeded Compose's test timeout.
 
 `feature:nowplaying` is only the persistent now-playing bar, in its `shell` package; it has no
 route or screen of its own. Tapping the bar opens the playing item's own screen in the tab it
@@ -301,7 +294,8 @@ Both resolvers supply metadata and loop policy through
 `PlaybackItemResolver`; neither the session nor the platform engine needs to know the content type.
 
 Android playback uses Media3; iOS playback uses AVFoundation. Platform implementations are
-internal Metro contributions behind `PlaybackEnginePort`.
+internal and bound in each platform's playback graph; only `PlaybackEnginePort` reaches the
+application graph.
 Both native streaming paths read the application's HTTP identity from platform metadata (Android
 manifest / iOS Info.plist). iOS applies it through `AVURLAssetHTTPUserAgentKey` on initial loads and
 queue rebuilds; cached files need no HTTP options. No application identity is hard-coded in core

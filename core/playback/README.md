@@ -10,13 +10,15 @@ Standalone Kotlin Multiplatform audio playback library.
 - One active audio source and optional single-track looping.
 
 The module does not own the application graph, playlists, persistence, downloads, analytics, or
-UI. It contributes its platform adapter to Metro and owns the platform playback session,
-background controls, and playback metadata required by its player.
+UI. It binds its platform implementation in its own graph, contributes only `PlaybackEnginePort` to
+the application graph, and owns the platform playback session, background controls, and playback
+metadata required by its player.
 
 ## Platform creation
 
-Metro selects the internal platform adapter for `PlaybackEnginePort`. Android receives the
-application `Context` from the app graph; iOS needs no caller-supplied platform dependency.
+Each platform has its own graph, `AndroidPlaybackGraph` or `IosPlaybackGraph`, built once by that
+platform's graph adapter. On Android the adapter takes the application `Context` from the app graph
+and passes it on; iOS needs no platform input.
 
 The application-specific adapter in `core:session` depends on `PlaybackEnginePort`: it
 observes `state` / `sleepTimerState` and drives playback through the single
