@@ -86,7 +86,7 @@ parameters.
 Metro's generated public contribution providers return ports, keeping the concrete adapter types
 hidden.
 
-ViewModels use Metro's own integration, [MetroX ViewModel](https://github.com/ZacSweers/metro/tree/1.4.4/metrox-viewmodel-compose).
+ViewModels use Metro's own integration, [MetroX ViewModel](https://github.com/ZacSweers/metro/tree/1.4.5/metrox-viewmodel-compose).
 Each internal ViewModel contributes itself with `@ViewModelKey` and
 `@ContributesIntoMap(AppScope::class)`, and Metro constructs it and its use cases from the ports.
 A screen that needs its route's id (category, sound and story detail) is `@AssistedInject`: its
