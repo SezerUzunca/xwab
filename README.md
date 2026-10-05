@@ -71,13 +71,17 @@ compile time, so missing or ambiguous bindings fail compilation.
 Internal services contribute the same way, including to internal interfaces: the delivery cache
 store and prefetcher bind `ContentFileStore` and `ContentPrefetcher`, and `@SingleIn(AppScope::class)`
 is what makes the prefetcher and the delivery adapter share one store. A platform value is an
-internal interface each platform contributes (`ContentCacheLocation`, `FavoritesFile`). Library
-objects — the `HttpClient`, the DataStore — are created by the adapter that owns them, in its
-`@Inject` constructor. Metro offers two other ways, and both were weighed: a binding container
-contributed to `AppScope` reaches the application graph only when it is public (an internal
-`@ContributesTo` container is silently left out), which would break the core visibility rule; a
-graph private to the module, with a binding container and `@Provides`, works but costs a graph and
-a delegating adapter per module for one object only that module reads.
+internal interface each platform contributes (`ContentCacheLocation`, `FavoritesFile`).
+
+Library objects stay in the module that owns them. `core:network` and `core:favorites` each have
+their own internal Metro graph (`NetworkGraph`, `FavoritesGraph`) that provides the `HttpClient` or
+the DataStore with `@Provides` and constructs the adapter around it; a small `@ContributesBinding`
+adapter hands that graph's port to `AppScope`. A binding container contributed to `AppScope` would
+reach the application graph only if it were public — an internal `@ContributesTo` container is
+silently left out — and core declarations outside `.port` stay internal. Only these two modules
+use a graph of their own: the rest are wired to each other through `AppScope` (the session's
+resolver map, the engine, delivery), which separate graphs would turn back into hand-passed
+parameters.
 
 Metro's generated public contribution providers return ports, keeping the concrete adapter types
 hidden.

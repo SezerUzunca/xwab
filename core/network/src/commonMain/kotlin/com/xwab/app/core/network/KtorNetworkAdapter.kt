@@ -3,12 +3,9 @@ package com.xwab.app.core.network
 import com.xwab.app.core.network.port.NetworkPort
 import com.xwab.app.core.network.port.NetworkResponse
 import com.xwab.app.core.network.port.NetworkTransportException
-import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import io.ktor.client.HttpClient
-import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.header
 import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
@@ -21,21 +18,11 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.cancellation.CancellationException
 
-@ContributesBinding(AppScope::class)
-@SingleIn(AppScope::class)
-internal class KtorNetworkAdapter : NetworkPort {
-    private val client: HttpClient
-
-    @Inject
-    constructor() {
-        client = createNetworkHttpClient()
-    }
-
-    internal constructor(
-        client: HttpClient,
-    ) {
-        this.client = client
-    }
+@SingleIn(NetworkScope::class)
+@Inject
+internal class KtorNetworkAdapter(
+    private val client: HttpClient,
+) : NetworkPort {
 
     override suspend fun download(
         httpsUrl: String,
@@ -91,24 +78,6 @@ private inline fun downloadCallback(block: () -> Unit) {
 
 private class DownloadCallbackFailure(val original: Throwable) : RuntimeException()
 
-/**
- * One client for every caller, with the two timeouts that mean the same thing to all of them:
- * a connection has to be established, and a transfer in progress has to keep progressing.
- *
- * There is deliberately **no request timeout here**. It would apply to the whole call including the
- * body, so the same number would have to serve a catalog document and a 25 MB download — and 25 MB
- * inside two minutes needs a sustained 1.75 Mbit/s, which is exactly what a listener on a weak
- * connection does not have.
- */
-private fun createNetworkHttpClient(): HttpClient = HttpClient {
-    expectSuccess = false
-    followRedirects = true
-    install(HttpTimeout) {
-        connectTimeoutMillis = CONNECT_TIMEOUT_MILLIS
-        socketTimeoutMillis = SOCKET_TIMEOUT_MILLIS
-    }
-}
-
 private fun requireHttps(rawUrl: String) {
     val isHttps = try {
         Url(rawUrl).protocol == URLProtocol.HTTPS
@@ -119,7 +88,3 @@ private fun requireHttps(rawUrl: String) {
 }
 
 private const val STREAM_BUFFER_BYTES = 16 * 1024
-private const val CONNECT_TIMEOUT_MILLIS = 10_000L
-
-/** Between two pieces of a transfer. A connection that stops sending fails; a slow one does not. */
-private const val SOCKET_TIMEOUT_MILLIS = 30_000L
