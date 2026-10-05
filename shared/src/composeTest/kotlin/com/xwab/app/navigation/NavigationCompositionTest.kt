@@ -31,12 +31,14 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.enableSavedStateHandles
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigationevent.DirectNavigationEventInput
@@ -56,6 +58,12 @@ import com.xwab.app.designsystem.components.LocalBackButtonVisibility
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import com.xwab.app.ui.AppNavigationDisplay
 import com.xwab.app.ui.rememberTabEntries
+import dev.zacsweers.metrox.viewmodel.LocalMetroViewModelFactory
+import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactory
+import dev.zacsweers.metrox.viewmodel.MetroViewModelFactory
+import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
+import dev.zacsweers.metrox.viewmodel.metroViewModel
+import kotlin.reflect.KClass
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -66,6 +74,9 @@ import kotlin.test.assertTrue
 /**
  * Exercises the production navigation state, entry decorators, navigation suite and now-playing bar slot.
  * Plain Navigator tests cannot detect a ViewModel store collision or a lost rememberSaveable value.
+ * Entry ViewModels are looked up through MetroX, as production screens look theirs up, and keep
+ * state in their SavedStateHandle; it survives recreation in its own entry only while the
+ * decorators run in their production order.
  * The now-playing bar slot sits outside `NavDisplay`, so it is drawn once and keeps the root ViewModel owner
  * whatever the scenes do. Android device tests and iOS simulator tests share this suite.
  */
@@ -138,6 +149,8 @@ class NavigationCompositionTest {
                 assertEquals(FavoritesRoute, harness.state.topLevelRoute)
                 assertEquals(expectedStacks, harness.state.backStacks.mapValues { it.value.toList() })
                 assertNotSame(oldFavoritesModel, restoredFavoritesModel)
+                // A ViewModel's SavedStateHandle is saved with its own entry, not with the root.
+                assertEquals(2, restoredFavoritesModel.taps)
             }
             onNodeWithText(restoredFavoritesModel.label(2)).assertExists()
 
@@ -146,6 +159,9 @@ class NavigationCompositionTest {
             assertNotSame(oldBrowseModel, restoredBrowseModel)
             assertNotSame(restoredFavoritesModel, restoredBrowseModel)
             onNodeWithText(restoredBrowseModel.label(1)).assertExists()
+            runOnIdle {
+                assertEquals(1, restoredBrowseModel.taps, "the same route in another tab keeps its own handle")
+            }
             back(harness)
             runOnIdle { assertEquals(category, harness.state.currentBackStack.last()) }
         }
@@ -297,6 +313,21 @@ private class NavigationHarness {
 
     fun lastModel(route: NavKey) = models.last { it.route == route }
 
+    /** What the app graph contributes in production, reduced to this suite's two ViewModels. */
+    private val viewModelFactory = object : MetroViewModelFactory() {
+        override val viewModelProviders = mapOf<KClass<out ViewModel>, () -> ViewModel>(
+            ChromeViewModel::class to { ChromeViewModel() },
+        )
+        override val manualAssistedFactoryProviders =
+            mapOf<KClass<out ManualViewModelAssistedFactory>, () -> ManualViewModelAssistedFactory>(
+                EntryViewModel.Factory::class to {
+                    EntryViewModel.Factory { route, handle ->
+                        EntryViewModel(route, models.size, handle).also { models.add(it) }
+                    }
+                },
+            )
+    }
+
     fun restoreInNewRoot(saved: Map<String, List<Any?>>) {
         rootOwner.close()
         rootOwner = TestRootOwner()
@@ -315,6 +346,7 @@ private class NavigationHarness {
         val windowWidthPx = LocalWindowInfo.current.containerSize.width
         val widthDp = if (wide) WIDE_WIDTH_DP else COMPACT_WIDTH_DP
         CompositionLocalProvider(
+            LocalMetroViewModelFactory provides viewModelFactory,
             LocalSaveableStateRegistry provides registry,
             LocalViewModelStoreOwner provides rootOwner,
             LocalLifecycleOwner provides rootOwner,
@@ -351,11 +383,21 @@ private class NavigationHarness {
     @Composable
     private fun Entry(route: NavKey) {
         val owner = checkNotNull(LocalViewModelStoreOwner.current)
-        val model = viewModel { EntryViewModel(route, models.size).also { models.add(it) } }
+        // The lookup production entries make, taking the entry's saved state the way a screen that
+        // needs one would: from the extras MetroX passes to the lambda.
+        val model = assistedMetroViewModel<EntryViewModel, EntryViewModel.Factory> { extras ->
+            create(route, extras.createSavedStateHandle())
+        }
         var savedCount by rememberSaveable { mutableIntStateOf(0) }
         SideEffect { entryOwners += owner }
         Column {
-            BasicText(model.label(savedCount), Modifier.clickable { savedCount++ })
+            BasicText(
+                model.label(savedCount),
+                Modifier.clickable {
+                    savedCount++
+                    model.tap()
+                },
+            )
             if (route !in TOP_LEVEL_DESTINATIONS.map { it.route } && LocalBackButtonVisibility.current) {
                 BasicText("Up:$route")
             }
@@ -365,7 +407,7 @@ private class NavigationHarness {
     @Composable
     private fun Chrome() {
         val owner = checkNotNull(LocalViewModelStoreOwner.current)
-        val model = viewModel { ChromeViewModel() }
+        val model: ChromeViewModel = metroViewModel()
         SideEffect {
             chromeOwners += owner
             chromeModels += model
@@ -374,9 +416,25 @@ private class NavigationHarness {
     }
 }
 
-private class EntryViewModel(val route: NavKey, private val id: Int) : ViewModel() {
+private class EntryViewModel(
+    val route: NavKey,
+    private val id: Int,
+    private val handle: SavedStateHandle,
+) : ViewModel() {
+    fun interface Factory : ManualViewModelAssistedFactory {
+        fun create(route: NavKey, handle: SavedStateHandle): EntryViewModel
+    }
+
     var cleared = false
         private set
+
+    /** Taps kept in this entry's [SavedStateHandle], as a screen's own ViewModel would keep state. */
+    val taps: Int
+        get() = handle[TAPS_KEY] ?: 0
+
+    fun tap() {
+        handle[TAPS_KEY] = taps + 1
+    }
 
     fun label(savedCount: Int) = "entry:$id saved:$savedCount"
 
@@ -403,6 +461,8 @@ private class TestRootOwner : ViewModelStoreOwner, SavedStateRegistryOwner {
     init {
         controller.performAttach()
         controller.performRestore(null)
+        // As ComponentActivity does. Entries must not lean on the root's handles to keep their own.
+        enableSavedStateHandles()
         lifecycle.currentState = Lifecycle.State.RESUMED
     }
 
@@ -411,6 +471,8 @@ private class TestRootOwner : ViewModelStoreOwner, SavedStateRegistryOwner {
         viewModelStore.clear()
     }
 }
+
+private const val TAPS_KEY = "taps"
 
 /** Compact and expanded width classes, the latter with room for two panes. */
 private const val COMPACT_WIDTH_DP = 400f

@@ -45,6 +45,9 @@ internal fun rememberTabEntries(
             rememberDecoratedNavEntries(
                 backStack = backStack,
                 entryDecorators = listOf(
+                    // In this order: the saveable decorator gives each entry its own saved-state
+                    // registry and the store decorator hands it to the entry's ViewModels, so a
+                    // SavedStateHandle is saved and restored with its entry rather than the root.
                     rememberSaveableStateHolderNavEntryDecorator(),
                     rememberViewModelStoreNavEntryDecorator(),
                     rememberAdaptiveBackNavEntryDecorator(onUp),
