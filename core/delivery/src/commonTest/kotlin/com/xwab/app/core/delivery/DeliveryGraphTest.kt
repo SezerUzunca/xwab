@@ -1,13 +1,12 @@
 package com.xwab.app.core.delivery
 
 import com.xwab.app.core.delivery.port.CacheKey
-import com.xwab.app.core.delivery.port.DeliveryPort
 import com.xwab.app.core.delivery.port.DeliveryRequest
 import com.xwab.app.core.network.port.NetworkPort
 import com.xwab.app.core.network.port.NetworkResponse
-import dev.zacsweers.metro.DependencyGraph
+import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.Provides
-import dev.zacsweers.metro.createGraphFactory
+import dev.zacsweers.metro.createDynamicGraphFactory
 import kotlin.test.Test
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -27,7 +26,8 @@ import okio.fakefilesystem.FakeFileSystem
 
 /**
  * The cache store is shared by scope alone: nothing hands the prefetcher the adapter's instance.
- * This builds the module's own wiring and checks that a prefetch reaches an open observer.
+ * This builds the module's own graph, test doubles swapped in through Metro's dynamic graph, and
+ * checks that a prefetch reaches an open observer.
  */
 class DeliveryGraphTest {
     @Test
@@ -35,13 +35,9 @@ class DeliveryGraphTest {
         val fileSystem = FakeFileSystem()
         val network = GatedNetwork()
         try {
-            val graph = createGraphFactory<DeliveryTestGraph.Factory>().create(
-                networkPort = network,
-                location = TestCacheLocation,
-                fileSystem = fileSystem,
-                backgroundScope = backgroundScope,
-                fileDispatcher = StandardTestDispatcher(testScheduler),
-            )
+            val graph = createDynamicGraphFactory<DeliveryGraph.Factory>(
+                TestDoubles(fileSystem, backgroundScope, StandardTestDispatcher(testScheduler)),
+            ).create(networkPort = network, location = TestCacheLocation)
             assertSame(graph.delivery, graph.delivery)
             val request = DeliveryRequest(CacheKey("sound", "rain.mp3"), "https://example.test/rain.mp3")
             // Subscribe before prefetch: a separately constructed store would never invalidate it.
@@ -58,22 +54,19 @@ class DeliveryGraphTest {
     }
 }
 
-// The production bindings, with the file system and dispatchers the store takes as optional
-// dependencies bound to test doubles.
-@DependencyGraph(DeliveryScope::class, bindingContainers = [DeliveryBindings::class])
-internal interface DeliveryTestGraph {
-    val delivery: DeliveryPort
+// The file system, scope and dispatcher the store and prefetcher take as optional dependencies,
+// bound to test doubles in the production graph.
+@BindingContainer
+private class TestDoubles(
+    private val fileSystem: FileSystem,
+    private val backgroundScope: CoroutineScope,
+    private val fileDispatcher: CoroutineDispatcher,
+) {
+    @Provides fun fileSystem(): FileSystem = fileSystem
 
-    @DependencyGraph.Factory
-    interface Factory {
-        fun create(
-            @Provides networkPort: NetworkPort,
-            @Provides location: ContentCacheLocation,
-            @Provides fileSystem: FileSystem,
-            @Provides backgroundScope: CoroutineScope,
-            @Provides fileDispatcher: CoroutineDispatcher,
-        ): DeliveryTestGraph
-    }
+    @Provides fun backgroundScope(): CoroutineScope = backgroundScope
+
+    @Provides fun fileDispatcher(): CoroutineDispatcher = fileDispatcher
 }
 
 private object TestCacheLocation : ContentCacheLocation {
