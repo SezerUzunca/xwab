@@ -241,7 +241,7 @@ Back controls disappear only when the actual parent pane is visible. While
 several panes are visible, a pane's back arrow closes that pane and what was opened from it; system
 Back still removes the latest entry.
 
-See [Navigation 3 coverage and official references](docs/NAVIGATION3_MIMARISI.md) for policies,
+See [Navigation 3 coverage and official references](docs/NAVIGATION3_ARCHITECTURE.md) for policies,
 optional recipes, validation and platform limits. The navigation composition test suite is written
 once for Android devices and the iOS simulator. CI runs it on the simulator; on Android it runs on
 local devices, because on CI's emulator it exceeded Compose's test timeout.
