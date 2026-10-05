@@ -144,11 +144,13 @@ internal class PlaybackService : MediaSessionService() {
     /**
      * How this app identifies itself to a host it streams from, or null when it does not say.
      *
-     * Read from the application's manifest rather than injected, because Android constructs this
-     * service and nothing can hand it a value. Read at all because the header the app attaches to
-     * its *downloads* never reaches this player: a sound that is not cached yet is opened here,
-     * directly, and until this the request went out under whatever the platform's HTTP stack calls
-     * itself. Some hosts refuse that.
+     * Read from the application's manifest rather than injected. Android constructs this service,
+     * so a value could only reach it by member injection from a graph the service would first have
+     * to find; one string the application already declares does not need that.
+     *
+     * Read at all because the header the app attaches to its *downloads* never reaches this
+     * player: a sound that is not cached yet is opened here, directly, and until this the request
+     * went out under whatever the platform's HTTP stack calls itself. Some hosts refuse that.
      *
      * It is a string the application owns. This module learns that requests should say who is
      * making them — which is a property of any HTTP client — and nothing about who that is.
