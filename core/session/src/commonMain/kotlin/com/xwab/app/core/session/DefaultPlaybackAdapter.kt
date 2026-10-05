@@ -48,14 +48,14 @@ internal class DefaultPlaybackAdapter(
      * and this constructor never changes. Metro aggregates the map in the application graph from
      * the compile classpath, and [SessionGraphAdapter] hands it to this module's graph, so the map
      * holds exactly the content modules the composition root declares — a removed one is simply
-     * absent, and the kind it used to answer for reports `ItemNotFound`. With no contributions the
-     * adapter passes an empty map, so the session still exists after the last content module is
-     * removed.
+     * absent, and the kind it used to answer for reports `ItemNotFound`. With no contributions
+     * [SessionGraphAdapter] passes an empty map, so the session still exists after the last content
+     * module is removed.
      *
      * Keys cannot collide: a map is a map, and two modules registering the same kind is a Metro
      * duplicate-binding error at compile time rather than one resolver silently never running.
      */
-    private val resolversByKind: Map<String, PlaybackItemResolver> = emptyMap(),
+    private val resolversByKind: Map<String, PlaybackItemResolver>,
 ) : PlaybackPort {
 
     /**
