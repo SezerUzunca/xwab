@@ -117,11 +117,7 @@ uygulamaya eklemek veya kullanılmayan route/dekoratör üretmek kapsamı tamaml
 | Parcelable stack | Common Android/iOS route'ları Kotlin serialization kullanır. |
 | Fragment / View interop | Uygulama Compose Multiplatform ekranlarından oluşur. |
 
-Bu tabloda kullanılmayan tarifler gizlenmez. “Tüm Navigation 3 özellikleri kullanılıyor” veya
-“hata ihtimali sıfır” iddiası yapılmaz; uygulamadaki karşılıkların tamamı ve platform test
-sınırları ayrı ayrı belirtilir.
-
-## Resmi belgelerle karşılaştırma ve eski kod temizliği
+## Resmi belgelerle karşılaştırma
 
 29 Eylül 2026 tarihinde resmi belgeler tekrar kontrol edildi. Uygulamanın kullandığı
 karşılıklar aşağıdadır; tablo uygulama politikası ile kütüphane API'sini ayırır.
@@ -133,32 +129,6 @@ karşılıklar aşağıdadır; tablo uygulama politikası ile kütüphane API'si
 | Animasyon | `NavDisplay` üç transition spec'i kullanır; hedefe özel metadata geçişi yoktur. | [Navigation animasyonları](https://developer.android.com/guide/navigation/navigation-3/animate-destinations) |
 | State ve ViewModel | Her sekmenin decorator sırası saveable-state, ardından ViewModel store'dur. Aktif olmayan sekmelerin decorator'ları composition'da tutulur. | [State ve ViewModel](https://developer.android.com/guide/navigation/navigation-3/save-state), [Çoklu geçmiş](https://developer.android.com/guide/navigation/navigation-3/recipes/multiple-backstacks) |
 | KMP serialization | Feature serializer modülleri birleşir; `rememberNavBackStack` açık `SavedStateConfiguration` alır. Android reflection overload'u common kodda kullanılmaz. | [KMP route serialization](https://kotlinlang.org/docs/multiplatform/compose-navigation-3.html) |
-
-Temizlikte kaldırılanlar:
-
-- Yalnızca mini player slot'unu saran `AppNowPlayingBar.kt`; slot doğrudan
-  `AppNavigationHost` içinde bağlanır.
-- `appEntryProvider` içindeki eski `onBack(); onNavigate(...)` replacement fallback'i.
-  Host artık replacement ve reselect callback'lerini zorunlu olarak sağlar.
-- Shared entry pipeline'ındaki boş metadata fallback'leri. Sunum metadata provider'ı
-  açıkça verilmelidir; adaptif politika yanlışlıkla devre dışı bırakılamaz.
-- Yalnızca detay intent'inin kullandığı `PlaybackItemId.route()` yardımcı API'si;
-  tür eşlemesi `openPlaybackDetails` içinde yapılır. Testler doğrudan intent'i sınar.
-- Eski panel mimarisini güncelmiş gibi anlatan yorumlar ve uygulama notları.
-- Shared'in `detekt-baseline-main.xml` ve `detekt-baseline-hostTest.xml` muafiyetleri.
-  Testlerde eski satır uzunluğu bulguları artık yoktur; tab modelinin dosyası sınıf adıyla
-  eşleşen `TopLevelDestination.kt` olarak adlandırılmıştır. Shared statik analizi bu
-  baseline dosyaları olmadan çalışır.
-- 29 Eylül sadeleştirmesi: sahne dekoratörü (`NavigationChromeScene`), ölçü önbelleği
-  (`ChromeSize`), `SharedTransitionLayout`, elle yazılmış bar/rail (`AppNavigationBar`,
-  `AppNavigationRail`) ve 600dp eşiği kaldırıldı; yerlerini Material `NavigationSuiteScaffold`
-  aldı. `replaceCurrent` içindeki `Snapshot.withMutableSnapshot` gereksizdi, kaldırıldı.
-  Kök ekrandaki `safeDrawingPadding` durum çubuğunun arkasında mor bir şerit bırakıyordu;
-  üst boşluğu artık her ekranın `ScreenContainer`'ı kendi arka planının içinde uyguluyor.
-- Sahiplik düzeltmesi: shell'in her ekranın altına koyduğu mini oynatıcı (`NowPlayingBar`)
-  `navigation` paketinden feature'ın yeni `shell` paketine taşındı; `checkArchitecture` bu paketi
-  navigation sözleşmeleri gibi public ve shared'dan erişilebilir sayar. Uygulama adı ve sloganı
-  (`app_title`, `app_subtitle`) Browse'dan shared'a taşındı; shell bunları `browseEntry`'ye verir.
 
 Panel içi geri oku ile sistem geri işlemi ayrı kurallardır. Sistem geri işlemi en sağdaki
 paneli kapatır. Kategori ve ses yan yana görünürken bu panel sestir. Kategori panelindeki
@@ -181,13 +151,15 @@ kendiliğinden uygulamaz; kullanım ve regresyon testleri olduğu için kaldır�
 - Serializer, retired-route ve content-key regresyon testleri korunur.
 - `src/composeTest/.../NavigationCompositionTest`: gerçek `AppNavigationDisplay` üzerinden
   entry store ayrılığı, sekme değiştirme, recreation, saveable state, pop temizliği ve tek
-  root chrome ViewModel'i. Compact/adaptif düzen değişiminde entry state'inin korunması ve
+  root chrome ViewModel'i. ViewModel'ler üretimdeki gibi MetroX ile alınır; entry ViewModel'inin
+  `SavedStateHandle`'ı recreation'dan sonra kendi entry'sine döner, bu da dekoratör sırasını
+  sınar. Compact/adaptif düzen değişiminde entry state'inin korunması ve
   görünür ebeveyn panelinde gereksiz geri kontrolünün gizlenmesi de sınanır. Sistem geri işlemi
   `Navigator` çağrılmadan, `NavDisplay`'in dinlediği navigation event dispatcher'ına gerçek
   geri olayı (tamamlanan ve predictive) gönderilerek sınanır: telefonda tek ekran kapanır,
   başlangıç sekmesine düşülür; liste yanında tek geri işlemi paneldeki eski seçimleri de atlar
   (`PopLatest` ile bu test düşer). Android cihaz ve iOS simulator source set'leri aynı testleri
-  kullanır.
+  kullanır; CI bunları iOS simulator'da koşar, Android'de yerel cihazda koşulur.
 - `src/composeTest/.../RetiredRouteRestoreTest`: eski bir sürümün kaydettiği, argüman taşıyan ve
   bu sürümde olmayan bir route içeren back stack, `rememberNavBackStack`'in kullandığı saved-state
   biçiminde gerçek platformda çözülür; route `RetiredRoute` olarak okunur ve temizlenir.
@@ -198,44 +170,6 @@ kendiliğinden uygulamaz; kullanım ve regresyon testleri olduğu için kaldır�
   her feature'ın serializer modülü de shell'deki `FEATURE_SERIALIZERS`'a eklenmiş olmalıdır;
   aksi durumda eksik yalnızca bir sonraki açılıştaki geri yüklemede ortaya çıkardı.
 - Statik analiz, mimari kontrol, Android lint ve APK derlemesi.
-
-Bu revizyonun doğrulama sonucu:
-
-- 402 host testi başarılı; hata ve başarısız test yok.
-- Android API 37 emülatöründe 54 cihaz testi başarılı: 49 ortak test ve 5 Compose UI testi.
-  Ortak testler host ve cihazda tekrar çalıştırıldığı için bu sayılar farklı testlerin
-  toplamı olarak yorumlanmamalıdır.
-- `check`, mimari kontrol, `staticAnalysis`, `lintDebug` ve `assembleDebug` başarılı.
-  Lint raporunda 0 hata, mevcut 5 uyarı bulunur.
-- Gerçek uygulamada compact ve geniş pencere, list/detail yerleşimi, bar/rail geçişi,
-  player açıkken pencere boyutu değişimi ve 2.0 yazı ölçeği kontrol edildi.
-- Android kenar hareketiyle predictive Back önizlemesi, tamamlanması ve hareketi geri
-  çevirerek iptal edilmesi kontrol edildi. Önizleme boyunca mini player ve navigation bar
-  tek örnek olarak sabit kaldı; iptal edilen hareket geçmişi değiştirmedi.
-- Player'dan geri dönüşte zamanlayıcının devam etmesi ve “View details” sonrasında geri
-  işleminin player'a dönmeden içerik geçmişini izlemesi kontrol edildi. Seek veya oynatma
-  ilerleme çubuğu bulunmaz. Emülatörde sesin duyulması doğrulanmadı.
-
-Test kayıtları `build/navigation-verification.log` ve
-`build/navigation-device-verification.log` dosyalarındadır; build çıktıları Git'e eklenmez.
-
-Eski kod ve shared baseline temizliğinden sonra 49 shared host testi ve 54 Android cihaz
-testi tekrar geçti. `check`, shared `staticAnalysis`, `lintDebug` ve `assembleDebug` başarılı;
-lint sonucu yine 0 hata ve mevcut 5 uyarıdır. `git diff --check` temizdir. Son başarılı
-çalışmanın kaydı `build/navigation-cleanup-final.log` dosyasındadır.
-
-```text
-.\gradlew.bat :shared:testAndroidHostTest :check :shared:staticAnalysis :androidApp:lintDebug :androidApp:assembleDebug :shared:connectedAndroidDeviceTest --max-workers=2 '-Pkotlin.compiler.execution.strategy=in-process' --console=plain
-```
-
-Kontroller `staticAnalysis` görevi ilk sıradayken başlatıldığında mevcut Detekt görev keşfi
-`ConcurrentModificationException` verdi. Yukarıdaki test–check–analiz sırası aynı kontrolleri
-başarıyla tamamladı. Bu Gradle görev grafiği sorunu navigation çalışma zamanı davranışından
-ayrıdır; build-logic bu temizlikte değiştirilmedi.
-
-29 Eylül sadeleştirmesinden sonra 410 host testi ve Android emülatöründe 59 cihaz testi
-(gerçek `NavigationSuiteScaffold` ile 5 `NavigationCompositionTest` dahil) geçti. Telefon
-düzeni, geniş ray, list–detail ve seçim değiştirme emülatörde gözle kontrol edildi.
 
 Windows üzerinde iOS framework derlemesi ve simulator testleri çalıştırılamaz. Katlanır cihaz
 donanımı ve gerçek iOS geri hareketi bu ortamın test kapsamının dışındadır.

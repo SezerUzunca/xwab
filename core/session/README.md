@@ -19,8 +19,8 @@ core:session
         └─► core:playback.port.PlaybackEnginePort
 ```
 
-The session's only core dependency is playback. Adding a content kind requires its resolver
-contribution and composition-root dependency; it requires no session change.
+The session's only core dependency is playback. Adding a content kind requires only its resolver
+contribution, since `shared` picks up core modules automatically; it requires no session change.
 Removing the last contribution is supported: an optional map binding defaults to an empty map.
 Requests for absent kinds publish `ItemNotFound`, including when a surviving platform service still
 holds a source with that kind. Existing playback can still be observed or paused.

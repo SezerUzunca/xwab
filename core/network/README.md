@@ -13,7 +13,8 @@ initial URLs and non-HTTPS schemes are rejected before the request. Ktor refuses
 the adapter also validates the final requested URL.
 
 Catalogs ship with the app, so this port exposes only the download operation currently consumed.
-Metro supplies one internal adapter and connection pool per application scope.
+The module's own graph builds one `HttpClient`, and with it one connection pool, for the
+application.
 
 Tests cover response metadata, bytes, headers, URL/redirect validation, transport failures, callback
 errors and cancellation. A real-engine test for a response interrupted mid-body is still needed;

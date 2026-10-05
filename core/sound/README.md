@@ -1,8 +1,8 @@
 # Sound
 
 `port/SoundPort.kt` is the module's only port interface. It serves metadata and confirmed offline
-availability to features and playback. This module also owns its physical addresses, stable cache filenames and host headers in
-an internal source manifest. `SoundSources` indexes validated download requests by `TrackId` and
+availability to features and playback. This module also owns its physical addresses, stable cache
+filenames and host headers in an internal source manifest. `SoundSources` indexes validated download requests by `TrackId` and
 attaches the complete current sound cache inventory. `SoundPlaybackResolver` reads that internal
 catalog and calls `DeliveryPort`; it implements session's consumer-owned `PlaybackItemResolver`
 port and contributes it to the application graph. Screens receive sound metadata, while the
@@ -30,12 +30,10 @@ four tracks per category, matching metadata/source IDs, unique cache filenames a
 headers. Resolver tests cover missing tracks and sources, delivery failures, playback metadata,
 looping defaults and the exact download headers, media types and retained cache inventory.
 
-`SOUND_CACHE_NAMESPACE` is public in `port/SoundStorage.kt` for one reader, the composition root:
-only the module that assembles the app knows which cache namespaces are still installed, and it
-names them so that downloads a removed content type left behind can be swept at launch. The cache
-requests themselves stay internal. Its value remains `sound`, pinned in `wireFormat`, because it
-names persisted cache storage. `CacheKey` and `DeliveryRequest` validate download addresses, filenames and headers at
-construction; this module validates unique source IDs and cache filenames and owns their versioning.
+`SOUND_CACHE_NAMESPACE` is declared in `port/SoundStorage.kt`; no other module reads it at
+present. The cache requests themselves stay internal. Its value stays `sound`, pinned in
+`wireFormat`, because it names persisted cache storage. `CacheKey` and `DeliveryRequest` validate
+download addresses, filenames and headers at construction; this module validates unique source IDs and cache filenames and owns their versioning.
 Playback kinds and favorites namespaces are separate contracts, even where their string values
 currently match.
 

@@ -15,7 +15,7 @@ namespaces use lowercase letters, digits, underscores or hyphens, with a maximum
 The caller maps these strings to its own domain types. Features and core modules may consume this
 port through Metro without accessing persistence implementation details.
 
-The file remains `xwab.preferences_pb`, in Android filesDir or the iOS documents directory.
+The file is `xwab.preferences_pb`, in Android filesDir or the iOS documents directory.
 Each namespace uses `favorite_<namespace>_ids`. Sound features pass `sound`; this stable favorites
 namespace is stated once by the content owner, `:core:sound`.
 Tests cover records written straight into the store, persistence, namespace isolation and invalid
@@ -28,6 +28,5 @@ reads restore availability; cancelling the collector stops retries.
 
 `toggle` and `setFavorite` return `FavoriteToggleResult.Updated` or `Unavailable`. `setFavorite`
 sets the requested membership atomically inside the DataStore transaction; repeating a removal or
-restore cannot invert the value when another screen also changes the same favorite.
-Features display read/write
-failures and decide which controls remain enabled. Cancellation propagates unchanged.
+restore cannot invert the value when another screen also changes the same favorite. Features
+display read/write failures and decide which controls remain enabled. Cancellation propagates unchanged.
