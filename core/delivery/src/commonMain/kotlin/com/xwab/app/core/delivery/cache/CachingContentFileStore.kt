@@ -5,8 +5,7 @@ import com.xwab.app.core.delivery.port.CacheKey
 import com.xwab.app.core.delivery.port.DeliveryRequest
 import com.xwab.app.core.network.port.NetworkPort
 import com.xwab.app.core.delivery.ContentCacheLocation
-import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.ContributesBinding
+import com.xwab.app.core.delivery.DeliveryScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CoroutineDispatcher
@@ -29,8 +28,7 @@ import okio.use
 
 // Scoped, not merely injected: the prefetcher writes into the same store the delivery adapter
 // observes, and only that shared instance tells an open screen a download has finished.
-@ContributesBinding(AppScope::class)
-@SingleIn(AppScope::class)
+@SingleIn(DeliveryScope::class)
 internal class CachingContentFileStore(
     private val fileSystem: FileSystem,
     private val root: Path,

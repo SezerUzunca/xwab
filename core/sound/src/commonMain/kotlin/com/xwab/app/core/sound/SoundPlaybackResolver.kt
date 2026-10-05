@@ -10,13 +10,9 @@ import com.xwab.app.core.session.port.ItemResolution
 import com.xwab.app.core.session.port.PlaybackItemResolver
 import com.xwab.app.core.session.port.PlaybackPolicy
 import com.xwab.app.core.session.port.PlaybackResolverApi
-import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.sound.port.TrackId
-import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.StringKey
 import kotlinx.coroutines.flow.first
 
 /**
@@ -27,8 +23,8 @@ import kotlinx.coroutines.flow.first
  * it never names this class or its dependencies. A content module contributes its own resolver,
  * keeping physical sources and playback policy inside their owner.
  *
- * [SOUND_PLAYBACK_KIND] is the map key rather than a literal, so the kind a screen asks for and the
- * kind that answers cannot drift apart.
+ * [SoundResolverGraphAdapter] registers it under `SOUND_PLAYBACK_KIND` rather than a literal, so the
+ * kind a screen asks for and the kind that answers cannot drift apart.
  *
  * Delivery and session are `implementation` dependencies. Physical sources stay internal, and
  * the session's architecture policy reserves resolver contracts for core adapters.
@@ -37,8 +33,6 @@ import kotlinx.coroutines.flow.first
  * not, starting the download in the background either way. That behaviour belongs to sounds and
  * stays here: a story streams and is not kept, so it must never be resolved through this path.
  */
-@ContributesIntoMap(AppScope::class)
-@StringKey(SOUND_PLAYBACK_KIND)
 @Inject
 internal class SoundPlaybackResolver(
     private val catalog: SoundPort,

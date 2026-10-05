@@ -1,8 +1,7 @@
 package com.xwab.app.core.delivery.resolution
 
 import co.touchlab.kermit.Logger
-import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.ContributesBinding
+import com.xwab.app.core.delivery.DeliveryScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import com.xwab.app.core.delivery.cache.ContentFileStore
@@ -13,8 +12,7 @@ import com.xwab.app.core.delivery.port.DeliveryResult
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.Flow
 
-@ContributesBinding(AppScope::class)
-@SingleIn(AppScope::class)
+@SingleIn(DeliveryScope::class)
 @Inject
 internal class LocalFirstDeliveryAdapter(
     private val fileStore: ContentFileStore,

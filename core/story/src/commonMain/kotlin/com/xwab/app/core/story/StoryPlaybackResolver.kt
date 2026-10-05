@@ -8,13 +8,9 @@ import com.xwab.app.core.session.port.ItemResolution
 import com.xwab.app.core.session.port.PlaybackItemResolver
 import com.xwab.app.core.session.port.PlaybackPolicy
 import com.xwab.app.core.session.port.PlaybackResolverApi
-import com.xwab.app.core.story.port.STORY_PLAYBACK_KIND
 import com.xwab.app.core.story.port.StoryId
 import com.xwab.app.core.story.port.StoryPort
-import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.StringKey
 import kotlinx.coroutines.flow.first
 
 /**
@@ -26,8 +22,6 @@ import kotlinx.coroutines.flow.first
  * An unknown catalog id is `NotFound`; `Unavailable` remains a defensive answer for a
  * catalog/source mismatch, which this module's completeness test is there to prevent.
  */
-@ContributesIntoMap(AppScope::class)
-@StringKey(STORY_PLAYBACK_KIND)
 internal class StoryPlaybackResolver internal constructor(
     private val catalog: StoryPort,
     sources: List<StorySource>,

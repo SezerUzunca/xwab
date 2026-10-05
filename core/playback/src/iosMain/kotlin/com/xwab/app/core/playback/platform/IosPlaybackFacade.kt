@@ -20,8 +20,6 @@ import com.xwab.app.core.playback.store.playbackPhase
 import com.xwab.app.core.playback.store.sleepTimerDeadline
 import com.xwab.app.core.playback.store.toMessage
 import com.xwab.app.core.playback.timer.SleepTimerTicker
-import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlin.time.TimeSource
@@ -43,8 +41,7 @@ private fun monotonicMillisSource(): () -> Long {
     return { origin.elapsedNow().inWholeMilliseconds }
 }
 
-@ContributesBinding(AppScope::class)
-@SingleIn(AppScope::class)
+@SingleIn(PlaybackScope::class)
 @Inject
 internal class IosPlaybackFacade : PlaybackEnginePort {
     init {

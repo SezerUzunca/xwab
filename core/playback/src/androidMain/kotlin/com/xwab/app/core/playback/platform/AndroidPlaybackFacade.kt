@@ -29,18 +29,14 @@ import com.xwab.app.core.playback.store.remainingDurationUntil
 import com.xwab.app.core.playback.store.sleepTimerDeadline
 import com.xwab.app.core.playback.store.toMessage
 import com.xwab.app.core.playback.timer.SleepTimerTicker
-import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import dev.zacsweers.metro.binding
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-@ContributesBinding(AppScope::class, binding = binding<PlaybackEnginePort>())
-@SingleIn(AppScope::class)
+@SingleIn(PlaybackScope::class)
 @Inject
 internal class AndroidPlaybackFacade(
     context: Context,
