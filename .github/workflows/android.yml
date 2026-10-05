@@ -176,7 +176,7 @@ jobs:
           key: ${{ steps.gradle-cache.outputs.cache-primary-key }}
 
   device-test:
-    name: Run playback service device tests
+    name: Run Android device tests
     runs-on: ubuntu-latest
     # Two emulator attempts have to fit, and one costs roughly thirteen minutes.
     timeout-minutes: 45
@@ -185,7 +185,12 @@ jobs:
       # Stated once because two steps run it. The runner hands this to `sh`, so it has to stay
       # POSIX: no pipefail, and the exit status has to be carried across the redirect by hand
       # rather than through a pipe.
-      DEVICE_TEST_SCRIPT: ./gradlew :core:playback:connectedAndroidTest --stacktrace > gradle-output.log 2>&1; status=$?; cat gradle-output.log; exit $status
+      #
+      # `:shared` runs here as well as on the iOS simulator: its device tests build the real
+      # Android application graph, which only a device has a `Context` for, and check that every
+      # screen's ViewModel and assisted factory reaches it; the rest exercise entry stores,
+      # recreation and platform Back on a real Compose host.
+      DEVICE_TEST_SCRIPT: ./gradlew :core:playback:connectedAndroidTest :shared:connectedAndroidTest --stacktrace > gradle-output.log 2>&1; status=$?; cat gradle-output.log; exit $status
 
     steps:
       - name: Check out repository
