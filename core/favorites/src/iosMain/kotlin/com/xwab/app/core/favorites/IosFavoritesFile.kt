@@ -2,9 +2,6 @@
 
 package com.xwab.app.core.favorites
 
-import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.ContributesBinding
-import dev.zacsweers.metro.Inject
 import okio.Path
 import okio.Path.Companion.toPath
 import platform.Foundation.NSDocumentDirectory
@@ -12,8 +9,6 @@ import platform.Foundation.NSFileManager
 import platform.Foundation.NSURL
 import platform.Foundation.NSUserDomainMask
 
-@ContributesBinding(AppScope::class)
-@Inject
 internal class IosFavoritesFile : FavoritesFile {
     override fun path(): Path {
         val documentDirectory: NSURL? = NSFileManager.defaultManager.URLForDirectory(

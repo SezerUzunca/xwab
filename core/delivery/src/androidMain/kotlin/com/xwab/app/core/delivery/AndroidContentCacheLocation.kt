@@ -1,14 +1,9 @@
 package com.xwab.app.core.delivery
 
 import android.content.Context
-import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.ContributesBinding
-import dev.zacsweers.metro.Inject
 import okio.Path
 import okio.Path.Companion.toPath
 
-@ContributesBinding(AppScope::class)
-@Inject
 internal class AndroidContentCacheLocation(
     context: Context,
 ) : ContentCacheLocation {

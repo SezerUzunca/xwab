@@ -2,17 +2,12 @@
 
 package com.xwab.app.core.delivery
 
-import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.ContributesBinding
-import dev.zacsweers.metro.Inject
 import okio.Path
 import okio.Path.Companion.toPath
 import platform.Foundation.NSCachesDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSUserDomainMask
 
-@ContributesBinding(AppScope::class)
-@Inject
 internal class IosContentCacheLocation : ContentCacheLocation {
     override val root: Path = iosCachePath("content")
 

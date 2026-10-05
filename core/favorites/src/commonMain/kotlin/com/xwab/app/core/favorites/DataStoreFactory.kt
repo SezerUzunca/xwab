@@ -9,8 +9,9 @@ import okio.Path
 internal const val DATA_STORE_FILE_NAME = "xwab.preferences_pb"
 
 /**
- * Where the platform keeps the favorites file. Each platform contributes its own; DataStore asks
- * on first access, off the main thread, so building the adapter touches no file system.
+ * Where the platform keeps the favorites file. Each platform's graph adapter supplies its own;
+ * DataStore asks on first access, off the main thread, so building the adapter touches no file
+ * system.
  */
 internal fun interface FavoritesFile {
     fun path(): Path

@@ -3,16 +3,12 @@ package com.xwab.app.core.favorites
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.xwab.app.core.favorites.port.FavoritesPort
-import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Binds
-import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.DependencyGraph
-import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
-import dev.zacsweers.metro.createGraphFactory
 
-/** The lifetime of this module's own graph: one per application, owned by [FavoritesGraphAdapter]. */
+/** The lifetime of this module's own graph: one per application, owned by the platform's graph adapter. */
 internal object FavoritesScope
 
 /**
@@ -36,14 +32,3 @@ internal interface FavoritesGraph {
         fun create(@Provides file: FavoritesFile): FavoritesGraph
     }
 }
-
-/**
- * Hands the module graph's port to the application graph, which builds it once. The platform's
- * [FavoritesFile] comes from the application graph and is the module graph's only input.
- */
-@ContributesBinding(AppScope::class)
-@SingleIn(AppScope::class)
-@Inject
-internal class FavoritesGraphAdapter(
-    file: FavoritesFile,
-) : FavoritesPort by createGraphFactory<FavoritesGraph.Factory>().create(file).favorites

@@ -7,17 +7,12 @@ import com.xwab.app.core.delivery.resolution.BackgroundContentPrefetcher
 import com.xwab.app.core.delivery.resolution.ContentPrefetcher
 import com.xwab.app.core.delivery.resolution.LocalFirstDeliveryAdapter
 import com.xwab.app.core.network.port.NetworkPort
-import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.Binds
-import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.DependencyGraph
-import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.Provides
-import dev.zacsweers.metro.SingleIn
-import dev.zacsweers.metro.createGraphFactory
 
-/** The lifetime of this module's own graph: one per application, owned by [DeliveryGraphAdapter]. */
+/** The lifetime of this module's own graph: one per application, owned by the platform's graph adapter. */
 internal object DeliveryScope
 
 @BindingContainer
@@ -44,12 +39,3 @@ internal interface DeliveryGraph {
         ): DeliveryGraph
     }
 }
-
-/** Hands the module graph's port to the application graph, which builds it once. */
-@ContributesBinding(AppScope::class)
-@SingleIn(AppScope::class)
-@Inject
-internal class DeliveryGraphAdapter(
-    networkPort: NetworkPort,
-    location: ContentCacheLocation,
-) : DeliveryPort by createGraphFactory<DeliveryGraph.Factory>().create(networkPort, location).delivery

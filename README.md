@@ -74,11 +74,15 @@ Only ports leave a module. A small `*GraphAdapter` contributes the module graph'
 with `@ContributesBinding` (or, for a content resolver, `@ContributesIntoMap` under its playback
 kind); a module that hands out two things builds its graph once in a `*GraphHolder` both adapters
 share. What a module needs from another — `NetworkPort` for delivery, `DeliveryPort` for sounds, the
-engine and the resolver map for the session, the platform's `Context` or cache location — the
-adapter takes from `AppScope` and passes to its graph's factory. The resolver map therefore stays a
-multibinding of the application graph, and content modules still plug in and out there. Android and
-iOS application graphs and every module graph are generated at compile time, so a missing binding
-inside a module fails that module's own compilation.
+engine and the resolver map for the session — the adapter takes from `AppScope` and passes to its
+graph's factory. The resolver map therefore stays a multibinding of the application graph, and
+content modules still plug in and out there. A platform value — the favorites file, the cache
+directory — is built by that platform's adapter (`AndroidDeliveryGraphAdapter`,
+`IosFavoritesGraphAdapter`, …) from the application `Context` it takes, so it never becomes an
+application binding either; delivery, favorites and playback have one adapter per platform for that
+reason. Beyond ports, a core module adds only its `*GraphHolder`, where it has one, to the
+application graph. Android and iOS application graphs and every module graph are generated at
+compile time, so a missing binding inside a module fails that module's own compilation.
 
 Each module's tests build its production graph directly (`DeliveryGraphTest`, `SoundGraphTest`,
 `StoryGraphTest`, `SessionGraphTest`, `NetworkGraphTest`, the favorites graph test) with plain test
