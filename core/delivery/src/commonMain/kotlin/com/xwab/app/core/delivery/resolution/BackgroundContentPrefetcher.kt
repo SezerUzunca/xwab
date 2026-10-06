@@ -16,10 +16,7 @@ import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -27,7 +24,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * Single-flight downloads on an owned background scope, with a bounded retry.
+ * Single-flight downloads on the module graph's background scope, with a bounded retry.
  *
  * The in-flight set is keyed by cache file name, which already carries the track id and its
  * version, so two requests for the same file share one transfer while a version bump gets its own.
@@ -36,8 +33,8 @@ import kotlinx.coroutines.withContext
 @Inject
 internal class BackgroundContentPrefetcher(
     private val fileStore: ContentFileStore,
-    private val backgroundScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-    private val timeSource: TimeSource = TimeSource.Monotonic,
+    private val backgroundScope: CoroutineScope,
+    private val timeSource: TimeSource,
 ) : ContentPrefetcher {
     private val logger = Logger.withTag("BackgroundContentPrefetcher")
     private val inFlight = mutableSetOf<CacheKey>()
@@ -50,8 +47,8 @@ internal class BackgroundContentPrefetcher(
     // window, leaving the slot claimed for the lifetime of the prefetcher.
     //
     // What makes the API delicate is the same thing: a body that ignores cancellation would keep
-    // working after `close()`. This one does not — the store suspends before it reaches the
-    // network, so a canceled transfer unwinds at once and the `finally` is all that runs.
+    // working after its scope is cancelled. This one does not — the store suspends before it
+    // reaches the network, so a canceled transfer unwinds at once and the `finally` is all that runs.
     @OptIn(DelicateCoroutinesApi::class)
     override suspend fun prefetch(request: DeliveryRequest) {
         val cacheFileName = request.key
@@ -64,10 +61,6 @@ internal class BackgroundContentPrefetcher(
                 releaseSlot(cacheFileName)
             }
         }
-    }
-
-    override fun close() {
-        backgroundScope.cancel()
     }
 
     /**

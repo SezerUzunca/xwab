@@ -9,9 +9,6 @@ import com.xwab.app.core.delivery.DeliveryScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
-// Required on Kotlin/Native, where IO is an extension rather than a JVM member.
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,22 +31,20 @@ internal class CachingContentFileStore(
     private val root: Path,
     private val networkPort: NetworkPort,
     private val fileDispatcher: CoroutineDispatcher,
-    private val legacyRoots: List<Path> = emptyList(),
 ) : ContentFileStore {
     /**
-     * The platform names the directories. The file system and dispatcher are the real ones unless
-     * a graph binds others, which is how a test graph substitutes fakes.
+     * The platform names the directory. The file system and dispatcher come from the module graph,
+     * which a test replaces with fakes.
      */
     @Inject
     constructor(
         location: ContentCacheLocation,
         networkPort: NetworkPort,
-        fileSystem: FileSystem = FileSystem.SYSTEM,
-        fileDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    ) : this(fileSystem, location.root, networkPort, fileDispatcher, location.legacyRoots)
+        fileSystem: FileSystem,
+        fileDispatcher: CoroutineDispatcher,
+    ) : this(fileSystem, location.root, networkPort, fileDispatcher)
 
     private val logger = Logger.withTag("CachingContentFileStore")
-    private var legacyRootsPurged = false
     private val cacheRevision = MutableStateFlow(0L)
 
     override fun observeCached(key: CacheKey): Flow<Boolean> = cacheRevision.map {
@@ -82,7 +77,6 @@ internal class CachingContentFileStore(
         val directory = root / request.key.namespace
         val partial = directory / partialCacheFileName(request.key.fileName)
         withContext(fileDispatcher) {
-            purgeLegacyRootsOnce()
             fileSystem.createDirectories(directory)
             fileSystem.delete(partial, mustExist = false)
         }
@@ -114,27 +108,6 @@ internal class CachingContentFileStore(
                 networkPort.downloadContent(request) { bytes, count -> sink.write(bytes, 0, count) }
             }
             handle.flush()
-        }
-    }
-
-    /**
-     * Drops caches written before delivery was namespaced.
-     *
-     * Those files sit beside the namespace directories rather than inside one, and the sweep only
-     * ever lists a single namespace — so nothing here would reach them again, and they would stay
-     * until the platform reclaimed the cache on its own. One directory walk on the first download
-     * after an upgrade settles it. A cache that refuses to be deleted is not worth failing the
-     * download that happened to find it.
-     */
-    private fun purgeLegacyRootsOnce() {
-        if (legacyRootsPurged) return
-        legacyRootsPurged = true
-        legacyRoots.forEach { legacyRoot ->
-            try {
-                fileSystem.deleteRecursively(legacyRoot, mustExist = false)
-            } catch (error: IOException) {
-                logger.w(error) { "Could not remove the pre-namespace cache at $legacyRoot." }
-            }
         }
     }
 

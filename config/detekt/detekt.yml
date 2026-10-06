@@ -7,6 +7,12 @@ naming:
     # the Compose API guideline, not an exception to it.
     ignoreAnnotated: ['Composable']
 
+coroutines:
+  InjectDispatcher:
+    # A Metro `@Provides` function is where a dispatcher is injected from, not a use that skips
+    # injection: everything that runs on it receives it from the graph.
+    ignoreAnnotated: ['Provides']
+
 style:
   UnusedPrivateFunction:
     # A `@Preview` is called by the IDE's preview renderer, never by code, so it always looks unused.

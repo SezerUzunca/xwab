@@ -56,7 +56,7 @@ There is no shared repository abstraction. A feature consumes the narrow capabil
 | Capability module | Public port |
 |---|---|
 | `:core:sound` | `SoundPort`, sound metadata models, `SOUND_FAVORITES_NAMESPACE`, `SOUND_PLAYBACK_KIND` and `SOUND_CACHE_NAMESPACE` |
-| `:core:delivery` | `DeliveryPort`, `DeliveryRequest`, `CacheKey` and `DeliveryResult` |
+| `:core:delivery` | `DeliveryPort`, `DeliveryRequest` and `CacheKey` |
 | `:core:favorites` | `FavoritesPort` |
 | `:core:story` | `StoryPort`, story metadata models and `STORY_PLAYBACK_KIND` |
 | `:core:session` | `PlaybackPort` and session models; `PlaybackItemResolver`, `ItemResolution` and `PlaybackPolicy` for content adapters, behind the `PlaybackResolverApi` opt-in |
@@ -64,8 +64,8 @@ There is no shared repository abstraction. A feature consumes the narrow capabil
 | `:core:network` | `NetworkPort` and transport-neutral response/error types |
 
 Every core module wires its own implementation in its own internal Metro graph (`NetworkGraph`,
-`DeliveryGraph`, `FavoritesGraph`, `SoundGraph`, `StoryGraph`, `SessionGraph`, and per platform
-`AndroidPlaybackGraph` / `IosPlaybackGraph`), scoped to that module (`@SingleIn(DeliveryScope::class)`
+`FavoritesGraph`, `SoundGraph`, `StoryGraph`, `SessionGraph`, and per platform
+`AndroidDeliveryGraph` / `IosDeliveryGraph` and `AndroidPlaybackGraph` / `IosPlaybackGraph`), scoped to that module (`@SingleIn(DeliveryScope::class)`
 and so on). Library objects are provided there with `@Provides` — the `HttpClient`, the DataStore —
 and internal services bind their internal interfaces there, so the delivery cache store and the
 prefetcher share one store because the module graph scopes it.
@@ -76,17 +76,18 @@ kind); a module that hands out two things builds its graph once in a `*GraphHold
 share. What a module needs from another — `NetworkPort` for delivery, `DeliveryPort` for sounds, the
 engine and the resolver map for the session — the adapter takes from `AppScope` and passes to its
 graph's factory. The resolver map therefore stays a multibinding of the application graph, and
-content modules still plug in and out there. A platform value — the favorites file, the cache
-directory — is built by that platform's adapter (`AndroidDeliveryGraphAdapter`,
-`IosFavoritesGraphAdapter`, …), on Android from the application `Context` it takes, so it never
-becomes an application binding either; delivery, favorites and playback have one adapter per platform for that
-reason. Beyond ports, a core module adds only its `*GraphHolder`, where it has one, to the
+content modules still plug in and out there. A platform value never becomes an application
+binding either. The favorites file is built by that platform's adapter (`AndroidFavoritesGraphAdapter`,
+`IosFavoritesGraphAdapter`). Delivery and playback instead have a graph per platform that builds the
+value itself from a narrow factory input: the cache directory, or the `Context`. Their shared
+bindings sit in a binding container both graphs include. Beyond ports, a core module adds only its `*GraphHolder`, where it has one, to the
 application graph. Android and iOS application graphs and every module graph are generated at
 compile time, so a missing binding inside a module fails that module's own compilation.
 
-Each module's tests build its module graph (`DeliveryGraphTest`, `SoundGraphTest`,
-`StoryGraphTest`, `SessionGraphTest`, `NetworkGraphTest`, the favorites graph test) with test
-doubles for its inputs; playback's platform graphs are built on a device and on the simulator
+Each module's tests build its module graph (`SoundGraphTest`, `StoryGraphTest`, `SessionGraphTest`,
+`NetworkGraphTest`, the favorites graph test) with test doubles for its inputs. Delivery's platform
+graphs run one shared check on the host and on the simulator (`AndroidDeliveryGraphTest`,
+`IosDeliveryGraphTest`), and playback's platform graphs are built on a device and on the simulator
 (`AndroidPlaybackGraphTest`, `IosPlaybackGraphTest`). Library objects are provided inside module graphs rather than by a binding
 container contributed to `AppScope`, because such a container would have to be public, and core
 declarations outside `.port` stay internal.

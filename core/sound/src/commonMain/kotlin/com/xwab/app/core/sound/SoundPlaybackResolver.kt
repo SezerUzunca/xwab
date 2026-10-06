@@ -5,7 +5,6 @@
 package com.xwab.app.core.sound
 
 import com.xwab.app.core.delivery.port.DeliveryPort
-import com.xwab.app.core.delivery.port.DeliveryResult
 import com.xwab.app.core.session.port.ItemResolution
 import com.xwab.app.core.session.port.PlaybackItemResolver
 import com.xwab.app.core.session.port.PlaybackPolicy
@@ -45,16 +44,13 @@ internal class SoundPlaybackResolver(
         val track = catalog.observeTrack(trackId).first() ?: return ItemResolution.NotFound
         val request = sources.requestFor(trackId)
             ?: return ItemResolution.Unavailable("sound source is missing")
-        return when (val resolution = content.resolve(request)) {
-            is DeliveryResult.Resolved -> ItemResolution.Resolved(
-                uri = resolution.uri,
-                title = track.name,
-                displayName = track.name,
-                artist = track.playbackArtist,
-                policy = SOUND_POLICY,
-            )
-            is DeliveryResult.Unavailable -> ItemResolution.Unavailable(resolution.reason)
-        }
+        return ItemResolution.Resolved(
+            uri = content.resolve(request),
+            title = track.name,
+            displayName = track.name,
+            artist = track.playbackArtist,
+            policy = SOUND_POLICY,
+        )
     }
 }
 

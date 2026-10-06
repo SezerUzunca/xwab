@@ -14,8 +14,10 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withTimeout
 
 /**
@@ -26,7 +28,7 @@ class BackgroundContentPrefetcherTest {
     fun theSameFileNameInDifferentNamespacesStartsSeparateDownloads() = runBlocking {
         val fileStore = BlockingContentFileStore()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
-        val prefetcher = BackgroundContentPrefetcher(fileStore, scope)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sound", FILE_NAME), REMOTE_URL))
             prefetcher.prefetch(DeliveryRequest(CacheKey("story", FILE_NAME), REMOTE_URL))
@@ -34,28 +36,30 @@ class BackgroundContentPrefetcherTest {
             fileStore.releaseDownload.complete(Unit)
             scope.settle()
         } finally {
-            prefetcher.close()
+            scope.cancel()
         }
     }
 
     @Test
     fun aRequestedFileIsDownloadedOnce() = runBlocking {
         val fileStore = FakeContentFileStore()
-        val prefetcher = BackgroundContentPrefetcher(fileStore)
+        val scope = testScope()
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
 
             withTimeout(TIMEOUT_MS) { fileStore.downloaded.await() }
             assertEquals(1, fileStore.downloadCount)
         } finally {
-            prefetcher.close()
+            scope.cancel()
         }
     }
 
     @Test
     fun repeatedRequestsShareOneInFlightDownload() = runBlocking {
         val fileStore = BlockingContentFileStore()
-        val prefetcher = BackgroundContentPrefetcher(fileStore)
+        val scope = testScope()
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
             withTimeout(TIMEOUT_MS) { fileStore.downloadStarted.await() }
@@ -67,7 +71,7 @@ class BackgroundContentPrefetcherTest {
             withTimeout(TIMEOUT_MS) { fileStore.downloadFinished.await() }
             assertEquals(1, fileStore.downloadCount)
         } finally {
-            prefetcher.close()
+            scope.cancel()
         }
     }
 
@@ -78,14 +82,15 @@ class BackgroundContentPrefetcherTest {
     @Test
     fun aFailingDownloadIsRetriedThreeTimesAndThenGivenUpQuietly() = runBlocking {
         val fileStore = FailingContentFileStore()
-        val prefetcher = BackgroundContentPrefetcher(fileStore)
+        val scope = testScope()
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
 
             withTimeout(RETRY_TIMEOUT_MS) { fileStore.attemptsExhausted.await() }
             assertEquals(3, fileStore.attempts)
         } finally {
-            prefetcher.close()
+            scope.cancel()
         }
     }
 
@@ -97,7 +102,7 @@ class BackgroundContentPrefetcherTest {
     fun aFileThatJustFailedIsNotRetriedAgainImmediately() = runBlocking {
         val fileStore = FailingContentFileStore()
         val scope = testScope()
-        val prefetcher = BackgroundContentPrefetcher(fileStore, scope)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
             scope.settle()
@@ -108,7 +113,7 @@ class BackgroundContentPrefetcherTest {
 
             assertEquals(3, fileStore.attempts, "the cooldown should have refused a second burst")
         } finally {
-            prefetcher.close()
+            scope.cancel()
         }
     }
 
@@ -128,7 +133,7 @@ class BackgroundContentPrefetcherTest {
 
             assertEquals(6, fileStore.attempts, "a second burst should follow the cooldown")
         } finally {
-            prefetcher.close()
+            scope.cancel()
         }
     }
 
@@ -140,14 +145,14 @@ class BackgroundContentPrefetcherTest {
     fun anUnusableSourceIsNotRetriedAtAll() = runBlocking {
         val fileStore = UnusableContentFileStore()
         val scope = testScope()
-        val prefetcher = BackgroundContentPrefetcher(fileStore, scope)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
             scope.settle()
 
             assertEquals(1, fileStore.attempts, "an unusable source should not be retried")
         } finally {
-            prefetcher.close()
+            scope.cancel()
         }
     }
 
@@ -170,6 +175,8 @@ class BackgroundContentPrefetcherTest {
 
         override suspend fun find(key: CacheKey): String? = null
 
+        override fun observeCached(key: CacheKey): Flow<Boolean> = error("The prefetcher never observes the cache.")
+
         override suspend fun download(request: DeliveryRequest) {
             downloadCount++
             downloaded.complete(Unit)
@@ -184,6 +191,8 @@ class BackgroundContentPrefetcherTest {
         var downloadCount = 0
 
         override suspend fun find(key: CacheKey): String? = null
+
+        override fun observeCached(key: CacheKey): Flow<Boolean> = error("The prefetcher never observes the cache.")
 
         override suspend fun download(request: DeliveryRequest) {
             downloadCount++
@@ -200,6 +209,8 @@ class BackgroundContentPrefetcherTest {
 
         override suspend fun find(key: CacheKey): String? = null
 
+        override fun observeCached(key: CacheKey): Flow<Boolean> = error("The prefetcher never observes the cache.")
+
         override suspend fun download(request: DeliveryRequest) {
             attempts++
             if (attempts == 3) attemptsExhausted.complete(Unit)
@@ -212,6 +223,8 @@ class BackgroundContentPrefetcherTest {
         var attempts = 0
 
         override suspend fun find(key: CacheKey): String? = null
+
+        override fun observeCached(key: CacheKey): Flow<Boolean> = error("The prefetcher never observes the cache.")
 
         override suspend fun download(request: DeliveryRequest) {
             attempts++

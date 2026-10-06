@@ -3,12 +3,10 @@ package com.xwab.app.core.delivery.resolution
 import com.xwab.app.core.delivery.cache.ContentFileStore
 import com.xwab.app.core.delivery.port.CacheKey
 import com.xwab.app.core.delivery.port.DeliveryRequest
-import com.xwab.app.core.delivery.port.DeliveryResult
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlin.test.fail
 import kotlinx.coroutines.runBlocking
@@ -23,7 +21,7 @@ class LocalFirstDeliveryAdapterTest {
     fun uncachedContentReturnsHttpsAndStartsPrefetch() = runBlocking {
         val prefetcher = RecordingPrefetcher()
         val adapter = LocalFirstDeliveryAdapter(FakeContentFileStore(), prefetcher)
-        assertEquals(request.httpsUrl, assertIs<DeliveryResult.Resolved>(adapter.resolve(request)).uri)
+        assertEquals(request.httpsUrl, adapter.resolve(request))
         assertEquals(listOf(request), prefetcher.requests)
     }
 
@@ -31,7 +29,7 @@ class LocalFirstDeliveryAdapterTest {
     fun cachedContentReturnsItsPathWithoutPrefetch() = runBlocking {
         val prefetcher = RecordingPrefetcher()
         val adapter = LocalFirstDeliveryAdapter(FakeContentFileStore("/content/documents/guide-v1.pdf"), prefetcher)
-        assertEquals("/content/documents/guide-v1.pdf", assertIs<DeliveryResult.Resolved>(adapter.resolve(request)).uri)
+        assertEquals("/content/documents/guide-v1.pdf", adapter.resolve(request))
         assertTrue(prefetcher.requests.isEmpty())
     }
 
@@ -47,13 +45,13 @@ class LocalFirstDeliveryAdapterTest {
     @Test
     fun cacheFailuresFallBackToHttps() = runBlocking {
         val adapter = LocalFirstDeliveryAdapter(FakeContentFileStore(failure = IllegalStateException("unreadable")), RecordingPrefetcher())
-        assertEquals(request.httpsUrl, assertIs<DeliveryResult.Resolved>(adapter.resolve(request)).uri)
+        assertEquals(request.httpsUrl, adapter.resolve(request))
     }
 
     @Test
     fun prefetchFailuresDoNotPreventStreaming() = runBlocking {
         val adapter = LocalFirstDeliveryAdapter(FakeContentFileStore(), RecordingPrefetcher(IllegalStateException("closed")))
-        assertEquals(request.httpsUrl, assertIs<DeliveryResult.Resolved>(adapter.resolve(request)).uri)
+        assertEquals(request.httpsUrl, adapter.resolve(request))
     }
 
     @Test
@@ -80,6 +78,5 @@ class LocalFirstDeliveryAdapterTest {
     private class RecordingPrefetcher(private val failure: Exception? = null) : ContentPrefetcher {
         val requests = mutableListOf<DeliveryRequest>()
         override suspend fun prefetch(request: DeliveryRequest) { failure?.let { throw it }; requests += request }
-        override fun close() = Unit
     }
 }

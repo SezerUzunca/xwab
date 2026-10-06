@@ -5,7 +5,7 @@ on `:core:network`; it knows no sound/story IDs, manifests or playback engines. 
 live in `com.xwab.app.core.delivery.port`, and all platform and cache implementations are internal.
 
 ```kotlin
-val result = deliveryPort.resolve(
+val uri = deliveryPort.resolve(
     DeliveryRequest(
         key = CacheKey(namespace = "documents", fileName = "guide-v1.pdf"),
         httpsUrl = "https://example.com/guide.pdf",
@@ -44,13 +44,12 @@ Downloads use hidden staged files, response/body validation, flush and atomic pr
 Cancellation and failure remove partial files. Retryable failures receive three attempts, followed
 by a five-minute cooldown. Cache and network details remain hidden behind `DeliveryPort`.
 
-Android uses `cacheDir/content/<namespace>`; iOS uses `Library/Caches/content/<namespace>`. The
-previous flat sound cache at `audio-content/` is no longer consulted: it sits outside every
-namespace directory, so no sweep would ever reach it again. The platform adapters name it as a
-legacy root and the store deletes it once, on the first download after an upgrade; those tracks are
-then fetched again on demand in the `sound` namespace. Favorites storage is unaffected.
+Android uses `cacheDir/content/<namespace>`; iOS uses `Library/Caches/content/<namespace>`.
 
-Each platform's graph adapter builds the cache location and passes it to this module's own graph;
-only `DeliveryPort` reaches the application graph. Features cannot depend on delivery; they play
+Each platform has its own graph (`AndroidDeliveryGraph`, `IosDeliveryGraph`). Metro builds the cache
+location in it, on Android from the cache directory the adapter passes in and on iOS from the
+system's file manager. A shared binding container wires the store, the prefetcher and the adapter,
+and only `DeliveryPort` reaches the application graph. Features cannot depend on delivery; they play
 content through `PlaybackPort`. Tests cover different content types, namespace isolation, inventory
-cleanup, retry/cancellation, unsafe keys and configurable size limits.
+cleanup, retry/cancellation, unsafe keys and configurable size limits. Both platform graphs run
+one shared check that a prefetch reaches an open observer through the scoped store.
