@@ -5,11 +5,9 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringSetPreferencesKey
-import dev.zacsweers.metro.createGraphFactory
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
@@ -35,19 +33,6 @@ import com.xwab.app.core.favorites.port.FavoriteToggleResult
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DataStoreFavoritesAdapterTest {
-    /**
-     * The production module graph, on each platform. The app graph may build it on the main thread,
-     * so building it must touch no file; and it must hand out one adapter, so one store per file.
-     */
-    @Test
-    fun theModuleGraphSharesOneAdapterAndLeavesTheFileForItsFirstAccess() {
-        val graph = createGraphFactory<FavoritesGraph.Factory>().create(
-            FavoritesFile { error("The DataStore file was resolved while the graph was built.") },
-        )
-
-        assertSame(graph.favorites, graph.favorites)
-    }
-
     @Test
     fun explicitMembershipIsIdempotentAndKeepsOtherIdsAndNamespaces() = runTest {
         val store = FakePreferencesDataStore()

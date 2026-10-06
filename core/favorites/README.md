@@ -30,3 +30,9 @@ reads restore availability; cancelling the collector stops retries.
 sets the requested membership atomically inside the DataStore transaction; repeating a removal or
 restore cannot invert the value when another screen also changes the same favorite. Features
 display read/write failures and decide which controls remain enabled. Cancellation propagates unchanged.
+
+Each platform has its own graph (`AndroidFavoritesGraph`, `IosFavoritesGraph`), built by its graph adapter.
+Metro builds the favorites file in it: on Android from the `Context`, on iOS from the system's file
+manager. The file's path is resolved only when DataStore first opens it, off the main thread. A
+shared binding container provides the store, the IO scope it runs on and the adapter. Only
+`FavoritesPort` reaches the application graph.
