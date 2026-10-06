@@ -56,20 +56,21 @@ internal interface TickScheduler {
  *
  * @param onFadeVolume receives the player volume over the last [SLEEP_TIMER_FADE_MS], and full
  *   volume again once the timer expires, is cancelled or is restarted — after [onExpired] has
- *   stopped playback, so the restored level is never heard. A no-op where this ticker only
- *   mirrors a timer another component plays out (Android's PlaybackService fades itself).
+ *   stopped playback, so the restored level is never heard. Null where this ticker only mirrors a
+ *   timer another component plays out (Android's PlaybackService fades itself): there is then no
+ *   fade to step through, and the countdown ticks once a second to the end.
  */
 @AssistedInject
 internal class SleepTimerTicker(
     private val clock: SleepTimerClock,
     private val scheduler: TickScheduler,
     @Assisted private val onExpired: () -> Unit,
-    @Assisted private val onFadeVolume: (Float) -> Unit,
+    @Assisted private val onFadeVolume: ((Float) -> Unit)?,
 ) {
     /** The callbacks are the owner's; the clock and the scheduler come from the platform graph. */
     @AssistedFactory
     fun interface Factory {
-        fun create(onExpired: () -> Unit, onFadeVolume: (Float) -> Unit): SleepTimerTicker
+        fun create(onExpired: () -> Unit, onFadeVolume: ((Float) -> Unit)?): SleepTimerTicker
     }
 
     private val mutableState = MutableStateFlow(SleepTimerState())
@@ -112,14 +113,20 @@ internal class SleepTimerTicker(
         }
 
         mutableState.value = SleepTimerState(remainingMs)
-        applyVolume(sleepTimerFadeVolume(remainingMs))
-        scheduler.schedule(sleepTimerTickDelay(remainingMs, UPDATE_INTERVAL_MS)) { publishRemainingTime() }
+        val nextTickMs = if (onFadeVolume == null) {
+            remainingMs.coerceAtMost(UPDATE_INTERVAL_MS)
+        } else {
+            applyVolume(sleepTimerFadeVolume(remainingMs))
+            sleepTimerTickDelay(remainingMs, UPDATE_INTERVAL_MS)
+        }
+        scheduler.schedule(nextTickMs) { publishRemainingTime() }
     }
 
     private fun applyVolume(volume: Float) {
+        val fade = onFadeVolume ?: return
         if (volume == appliedVolume) return
         appliedVolume = volume
-        onFadeVolume(volume)
+        fade(volume)
     }
 
     private companion object {

@@ -65,8 +65,9 @@ internal class AndroidPlaybackFacade(
         // ticker only clears the UI countdown when the same deadline passes;
         // it must not issue a second pause/seek through the controller.
         onExpired = { dispatch(PlaybackMessage.SleepTimerDeadlineObserved(null)) },
-        // The service fades the volume itself.
-        onFadeVolume = {},
+        // The service fades the volume itself, so this countdown has nothing to fade and only needs
+        // to tick once a second; the screens show whole minutes.
+        onFadeVolume = null,
     )
     override val sleepTimerState: StateFlow<SleepTimerState> = sleepTimerTicker.state
 

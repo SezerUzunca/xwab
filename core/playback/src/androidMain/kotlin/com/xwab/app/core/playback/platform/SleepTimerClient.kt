@@ -80,7 +80,7 @@ internal class SleepTimerClient(
         arguments: Bundle,
         version: Long,
         onSuccess: (Long?) -> Unit,
-        onError: (() -> Unit)?,
+        onError: () -> Unit,
     ) {
         val resultFuture = runCatching {
             controller.sendCustomCommand(
@@ -90,7 +90,7 @@ internal class SleepTimerClient(
         }.getOrElse { error ->
             if (version == requestVersion) {
                 logger.e(error) { "Unable to send sleep timer command: $action" }
-                onError?.invoke()
+                onError()
             }
             return
         }
@@ -99,7 +99,7 @@ internal class SleepTimerClient(
                 val result = runCatching(resultFuture::get).getOrElse { error ->
                     if (version == requestVersion) {
                         logger.e(error) { "Sleep timer command failed: $action" }
-                        onError?.invoke()
+                        onError()
                     }
                     return@addListener
                 }
@@ -107,7 +107,7 @@ internal class SleepTimerClient(
 
                 if (result.resultCode != SessionResult.RESULT_SUCCESS) {
                     logger.e { "Sleep timer command returned non-success code (${result.resultCode}): $action" }
-                    onError?.invoke()
+                    onError()
                     return@addListener
                 }
 
