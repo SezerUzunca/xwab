@@ -45,6 +45,11 @@ internal fun prefetchUpdatesTheStoreAlreadyObservedThroughThePort(
         graph.delivery.resolve(request)
         network.release.complete(Unit)
         assertTrue(cached.await())
+        // The doubles replace the graph's own bindings: the file is in the fake, not on disk.
+        assertTrue(
+            fileSystem.allPaths.any { it.toString().replace('\\', '/').endsWith("sound/rain.mp3") },
+            "the download did not reach the test file system: ${fileSystem.allPaths}",
+        )
     } finally {
         fileSystem.checkNoOpenFiles()
         fileSystem.close()
@@ -52,8 +57,8 @@ internal fun prefetchUpdatesTheStoreAlreadyObservedThroughThePort(
 }
 
 /**
- * The file system, scope and dispatcher the store and prefetcher take as optional dependencies,
- * bound to test doubles in the production graph.
+ * Test doubles for the file system, scope and dispatcher the module graph binds. Passed to Metro's
+ * dynamic graph, they replace the production bindings.
  */
 @BindingContainer
 internal class TestDoubles(

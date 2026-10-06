@@ -9,9 +9,6 @@ import com.xwab.app.core.delivery.DeliveryScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
-// Required on Kotlin/Native, where IO is an extension rather than a JVM member.
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,15 +33,15 @@ internal class CachingContentFileStore(
     private val fileDispatcher: CoroutineDispatcher,
 ) : ContentFileStore {
     /**
-     * The platform names the directory. The file system and dispatcher are the real ones unless
-     * a graph binds others, which is how a test graph substitutes fakes.
+     * The platform names the directory. The file system and dispatcher come from the module graph,
+     * which a test replaces with fakes.
      */
     @Inject
     constructor(
         location: ContentCacheLocation,
         networkPort: NetworkPort,
-        fileSystem: FileSystem = FileSystem.SYSTEM,
-        fileDispatcher: CoroutineDispatcher = Dispatchers.IO,
+        fileSystem: FileSystem,
+        fileDispatcher: CoroutineDispatcher,
     ) : this(fileSystem, location.root, networkPort, fileDispatcher)
 
     private val logger = Logger.withTag("CachingContentFileStore")

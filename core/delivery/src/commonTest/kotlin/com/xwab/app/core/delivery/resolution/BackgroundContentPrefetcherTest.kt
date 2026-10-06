@@ -28,7 +28,7 @@ class BackgroundContentPrefetcherTest {
     fun theSameFileNameInDifferentNamespacesStartsSeparateDownloads() = runBlocking {
         val fileStore = BlockingContentFileStore()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
-        val prefetcher = BackgroundContentPrefetcher(fileStore, scope)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sound", FILE_NAME), REMOTE_URL))
             prefetcher.prefetch(DeliveryRequest(CacheKey("story", FILE_NAME), REMOTE_URL))
@@ -44,7 +44,7 @@ class BackgroundContentPrefetcherTest {
     fun aRequestedFileIsDownloadedOnce() = runBlocking {
         val fileStore = FakeContentFileStore()
         val scope = testScope()
-        val prefetcher = BackgroundContentPrefetcher(fileStore, scope)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
 
@@ -59,7 +59,7 @@ class BackgroundContentPrefetcherTest {
     fun repeatedRequestsShareOneInFlightDownload() = runBlocking {
         val fileStore = BlockingContentFileStore()
         val scope = testScope()
-        val prefetcher = BackgroundContentPrefetcher(fileStore, scope)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
             withTimeout(TIMEOUT_MS) { fileStore.downloadStarted.await() }
@@ -83,7 +83,7 @@ class BackgroundContentPrefetcherTest {
     fun aFailingDownloadIsRetriedThreeTimesAndThenGivenUpQuietly() = runBlocking {
         val fileStore = FailingContentFileStore()
         val scope = testScope()
-        val prefetcher = BackgroundContentPrefetcher(fileStore, scope)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
 
@@ -102,7 +102,7 @@ class BackgroundContentPrefetcherTest {
     fun aFileThatJustFailedIsNotRetriedAgainImmediately() = runBlocking {
         val fileStore = FailingContentFileStore()
         val scope = testScope()
-        val prefetcher = BackgroundContentPrefetcher(fileStore, scope)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
             scope.settle()
@@ -145,7 +145,7 @@ class BackgroundContentPrefetcherTest {
     fun anUnusableSourceIsNotRetriedAtAll() = runBlocking {
         val fileStore = UnusableContentFileStore()
         val scope = testScope()
-        val prefetcher = BackgroundContentPrefetcher(fileStore, scope)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
             scope.settle()

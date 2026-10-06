@@ -16,9 +16,7 @@ import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -26,7 +24,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * Single-flight downloads on an owned background scope, with a bounded retry.
+ * Single-flight downloads on the module graph's background scope, with a bounded retry.
  *
  * The in-flight set is keyed by cache file name, which already carries the track id and its
  * version, so two requests for the same file share one transfer while a version bump gets its own.
@@ -35,8 +33,8 @@ import kotlinx.coroutines.withContext
 @Inject
 internal class BackgroundContentPrefetcher(
     private val fileStore: ContentFileStore,
-    private val backgroundScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-    private val timeSource: TimeSource = TimeSource.Monotonic,
+    private val backgroundScope: CoroutineScope,
+    private val timeSource: TimeSource,
 ) : ContentPrefetcher {
     private val logger = Logger.withTag("BackgroundContentPrefetcher")
     private val inFlight = mutableSetOf<CacheKey>()
