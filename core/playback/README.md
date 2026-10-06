@@ -20,6 +20,32 @@ Each platform has its own graph, `AndroidPlaybackGraph` or `IosPlaybackGraph`, b
 platform's graph adapter. On Android the adapter takes the application `Context` from the app graph
 and passes it on; iOS needs no platform input.
 
+The graph also builds every part of the engine and the platform resources those parts use.
+
+- **Shared clock and schedulers.** The sleep-timer clock is one binding that both the facade and
+  the countdown read. The tick schedulers get their main-looper `Handler` (Android) or main
+  dispatcher (iOS) from the graph.
+- **Android connection.** The timer IPC client, the controller's session token and its executor
+  come from the graph.
+- **iOS player.** The user agent, a provider of `AVQueuePlayer` (a media-services reset needs a
+  new player) and the system's shared audio session, notification, remote-command and
+  now-playing centers come from the graph.
+- **Parts that call back into the facade.** The store, the countdown, the Android controller
+  connection, and the iOS player and media session are `@AssistedInject` classes. The facade
+  passes its callbacks to the factory, and Metro supplies the rest.
+- **Creation order.** Factories and providers create those parts only after the facade's
+  main-thread check. On iOS that covers every native resource. On Android, the load-timeout
+  scheduler, the IPC client and the clock are plain constructor inputs, so they exist before the
+  check. That is harmless: a main-looper `Handler` and an executor can be created on any thread.
+- **Unscoped schedulers.** This is deliberate. Scheduling replaces the pending tick, so each owner
+  needs its own scheduler.
+
+Android builds `PlaybackService`, so the service builds `PlaybackServiceGraph` in `onCreate`. That
+graph provides the player, its source chain with the application's user agent, the media session
+and the sleep timer. The service keeps these and releases them in `onDestroy`. The timer counts
+with the same clock and scheduler bindings as the engine's countdown. `AndroidPlaybackBindings`, a
+binding container that both Android graphs include, holds those bindings.
+
 The application-specific adapter in `core:session` depends on `PlaybackEnginePort`: it
 observes `state` / `sleepTimerState` and drives playback through the single
 `submit(PlaybackCommand...)` entry point. That module and the composition root are the only two

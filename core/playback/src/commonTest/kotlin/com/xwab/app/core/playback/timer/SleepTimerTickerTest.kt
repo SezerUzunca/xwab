@@ -46,7 +46,7 @@ class SleepTimerTickerTest {
     private val events = mutableListOf<String>()
     private val volumes get() = events.filter { it != EXPIRED }.map(String::toFloat)
     private val ticker = SleepTimerTicker(
-        nowMs = { now },
+        clock = { now },
         scheduler = scheduler,
         onExpired = {
             expiredCalls++
@@ -80,6 +80,32 @@ class SleepTimerTickerTest {
         assertEquals(1, expiredCalls)
         // Stopped first, then full volume for the next play — never full volume while still audible.
         assertEquals(listOf(EXPIRED, "1.0"), events.takeLast(2))
+    }
+
+    /**
+     * Where another component fades (Android's service), this countdown has nothing to fade: the
+     * last half minute ticks once a second like the rest, and expiry is still reported on time.
+     */
+    @Test
+    fun withoutAFadeTheLastHalfMinuteTicksOnceASecond() {
+        val mirror = SleepTimerTicker(
+            clock = { now },
+            scheduler = scheduler,
+            onExpired = { expiredCalls++ },
+            onFadeVolume = null,
+        )
+        mirror.applyDeadline(now + SLEEP_TIMER_FADE_MS)
+
+        val delays = mutableListOf<Long>()
+        while (scheduler.pending != null) {
+            delays += requireNotNull(scheduler.lastDelayMs)
+            now += delays.last()
+            scheduler.runPendingTick()
+        }
+
+        assertEquals(List((SLEEP_TIMER_FADE_MS / 1_000L).toInt()) { 1_000L }, delays)
+        assertEquals(1, expiredCalls)
+        assertNull(mirror.state.value.remainingMs)
     }
 
     @Test

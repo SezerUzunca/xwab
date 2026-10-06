@@ -6,6 +6,9 @@ import com.xwab.app.core.playback.projection.EngineTransitionState
 import com.xwab.app.core.playback.projection.shouldObserveEngineTransition
 import com.xwab.app.core.playback.store.LatestOperationGate
 import com.xwab.app.core.playback.store.PLAYBACK_READINESS_TIMEOUT_MS
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
 import kotlin.native.ref.WeakReference
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
@@ -17,15 +20,31 @@ import platform.darwin.dispatch_async
 import platform.darwin.dispatch_get_main_queue
 
 /** Owns AVQueuePlayer, AVPlayerLooper, and their native observation lifecycle. */
+@AssistedInject
 internal class IosPlaybackEngine(
-    private val onStateChanged: () -> Unit,
-    private val onPlaybackEnded: (Long) -> Unit,
-    private val onPlaybackFailed: (Long, String?) -> Unit,
-    private val onReadinessTimedOut: (Long) -> Unit,
-    private val userAgent: String? = null,
+    @Assisted private val onStateChanged: () -> Unit,
+    @Assisted private val onPlaybackEnded: (Long) -> Unit,
+    @Assisted private val onPlaybackFailed: (Long, String?) -> Unit,
+    @Assisted private val onReadinessTimedOut: (Long) -> Unit,
+    @ApplicationUserAgent private val userAgent: String?,
+    private val createPlayer: () -> AVQueuePlayer,
+    private val notificationCenter: NSNotificationCenter,
 ) {
-    private var player = AVQueuePlayer()
-    private val notificationCenter = NSNotificationCenter.defaultCenter
+    /**
+     * The callbacks are the owner's; everything else comes from the module graph. [createPlayer]
+     * makes a new player each time, because a media-services reset needs one.
+     */
+    @AssistedFactory
+    fun interface Factory {
+        fun create(
+            onStateChanged: () -> Unit,
+            onPlaybackEnded: (Long) -> Unit,
+            onPlaybackFailed: (Long, String?) -> Unit,
+            onReadinessTimedOut: (Long) -> Unit,
+        ): IosPlaybackEngine
+    }
+
+    private var player = createPlayer()
 
     private var looper: AVPlayerLooper? = null
     private var activeAsset: AVAsset? = null
@@ -310,7 +329,7 @@ internal class IosPlaybackEngine(
         stopNativeStateObservation()
         player.pause()
         clearQueue()
-        player = AVQueuePlayer()
+        player = createPlayer()
         lastObservedState = null
         observationSuspendedForFailure = false
         onStateChanged()

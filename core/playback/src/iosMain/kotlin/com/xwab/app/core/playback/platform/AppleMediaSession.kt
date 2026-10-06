@@ -2,6 +2,9 @@
 
 package com.xwab.app.core.playback.platform
 
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
 import kotlin.native.ref.WeakReference
 import platform.AVFAudio.*
 import platform.Foundation.*
@@ -12,16 +15,28 @@ import platform.darwin.dispatch_get_main_queue
 /**
  * Manages the iOS audio session and remote control commands such as AirPods controls.
  */
+@AssistedInject
 internal class AppleMediaSession(
-    private val onPlayRequested: () -> Unit,
-    private val onPauseRequested: () -> Unit,
-    private val onToggleRequested: () -> Unit,
-    private val onInterruptionBegan: () -> Unit,
-    private val onMediaServicesReset: () -> Unit,
+    @Assisted private val onPlayRequested: () -> Unit,
+    @Assisted private val onPauseRequested: () -> Unit,
+    @Assisted private val onToggleRequested: () -> Unit,
+    @Assisted private val onInterruptionBegan: () -> Unit,
+    @Assisted private val onMediaServicesReset: () -> Unit,
+    private val audioSession: AVAudioSession,
+    private val notificationCenter: NSNotificationCenter,
+    private val commandCenter: MPRemoteCommandCenter,
 ) {
-    private val audioSession = AVAudioSession.sharedInstance()
-    private val notificationCenter = NSNotificationCenter.defaultCenter
-    private val commandCenter = MPRemoteCommandCenter.sharedCommandCenter()
+    /** The callbacks are the facade's own; the system's shared centers come from the module graph. */
+    @AssistedFactory
+    fun interface Factory {
+        fun create(
+            onPlayRequested: () -> Unit,
+            onPauseRequested: () -> Unit,
+            onToggleRequested: () -> Unit,
+            onInterruptionBegan: () -> Unit,
+            onMediaServicesReset: () -> Unit,
+        ): AppleMediaSession
+    }
 
     private var resumeAfterInterruption = false
     private var playRequested = false

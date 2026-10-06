@@ -1,5 +1,3 @@
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class, kotlin.experimental.ExperimentalNativeApi::class)
-
 package com.xwab.app.core.playback.platform
 
 import co.touchlab.kermit.Logger
@@ -19,53 +17,49 @@ import com.xwab.app.core.playback.store.PlaybackStore
 import com.xwab.app.core.playback.store.playbackPhase
 import com.xwab.app.core.playback.store.sleepTimerDeadline
 import com.xwab.app.core.playback.store.toMessage
+import com.xwab.app.core.playback.timer.SleepTimerClock
 import com.xwab.app.core.playback.timer.SleepTimerTicker
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import kotlin.time.TimeSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import platform.Foundation.NSBundle
 import platform.Foundation.NSThread
 
 /**
- * A millisecond reading of a process-local monotonic clock.
+ * The iOS engine. Metro builds all of its parts from the module graph.
  *
- * Only iOS needs this: it owns its sleep timer in-process, so it derives its own
- * deadlines. Android instead reads `SystemClock.elapsedRealtime`, because its
- * deadlines are shared with the PlaybackService and must use that timebase.
+ * Every native part arrives as a factory or a provider, so none is created before the main-thread
+ * check below.
  */
-private fun monotonicMillisSource(): () -> Long {
-    val origin = TimeSource.Monotonic.markNow()
-    return { origin.elapsedNow().inWholeMilliseconds }
-}
-
 @SingleIn(PlaybackScope::class)
 @Inject
-internal class IosPlaybackFacade : PlaybackEnginePort {
+internal class IosPlaybackFacade(
+    private val clock: SleepTimerClock,
+    sleepTimerTickerFactory: SleepTimerTicker.Factory,
+    storeFactory: PlaybackStore.Factory,
+    engineFactory: IosPlaybackEngine.Factory,
+    mediaSessionFactory: AppleMediaSession.Factory,
+    createNowPlayingInfoPublisher: () -> NowPlayingInfoPublisher,
+) : PlaybackEnginePort {
     init {
         check(NSThread.isMainThread) { "IosPlaybackFacade must be created on the main thread." }
     }
     private val mutableState = MutableStateFlow(AudioPlayerState())
     override val state: StateFlow<AudioPlayerState> = mutableState.asStateFlow()
-    private val nowMs: () -> Long = monotonicMillisSource()
-    private val sleepTimer = SleepTimerTicker(
-        nowMs = nowMs,
-        scheduler = CoroutineTickScheduler(),
+    private val sleepTimer = sleepTimerTickerFactory.create(
         onExpired = { dispatch(PlaybackMessage.SleepTimerExpired) },
         onFadeVolume = { engine.volume = it },
     )
     override val sleepTimerState: StateFlow<SleepTimerState> = sleepTimer.state
     private val logger = Logger.withTag("IosPlaybackFacade")
 
-    private val store = PlaybackStore(::executeEffects, ::publishState)
+    private val store = storeFactory.create(executeEffects = ::executeEffects, onStateChanged = ::publishState)
     private val playbackState: PlaybackState get() = store.state
     private var lastLoggedError: PlaybackError? = null
     private var pendingLoad: PendingLoad? = null
 
-    private val engine: IosPlaybackEngine = IosPlaybackEngine(
-        userAgent = NSBundle.mainBundle.objectForInfoDictionaryKey(USER_AGENT_METADATA_KEY) as? String,
+    private val engine: IosPlaybackEngine = engineFactory.create(
         onStateChanged = { onEngineStateChanged() },
         onPlaybackEnded = { operationId ->
             dispatch(PlaybackMessage.EnginePlaybackEnded(operationId))
@@ -101,7 +95,7 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
             }
         },
     )
-    private val mediaSession: AppleMediaSession = AppleMediaSession(
+    private val mediaSession: AppleMediaSession = mediaSessionFactory.create(
         onPlayRequested = { submit(PlaybackCommand.Play) },
         onPauseRequested = { submit(PlaybackCommand.Pause) },
         onToggleRequested = ::togglePlayback,
@@ -110,7 +104,7 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
         },
         onMediaServicesReset = ::recoverAfterMediaServicesReset,
     )
-    private val nowPlayingInfoPublisher: NowPlayingInfoPublisher = NowPlayingInfoPublisher()
+    private val nowPlayingInfoPublisher: NowPlayingInfoPublisher = createNowPlayingInfoPublisher()
 
     private fun dispatch(intent: PlaybackMessage) = store.dispatch(intent)
 
@@ -224,7 +218,7 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
 
     override fun submit(command: PlaybackCommand) = onPlayerThread {
         if (command is PlaybackCommand.StartSleepTimer) {
-            val deadline = sleepTimerDeadline(nowMs(), command.durationMs)
+            val deadline = sleepTimerDeadline(clock.nowMs(), command.durationMs)
             dispatch(command.toMessage(deadline))
         } else {
             dispatch(command.toMessage())
@@ -401,6 +395,3 @@ internal class IosPlaybackFacade : PlaybackEnginePort {
         val source: AudioSource,
     )
 }
-
-/** The application owns its identity; the reusable player only reads its configuration. */
-private const val USER_AGENT_METADATA_KEY = "com.xwab.app.core.playback.USER_AGENT"

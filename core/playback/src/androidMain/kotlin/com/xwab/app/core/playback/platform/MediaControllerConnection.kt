@@ -1,25 +1,39 @@
 package com.xwab.app.core.playback.platform
 
-import android.content.ComponentName
 import android.content.Context
-import androidx.core.content.ContextCompat
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import co.touchlab.kermit.Logger
 import com.google.common.util.concurrent.ListenableFuture
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import java.util.concurrent.Executor
 
-/** Owns the Android MediaSession controller connection lifecycle. */
+/**
+ * Owns the Android MediaSession controller connection lifecycle. It starts connecting as soon as
+ * it is created.
+ */
+@AssistedInject
 internal class MediaControllerConnection(
     context: Context,
-    private val onConnected: (MediaController) -> Unit,
-    private val onControllerDisconnected: (MediaController) -> Unit,
-    private val onConnectionFailed: () -> Unit,
+    private val sessionToken: SessionToken,
+    private val mainExecutor: Executor,
+    @Assisted private val onConnected: (MediaController) -> Unit,
+    @Assisted private val onControllerDisconnected: (MediaController) -> Unit,
+    @Assisted private val onConnectionFailed: () -> Unit,
 ) : MediaController.Listener {
+    /** The callbacks are the owner's; everything else comes from the module graph. */
+    @AssistedFactory
+    fun interface Factory {
+        fun create(
+            onConnected: (MediaController) -> Unit,
+            onControllerDisconnected: (MediaController) -> Unit,
+            onConnectionFailed: () -> Unit,
+        ): MediaControllerConnection
+    }
+
     private val appContext = context.applicationContext
-    private val sessionToken = SessionToken(
-        appContext,
-        ComponentName(appContext, PlaybackService::class.java),
-    )
     private val logger = Logger.withTag("MediaControllerConnection")
 
     private var pendingConnectionFuture: ListenableFuture<MediaController>? = null
@@ -42,7 +56,7 @@ internal class MediaControllerConnection(
         pendingConnectionFuture = future
         future.addListener(
             { completeConnection(future) },
-            ContextCompat.getMainExecutor(appContext),
+            mainExecutor,
         )
     }
 

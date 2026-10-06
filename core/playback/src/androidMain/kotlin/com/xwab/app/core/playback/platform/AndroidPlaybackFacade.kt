@@ -1,10 +1,7 @@
 package com.xwab.app.core.playback.platform
 
-import android.content.Context
 import android.os.Bundle
 import android.os.Looper
-import android.os.SystemClock
-import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -28,7 +25,9 @@ import com.xwab.app.core.playback.store.PlaybackStore
 import com.xwab.app.core.playback.store.remainingDurationUntil
 import com.xwab.app.core.playback.store.sleepTimerDeadline
 import com.xwab.app.core.playback.store.toMessage
+import com.xwab.app.core.playback.timer.SleepTimerClock
 import com.xwab.app.core.playback.timer.SleepTimerTicker
+import com.xwab.app.core.playback.timer.TickScheduler
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import java.util.UUID
@@ -36,10 +35,21 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+/**
+ * The Android engine. Metro builds all of its parts from the module graph.
+ *
+ * Parts that need this facade's callbacks arrive as factories, so they are created only after the
+ * main-thread check below; the controller connection starts connecting the moment it exists.
+ */
 @SingleIn(PlaybackScope::class)
 @Inject
 internal class AndroidPlaybackFacade(
-    context: Context,
+    private val clock: SleepTimerClock,
+    sleepTimerTickerFactory: SleepTimerTicker.Factory,
+    private val sleepTimerClient: SleepTimerClient,
+    storeFactory: PlaybackStore.Factory,
+    private val loadTimeoutScheduler: TickScheduler,
+    connectionFactory: MediaControllerConnection.Factory,
 ) : PlaybackEnginePort, Player.Listener {
 
     init {
@@ -50,29 +60,23 @@ internal class AndroidPlaybackFacade(
 
     private val _state = MutableStateFlow(AudioPlayerState())
     override val state: StateFlow<AudioPlayerState> = _state.asStateFlow()
-    private val sleepTimerTicker = SleepTimerTicker(
-        // The service owns the timer, so the countdown must read the same
-        // monotonic clock the deadlines are expressed in.
-        nowMs = SystemClock::elapsedRealtime,
-        scheduler = HandlerTickScheduler(),
+    private val sleepTimerTicker = sleepTimerTickerFactory.create(
         // PlaybackService is the sole Android expiry authority.  The local
         // ticker only clears the UI countdown when the same deadline passes;
         // it must not issue a second pause/seek through the controller.
         onExpired = { dispatch(PlaybackMessage.SleepTimerDeadlineObserved(null)) },
-    )
-    private val sleepTimerClient = SleepTimerClient(
-        mainExecutor = ContextCompat.getMainExecutor(context.applicationContext),
+        // The service fades the volume itself, so this countdown has nothing to fade and only needs
+        // to tick once a second; the screens show whole minutes.
+        onFadeVolume = null,
     )
     override val sleepTimerState: StateFlow<SleepTimerState> = sleepTimerTicker.state
 
-    private val store = PlaybackStore(::executeEffects, ::publishState)
+    private val store = storeFactory.create(executeEffects = ::executeEffects, onStateChanged = ::publishState)
     private val playbackState: PlaybackState get() = store.state
     private val operationOwnerId = UUID.randomUUID().toString()
-    private val loadTimeoutScheduler = HandlerTickScheduler()
     private var pendingLoad: PendingLoad? = null
 
-    private val connection = MediaControllerConnection(
-        context = context.applicationContext,
+    private val connection = connectionFactory.create(
         onConnected = ::onControllerConnected,
         onControllerDisconnected = ::onControllerDisconnected,
         onConnectionFailed = ::onControllerConnectionFailed,
@@ -88,7 +92,7 @@ internal class AndroidPlaybackFacade(
         when (command) {
             is PlaybackCommand.StartSleepTimer -> {
                 val deadlineElapsedRealtimeMs = sleepTimerDeadline(
-                    nowMs = SystemClock.elapsedRealtime(),
+                    nowMs = clock.nowMs(),
                     durationMs = command.durationMs,
                 )
                 sleepTimerTicker.applyDeadline(deadlineElapsedRealtimeMs)
@@ -159,7 +163,7 @@ internal class AndroidPlaybackFacade(
                     reconcileSleepTimer(controller)
                 }
                 is PlaybackSideEffect.ReconnectSleepTimer -> ensureConnectedOrApply { controller ->
-                    if (remainingDurationUntil(effect.deadlineElapsedRealMs, SystemClock.elapsedRealtime()) != null) {
+                    if (remainingDurationUntil(effect.deadlineElapsedRealMs, clock.nowMs()) != null) {
                         applyStartSleepTimer(controller, effect.deadlineElapsedRealMs)
                     } else {
                         dispatch(PlaybackMessage.SleepTimerExpired)
@@ -325,7 +329,7 @@ internal class AndroidPlaybackFacade(
 
     private fun applyObservedSleepTimerDeadline(deadlineElapsedRealtimeMs: Long?) {
         val activeDeadline = deadlineElapsedRealtimeMs?.takeIf {
-            remainingDurationUntil(it, SystemClock.elapsedRealtime()) != null
+            remainingDurationUntil(it, clock.nowMs()) != null
         }
         sleepTimerTicker.applyDeadline(activeDeadline)
         dispatch(PlaybackMessage.SleepTimerDeadlineObserved(activeDeadline))
@@ -361,9 +365,9 @@ internal class AndroidPlaybackFacade(
         }
     }
 
-    private fun clearPendingLoad(): PendingLoad? {
+    private fun clearPendingLoad() {
         loadTimeoutScheduler.cancel()
-        return pendingLoad.also { pendingLoad = null }
+        pendingLoad = null
     }
 
     private fun readSource(player: Player): AudioSource? {

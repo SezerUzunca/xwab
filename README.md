@@ -86,7 +86,8 @@ compile time, so a missing binding inside a module fails that module's own compi
 
 Each module's tests build its module graph (`DeliveryGraphTest`, `SoundGraphTest`,
 `StoryGraphTest`, `SessionGraphTest`, `NetworkGraphTest`, the favorites graph test) with test
-doubles for its inputs. Library objects are provided inside module graphs rather than by a binding
+doubles for its inputs; playback's platform graphs are built on a device and on the simulator
+(`AndroidPlaybackGraphTest`, `IosPlaybackGraphTest`). Library objects are provided inside module graphs rather than by a binding
 container contributed to `AppScope`, because such a container would have to be public, and core
 declarations outside `.port` stay internal.
 

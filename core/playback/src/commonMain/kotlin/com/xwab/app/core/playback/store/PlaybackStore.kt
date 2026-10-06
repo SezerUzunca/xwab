@@ -1,5 +1,9 @@
 package com.xwab.app.core.playback.store
 
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+
 /**
  * Common, single-writer mailbox around the pure [reducePlayback] state machine.
  *
@@ -19,10 +23,20 @@ package com.xwab.app.core.playback.store
  * Moving to an asynchronous channel-based loop is a separate, test-gated change
  * because it would turn today's synchronous dispatch into an asynchronous one.
  */
+@AssistedInject
 internal class PlaybackStore(
-    private val executeEffects: (List<PlaybackSideEffect>) -> Unit,
-    private val onStateChanged: () -> Unit,
+    @Assisted private val executeEffects: (List<PlaybackSideEffect>) -> Unit,
+    @Assisted private val onStateChanged: () -> Unit,
 ) {
+    /** Both inputs are the facade's own callbacks. */
+    @AssistedFactory
+    fun interface Factory {
+        fun create(
+            executeEffects: (List<PlaybackSideEffect>) -> Unit,
+            onStateChanged: () -> Unit,
+        ): PlaybackStore
+    }
+
     var state: PlaybackState = PlaybackState()
         private set
 

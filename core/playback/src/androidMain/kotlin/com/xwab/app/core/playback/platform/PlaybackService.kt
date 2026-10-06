@@ -1,23 +1,11 @@
 package com.xwab.app.core.playback.platform
 
-import android.app.PendingIntent
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
-import android.os.Handler
-import android.os.Looper
-import android.os.SystemClock
 import androidx.annotation.OptIn
-import androidx.media3.common.AudioAttributes
-import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
@@ -30,16 +18,13 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.xwab.app.core.playback.store.remainingDurationUntil
 import com.xwab.app.core.playback.timer.SLEEP_TIMER_FADE_MS
 import com.xwab.app.core.playback.timer.SLEEP_TIMER_FADE_STEP_MS
+import com.xwab.app.core.playback.timer.SleepTimerClock
+import com.xwab.app.core.playback.timer.TickScheduler
 import com.xwab.app.core.playback.timer.sleepTimerFadeVolume
-
-/**
- * Where the application states the user agent its playback should present.
- *
- * A manifest key rather than a constructor argument, because Android builds the service. The value
- * belongs to the app: `androidApp` declares it, and it has to agree with the identity content
- * owners attach to delivery requests, since both identify the same client to the same host.
- */
-private const val USER_AGENT_METADATA_KEY = "com.xwab.app.core.playback.USER_AGENT"
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
+import dev.zacsweers.metro.createGraphFactory
 
 internal class PlaybackService : MediaSessionService() {
 
@@ -47,31 +32,25 @@ internal class PlaybackService : MediaSessionService() {
     private var player: ExoPlayer? = null
     private val logger = Logger.withTag("PlaybackService")
 
-    private val sleepTimer = SleepTimer(
-        onExpired = {
-            player?.run {
-                pause()
-                seekTo(0L)
-            }
-        },
-        onFadeVolume = { volume -> player?.volume = volume },
-    )
+    private lateinit var sleepTimer: SleepTimer
 
     override fun onCreate() {
         super.onCreate()
 
-        val player = ExoPlayer.Builder(this)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                    .build(),
-                true,
-            )
-            .setHandleAudioBecomingNoisy(true)
-            .setWakeMode(C.WAKE_MODE_LOCAL)
-            .apply { applicationUserAgent()?.let { setMediaSourceFactory(identifyingSources(it)) } }
-            .build()
+        // Android constructs the service, so it builds its graph here and keeps what it needs; the
+        // graph itself is not kept.
+        val graph = createGraphFactory<PlaybackServiceGraph.Factory>()
+            .create(context = this, callback = SleepTimerSessionCallback())
+        sleepTimer = graph.sleepTimerFactory.create(
+            onExpired = {
+                player?.run {
+                    pause()
+                    seekTo(0L)
+                }
+            },
+            onFadeVolume = { volume -> player?.volume = volume },
+        )
+        val player = graph.player
 
         this.player = player
 
@@ -99,24 +78,7 @@ internal class PlaybackService : MediaSessionService() {
             },
         )
 
-        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
-        val pendingIntent = launchIntent?.let {
-            PendingIntent.getActivity(
-                this,
-                0,
-                it,
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-            )
-        }
-
-        val builder = MediaSession.Builder(this, player)
-            .setCallback(SleepTimerSessionCallback())
-
-        if (pendingIntent != null) {
-            builder.setSessionActivity(pendingIntent)
-        }
-
-        mediaSession = builder.build()
+        mediaSession = graph.mediaSession
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
@@ -141,54 +103,10 @@ internal class PlaybackService : MediaSessionService() {
         super.onDestroy()
     }
 
-    /**
-     * How this app identifies itself to a host it streams from, or null when it does not say.
-     *
-     * Read from the application's manifest rather than injected. Android constructs this service,
-     * so a value could only reach it by member injection from a graph the service would first have
-     * to find; one string the application already declares does not need that.
-     *
-     * Read at all because the header the app attaches to its *downloads* never reaches this
-     * player: a sound that is not cached yet is opened here, directly, and until this the request
-     * went out under whatever the platform's HTTP stack calls itself. Some hosts refuse that.
-     *
-     * It is a string the application owns. This module learns that requests should say who is
-     * making them — which is a property of any HTTP client — and nothing about who that is.
-     */
-    private fun applicationUserAgent(): String? {
-        val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            packageManager.getApplicationInfo(
-                packageName,
-                PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong()),
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            packageManager.getApplicationInfo(packageName, PackageManager.GET_META_DATA)
-        }
-        return info.metaData?.getString(USER_AGENT_METADATA_KEY)?.takeIf { it.isNotBlank() }
-    }
-
-    /**
-     * The default factory, with one thing changed.
-     *
-     * [DefaultDataSource.Factory] is what keeps local playback working: a cached sound resolves to
-     * a file path, and only the HTTPS half of the chain is given the user agent.
-     */
-    @OptIn(UnstableApi::class)
-    private fun identifyingSources(userAgent: String): MediaSource.Factory =
-        DefaultMediaSourceFactory(
-            DefaultDataSource.Factory(
-                this,
-                DefaultHttpDataSource.Factory().setUserAgent(userAgent),
-            ),
-        )
-
     private fun startSleepTimer(deadlineElapsedRealtimeMs: Long): SessionResult {
-        if (remainingDurationUntil(deadlineElapsedRealtimeMs, SystemClock.elapsedRealtime()) == null) {
+        if (!sleepTimer.startUntil(deadlineElapsedRealtimeMs)) {
             return SessionResult(SessionError.ERROR_BAD_VALUE)
         }
-
-        sleepTimer.startUntil(deadlineElapsedRealtimeMs)
         return sleepTimerResult()
     }
 
@@ -285,29 +203,37 @@ internal class PlaybackService : MediaSessionService() {
  * @param onFadeVolume receives the player volume while fading, and full volume again once the
  *   timer expires (after [onExpired] has paused, so it is never heard), is cancelled or is restarted.
  */
-private class SleepTimer(
-    private val onExpired: () -> Unit,
-    private val onFadeVolume: (Float) -> Unit,
+@AssistedInject
+internal class SleepTimer(
+    private val clock: SleepTimerClock,
+    private val scheduler: TickScheduler,
+    @Assisted private val onExpired: () -> Unit,
+    @Assisted private val onFadeVolume: (Float) -> Unit,
 ) {
-    private val handler = Handler(Looper.getMainLooper())
+    /** The callbacks are the service's own; the clock and the scheduler come from its graph. */
+    @AssistedFactory
+    fun interface Factory {
+        fun create(onExpired: () -> Unit, onFadeVolume: (Float) -> Unit): SleepTimer
+    }
+
     private var appliedVolume = FULL_VOLUME
 
     var deadlineElapsedRealtimeMs: Long? = null
         private set
 
-    private val tick = object : Runnable {
-        override fun run() {
-            reconcileDeadline()
-        }
-    }
-
-    fun startUntil(deadlineElapsedRealtimeMs: Long) {
+    /**
+     * Runs the timer until [deadlineElapsedRealtimeMs]. Returns false and changes nothing when that
+     * deadline has already passed or cannot be represented.
+     */
+    fun startUntil(deadlineElapsedRealtimeMs: Long): Boolean {
+        if (remainingDurationUntil(deadlineElapsedRealtimeMs, clock.nowMs()) == null) return false
         this.deadlineElapsedRealtimeMs = deadlineElapsedRealtimeMs
         reconcileDeadline()
+        return true
     }
 
     /**
-     * Re-arms the uptime-based Handler from the elapsed-realtime deadline, or expires immediately.
+     * Re-arms the uptime-based scheduler from the elapsed-realtime deadline, or expires immediately.
      * This is called whenever playback resumes, whenever a controller reads timer state, and on each
      * step of the fade.
      *
@@ -316,8 +242,8 @@ private class SleepTimer(
      */
     fun reconcileDeadline() {
         val deadline = deadlineElapsedRealtimeMs ?: return
-        val remainingMs = remainingDurationUntil(deadline, SystemClock.elapsedRealtime())
-        handler.removeCallbacks(tick)
+        val remainingMs = remainingDurationUntil(deadline, clock.nowMs())
+        scheduler.cancel()
         if (remainingMs == null) {
             deadlineElapsedRealtimeMs = null
             onExpired()
@@ -327,11 +253,11 @@ private class SleepTimer(
         applyVolume(sleepTimerFadeVolume(remainingMs))
         val untilFadeMs = remainingMs - SLEEP_TIMER_FADE_MS
         val nextTickMs = if (untilFadeMs > 0) untilFadeMs else remainingMs.coerceAtMost(SLEEP_TIMER_FADE_STEP_MS)
-        handler.postDelayed(tick, nextTickMs)
+        scheduler.schedule(nextTickMs, ::reconcileDeadline)
     }
 
     fun cancel() {
-        handler.removeCallbacks(tick)
+        scheduler.cancel()
         deadlineElapsedRealtimeMs = null
         applyVolume(FULL_VOLUME)
     }

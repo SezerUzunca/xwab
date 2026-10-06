@@ -7,6 +7,7 @@ import kotlin.test.assertTrue
 import kotlin.time.TimeSource
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
+import platform.AVFoundation.AVQueuePlayer
 import platform.Foundation.*
 
 /**
@@ -41,6 +42,9 @@ class IosPlaybackEngineAudioTest {
             onPlaybackEnded = {},
             onPlaybackFailed = { _, _ -> },
             onReadinessTimedOut = {},
+            userAgent = null,
+            createPlayer = { AVQueuePlayer() },
+            notificationCenter = NSNotificationCenter.defaultCenter,
         )
 
         val accepted = engine.load(writeSilentWav(), looping = false, operationId = 1L)
@@ -74,6 +78,9 @@ class IosPlaybackEngineAudioTest {
             onPlaybackEnded = {},
             onPlaybackFailed = { _, _ -> },
             onReadinessTimedOut = { readinessTimedOut = true },
+            userAgent = null,
+            createPlayer = { AVQueuePlayer() },
+            notificationCenter = NSNotificationCenter.defaultCenter,
         )
 
         engine.load(writeUnplayableFile(), looping = looping, operationId = 1L)

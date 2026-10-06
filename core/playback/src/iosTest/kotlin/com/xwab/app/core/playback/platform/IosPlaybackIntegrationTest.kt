@@ -8,6 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import platform.AVFAudio.AVAudioSession
 import platform.AVFAudio.AVAudioSessionMediaServicesWereResetNotification
+import platform.AVFoundation.AVQueuePlayer
 import platform.Foundation.NSNotificationCenter
 import platform.MediaPlayer.MPRemoteCommandCenter
 
@@ -15,7 +16,10 @@ class IosPlaybackIntegrationTest {
 
     @Test
     fun remoteCommandsAreDisabledAtCreationAndRelease() {
-        val session = AppleMediaSession({}, {}, {}, {}, {})
+        val session = AppleMediaSession(
+            {}, {}, {}, {}, {},
+            AVAudioSession.sharedInstance(), NSNotificationCenter.defaultCenter, MPRemoteCommandCenter.sharedCommandCenter(),
+        )
         val commands = MPRemoteCommandCenter.sharedCommandCenter()
 
         assertFalse(commands.playCommand.enabled)
@@ -36,7 +40,12 @@ class IosPlaybackIntegrationTest {
     @Test
     fun stoppingAnEmptyEngineCompletesWithoutRebuildingAQueue() {
         var completion: Boolean? = null
-        val engine = IosPlaybackEngine({}, {}, { _, _ -> }, {})
+        val engine = IosPlaybackEngine(
+            {}, {}, { _, _ -> }, {},
+            userAgent = null,
+            createPlayer = { AVQueuePlayer() },
+            notificationCenter = NSNotificationCenter.defaultCenter,
+        )
 
         engine.stop { completion = it }
 
@@ -48,7 +57,10 @@ class IosPlaybackIntegrationTest {
     @Test
     fun mediaServicesResetIsForwardedUntilTheSessionIsReleased() {
         var resetCount = 0
-        val session = AppleMediaSession({}, {}, {}, {}, { resetCount += 1 })
+        val session = AppleMediaSession(
+            {}, {}, {}, {}, { resetCount += 1 },
+            AVAudioSession.sharedInstance(), NSNotificationCenter.defaultCenter, MPRemoteCommandCenter.sharedCommandCenter(),
+        )
         val notifications = NSNotificationCenter.defaultCenter
 
         notifications.postNotificationName(
