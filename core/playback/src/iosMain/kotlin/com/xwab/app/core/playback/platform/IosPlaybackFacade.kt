@@ -22,7 +22,6 @@ import com.xwab.app.core.playback.store.toMessage
 import com.xwab.app.core.playback.timer.SleepTimerClock
 import com.xwab.app.core.playback.timer.SleepTimerTicker
 import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.Provider
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,8 +29,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import platform.Foundation.NSThread
 
 /**
- * The iOS engine. Metro builds its parts from the module graph; what it still builds itself, the
- * [PlaybackStore] and the [AppleMediaSession], take nothing but this facade's own callbacks.
+ * The iOS engine. Metro builds all of its parts from the module graph.
  *
  * Every native part arrives as a factory or a provider, so none is created before the main-thread
  * check below.
@@ -41,8 +39,10 @@ import platform.Foundation.NSThread
 internal class IosPlaybackFacade(
     private val clock: SleepTimerClock,
     sleepTimerTickerFactory: SleepTimerTicker.Factory,
+    storeFactory: PlaybackStore.Factory,
     engineFactory: IosPlaybackEngine.Factory,
-    nowPlayingInfoPublisherProvider: Provider<NowPlayingInfoPublisher>,
+    mediaSessionFactory: AppleMediaSession.Factory,
+    createNowPlayingInfoPublisher: () -> NowPlayingInfoPublisher,
 ) : PlaybackEnginePort {
     init {
         check(NSThread.isMainThread) { "IosPlaybackFacade must be created on the main thread." }
@@ -56,7 +56,7 @@ internal class IosPlaybackFacade(
     override val sleepTimerState: StateFlow<SleepTimerState> = sleepTimer.state
     private val logger = Logger.withTag("IosPlaybackFacade")
 
-    private val store = PlaybackStore(::executeEffects, ::publishState)
+    private val store = storeFactory.create(executeEffects = ::executeEffects, onStateChanged = ::publishState)
     private val playbackState: PlaybackState get() = store.state
     private var lastLoggedError: PlaybackError? = null
     private var pendingLoad: PendingLoad? = null
@@ -97,7 +97,7 @@ internal class IosPlaybackFacade(
             }
         },
     )
-    private val mediaSession: AppleMediaSession = AppleMediaSession(
+    private val mediaSession: AppleMediaSession = mediaSessionFactory.create(
         onPlayRequested = { submit(PlaybackCommand.Play) },
         onPauseRequested = { submit(PlaybackCommand.Pause) },
         onToggleRequested = ::togglePlayback,
@@ -106,7 +106,7 @@ internal class IosPlaybackFacade(
         },
         onMediaServicesReset = ::recoverAfterMediaServicesReset,
     )
-    private val nowPlayingInfoPublisher: NowPlayingInfoPublisher = nowPlayingInfoPublisherProvider()
+    private val nowPlayingInfoPublisher: NowPlayingInfoPublisher = createNowPlayingInfoPublisher()
 
     private fun dispatch(intent: PlaybackMessage) = store.dispatch(intent)
 

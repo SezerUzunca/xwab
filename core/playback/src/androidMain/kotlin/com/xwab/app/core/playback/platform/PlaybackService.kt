@@ -22,6 +22,9 @@ import com.xwab.app.core.playback.store.remainingDurationUntil
 import com.xwab.app.core.playback.timer.SLEEP_TIMER_FADE_MS
 import com.xwab.app.core.playback.timer.SLEEP_TIMER_FADE_STEP_MS
 import com.xwab.app.core.playback.timer.sleepTimerFadeVolume
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
 import dev.zacsweers.metro.createGraphFactory
 
 internal class PlaybackService : MediaSessionService() {
@@ -30,15 +33,7 @@ internal class PlaybackService : MediaSessionService() {
     private var player: ExoPlayer? = null
     private val logger = Logger.withTag("PlaybackService")
 
-    private val sleepTimer = SleepTimer(
-        onExpired = {
-            player?.run {
-                pause()
-                seekTo(0L)
-            }
-        },
-        onFadeVolume = { volume -> player?.volume = volume },
-    )
+    private lateinit var sleepTimer: SleepTimer
 
     override fun onCreate() {
         super.onCreate()
@@ -47,6 +42,15 @@ internal class PlaybackService : MediaSessionService() {
         // graph itself is not kept.
         val graph = createGraphFactory<PlaybackServiceGraph.Factory>()
             .create(context = this, callback = SleepTimerSessionCallback())
+        sleepTimer = graph.sleepTimerFactory.create(
+            onExpired = {
+                player?.run {
+                    pause()
+                    seekTo(0L)
+                }
+            },
+            onFadeVolume = { volume -> player?.volume = volume },
+        )
         val player = graph.player
 
         this.player = player
@@ -202,10 +206,17 @@ internal class PlaybackService : MediaSessionService() {
  * @param onFadeVolume receives the player volume while fading, and full volume again once the
  *   timer expires (after [onExpired] has paused, so it is never heard), is cancelled or is restarted.
  */
-private class SleepTimer(
-    private val onExpired: () -> Unit,
-    private val onFadeVolume: (Float) -> Unit,
+@AssistedInject
+internal class SleepTimer(
+    @Assisted private val onExpired: () -> Unit,
+    @Assisted private val onFadeVolume: (Float) -> Unit,
 ) {
+    /** Both inputs are the service's own callbacks. */
+    @AssistedFactory
+    fun interface Factory {
+        fun create(onExpired: () -> Unit, onFadeVolume: (Float) -> Unit): SleepTimer
+    }
+
     private val handler = Handler(Looper.getMainLooper())
     private var appliedVolume = FULL_VOLUME
 

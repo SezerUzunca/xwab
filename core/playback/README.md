@@ -20,19 +20,17 @@ Each platform has its own graph, `AndroidPlaybackGraph` or `IosPlaybackGraph`, b
 platform's graph adapter. On Android the adapter takes the application `Context` from the app graph
 and passes it on; iOS needs no platform input.
 
-The graph builds the engine's parts as well: the sleep-timer clock both the facade and the countdown
-read, the tick schedulers, the Android timer IPC client and the user agent the iOS player presents.
-A part that calls back into the facade — the countdown, the Android controller connection, the
-iOS player — is an `@AssistedInject` class: the facade passes its callbacks to the factory and
-Metro supplies the rest. Factories and providers create those parts only after the facade's
-main-thread check. The facade still builds two parts itself, the `PlaybackStore` and on iOS the
-`AppleMediaSession`, because they take nothing but its own callbacks. Schedulers are unscoped on
-purpose: scheduling replaces the pending tick, so the Android countdown and load timeout each need
-their own.
+The graph builds every part of the engine as well: the sleep-timer clock both the facade and the
+countdown read, the tick schedulers, the Android timer IPC client and the user agent the iOS player
+presents. A part that calls back into the facade — the store, the countdown, the Android controller
+connection, the iOS player and media session — is an `@AssistedInject` class: the facade passes
+its callbacks to the factory and Metro supplies the rest. Factories and providers create those
+parts only after the facade's main-thread check. Schedulers are unscoped on purpose: scheduling
+replaces the pending tick, so the Android countdown and load timeout each need their own.
 
 Android builds `PlaybackService`, so the service builds `PlaybackServiceGraph` in `onCreate`: it
-provides the player, its source chain with the application's user agent and the media session.
-The service keeps the player and the session and releases them in `onDestroy`.
+provides the player, its source chain with the application's user agent, the media session and
+the sleep timer. The service keeps them and releases them in `onDestroy`.
 
 The application-specific adapter in `core:session` depends on `PlaybackEnginePort`: it
 observes `state` / `sleepTimerState` and drives playback through the single

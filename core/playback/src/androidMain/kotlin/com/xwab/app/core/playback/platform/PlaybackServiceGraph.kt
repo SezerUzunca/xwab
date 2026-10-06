@@ -31,8 +31,9 @@ private const val USER_AGENT_METADATA_KEY = "com.xwab.app.core.playback.USER_AGE
 internal object PlaybackServiceScope
 
 /**
- * The playback service's own graph, built in [PlaybackService.onCreate]. It builds the player and
- * its media session; the service keeps both and releases them in `onDestroy`, as Media3 has it.
+ * The playback service's own graph, built in [PlaybackService.onCreate]. It builds the player, its
+ * media session and the sleep timer; the service keeps them and releases them in `onDestroy`, as
+ * Media3 has it.
  *
  * The service comes in as the [Context] and hands over its own session callback, which answers
  * from the service's state.
@@ -41,6 +42,7 @@ internal object PlaybackServiceScope
 internal interface PlaybackServiceGraph {
     val player: ExoPlayer
     val mediaSession: MediaSession
+    val sleepTimerFactory: SleepTimer.Factory
 
     /**
      * How this app identifies itself to a host it streams from, or null when it does not say.

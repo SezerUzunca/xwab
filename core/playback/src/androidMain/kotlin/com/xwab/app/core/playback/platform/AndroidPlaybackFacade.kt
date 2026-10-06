@@ -36,8 +36,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * The Android engine. Metro builds its parts from the module graph; what it still builds itself,
- * the [PlaybackStore], takes nothing but this facade's own callbacks.
+ * The Android engine. Metro builds all of its parts from the module graph.
  *
  * Parts that need this facade's callbacks arrive as factories, so they are created only after the
  * main-thread check below; the controller connection starts connecting the moment it exists.
@@ -48,6 +47,7 @@ internal class AndroidPlaybackFacade(
     private val clock: SleepTimerClock,
     sleepTimerTickerFactory: SleepTimerTicker.Factory,
     private val sleepTimerClient: SleepTimerClient,
+    storeFactory: PlaybackStore.Factory,
     private val loadTimeoutScheduler: TickScheduler,
     connectionFactory: MediaControllerConnection.Factory,
 ) : PlaybackEnginePort, Player.Listener {
@@ -70,7 +70,7 @@ internal class AndroidPlaybackFacade(
     )
     override val sleepTimerState: StateFlow<SleepTimerState> = sleepTimerTicker.state
 
-    private val store = PlaybackStore(::executeEffects, ::publishState)
+    private val store = storeFactory.create(executeEffects = ::executeEffects, onStateChanged = ::publishState)
     private val playbackState: PlaybackState get() = store.state
     private val operationOwnerId = UUID.randomUUID().toString()
     private var pendingLoad: PendingLoad? = null
