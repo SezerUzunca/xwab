@@ -64,8 +64,9 @@ There is no shared repository abstraction. A feature consumes the narrow capabil
 | `:core:network` | `NetworkPort` and transport-neutral response/error types |
 
 Every core module wires its own implementation in its own internal Metro graph (`NetworkGraph`,
-`FavoritesGraph`, `SoundGraph`, `StoryGraph`, `SessionGraph`, and per platform
-`AndroidDeliveryGraph` / `IosDeliveryGraph` and `AndroidPlaybackGraph` / `IosPlaybackGraph`), scoped to that module (`@SingleIn(DeliveryScope::class)`
+`SoundGraph`, `StoryGraph`, `SessionGraph`, and per platform `AndroidDeliveryGraph` /
+`IosDeliveryGraph`, `AndroidFavoritesGraph` / `IosFavoritesGraph` and `AndroidPlaybackGraph` /
+`IosPlaybackGraph`), scoped to that module (`@SingleIn(DeliveryScope::class)`
 and so on). Library objects are provided there with `@Provides` — the `HttpClient`, the DataStore —
 and internal services bind their internal interfaces there, so the delivery cache store and the
 prefetcher share one store because the module graph scopes it.
@@ -77,15 +78,18 @@ share. What a module needs from another — `NetworkPort` for delivery, `Deliver
 engine and the resolver map for the session — the adapter takes from `AppScope` and passes to its
 graph's factory. The resolver map therefore stays a multibinding of the application graph, and
 content modules still plug in and out there. A platform value never becomes an application
-binding either. The favorites file is built by that platform's adapter (`AndroidFavoritesGraphAdapter`,
-`IosFavoritesGraphAdapter`). Delivery and playback instead have a graph per platform that builds the
-value itself from a narrow factory input: the cache directory, or the `Context`. Their shared
-bindings sit in a binding container both graphs include. Beyond ports, a core module adds only its `*GraphHolder`, where it has one, to the
+binding either. Delivery, favorites and playback have a graph per platform, which builds the value
+itself from a factory input: the cache directory for delivery, or the `Context`. Favorites takes
+the `Context` rather than the files directory, because reading that directory is disk work it
+defers to DataStore's first access. Shared bindings sit in a binding container that each
+platform's graph includes. Beyond ports, a core module adds only its `*GraphHolder`, where it has one, to the
 application graph. Android and iOS application graphs and every module graph are generated at
 compile time, so a missing binding inside a module fails that module's own compilation.
 
 Each module's tests build its module graph (`SoundGraphTest`, `StoryGraphTest`, `SessionGraphTest`,
-`NetworkGraphTest`, the favorites graph test) with test doubles for its inputs. Delivery's platform
+`NetworkGraphTest`) with test doubles for its inputs. Favorites' platform graphs are built on a device and on the simulator
+(`AndroidFavoritesGraphTest`, `IosFavoritesGraphTest`), once with nothing replaced, writing a
+favorite to disk and reading it back. Delivery's platform
 graphs run one shared check on the host and on the simulator (`AndroidDeliveryGraphTest`,
 `IosDeliveryGraphTest`), and playback's platform graphs are built on a device and on the simulator
 (`AndroidPlaybackGraphTest`, `IosPlaybackGraphTest`). Library objects are provided inside module graphs rather than by a binding

@@ -3,7 +3,11 @@ plugins {
 }
 
 kotlin {
-    android { namespace = "com.xwab.app.core.favorites" }
+    android {
+        namespace = "com.xwab.app.core.favorites"
+        // The Android graph takes a Context, which only a device has; its tests run there.
+        withDeviceTest {}
+    }
 
     sourceSets {
         commonMain.dependencies {
@@ -19,6 +23,11 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlinx.coroutines.test)
+        }
+        getByName("androidDeviceTest").dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.androidx.test.core)
+            implementation(libs.androidx.test.runner)
         }
     }
 }
