@@ -186,13 +186,15 @@ jobs:
       # POSIX: no pipefail, and the exit status has to be carried across the redirect by hand
       # rather than through a pipe.
       #
+      # `:core:favorites` builds its Android graph here for the same reason: it takes a Context.
+      #
       # From `:shared` only `AndroidAppGraphTest` runs here: it builds the real Android
       # application graph, which only a device has a `Context` for, and checks that every screen's
       # ViewModel and assisted factory reaches it. The module's navigation composition tests stay
       # on the iOS simulator and local devices. On this two-core API 35 emulator they ran past
       # Compose's one-minute test timeout in one of two runs, without anything having changed.
       DEVICE_TEST_SCRIPT: >-
-        { ./gradlew :core:playback:connectedAndroidTest --stacktrace &&
+        { ./gradlew :core:playback:connectedAndroidTest :core:favorites:connectedAndroidTest --stacktrace &&
         ./gradlew :shared:connectedAndroidTest --stacktrace
         -Pandroid.testInstrumentationRunnerArguments.class=com.xwab.app.di.AndroidAppGraphTest; }
         > gradle-output.log 2>&1; status=$?; cat gradle-output.log; exit $status

@@ -1,10 +1,12 @@
 package com.xwab.app.core.favorites
 
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import com.xwab.app.core.favorites.port.FavoriteToggleResult
 import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.Provides
-import dev.zacsweers.metro.createDynamicGraph
-import dev.zacsweers.metro.createGraph
+import dev.zacsweers.metro.createDynamicGraphFactory
+import dev.zacsweers.metro.createGraphFactory
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -12,42 +14,34 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import platform.Foundation.NSFileManager
 
-/** The iOS production graph, with its favorites file built by Metro from the system's file manager. */
-class IosFavoritesGraphTest {
+/** The Android production graph, with the Context only a device has. */
+class AndroidFavoritesGraphTest {
+    private val context: Context = ApplicationProvider.getApplicationContext()
+
     /**
      * The app graph may build this graph on the main thread, so building it must touch no file; and
      * it must hand out one adapter, so one store per file.
      */
     @Test
     fun theModuleGraphSharesOneAdapterAndLeavesTheFileForItsFirstAccess() {
-        val graph = createDynamicGraph<IosFavoritesGraph>(UnresolvableFile())
+        // Metro warns that the Context is unused here: the file it would build is the one replaced.
+        val graph = createDynamicGraphFactory<AndroidFavoritesGraph.Factory>(UnresolvableFile()).create(context)
 
         assertSame(graph.favorites, graph.favorites)
     }
 
-    @Test
-    fun theFileLivesInTheDocumentsDirectory() {
-        val path = IosFavoritesFile(NSFileManager.defaultManager).path().toString()
-
-        assertTrue(path.endsWith("Documents/$DATA_STORE_FILE_NAME"), path)
-    }
-
-    /**
-     * Nothing replaced: the graph's own file and scope write a favorite to disk and read it back.
-     * The simulator keeps its documents between runs, so the test removes what it added.
-     */
+    /** Nothing replaced: the graph's own file and scope write a favorite to disk and read it back. */
     @Test
     fun theUnmodifiedGraphWritesAFavoriteToDiskAndReadsItBack() = runBlocking {
-        val favorites = createGraph<IosFavoritesGraph>().favorites
+        val favorites = createGraphFactory<AndroidFavoritesGraph.Factory>().create(context).favorites
         try {
             assertEquals(FavoriteToggleResult.Updated, favorites.setFavorite(NAMESPACE, ITEM, true))
 
             val snapshot = withTimeout(TIMEOUT_MS) { favorites.observe(NAMESPACE).first { ITEM in it.ids } }
             assertTrue(snapshot.isAvailable)
-            val path = IosFavoritesFile(NSFileManager.defaultManager).path().toString()
-            assertTrue(NSFileManager.defaultManager.fileExistsAtPath(path), "nothing was written to $path")
+            val file = context.filesDir.resolve(DATA_STORE_FILE_NAME)
+            assertTrue(file.length() > 0L, "nothing was written to ${file.absolutePath}")
         } finally {
             favorites.setFavorite(NAMESPACE, ITEM, false)
         }

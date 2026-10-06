@@ -36,3 +36,5 @@ Metro builds the favorites file in it: on Android from the `Context`, on iOS fro
 manager. The file's path is resolved only when DataStore first opens it, off the main thread. A
 shared binding container provides the store, the IO scope it runs on and the adapter. Only
 `FavoritesPort` reaches the application graph.
+Its graph tests run on a device and on the simulator. They check that building the graph resolves no
+file, and that the unmodified graph writes a favorite to disk and reads it back.

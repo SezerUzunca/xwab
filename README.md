@@ -87,9 +87,9 @@ application graph. Android and iOS application graphs and every module graph are
 compile time, so a missing binding inside a module fails that module's own compilation.
 
 Each module's tests build its module graph (`SoundGraphTest`, `StoryGraphTest`, `SessionGraphTest`,
-`NetworkGraphTest`) with test doubles for its inputs. The iOS favorites graph is built on the
-simulator (`IosFavoritesGraphTest`). The Android one needs a `Context`, so its compile-time check is
-what covers it. Delivery's platform
+`NetworkGraphTest`) with test doubles for its inputs. Favorites' platform graphs are built on a device and on the simulator
+(`AndroidFavoritesGraphTest`, `IosFavoritesGraphTest`), once with nothing replaced, writing a
+favorite to disk and reading it back. Delivery's platform
 graphs run one shared check on the host and on the simulator (`AndroidDeliveryGraphTest`,
 `IosDeliveryGraphTest`), and playback's platform graphs are built on a device and on the simulator
 (`AndroidPlaybackGraphTest`, `IosPlaybackGraphTest`). Library objects are provided inside module graphs rather than by a binding
