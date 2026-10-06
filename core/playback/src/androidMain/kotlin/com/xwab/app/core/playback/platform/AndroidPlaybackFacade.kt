@@ -364,9 +364,9 @@ internal class AndroidPlaybackFacade(
         }
     }
 
-    private fun clearPendingLoad(): PendingLoad? {
+    private fun clearPendingLoad() {
         loadTimeoutScheduler.cancel()
-        return pendingLoad.also { pendingLoad = null }
+        pendingLoad = null
     }
 
     private fun readSource(player: Player): AudioSource? {

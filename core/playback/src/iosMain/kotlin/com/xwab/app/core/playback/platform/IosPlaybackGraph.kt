@@ -1,5 +1,3 @@
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
-
 package com.xwab.app.core.playback.platform
 
 import com.xwab.app.core.playback.port.PlaybackEnginePort

@@ -1,5 +1,3 @@
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class, kotlin.experimental.ExperimentalNativeApi::class)
-
 package com.xwab.app.core.playback.platform
 
 import co.touchlab.kermit.Logger
