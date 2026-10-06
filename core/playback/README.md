@@ -33,8 +33,10 @@ The graph also builds every part of the engine and the platform resources those 
 - **Parts that call back into the facade.** The store, the countdown, the Android controller
   connection, and the iOS player and media session are `@AssistedInject` classes. The facade
   passes its callbacks to the factory, and Metro supplies the rest.
-- **Creation order.** Factories and providers create those parts, and with them every native
-  resource, only after the facade's main-thread check.
+- **Creation order.** Factories and providers create those parts only after the facade's
+  main-thread check. On iOS that covers every native resource. On Android, the load-timeout
+  scheduler, the IPC client and the clock are plain constructor inputs, so they exist before the
+  check. That is harmless: a main-looper `Handler` and an executor can be created on any thread.
 - **Unscoped schedulers.** This is deliberate. Scheduling replaces the pending tick, so each owner
   needs its own scheduler.
 
