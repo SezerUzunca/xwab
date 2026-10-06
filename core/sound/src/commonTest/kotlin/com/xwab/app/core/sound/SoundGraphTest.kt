@@ -2,9 +2,9 @@
 
 package com.xwab.app.core.sound
 
+import com.xwab.app.core.delivery.port.CacheKey
 import com.xwab.app.core.delivery.port.DeliveryPort
 import com.xwab.app.core.delivery.port.DeliveryRequest
-import com.xwab.app.core.delivery.port.DeliveryResult
 import com.xwab.app.core.session.port.ItemResolution
 import com.xwab.app.core.session.port.PlaybackResolverApi
 import dev.zacsweers.metro.createGraphFactory
@@ -12,6 +12,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertSame
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
@@ -29,7 +30,8 @@ class SoundGraphTest {
     }
 
     private object ResolvingDelivery : DeliveryPort {
-        override suspend fun resolve(request: DeliveryRequest): DeliveryResult =
-            DeliveryResult.Resolved("https://example.test/delivered.mp3")
+        override suspend fun resolve(request: DeliveryRequest): String = "https://example.test/delivered.mp3"
+
+        override fun observeCached(key: CacheKey): Flow<Boolean> = error("Resolving never observes the cache.")
     }
 }

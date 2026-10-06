@@ -19,7 +19,6 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -50,8 +49,8 @@ internal class BackgroundContentPrefetcher(
     // window, leaving the slot claimed for the lifetime of the prefetcher.
     //
     // What makes the API delicate is the same thing: a body that ignores cancellation would keep
-    // working after `close()`. This one does not — the store suspends before it reaches the
-    // network, so a canceled transfer unwinds at once and the `finally` is all that runs.
+    // working after its scope is cancelled. This one does not — the store suspends before it
+    // reaches the network, so a canceled transfer unwinds at once and the `finally` is all that runs.
     @OptIn(DelicateCoroutinesApi::class)
     override suspend fun prefetch(request: DeliveryRequest) {
         val cacheFileName = request.key
@@ -64,10 +63,6 @@ internal class BackgroundContentPrefetcher(
                 releaseSlot(cacheFileName)
             }
         }
-    }
-
-    override fun close() {
-        backgroundScope.cancel()
     }
 
     /**

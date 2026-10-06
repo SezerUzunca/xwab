@@ -3,7 +3,6 @@ package com.xwab.app.core.sound
 import com.xwab.app.core.delivery.port.CacheKey
 import com.xwab.app.core.delivery.port.DeliveryPort
 import com.xwab.app.core.delivery.port.DeliveryRequest
-import com.xwab.app.core.delivery.port.DeliveryResult
 import com.xwab.app.core.sound.port.Category
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Track
@@ -105,7 +104,7 @@ class ManifestSoundCatalogAdapterTest {
             return ready
         }
 
-        override suspend fun resolve(request: DeliveryRequest): DeliveryResult =
+        override suspend fun resolve(request: DeliveryRequest): String =
             fail("Inspecting availability must never resolve or download content.")
     }
 

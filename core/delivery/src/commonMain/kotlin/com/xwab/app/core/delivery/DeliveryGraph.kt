@@ -6,15 +6,13 @@ import com.xwab.app.core.delivery.port.DeliveryPort
 import com.xwab.app.core.delivery.resolution.BackgroundContentPrefetcher
 import com.xwab.app.core.delivery.resolution.ContentPrefetcher
 import com.xwab.app.core.delivery.resolution.LocalFirstDeliveryAdapter
-import com.xwab.app.core.network.port.NetworkPort
 import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.Binds
-import dev.zacsweers.metro.DependencyGraph
-import dev.zacsweers.metro.Provides
 
 /** The lifetime of this module's own graph: one per application, owned by the platform's graph adapter. */
 internal object DeliveryScope
 
+/** The cache store, the prefetcher and the adapter: the same on every platform. */
 @BindingContainer
 internal interface DeliveryBindings {
     @Binds val CachingContentFileStore.bindFileStore: ContentFileStore
@@ -23,19 +21,10 @@ internal interface DeliveryBindings {
 }
 
 /**
- * This module's own graph: the cache store, the prefetcher and the adapter are wired here, and
- * only [DeliveryPort] reaches the application graph. What it needs from outside — the network and
- * the platform's cache location — arrives through the factory.
+ * What every platform's delivery graph hands out. Each platform declares its graph next to its
+ * cache location, which is what differs between them; [DeliveryBindings] wires the rest, and only
+ * [DeliveryPort] reaches the application graph.
  */
-@DependencyGraph(DeliveryScope::class, bindingContainers = [DeliveryBindings::class])
 internal interface DeliveryGraph {
     val delivery: DeliveryPort
-
-    @DependencyGraph.Factory
-    fun interface Factory {
-        fun create(
-            @Provides networkPort: NetworkPort,
-            @Provides location: ContentCacheLocation,
-        ): DeliveryGraph
-    }
 }

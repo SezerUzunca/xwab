@@ -9,7 +9,6 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
@@ -19,7 +18,6 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okio.FileSystem
-import okio.Path
 import okio.Path.Companion.toPath
 import okio.buffer
 import okio.fakefilesystem.FakeFileSystem
@@ -189,36 +187,17 @@ class CachingContentFileStoreTest {
         assertTrue(fileSystem.metadata(ROOT).isDirectory)
     }
 
-    /**
-     * The pre-namespace cache sat beside the namespace directories rather than inside one, so no
-     * sweep can reach it. A download after the upgrade is the only moment that still knows it was
-     * there — and a missing legacy directory, the normal case, must not disturb anything.
-     */
-    @Test
-    fun theCacheWrittenBeforeNamespacesIsDroppedOnTheFirstDownload() = runBlocking {
-        val legacy = "/legacy".toPath()
-        fileSystem.createDirectories(legacy)
-        fileSystem.sink(legacy / FILE_NAME).buffer().use { it.write(byteArrayOf(9)) }
-
-        store(legacyRoots = listOf(legacy, "/never-existed".toPath())).download(request())
-
-        assertFalse(fileSystem.exists(legacy))
-        assertContentEquals(byteArrayOf(1, 2, 3), readFile(FILE_NAME))
-    }
-
     private fun request(retained: Set<String>? = null) = DeliveryRequest(
         CacheKey("sample", FILE_NAME), REMOTE_URL, retainedFileNames = retained,
     )
 
     private fun store(
         network: NetworkPort = FakeNetworkPort(),
-        legacyRoots: List<Path> = emptyList(),
     ) = CachingContentFileStore(
         fileSystem = fileSystem,
         root = ROOT,
         networkPort = network,
         fileDispatcher = Dispatchers.Default,
-        legacyRoots = legacyRoots,
     )
 
     private fun writeFile(name: String, bytes: ByteArray) {

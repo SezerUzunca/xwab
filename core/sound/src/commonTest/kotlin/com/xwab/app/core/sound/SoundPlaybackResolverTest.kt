@@ -5,7 +5,6 @@ package com.xwab.app.core.sound
 import com.xwab.app.core.delivery.port.CacheKey
 import com.xwab.app.core.delivery.port.DeliveryPort
 import com.xwab.app.core.delivery.port.DeliveryRequest
-import com.xwab.app.core.delivery.port.DeliveryResult
 import com.xwab.app.core.session.port.ItemResolution
 import com.xwab.app.core.session.port.PlaybackResolverApi
 import com.xwab.app.core.sound.port.CategoryId
@@ -15,6 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.runBlocking
 
 class SoundPlaybackResolverTest {
@@ -52,7 +52,7 @@ class SoundPlaybackResolverTest {
 
     @Test
     fun resolvedSoundUsesDeliveryUriAndPreservesMetadataHeadersAndCachePolicy() = runBlocking {
-        val delivery = RecordingDelivery(DeliveryResult.Resolved("file:///cache/heavy-rain-v2.mp3"))
+        val delivery = RecordingDelivery("file:///cache/heavy-rain-v2.mp3")
 
         val result = assertIs<ItemResolution.Resolved>(resolver(delivery).resolve(track.id.value))
         val request = delivery.requests.single()
@@ -72,17 +72,6 @@ class SoundPlaybackResolverTest {
         )
     }
 
-    @Test
-    fun deliveryFailureIsReturnedWithoutLosingItsReason() = runBlocking {
-        val delivery = RecordingDelivery(DeliveryResult.Unavailable("connection unavailable"))
-
-        assertEquals(
-            ItemResolution.Unavailable("connection unavailable"),
-            resolver(delivery).resolve(track.id.value),
-        )
-        assertEquals(1, delivery.requests.size)
-    }
-
     private fun resolver(delivery: DeliveryPort, sources: SoundSources = this.sources) =
         SoundPlaybackResolver(
             catalog = ManifestSoundCatalogAdapter(listOf(track)),
@@ -91,14 +80,16 @@ class SoundPlaybackResolverTest {
         )
 
     private class RecordingDelivery(
-        private val result: DeliveryResult = DeliveryResult.Resolved("https://example.test/audio.mp3"),
+        private val uri: String = "https://example.test/audio.mp3",
     ) : DeliveryPort {
 
         val requests = mutableListOf<DeliveryRequest>()
 
-        override suspend fun resolve(request: DeliveryRequest): DeliveryResult {
+        override suspend fun resolve(request: DeliveryRequest): String {
             requests += request
-            return result
+            return uri
         }
+
+        override fun observeCached(key: CacheKey): Flow<Boolean> = error("Resolving never observes the cache.")
     }
 }
