@@ -36,7 +36,7 @@ class IosPlaybackIntegrationTest {
     @Test
     fun stoppingAnEmptyEngineCompletesWithoutRebuildingAQueue() {
         var completion: Boolean? = null
-        val engine = IosPlaybackEngine({}, {}, { _, _ -> }, {})
+        val engine = IosPlaybackEngine({}, {}, { _, _ -> }, {}, userAgent = null)
 
         engine.stop { completion = it }
 

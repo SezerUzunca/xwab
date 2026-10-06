@@ -7,9 +7,11 @@ import com.xwab.app.core.playback.port.PlaybackPhase
 import com.xwab.app.core.playback.projection.NowPlayingPublicationKey
 import com.xwab.app.core.playback.projection.NowPlayingUpdateAction
 import com.xwab.app.core.playback.projection.decideNowPlayingUpdate
+import dev.zacsweers.metro.Inject
 import platform.MediaPlayer.*
 
 /** Publishes Lock Screen and Control Center metadata for the active source. */
+@Inject
 internal class NowPlayingInfoPublisher {
     private val infoCenter = MPNowPlayingInfoCenter.defaultCenter()
 

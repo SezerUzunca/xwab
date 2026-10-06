@@ -1,23 +1,14 @@
 package com.xwab.app.core.playback.platform
 
-import android.app.PendingIntent
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import androidx.annotation.OptIn
-import androidx.media3.common.AudioAttributes
-import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
@@ -31,15 +22,7 @@ import com.xwab.app.core.playback.store.remainingDurationUntil
 import com.xwab.app.core.playback.timer.SLEEP_TIMER_FADE_MS
 import com.xwab.app.core.playback.timer.SLEEP_TIMER_FADE_STEP_MS
 import com.xwab.app.core.playback.timer.sleepTimerFadeVolume
-
-/**
- * Where the application states the user agent its playback should present.
- *
- * A manifest key rather than a constructor argument, because Android builds the service. The value
- * belongs to the app: `androidApp` declares it, and it has to agree with the identity content
- * owners attach to delivery requests, since both identify the same client to the same host.
- */
-private const val USER_AGENT_METADATA_KEY = "com.xwab.app.core.playback.USER_AGENT"
+import dev.zacsweers.metro.createGraphFactory
 
 internal class PlaybackService : MediaSessionService() {
 
@@ -60,18 +43,11 @@ internal class PlaybackService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
 
-        val player = ExoPlayer.Builder(this)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                    .build(),
-                true,
-            )
-            .setHandleAudioBecomingNoisy(true)
-            .setWakeMode(C.WAKE_MODE_LOCAL)
-            .apply { applicationUserAgent()?.let { setMediaSourceFactory(identifyingSources(it)) } }
-            .build()
+        // Android constructs the service, so it builds its graph here and keeps what it needs; the
+        // graph itself is not kept.
+        val graph = createGraphFactory<PlaybackServiceGraph.Factory>()
+            .create(context = this, callback = SleepTimerSessionCallback())
+        val player = graph.player
 
         this.player = player
 
@@ -99,24 +75,7 @@ internal class PlaybackService : MediaSessionService() {
             },
         )
 
-        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
-        val pendingIntent = launchIntent?.let {
-            PendingIntent.getActivity(
-                this,
-                0,
-                it,
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-            )
-        }
-
-        val builder = MediaSession.Builder(this, player)
-            .setCallback(SleepTimerSessionCallback())
-
-        if (pendingIntent != null) {
-            builder.setSessionActivity(pendingIntent)
-        }
-
-        mediaSession = builder.build()
+        mediaSession = graph.mediaSession
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
@@ -140,48 +99,6 @@ internal class PlaybackService : MediaSessionService() {
         mediaSession = null
         super.onDestroy()
     }
-
-    /**
-     * How this app identifies itself to a host it streams from, or null when it does not say.
-     *
-     * Read from the application's manifest rather than injected. Android constructs this service,
-     * so a value could only reach it by member injection from a graph the service would first have
-     * to find; one string the application already declares does not need that.
-     *
-     * Read at all because the header the app attaches to its *downloads* never reaches this
-     * player: a sound that is not cached yet is opened here, directly, and until this the request
-     * went out under whatever the platform's HTTP stack calls itself. Some hosts refuse that.
-     *
-     * It is a string the application owns. This module learns that requests should say who is
-     * making them — which is a property of any HTTP client — and nothing about who that is.
-     */
-    private fun applicationUserAgent(): String? {
-        val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            packageManager.getApplicationInfo(
-                packageName,
-                PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong()),
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            packageManager.getApplicationInfo(packageName, PackageManager.GET_META_DATA)
-        }
-        return info.metaData?.getString(USER_AGENT_METADATA_KEY)?.takeIf { it.isNotBlank() }
-    }
-
-    /**
-     * The default factory, with one thing changed.
-     *
-     * [DefaultDataSource.Factory] is what keeps local playback working: a cached sound resolves to
-     * a file path, and only the HTTPS half of the chain is given the user agent.
-     */
-    @OptIn(UnstableApi::class)
-    private fun identifyingSources(userAgent: String): MediaSource.Factory =
-        DefaultMediaSourceFactory(
-            DefaultDataSource.Factory(
-                this,
-                DefaultHttpDataSource.Factory().setUserAgent(userAgent),
-            ),
-        )
 
     private fun startSleepTimer(deadlineElapsedRealtimeMs: Long): SessionResult {
         if (remainingDurationUntil(deadlineElapsedRealtimeMs, SystemClock.elapsedRealtime()) == null) {

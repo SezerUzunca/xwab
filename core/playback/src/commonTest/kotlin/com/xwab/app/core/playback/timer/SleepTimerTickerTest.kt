@@ -46,7 +46,7 @@ class SleepTimerTickerTest {
     private val events = mutableListOf<String>()
     private val volumes get() = events.filter { it != EXPIRED }.map(String::toFloat)
     private val ticker = SleepTimerTicker(
-        nowMs = { now },
+        clock = { now },
         scheduler = scheduler,
         onExpired = {
             expiredCalls++

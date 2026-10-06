@@ -1,6 +1,7 @@
 package com.xwab.app.core.playback.platform
 
 import com.xwab.app.core.playback.timer.TickScheduler
+import dev.zacsweers.metro.Inject
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
@@ -10,8 +11,9 @@ import kotlinx.coroutines.launch
 
 /**
  * [TickScheduler] backed by a main-thread coroutine scope, which keeps the tick
- * callback on the player thread this module requires on iOS.
+ * callback on the player thread this module requires on iOS. Unscoped, like every scheduler.
  */
+@Inject
 internal class CoroutineTickScheduler : TickScheduler {
     private val scope = MainScope()
     private var tickJob: Job? = null

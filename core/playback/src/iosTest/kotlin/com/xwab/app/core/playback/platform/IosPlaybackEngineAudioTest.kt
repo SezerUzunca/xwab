@@ -41,6 +41,7 @@ class IosPlaybackEngineAudioTest {
             onPlaybackEnded = {},
             onPlaybackFailed = { _, _ -> },
             onReadinessTimedOut = {},
+            userAgent = null,
         )
 
         val accepted = engine.load(writeSilentWav(), looping = false, operationId = 1L)
@@ -74,6 +75,7 @@ class IosPlaybackEngineAudioTest {
             onPlaybackEnded = {},
             onPlaybackFailed = { _, _ -> },
             onReadinessTimedOut = { readinessTimedOut = true },
+            userAgent = null,
         )
 
         engine.load(writeUnplayableFile(), looping = looping, operationId = 1L)

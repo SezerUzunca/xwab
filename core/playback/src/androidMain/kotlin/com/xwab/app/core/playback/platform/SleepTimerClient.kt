@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionResult
 import co.touchlab.kermit.Logger
+import dev.zacsweers.metro.Inject
 import java.util.concurrent.Executor
 
 /**
@@ -12,6 +13,7 @@ import java.util.concurrent.Executor
  * Encapsulates out-of-order response protection ([requestVersion]) and sends requests
  * to [PlaybackService].
  */
+@Inject
 internal class SleepTimerClient(
     private val mainExecutor: Executor,
 ) {
