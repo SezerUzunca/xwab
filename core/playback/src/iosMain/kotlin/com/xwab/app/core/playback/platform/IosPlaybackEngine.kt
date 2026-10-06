@@ -27,8 +27,13 @@ internal class IosPlaybackEngine(
     @Assisted private val onPlaybackFailed: (Long, String?) -> Unit,
     @Assisted private val onReadinessTimedOut: (Long) -> Unit,
     @ApplicationUserAgent private val userAgent: String?,
+    private val createPlayer: () -> AVQueuePlayer,
+    private val notificationCenter: NSNotificationCenter,
 ) {
-    /** The callbacks are the owner's; the user agent comes from the module graph. */
+    /**
+     * The callbacks are the owner's; everything else comes from the module graph. [createPlayer]
+     * makes a new player each time, because a media-services reset needs one.
+     */
     @AssistedFactory
     fun interface Factory {
         fun create(
@@ -39,8 +44,7 @@ internal class IosPlaybackEngine(
         ): IosPlaybackEngine
     }
 
-    private var player = AVQueuePlayer()
-    private val notificationCenter = NSNotificationCenter.defaultCenter
+    private var player = createPlayer()
 
     private var looper: AVPlayerLooper? = null
     private var activeAsset: AVAsset? = null
@@ -325,7 +329,7 @@ internal class IosPlaybackEngine(
         stopNativeStateObservation()
         player.pause()
         clearQueue()
-        player = AVQueuePlayer()
+        player = createPlayer()
         lastObservedState = null
         observationSuspendedForFailure = false
         onStateChanged()

@@ -1,9 +1,6 @@
 package com.xwab.app.core.playback.platform
 
 import android.content.Intent
-import android.os.Handler
-import android.os.Looper
-import android.os.SystemClock
 import androidx.annotation.OptIn
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -21,6 +18,8 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.xwab.app.core.playback.store.remainingDurationUntil
 import com.xwab.app.core.playback.timer.SLEEP_TIMER_FADE_MS
 import com.xwab.app.core.playback.timer.SLEEP_TIMER_FADE_STEP_MS
+import com.xwab.app.core.playback.timer.SleepTimerClock
+import com.xwab.app.core.playback.timer.TickScheduler
 import com.xwab.app.core.playback.timer.sleepTimerFadeVolume
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
@@ -105,11 +104,9 @@ internal class PlaybackService : MediaSessionService() {
     }
 
     private fun startSleepTimer(deadlineElapsedRealtimeMs: Long): SessionResult {
-        if (remainingDurationUntil(deadlineElapsedRealtimeMs, SystemClock.elapsedRealtime()) == null) {
+        if (!sleepTimer.startUntil(deadlineElapsedRealtimeMs)) {
             return SessionResult(SessionError.ERROR_BAD_VALUE)
         }
-
-        sleepTimer.startUntil(deadlineElapsedRealtimeMs)
         return sleepTimerResult()
     }
 
@@ -208,34 +205,35 @@ internal class PlaybackService : MediaSessionService() {
  */
 @AssistedInject
 internal class SleepTimer(
+    private val clock: SleepTimerClock,
+    private val scheduler: TickScheduler,
     @Assisted private val onExpired: () -> Unit,
     @Assisted private val onFadeVolume: (Float) -> Unit,
 ) {
-    /** Both inputs are the service's own callbacks. */
+    /** The callbacks are the service's own; the clock and the scheduler come from its graph. */
     @AssistedFactory
     fun interface Factory {
         fun create(onExpired: () -> Unit, onFadeVolume: (Float) -> Unit): SleepTimer
     }
 
-    private val handler = Handler(Looper.getMainLooper())
     private var appliedVolume = FULL_VOLUME
 
     var deadlineElapsedRealtimeMs: Long? = null
         private set
 
-    private val tick = object : Runnable {
-        override fun run() {
-            reconcileDeadline()
-        }
-    }
-
-    fun startUntil(deadlineElapsedRealtimeMs: Long) {
+    /**
+     * Runs the timer until [deadlineElapsedRealtimeMs]. Returns false and changes nothing when that
+     * deadline has already passed or cannot be represented.
+     */
+    fun startUntil(deadlineElapsedRealtimeMs: Long): Boolean {
+        if (remainingDurationUntil(deadlineElapsedRealtimeMs, clock.nowMs()) == null) return false
         this.deadlineElapsedRealtimeMs = deadlineElapsedRealtimeMs
         reconcileDeadline()
+        return true
     }
 
     /**
-     * Re-arms the uptime-based Handler from the elapsed-realtime deadline, or expires immediately.
+     * Re-arms the uptime-based scheduler from the elapsed-realtime deadline, or expires immediately.
      * This is called whenever playback resumes, whenever a controller reads timer state, and on each
      * step of the fade.
      *
@@ -244,8 +242,8 @@ internal class SleepTimer(
      */
     fun reconcileDeadline() {
         val deadline = deadlineElapsedRealtimeMs ?: return
-        val remainingMs = remainingDurationUntil(deadline, SystemClock.elapsedRealtime())
-        handler.removeCallbacks(tick)
+        val remainingMs = remainingDurationUntil(deadline, clock.nowMs())
+        scheduler.cancel()
         if (remainingMs == null) {
             deadlineElapsedRealtimeMs = null
             onExpired()
@@ -255,11 +253,11 @@ internal class SleepTimer(
         applyVolume(sleepTimerFadeVolume(remainingMs))
         val untilFadeMs = remainingMs - SLEEP_TIMER_FADE_MS
         val nextTickMs = if (untilFadeMs > 0) untilFadeMs else remainingMs.coerceAtMost(SLEEP_TIMER_FADE_STEP_MS)
-        handler.postDelayed(tick, nextTickMs)
+        scheduler.schedule(nextTickMs, ::reconcileDeadline)
     }
 
     fun cancel() {
-        handler.removeCallbacks(tick)
+        scheduler.cancel()
         deadlineElapsedRealtimeMs = null
         applyVolume(FULL_VOLUME)
     }

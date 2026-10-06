@@ -22,8 +22,11 @@ internal class AppleMediaSession(
     @Assisted private val onToggleRequested: () -> Unit,
     @Assisted private val onInterruptionBegan: () -> Unit,
     @Assisted private val onMediaServicesReset: () -> Unit,
+    private val audioSession: AVAudioSession,
+    private val notificationCenter: NSNotificationCenter,
+    private val commandCenter: MPRemoteCommandCenter,
 ) {
-    /** Every input is the facade's own callback. */
+    /** The callbacks are the facade's own; the system's shared centers come from the module graph. */
     @AssistedFactory
     fun interface Factory {
         fun create(
@@ -34,10 +37,6 @@ internal class AppleMediaSession(
             onMediaServicesReset: () -> Unit,
         ): AppleMediaSession
     }
-
-    private val audioSession = AVAudioSession.sharedInstance()
-    private val notificationCenter = NSNotificationCenter.defaultCenter
-    private val commandCenter = MPRemoteCommandCenter.sharedCommandCenter()
 
     private var resumeAfterInterruption = false
     private var playRequested = false

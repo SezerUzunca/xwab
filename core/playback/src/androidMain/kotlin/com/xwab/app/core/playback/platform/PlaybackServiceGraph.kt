@@ -38,7 +38,7 @@ internal object PlaybackServiceScope
  * The service comes in as the [Context] and hands over its own session callback, which answers
  * from the service's state.
  */
-@DependencyGraph(PlaybackServiceScope::class)
+@DependencyGraph(PlaybackServiceScope::class, bindingContainers = [AndroidPlaybackBindings::class])
 internal interface PlaybackServiceGraph {
     val player: ExoPlayer
     val mediaSession: MediaSession

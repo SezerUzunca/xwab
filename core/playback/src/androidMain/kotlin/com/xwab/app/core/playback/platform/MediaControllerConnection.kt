@@ -1,6 +1,5 @@
 package com.xwab.app.core.playback.platform
 
-import android.content.ComponentName
 import android.content.Context
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -18,12 +17,13 @@ import java.util.concurrent.Executor
 @AssistedInject
 internal class MediaControllerConnection(
     context: Context,
+    private val sessionToken: SessionToken,
     private val mainExecutor: Executor,
     @Assisted private val onConnected: (MediaController) -> Unit,
     @Assisted private val onControllerDisconnected: (MediaController) -> Unit,
     @Assisted private val onConnectionFailed: () -> Unit,
 ) : MediaController.Listener {
-    /** The callbacks are the owner's; the context and the executor come from the module graph. */
+    /** The callbacks are the owner's; everything else comes from the module graph. */
     @AssistedFactory
     fun interface Factory {
         fun create(
@@ -34,10 +34,6 @@ internal class MediaControllerConnection(
     }
 
     private val appContext = context.applicationContext
-    private val sessionToken = SessionToken(
-        appContext,
-        ComponentName(appContext, PlaybackService::class.java),
-    )
     private val logger = Logger.withTag("MediaControllerConnection")
 
     private var pendingConnectionFuture: ListenableFuture<MediaController>? = null

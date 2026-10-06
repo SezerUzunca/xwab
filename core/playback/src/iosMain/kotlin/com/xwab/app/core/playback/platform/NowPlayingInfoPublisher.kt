@@ -12,8 +12,9 @@ import platform.MediaPlayer.*
 
 /** Publishes Lock Screen and Control Center metadata for the active source. */
 @Inject
-internal class NowPlayingInfoPublisher {
-    private val infoCenter = MPNowPlayingInfoCenter.defaultCenter()
+internal class NowPlayingInfoPublisher(
+    private val infoCenter: MPNowPlayingInfoCenter,
+) {
 
     private var released = false
     private var lastPublishedKey: NowPlayingPublicationKey? = null
