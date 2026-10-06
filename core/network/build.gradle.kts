@@ -11,7 +11,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
         }
         androidMain.dependencies {
-            // Ktor selects the only engine present on this target when HttpClient() is created.
+            // The engine the Android graph hands the client; iOS has Darwin, in its own graph.
             implementation(libs.ktor.client.okhttp)
         }
         commonTest.dependencies {

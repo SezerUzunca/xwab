@@ -4,12 +4,16 @@ import com.xwab.app.core.network.port.NetworkPort
 import com.xwab.app.core.network.port.NetworkResponse
 import com.xwab.app.core.network.port.NetworkTransportException
 import io.ktor.client.HttpClient
+import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.MockRequestHandler
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.network.sockets.ConnectTimeoutException
 import io.ktor.client.network.sockets.SocketTimeoutException
 import io.ktor.client.plugins.HttpRedirect
 import io.ktor.client.plugins.HttpRequestTimeoutException
+import io.ktor.client.plugins.HttpTimeoutCapability
+import io.ktor.client.plugins.HttpTimeoutConfig
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
@@ -18,6 +22,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
@@ -28,9 +33,13 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class KtorNetworkAdapterTest {
     private val clients = mutableListOf<HttpClient>()
+    private val engines = mutableListOf<HttpClientEngine>()
 
     @AfterTest
-    fun closeClients() = clients.forEach(HttpClient::close)
+    fun close() {
+        clients.forEach(HttpClient::close)
+        engines.forEach(HttpClientEngine::close)
+    }
 
     @Test
     fun downloadsExposeMetadataHeadersAndStreamTheBody() = runBlocking {
@@ -88,7 +97,7 @@ class KtorNetworkAdapterTest {
 
     @Test
     fun aCleartextUrlReachedByFollowingARedirectIsStillRefused() = runBlocking {
-        val port = client(downgradeAllowed = true) { request ->
+        val port = clientFollowingDowngrades { request ->
             if (request.url.protocol.name == "https") {
                 respond("", HttpStatusCode.Found, headersOf(HttpHeaders.Location, "http://example.test/audio.mp3"))
             } else {
@@ -155,14 +164,37 @@ class KtorNetworkAdapterTest {
         Unit
     }
 
+    /**
+     * The production client's timeouts, as the engine receives them: a connection and a stalled
+     * transfer are bounded, the whole download deliberately is not.
+     */
+    @Test
+    fun theClientBoundsConnectingAndStallingButNotTheWholeDownload() = runBlocking {
+        var timeouts: HttpTimeoutConfig? = null
+        val port = client { request ->
+            timeouts = request.getCapabilityOrNull(HttpTimeoutCapability)
+            respond("abc")
+        }
+        port.download()
+        assertEquals(10_000L, timeouts?.connectTimeoutMillis)
+        assertEquals(30_000L, timeouts?.socketTimeoutMillis)
+        assertNull(timeouts?.requestTimeoutMillis)
+    }
+
     private suspend fun NetworkPort.download() =
         download("https://example.test/audio.mp3", onResponse = {}, onChunk = { _, _ -> })
 
-    private fun client(
-        downgradeAllowed: Boolean = false,
-        handler: io.ktor.client.engine.mock.MockRequestHandler,
-    ): NetworkPort = KtorNetworkAdapter(HttpClient(MockEngine(handler)) {
-        expectSuccess = false
-        if (downgradeAllowed) install(HttpRedirect) { allowHttpsDowngrade = true }
-    }.also(clients::add))
+    /** The production graph's client, with only the engine replaced. */
+    private fun client(handler: MockRequestHandler): NetworkPort =
+        networkGraphWith(MockEngine(handler).also(engines::add)).network
+
+    /**
+     * A client the production one could never be: it follows a redirect down to cleartext, which
+     * is the only way to reach the adapter's own check of the final URL.
+     */
+    private fun clientFollowingDowngrades(handler: MockRequestHandler): NetworkPort =
+        KtorNetworkAdapter(HttpClient(MockEngine(handler)) {
+            expectSuccess = false
+            install(HttpRedirect) { allowHttpsDowngrade = true }
+        }.also(clients::add))
 }
