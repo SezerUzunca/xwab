@@ -15,7 +15,7 @@ core:session
    ├─ PlaybackPort             screen commands and session state
    └─ DefaultPlaybackAdapter   one item at a time; newest request wins
         ├─► core:session.port.PlaybackItemResolver
-        │    └─ contributed map: playback kind → resolver
+        │    └─ contributed provider map: playback kind → () → resolver
         └─► core:playback.port.PlaybackEnginePort
 ```
 
@@ -24,6 +24,19 @@ contribution, since `shared` picks up core modules automatically; it requires no
 Removing the last contribution is supported: an optional map binding defaults to an empty map.
 Requests for absent kinds publish `ItemNotFound`, including when a surviving platform service still
 holds a source with that kind. Existing playback can still be observed or paused.
+
+Metro supplies `Map<String, () -> PlaybackItemResolver>` from the content modules' existing
+`@ContributesIntoMap` entries. The session passes these providers into its own graph, wrapped
+in `ContentResolvers`, without constructing the resolvers. The wrapper is needed: inside the
+session graph a bare `Map<String, () -> PlaybackItemResolver>` would be read as a request for a
+multibinding that graph does not have, and Metro recommends a strongly typed wrapper for a
+function type carried as a value
+([Metro intrinsics](https://github.com/ZacSweers/metro/blob/1.4.5/docs/metro-intrinsics.md)). Only a play request that needs to resolve a source invokes its kind's
+provider; observing the session, pausing, requesting an absent kind or resuming an already-held
+source does not construct a resolver. This is Metro's official on-demand map multibinding, rather
+than a hand-written resolver registry. The provider honors the contributing implementation's
+scope; the session adds no separate resolver cache.
+[Metro map multibindings](https://github.com/ZacSweers/metro/blob/1.4.5/docs/aggregation.md#contributesintosetcontributesintomap).
 
 `play` takes an id, and the metadata is read beside the URI by the resolver. A screen handing over
 a `Track` it happened to be holding could pair a stale title with a freshly resolved URI, and the

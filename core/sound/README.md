@@ -22,6 +22,19 @@ Kotlin but require opting in to `@PlaybackResolverApi`, which `SoundPlaybackReso
 `adapterOnlyTypes` architecture policy reserves them for adapters and rejects feature usage.
 Delivery and favorites remain content-agnostic capabilities.
 
+`SoundGraph` keeps the module's Metro wiring internal. It provides the track, category and source
+manifests with `@Provides`, and binds the injected catalog and resolver to their ports with `@Binds`.
+Both implementations have one constructor with explicit dependencies; the catalog has no nullable
+delivery/source fallback used only by tests. `SoundSources` and `SoundPlaybackResolver` are scoped
+to `SoundScope`, so catalog observation and playback use one validated source index per graph.
+
+The two application bridges share one `AppScope`-scoped `SoundGraphHolder`. The resolver bridge is
+also scoped to `AppScope`: session's provider map constructs it on demand and reuses it on later
+lookups. The module graph caches the resolver; each `resolve` call still consults delivery, so a
+later download can change the URI from HTTPS to a cached local file. No resolved URI is cached here.
+[Metro providers](https://github.com/ZacSweers/metro/blob/1.4.5/docs/provides.md),
+[Metro scopes](https://github.com/ZacSweers/metro/blob/1.4.5/docs/scopes.md).
+
 Add track metadata in
 [CatalogManifest.kt](src/commonMain/kotlin/com/xwab/app/core/sound/CatalogManifest.kt), and add its
 physical source in [SoundSourceManifest.kt](src/commonMain/kotlin/com/xwab/app/core/sound/SoundSourceManifest.kt)

@@ -22,9 +22,9 @@ package com.xwab.app.core.session.port
  * What the enum guaranteed is now checked where it actually matters: the composition root has a
  * test that every registered kind has a screen to open.
  */
-public data class PlaybackItemId(
-    public val kind: String,
-    public val value: String,
+data class PlaybackItemId(
+    val kind: String,
+    val value: String,
 ) {
     init {
         require(kind.isNotBlank()) { "A playback item id needs a kind." }

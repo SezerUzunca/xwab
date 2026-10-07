@@ -25,6 +25,8 @@ class ManifestSoundCatalogAdapterTest {
     private val adapter = ManifestSoundCatalogAdapter(
         tracks = listOf(rain, waves),
         categories = listOf(category("rain", trackCount = 1), category("ocean", trackCount = 1)),
+        delivery = AvailabilityDelivery(),
+        sources = SoundSources(emptyList()),
     )
 
     @Test
@@ -63,6 +65,8 @@ class ManifestSoundCatalogAdapterTest {
             ManifestSoundCatalogAdapter(
                 tracks = listOf(rain, track("gentle-rain", "ocean")),
                 categories = emptyList(),
+                delivery = AvailabilityDelivery(),
+                sources = SoundSources(emptyList()),
             )
         }
     }
@@ -71,7 +75,7 @@ class ManifestSoundCatalogAdapterTest {
     fun offlineAvailabilityUsesTheVersionedSourceKeyWithoutResolvingPlayback() = runBlocking {
         val delivery = AvailabilityDelivery()
         val sources = SoundSources(listOf(soundSource(rain.id.value, "https://example.test/rain.mp3", version = 3)))
-        val catalog = ManifestSoundCatalogAdapter(listOf(rain), delivery = delivery, sources = sources)
+        val catalog = ManifestSoundCatalogAdapter(listOf(rain), emptyList(), delivery, sources)
         val availability = catalog.observeOfflineReady(rain.id)
 
         assertFalse(availability.first())
@@ -86,6 +90,7 @@ class ManifestSoundCatalogAdapterTest {
         val delivery = AvailabilityDelivery().apply { ready.value = true }
         val catalog = ManifestSoundCatalogAdapter(
             tracks = listOf(rain),
+            categories = emptyList(),
             delivery = delivery,
             sources = SoundSources(listOf(soundSource(waves.id.value, "https://example.test/waves.mp3"))),
         )

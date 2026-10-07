@@ -7,4 +7,4 @@ package com.xwab.app.core.sound.port
  * a constant: it is a directory on the device holding downloaded audio. Renaming it strands every
  * file already there, which is why `architecture.properties` pins its value.
  */
-public const val SOUND_CACHE_NAMESPACE: String = "sound"
+const val SOUND_CACHE_NAMESPACE: String = "sound"

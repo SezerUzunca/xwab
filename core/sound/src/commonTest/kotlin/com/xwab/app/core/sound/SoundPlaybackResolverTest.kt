@@ -74,7 +74,7 @@ class SoundPlaybackResolverTest {
 
     private fun resolver(delivery: DeliveryPort, sources: SoundSources = this.sources) =
         SoundPlaybackResolver(
-            catalog = ManifestSoundCatalogAdapter(listOf(track)),
+            catalog = ManifestSoundCatalogAdapter(listOf(track), emptyList(), delivery, sources),
             content = delivery,
             sources = sources,
         )

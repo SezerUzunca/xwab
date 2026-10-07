@@ -3,6 +3,7 @@ package com.xwab.app.core.sound
 import com.xwab.app.core.delivery.port.DeliveryRequest
 import com.xwab.app.core.sound.port.TrackId
 import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 
 /** One sound's validated download request; neither the address nor the cache key leaves this module's API. */
 internal data class SoundSource(
@@ -11,10 +12,9 @@ internal data class SoundSource(
 )
 
 /** This catalog owns sound identity and the complete inventory needed for sound cache cleanup. */
+@SingleIn(SoundScope::class)
+@Inject
 internal class SoundSources internal constructor(sources: List<SoundSource>) {
-    @Inject
-    internal constructor() : this(soundSourceManifest)
-
     private val requestsByTrackId: Map<TrackId, DeliveryRequest>
 
     init {

@@ -787,15 +787,15 @@ class DefaultPlaybackAdapterTest {
     private fun adapter(
         player: FakePlaybackEnginePort,
         resolve: suspend (String) -> ItemResolution = ::defaultSoundResolution,
-    ) = DefaultPlaybackAdapter(player, mapOf(SOUND to PlaybackItemResolver { resolve(it) }))
+    ) = DefaultPlaybackAdapter(player, ContentResolvers(mapOf(SOUND to { PlaybackItemResolver { resolve(it) } })))
 
     /** The same session with a second kind wired, which is what the app ships. */
     private fun storyAdapter(player: FakePlaybackEnginePort) = DefaultPlaybackAdapter(
         player,
-        mapOf(
-            SOUND to PlaybackItemResolver { defaultSoundResolution(it) },
-            STORY to PlaybackItemResolver { storyResolution(it) },
-        ),
+        ContentResolvers(mapOf(
+            SOUND to { PlaybackItemResolver { defaultSoundResolution(it) } },
+            STORY to { PlaybackItemResolver { storyResolution(it) } },
+        )),
     )
 
     private fun defaultSoundResolution(value: String): ItemResolution =

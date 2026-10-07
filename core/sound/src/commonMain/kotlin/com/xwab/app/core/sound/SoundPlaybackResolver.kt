@@ -12,6 +12,7 @@ import com.xwab.app.core.session.port.PlaybackResolverApi
 import com.xwab.app.core.sound.port.SoundPort
 import com.xwab.app.core.sound.port.TrackId
 import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.first
 
 /**
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.first
  * not, starting the download in the background either way. That behaviour belongs to sounds and
  * stays here: a story streams and is not kept, so it must never be resolved through this path.
  */
+@SingleIn(SoundScope::class)
 @Inject
 internal class SoundPlaybackResolver(
     private val catalog: SoundPort,
