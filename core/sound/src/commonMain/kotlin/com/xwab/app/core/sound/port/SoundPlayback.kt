@@ -17,4 +17,4 @@ package com.xwab.app.core.sound.port
  * back ids an earlier build wrote. From the first release on, changing it detaches playback that
  * is still running.
  */
-public const val SOUND_PLAYBACK_KIND: String = "sound"
+const val SOUND_PLAYBACK_KIND: String = "sound"

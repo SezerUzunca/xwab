@@ -11,6 +11,7 @@ import com.xwab.app.core.session.port.PlaybackResolverApi
 import com.xwab.app.core.story.port.StoryId
 import com.xwab.app.core.story.port.StoryPort
 import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.first
 
 /**
@@ -22,13 +23,12 @@ import kotlinx.coroutines.flow.first
  * An unknown catalog id is `NotFound`; `Unavailable` remains a defensive answer for a
  * catalog/source mismatch, which this module's completeness test is there to prevent.
  */
+@SingleIn(StoryScope::class)
+@Inject
 internal class StoryPlaybackResolver internal constructor(
     private val catalog: StoryPort,
     sources: List<StorySource>,
 ) : PlaybackItemResolver {
-    @Inject
-    internal constructor(catalog: StoryPort) : this(catalog, storySourceManifest)
-
     init {
         val duplicates = sources.groupBy(StorySource::itemId).filterValues { it.size > 1 }.keys
         require(duplicates.isEmpty()) { "Story source ids must be unique: ${duplicates.joinToString()}" }
@@ -53,5 +53,5 @@ internal class StoryPlaybackResolver internal constructor(
     }
 }
 
-/** A story that repeats has not ended, it has started again. The listener can still turn it on. */
+/** Stories stop at the end instead of looping. */
 private val STORY_POLICY = PlaybackPolicy(looping = false)

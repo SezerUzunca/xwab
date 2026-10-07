@@ -18,7 +18,7 @@ class SoundSourceManifestTest {
 
     @Test
     fun everyPublishedTrackHasAValidatedRequestWithTheCompleteCacheInventory() {
-        val sources = SoundSources()
+        val sources = SoundSources(soundSourceManifest)
         val requests = soundSourceManifest.associate { it.trackId to it.request }
         val expectedCacheInventory = requests.values.map { it.key.fileName }.toSet()
 

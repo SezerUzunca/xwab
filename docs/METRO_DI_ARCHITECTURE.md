@@ -70,7 +70,7 @@ Features override the diagnostic severity to `WARN`. Their internal nested assis
 | `core:delivery` | `AndroidDeliveryGraph` / `IosDeliveryGraph`, `DeliveryScope` | `NetworkPort`; Android receives a cache directory derived by its bridge | `DeliveryPort` |
 | `core:favorites` | `AndroidFavoritesGraph` / `IosFavoritesGraph`, `FavoritesScope` | Android `Context`; iOS resolves its file manager locally | `FavoritesPort` |
 | `core:playback` | `AndroidPlaybackGraph` / `IosPlaybackGraph`, `PlaybackScope` | Android `Context`; iOS resolves native player dependencies locally | `PlaybackEnginePort` |
-| `core:session` | `SessionGraph`, `SessionScope` | `PlaybackEnginePort` and the contributed resolver map | `PlaybackPort` |
+| `core:session` | `SessionGraph`, `SessionScope` | `PlaybackEnginePort` and the contributed resolver provider map | `PlaybackPort` |
 | `core:sound` | `SoundGraph`, `SoundScope` | `DeliveryPort` | `SoundPort` and one `PlaybackItemResolver` map entry |
 | `core:story` | `StoryGraph`, `StoryScope` | None | `StoryPort` and one `PlaybackItemResolver` map entry |
 
@@ -121,10 +121,16 @@ Calling an SDK constructor inside a provider is the provider's job. The network 
 
 `createGraph<T>()` creates graphs without runtime inputs. `createGraphFactory<T.Factory>()` creates the factory for graphs with runtime inputs. These bridge calls are composition entry points, not a separate service locator. A binding container is useful for shared declarations, such as `FavoritesBindings` and `AndroidPlaybackBindings`; it is not required for every provider.
 
-Sound and story bind their catalog adapters in small binding containers. Their catalogs, source
-lists and resolvers have `@Inject` secondary constructors that read the manifests shipped inside
-the module; the primary constructors take the data directly, which is what tests use. The catalogs
-are scoped to their module; the source lists and resolvers are not.
+Sound's single module graph declares its `@Binds` aliases and three manifest `@Provides` functions
+directly. The catalog, source index and resolver receive their dependencies through injected
+constructors. Selecting shipped data belongs to the graph; duplicate-ID validation and building
+the cache inventory remain the source index's responsibility. `List<Track>`, `List<Category>` and
+`List<SoundSource>` are distinct binding types, so this configuration needs no qualifiers.
+
+Story follows the same pattern with two manifest providers, `List<Story>` and
+`List<StorySource>`. Its catalog and resolver use injected constructors, and the resolver owns
+source validation and indexing. Neither module needs a separate binding container used by only
+one graph.
 
 `@AssistedInject` and `@AssistedFactory` combine graph dependencies with caller-provided values. Playback uses generated factories for callbacks that capture facade or service state, including `PlaybackStore`, `SleepTimerTicker`, controller connections and native engine/session helpers. The caller supplies runtime callbacks; Metro supplies the remaining dependencies. Callback creation and invoking a generated factory are not manual DI gaps. [Assisted injection](https://github.com/ZacSweers/metro/blob/1.4.5/docs/injection-types.md).
 
@@ -137,7 +143,8 @@ are scoped to their module; the source lists and resolvers are not.
 | Network engine and `HttpClient` | Cached in `NetworkScope`; used for the application lifetime through one platform bridge |
 | Favorites DataStore and IO scope | Cached in `FavoritesScope`; one active store for the production file through the single capability graph |
 | Delivery cache store | Shared within `DeliveryScope` by the adapter and background prefetcher |
-| Sound and story catalogs | Cached in their module scope; each module's `GraphHolder` builds one graph that its catalog bridge and resolver bridge share |
+| Sound source index and playback resolver | Cached in `SoundScope`; catalog and resolver share one validated source index |
+| Story catalog and playback resolver | Cached in `StoryScope`; the resolver validates and indexes private stream sources once per graph |
 | Delivery background scope | Provided once in `DeliveryScope`; background work uses `SupervisorJob` and `Dispatchers.Default` |
 | Android service player and media session | Cached in `PlaybackServiceScope`; explicitly released by the service |
 | iOS `AVQueuePlayer` | Unscoped provider; the engine can obtain a fresh player after a media-services reset |
@@ -166,14 +173,27 @@ Metro's experimental suspend-provider support concerns asynchronous dependency c
 
 Sound and story contribute resolver bridges to `AppScope` using `@ContributesIntoMap` and `@StringKey` with their stable playback kinds. The application graph aggregates the map; `SessionGraphAdapter` passes it to the session graph. The session implements selection and playback coordination without importing sound or story implementations. [Official map contributions](https://github.com/ZacSweers/metro/blob/1.4.5/docs/aggregation.md#contributesintosetcontributesintomap).
 
-The bridge requests `Map<String, PlaybackItemResolver>`, so the application graph builds every
-contributed resolver when it builds the session. Each resolver bridge delegates to its module
-graph's resolver, and the session implements no resolver cache. Story resolves its own private
+The bridge requests `Map<String, () -> PlaybackItemResolver>`, so Metro supplies providers for the
+existing contributions. Constructing or observing the session does not instantiate every resolver.
+Only a play request requiring a source lookup invokes the selected kind's provider; resuming an
+already-held source does not. Each provider uses the contributing binding's scope. The session
+implements no additional resolver cache. The map enters the session graph wrapped in `ContentResolvers`:
+as a bare `Map<String, () -> PlaybackItemResolver>` factory input, Metro would treat it as a request
+for provider-valued map entries, which only a multibinding can satisfy, and the session graph has
+none. A strongly typed wrapper is Metro's guidance for a function type carried as a value.
+
+Sound's resolver bridge is scoped to `AppScope`, and its delegated resolver is scoped to
+`SoundScope`. Repeated provider calls reuse the same bridge and resolver within the application
+graph. This caches the resolver object, not its results: each lookup still asks delivery for the
+current playable URI.
+
+Story's resolver bridge is likewise scoped to `AppScope`, and its resolver is scoped to
+`StoryScope`. Provider calls reuse its resolver and source index. Story resolves its own private
 HTTPS stream manifest directly; it introduces no dependency on delivery or network.
 
 The resolver contract belongs to its consumer, session. Its `adapterOnlyTypes` and `PlaybackResolverApi` opt-in distinguish content adapters from screen consumers. Sound and story implement that resolver contract while publishing their own catalog ports.
 
-The session bridge's `resolversByKind = emptyMap()` constructor default is an intentional optional binding: no content contribution is a supported installation. `EmptyContentSessionGraphTest` verifies that an unknown kind becomes `ItemNotFound` without sending a playback command. [Optional bindings](https://github.com/ZacSweers/metro/blob/1.4.5/docs/bindings.md#optional-bindings).
+The session bridge's `resolverProvidersByKind = emptyMap()` constructor default is an intentional optional binding: no content contribution is a supported installation. `SessionGraphTest` verifies that an unknown kind becomes `ItemNotFound` without sending a playback command when the graph excludes every resolver contribution. [Optional bindings](https://github.com/ZacSweers/metro/blob/1.4.5/docs/bindings.md#optional-bindings).
 
 Replacing an implementation preserves its port and installs one binding for that port. Metro supports contribution `replaces` and graph `excludes`; local graph tests also use dynamic graphs with replacement binding containers. Removing infrastructure such as network requires replacing the port or removing its consumers. Port isolation enables replacement; it does not make a required dependency optional or provide runtime plugin loading.
 
@@ -219,8 +239,9 @@ The following tests exist in the current source tree. Listing them describes cov
 | `NetworkGraphTest` | Unmodified platform graph construction through `productionNetworkGraph()` and adapter identity; no real HTTP request |
 | `KtorNetworkAdapterTest` | The production client from `networkGraphWith(engine)`, with only the engine replaced by a `MockEngine`; includes the timeouts the engine receives. One test builds its own client, because following a redirect to cleartext is the only way to reach the adapter's final-URL check |
 | `RealEngineInterruptionTest` | The production client on the real OkHttp engine against a local HTTPS server that drops the connection mid-body, over HTTP/2 and HTTP/1.1 (Android host only) |
-| `SoundGraphTest`, `StoryGraphTest` | Module graph construction and catalog/resolver wiring |
-| `SessionGraphTest`, `EmptyContentSessionGraphTest` | Session assembly and operation without installed content resolvers |
+| `SoundGraphTest` | Production manifest providers, scoped catalog/resolver wiring, and playback/offline availability using the same delivery cache key |
+| `StoryGraphTest` | Production manifest providers, scoped catalog/resolver wiring, and contributed provider-map resolution of every published story |
+| `SessionGraphTest` | Lazy resolver creation, resuming without creating a resolver, application-map provider aggregation and operation without installed content resolvers |
 | `AndroidDeliveryGraphTest`, `IosDeliveryGraphTest`, `DeliveryGraphChecks` | Platform graph wiring, adapter identity and shared cache visibility during prefetch; dynamic graph resource replacements. On Android, the unmodified graph also downloads to a real temporary directory and resolves the file next time |
 | `AndroidFavoritesGraphTest`, `IosFavoritesGraphTest` | Lazy file callback and adapter identity; unmodified platform graphs write a favorite to disk and read it back |
 | `AndroidPlaybackGraphTest`, `IosPlaybackGraphTest` | Platform graph construction and facade identity on the required main thread; construction off the main thread is refused |

@@ -17,8 +17,21 @@ Story audio streams directly through the platform player. This module depends on
 `core:session`; it owns no network client, cache, database or platform storage implementation.
 Its private source type contains only an item ID and HTTPS URL. It validates IDs and addresses,
 and the resolver rejects duplicate source IDs. Tests check metadata/source completeness, missing
-items and sources, stream metadata and the non-looping default. A module-local Metro graph verifies
-the installed resolver can resolve every published story.
+items and sources, stream metadata and the non-looping default. Graph tests cover the production
+module graph and the contributed provider map, including resolution of every published story.
+
+`StoryGraph` provides metadata and source manifests through `@Provides`, then binds the injected
+catalog and resolver to their ports with `@Binds`. Both implementations use one constructor with
+explicit dependencies. The manifests are distinct `List<Story>` and `List<StorySource>` bindings,
+so no qualifier or separate binding container is needed for this graph.
+
+The catalog and resolver are scoped to `StoryScope`. The resolver's validated source index is built
+once per module graph. The two application bridges share an `AppScope`-scoped `StoryGraphHolder`,
+and the resolver bridge is also scoped to `AppScope`: session's provider map constructs it on
+demand and reuses it on later lookups. All graphs and implementation classes remain internal;
+the application graph receives only the catalog port and session's resolver contract.
+[Metro providers](https://github.com/ZacSweers/metro/blob/1.4.5/docs/provides.md),
+[Metro scopes](https://github.com/ZacSweers/metro/blob/1.4.5/docs/scopes.md).
 
 Metadata lives in [StoryManifest.kt](src/commonMain/kotlin/com/xwab/app/core/story/StoryManifest.kt).
 Add the corresponding physical address in

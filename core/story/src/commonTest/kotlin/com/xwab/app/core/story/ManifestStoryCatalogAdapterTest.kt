@@ -38,17 +38,6 @@ class ManifestStoryCatalogAdapterTest {
         }
     }
 
-    @Test
-    fun theShippedManifestIsServed() = runBlocking {
-        val shippedAdapter = ManifestStoryCatalogAdapter()
-
-        assertEquals(storyManifest, shippedAdapter.observeStories().first())
-        assertEquals(
-            storyManifest.first(),
-            shippedAdapter.observeStory(storyManifest.first().id).first(),
-        )
-    }
-
     private fun story(id: String, title: String = id) = Story(
         id = StoryId(id),
         title = title,

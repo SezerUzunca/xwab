@@ -1,188 +1,129 @@
-# Navigation 3 mimarisi ve kapsamı
+# Navigation 3 architecture and scope
 
-29 Eylül 2026. Bu revizyon shared navigation katmanını resmi Navigation 3 ve Compose
-Multiplatform çözümleriyle düzenler. Feature modülleri tek modül olarak kalır; bir feature
-başka feature'ı veya shared'i tanımaz. Seek ve oynatma ilerleme çubuğu eklenmez.
+September 29, 2026. This revision organizes the shared navigation layer around the official Navigation 3 and Compose Multiplatform solutions. Feature modules remain self-contained: a feature knows neither another feature nor shared. Seek and a playback progress bar are not added.
 
-## Sürümler
+## Versions
 
 - Google `navigation3-runtime`: 1.1.7.
-- JetBrains `navigation3-ui`: 1.1.2. Google ve JetBrains sürüm numaraları farklıdır;
-  bu UI sürümü runtime 1.1.7 ile eşleşir.
-- JetBrains `adaptive-navigation3`: 1.3.0-rc01. Material Adaptive API'si deneysel olarak
-  işaretlidir; opt-in yalnızca bunu kullanan shared dosyalarındadır.
-- Lifecycle ViewModel Navigation 3: 2.11.0; mevcut Metro DI korunur.
+- JetBrains `navigation3-ui`: 1.1.2. Google and JetBrains use different version numbers; this UI version matches runtime 1.1.7.
+- JetBrains `adaptive-navigation3`: 1.3.0-rc01. The Material Adaptive API is marked experimental; opt-in is limited to the shared files that use it.
+- Lifecycle ViewModel Navigation 3: 2.11.0; the existing Metro DI remains in place.
 
-Tarif deposunun main dalı alpha/snapshot API kullanabilir. Buradaki kod, projede çözümlenen
-sürümlerle derlenir; örneklerdeki sürüm numaraları doğrudan kopyalanmaz.
+The recipes repository's main branch may use alpha or snapshot APIs. The code here builds with the versions resolved by the project; version numbers in examples are not copied directly.
 
-## Sorumluluklar
+## Responsibilities
 
-| Parça | Sorumluluk |
-|---|---|
-| `App` | Tema |
-| `composition/AppNavigationHost` | Feature entry sözleşmelerini, callback'leri ve now-playing şeridini bağlama |
-| `composition/AppEntryMetadata` | Feature'lar arası sunum politikası; resmi pane metadata'sı |
-| `navigation/RememberNavigationState` | Her sekmenin `rememberNavBackStack` geçmişi ve seçili sekmenin seri hale getirilmesi |
-| `navigation/Navigator` | Push, pop-to-existing, sekme seçimi, yeniden seçim, öğeyi kendi sekmesinde açma ve panel geri oku politikası |
-| `navigation/TopLevelDestination`, `FeatureSerializers`, `RetiredRoute` | Sekme listesi, kayıtlı route'ların serileştirilmesi ve kaldırılmış route'ların güvenle atılması |
-| `ui/TabEntries` | Aktif olmayan sekmeler dahil saveable-state ve ViewModel dekoratörlerini yaşatma |
-| `ui/TabEntryProvider` | Sekmeye özgü saveable content key ve metadata (sekme, panel rolü, hedefin kendisi) |
-| `ui/AppNavigationDisplay` | Resmi `NavigationSuiteScaffold` (bar/rail), içinde `NavDisplay`, Material list–detail sahne stratejisi ve now-playing şeridi yuvası |
-| `ui/NavigationTransitions`, `ui/EntryMetadataKeys` | Sekme ve ileri/geri geçişleri; sekme ve ebeveyn panel metadata anahtarları |
-| `ui/AdaptiveBackControl` | Resmi `NavEntryDecorator` (saveable-state ve ViewModel dekoratörlerinden sonra): gerçek ebeveyn paneli görünüyorsa tekrarlı geri düğmesini gizleme; birden fazla panel görünürken geri okunu kendi panelini kapatan `Navigator.goUp`'a bağlama. `NavEntry` anahtarı dekoratöre kapalı olduğu için hedef `DestinationKey` metadata'sıyla taşınır |
+| Component                                                              | Responsibility                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `App`                                                                  | Theme                                                                                                                                                                                                                                                                                                                                                                           |
+| `composition/AppNavigationHost`                                        | Connect feature entry contracts, callbacks, and the now-playing strip                                                                                                                                                                                                                                                                                                           |
+| `composition/AppEntryMetadata`                                         | Cross-feature presentation policy and official pane metadata                                                                                                                                                                                                                                                                                                                    |
+| `navigation/RememberNavigationState`                                   | Each tab's `rememberNavBackStack` history and serialization of the selected tab                                                                                                                                                                                                                                                                                                 |
+| `navigation/Navigator`                                                 | Push, pop-to-existing, tab selection, reselection, opening an item in its own tab, and pane Up-arrow policy                                                                                                                                                                                                                                                                     |
+| `navigation/TopLevelDestination`, `FeatureSerializers`, `RetiredRoute` | Tab list, serialization of registered routes, and safe removal of retired routes                                                                                                                                                                                                                                                                                                |
+| `ui/TabEntries`                                                        | Keep state-saving and ViewModel decorators alive, including those for inactive tabs                                                                                                                                                                                                                                                                                             |
+| `ui/TabEntryProvider`                                                  | Tab-specific state-saving content key and metadata (tab, pane role, and destination itself)                                                                                                                                                                                                                                                                                     |
+| `ui/AppNavigationDisplay`                                              | Official `NavigationSuiteScaffold` (bar/rail), containing `NavDisplay`, the Material list–detail scene strategy, and the now-playing strip slot                                                                                                                                                                                                                                 |
+| `ui/NavigationTransitions`, `ui/EntryMetadataKeys`                     | Tab and forward/back transitions; tab and parent-pane metadata keys                                                                                                                                                                                                                                                                                                             |
+| `ui/AdaptiveBackControl`                                               | Official `NavEntryDecorator` (after the state-saving and ViewModel decorators): hide a redundant back button when the actual parent pane is visible; when multiple panes are visible, connect the Up arrow to `Navigator.goUp`, which closes its own pane. Because the `NavEntry` key is inaccessible to the decorator, the destination is carried in `DestinationKey` metadata |
 
-`navigation` durumu ve kuralları tutar, Compose çizimi içermez; `ui` bu durumu ekrana taşır.
-Bağımlılık tek yönlüdür: `ui` → `navigation`. Mimari kural gereği `ui` feature'lara dokunamaz;
-feature bilen tek paketler `composition`, `navigation` ve `di`'dır.
+`navigation` owns state and rules and contains no Compose rendering; `ui` displays that state. The dependency is one-way: `ui` → `navigation`. By architectural rule, `ui` cannot access features; only `composition`, `navigation`, and `di` know about features.
 
-`NavController` ve feature'lar arası route bağımlılığı yoktur. Saved-state formatındaki mevcut
-`@SerialName` değerleri ve route argümanları değiştirilmez. KMP için açık serializer modülü
-kullanılır; Android'e özgü reflection çözümü common koduna taşınmaz.
+There is no `NavController` or cross-feature route dependency. Existing `@SerialName` values and route arguments in the saved-state format are unchanged. KMP uses an explicit serializer module; Android-specific reflection is not brought into common code.
 
-## Projedeki karşılıklar
+## Project mappings
 
-| Navigation 3 yeteneği | Projede kullanımı |
-|---|---|
-| `NavKey` ve entry-provider DSL | Her feature kendi navigation paketinden yayınlar |
-| Kalıcı back stack | Her sekme ayrı `rememberNavBackStack` taşır |
-| Seçili sekmeyi saklama | `rememberSerializable` ve aynı polymorphic serializer konfigürasyonu |
-| Çoklu geçmiş | Browse, Favorites, Stories; diğer sekmeden geri başlangıç sekmesine döner |
-| Saveable entry state | `rememberSaveableStateHolderNavEntryDecorator` |
-| Entry ViewModel ömrü | Saveable dekoratörden sonra `rememberViewModelStoreNavEntryDecorator`; pop store'u temizler |
-| Route argümanları | Category, Sound ve Story kimlikleri entry içinde ViewModel oluşturulurken verilir |
-| Ortak uygulama durumu | Entry ve root ViewModel'leri aynı app-scoped playback portunu gözlemler |
-| Uygulama chrome'u | Resmi `NavigationSuiteScaffold` pencere boyutu sınıfına göre kısa bar veya geniş ray seçer; chrome her ekranda aynı olduğu için `NavDisplay` dışında durur ve tek örnektir |
-| Küçük ekran | `SinglePaneScene` fallback; tam ekran hedefler |
-| Adaptif list–detail | Resmi Material `rememberListDetailSceneStrategy` |
-| Extra pane | Browse listesinin yanında Category detail, ardından Sound extra pane. Altında Category olmayan ses (now-playing şeridinden kökten açılan) tek panel gösterilir. Şerit sesi her zaman kökten açtığı için altındaki kategori her zaman sesin kendi kategorisidir |
-| Boş detail | Resmi `listPane(detailPlaceholder=...)` ile kategori/ses/hikâye seçim mesajı |
-| İleri/geri animasyon | `transitionSpec` ve `popTransitionSpec`; RTL yönü korunur, sekmeler fade kullanır |
-| Predictive Back | `predictivePopTransitionSpec`; Material sahne içindeki geri hareketini kendi işler |
-| Yaşam döngüsüne bağlı dokunma | Feature navigation kontrollerinde `dropUnlessResumed` |
-| Sekme yeniden seçimi | Root'a dönme, root'ta yeniden seçim event'iyle listeyi başa kaydırma |
-| Şeritten öğe açma | Now-playing şeridi çalan öğeyi kendi sekmesinde (ses → Sounds, hikâye → Stories) sekmenin kökünden yeni seçim olarak açar; öğe o stack'te zaten açıksa oraya döner. Bulunulan sekmenin stack'i değişmez |
-| Seçim değiştirme | Resmi tariflerdeki gibi yeni hedef eklenir (Rain açıkken Ocean). Aynı paneldeki eski seçimleri Material'in `PopUntilCurrentDestinationChange` geri davranışı tek geri işlemiyle atlar |
-| Sürüm geçişi | Kaldırılan route'ların güvenli okunması ve stack'ten çıkarılması korunur |
+| Navigation 3 capability         | Use in this project                                                                                                                                                                                                                                                                                |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NavKey` and entry-provider DSL | Each feature exposes them from its own navigation package                                                                                                                                                                                                                                          |
+| Persistent back stack           | Each tab has a separate `rememberNavBackStack`                                                                                                                                                                                                                                                     |
+| Saving the selected tab         | `rememberSerializable` with the same polymorphic serializer configuration                                                                                                                                                                                                                          |
+| Multiple histories              | Browse, Favorites, and Stories; Back from another tab returns to the start tab                                                                                                                                                                                                                     |
+| Restorable entry state          | `rememberSaveableStateHolderNavEntryDecorator`                                                                                                                                                                                                                                                     |
+| Entry ViewModel lifetime        | `rememberViewModelStoreNavEntryDecorator` after the state-saving decorator; popping clears the store                                                                                                                                                                                               |
+| Route arguments                 | Category, Sound, and Story IDs are supplied when ViewModels are created inside entries                                                                                                                                                                                                             |
+| Shared application state        | Entry and root ViewModels observe the same app-scoped playback port                                                                                                                                                                                                                                |
+| Application chrome              | The official `NavigationSuiteScaffold` selects a compact bar or wide rail by window size class; because chrome is the same on every screen, it sits outside `NavDisplay` and has one instance                                                                                                      |
+| Small screens                   | `SinglePaneScene` fallback with full-screen destinations                                                                                                                                                                                                                                           |
+| Adaptive list–detail            | Official Material `rememberListDetailSceneStrategy`                                                                                                                                                                                                                                                |
+| Extra pane                      | Category detail beside the Browse list, followed by a Sound extra pane. A sound without a Category beneath it (opened from the root by the now-playing strip) shows one pane. Since the strip always opens a sound from the root, any category beneath a sound is always that sound's own category |
+| Empty detail                    | Category/sound/story selection message through the official `listPane(detailPlaceholder=...)`                                                                                                                                                                                                      |
+| Forward/back animation          | `transitionSpec` and `popTransitionSpec`; RTL direction is preserved, and tabs use a fade                                                                                                                                                                                                          |
+| Predictive Back                 | `predictivePopTransitionSpec`; the Material scene handles back motion within itself                                                                                                                                                                                                                |
+| Lifecycle-aware taps            | `dropUnlessResumed` in feature navigation controls                                                                                                                                                                                                                                                 |
+| Tab reselection                 | Return to the root; at the root, a reselection event scrolls the list to the top                                                                                                                                                                                                                   |
+| Opening an item from the strip  | The now-playing strip opens the playing item in its own tab (sound → Sounds, story → Stories) as a new selection from the tab root; if that item is already open in the stack, it returns to it. The current tab's stack is unchanged                                                              |
+| Changing selection              | A new destination is added, as in the official recipes (Ocean while Rain is open). Material's `PopUntilCurrentDestinationChange` back behavior skips older selections in the same pane with one Back action                                                                                        |
+| Version migration               | Safe reading and removal of retired routes from the stack is preserved                                                                                                                                                                                                                             |
 
-Material sahne anahtarı sekmeye özgüdür. Browse içindeki Sound ile Favorites içindeki aynı
-Sound'un content key'leri de farklıdır. Uygun pane grubuna ait olmayan hedef tek ekran olarak
-gösterilir. Böylece bir ses listesiyle hikâye
-detayının veya iki sekmenin sahnelerinin yanlış eşleşmesi engellenir.
+The Material scene key is tab-specific. The same Sound in Browse and Favorites also has different content keys. A destination outside the appropriate pane group is shown as a single screen. This prevents a sound list from being paired with story details, or scenes from two tabs from being paired incorrectly.
 
-Geri davranışı Material'in resmi `BackNavigationBehavior.PopUntilCurrentDestinationChange`
-seçeneğidir: geri işlemi en son hedefin paneli değişene kadar geçmişi atlar. Liste yanında
-Rain, Ocean ve Forest sırayla seçildiyse tek geri işlemi listeye döner; kategori yanında seçilen
-sesler de tek geri işlemiyle kategoriye döner. 30 Eylül'de üç seçenek gerçek stack'lerle
-ölçüldü:
+Back behavior uses Material's official `BackNavigationBehavior.PopUntilCurrentDestinationChange` option: a Back action skips history until the last destination's pane changes. If Rain, Ocean, and Forest were selected in order beside the list, one Back action returns to the list; sounds selected beside a category likewise return to the category with one Back action. The three options were measured with real stacks on September 30:
 
-- Varsayılan `PopUntilScaffoldValueChange`: liste boş detay yer tutucusunu gösterdiğinde
-  scaffold değeri değişmediği için geri hedefi bulunamaz; Favorites'teki bir sesten geri,
-  listeyi atlayıp başlangıç sekmesine geçer. Kullanılmaz.
-- `PopLatest`: her seferinde tek hedef kaldırır; eski seçimler tek tek dolaşılır. Bu yüzden
-  önceden `Navigator` aynı türden hedefi değiştiriyordu; bu özel kural kaldırıldı.
-- `PopUntilCurrentDestinationChange`: yukarıdaki davranış. Kullanılır.
+- Default `PopUntilScaffoldValueChange`: when the list shows an empty detail placeholder, the scaffold value does not change, so no back target is found; Back from a sound in Favorites skips the list and switches to the start tab. Not used.
+- `PopLatest`: removes one destination at a time, traversing old selections one by one. For this reason, `Navigator` previously replaced same-type destinations; that custom rule was removed.
+- `PopUntilCurrentDestinationChange`: provides the behavior above. Used.
 
-Telefonda liste ile detay aynı anda görünmediği için seçimler birikmez. Now-playing şeridi
-öğeyi kendi sekmesinin kökünden açar; geri o sekmenin listesine döner.
+On a phone, the list and detail are not visible at the same time, so selections do not accumulate. The now-playing strip opens an item from the root of its own tab; Back returns to that tab's list.
 
-Bu kurallardaki özel kısım yalnızca politikadır; mekanizmalar resmidir. Sekme kimliği resmi
-`NavEntry.contentKey`, geri oku resmi `NavEntryDecorator`, iOS dahil kayıt resmi
-`SavedStateConfiguration` ve `rememberSerializable` ile kurulur. Aynı stack'te aynı içerik
-anahtarı iki kez bulunamaz (saveable state holder reddeder); var olan hedefe dönmek bunun
-çözümlerinden biridir ve uygulamanın seçimidir. Metadata birden fazla değer taşıyan bir haritadır;
-uygulamanın seçtiği şey, bir hedefin o geçmişte hangi panel rolünü alacağıdır.
-[Resmi API açıklaması](https://developer.android.com/reference/kotlin/androidx/compose/material3/adaptive/navigation/BackNavigationBehavior)
-geniş ekranda aynı panelde farklı içeriklere gidildikten sonra pencere daraltılırsa
-geçmişin kullanıcı için beklenmedik olabileceğini belirtir; her iki düzende aynı ekranların
-görüneceği iddiası yapılmaz. Katlanır cihaz düzenleme ve pane hareketi Material
-kütüphanesine bırakılır; ayrıca el yapımı list–detail sahnesi tutulmaz.
+Only the policy in these rules is custom; the mechanisms are official. Tab identity uses the official `NavEntry.contentKey`, the Up arrow uses the official `NavEntryDecorator`, and registration, including on iOS, uses the official `SavedStateConfiguration` and `rememberSerializable`. The same content key cannot occur twice in one stack (the state holder rejects it); returning to an existing destination is one solution and is an application choice. Metadata is a map that can hold multiple values; the application chooses which pane role a destination takes in that history. The [official API documentation](https://developer.android.com/reference/kotlin/androidx/compose/material3/adaptive/navigation/BackNavigationBehavior) notes that history can be unexpected for users if the window is narrowed after navigating to different content in the same pane on a wide screen; no claim is made that identical screens will appear in both layouts. Foldable layouts and pane motion are left to the Material library; no separate handmade list–detail scene is retained.
 
-## Ürün akışı gerektiren diğer tarifler
+## Other recipes that require a product flow
 
-Resmi tarifler bir zorunluluk listesi değildir. Birbirinin alternatifi olan çözümleri aynı
-uygulamaya eklemek veya kullanılmayan route/dekoratör üretmek kapsamı tamamlamaz.
+The official recipes are not a checklist. Adding mutually exclusive solutions to the same application, or creating unused routes and decorators, does not complete the scope.
 
-| Tarif / seçenek | Bu projedeki durum |
-|---|---|
-| DialogScene / BottomSheet OverlayScene | Back stack'e ait dialog/sheet hedefi yok. Tam ekran oynatıcı yoktur; zamanlayıcı ses/hikâye detayındaki ekran içi karttır. Böyle bir hedef eklenirse resmi overlay çözümü kullanılmalıdır. |
-| Supporting pane / el yapımı iki panel | Mevcut hiyerarşi resmi list–detail–extra ile karşılanır; paralel alternatif sahne eklenmez. |
-| Pane genişliği için sürükleme | Adaptif sahnenin isteğe bağlı drag handle'ı etkin değildir; otomatik yerleşim kullanılır. |
-| Deep link ve sentetik geçmiş | Mevcut uygulamada dış URL/intent navigation sözleşmesi yoktur; bu revizyon deep link yayınlamaz. URL biçimi ve platform girişleri tanımlandığında resmi deep-link tarifine göre ayrıca uygulanmalıdır. |
-| Conditional / auth navigation | Hesap, giriş ve onboarding akışı yoktur. |
-| Entry'den sonuç döndürme | Seçim/edit sonucu döndüren bir hedef yoktur; favori ve playback değişimleri ortak port state'inden gözlemlenir. |
-| Shared ViewModel / `retain` dekoratörü | Entry dışı retained nesne veya feature ViewModel paylaşma ihtiyacı yoktur. Playback oturumu zaten uygulama ömründedir. |
-| Hilt / Koin / api–impl split | Metro ve projenin düz feature kuralının alternatifleridir; projeye eklenmez. |
-| Dynamic Feature navigation | İndirilebilir feature modülü yoktur. |
-| Parcelable stack | Common Android/iOS route'ları Kotlin serialization kullanır. |
-| Fragment / View interop | Uygulama Compose Multiplatform ekranlarından oluşur. |
+| Recipe / option                           | Status in this project                                                                                                                                                                                                                     |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| DialogScene / BottomSheet OverlayScene    | There is no dialog or sheet destination in the back stack. There is no full-screen player; the timer is an in-screen card in sound/story detail. If such a destination is added, the official overlay solution should be used.             |
+| Supporting pane / handmade two-pane scene | The existing hierarchy is covered by the official list–detail–extra arrangement; no parallel alternative scene is added.                                                                                                                   |
+| Dragging to resize panes                  | The adaptive scene's optional drag handle is disabled; automatic layout is used.                                                                                                                                                           |
+| Deep links and synthetic history          | The current app has no external URL/intent navigation contract; this revision exposes no deep links. Once URL format and platform entry points are defined, they should be implemented separately following the official deep-link recipe. |
+| Conditional / auth navigation             | There is no account, sign-in, or onboarding flow.                                                                                                                                                                                          |
+| Returning a result from an entry          | No destination returns a selection/edit result; favorites and playback changes are observed through shared port state.                                                                                                                     |
+| Shared ViewModel / `retain` decorator     | There is no need for a retained object outside an entry or a shared feature ViewModel. The playback session already has application lifetime.                                                                                              |
+| Hilt / Koin / api–impl split              | These are alternatives to Metro and the project's flat-feature rule; they are not added.                                                                                                                                                   |
+| Dynamic Feature navigation                | There are no downloadable feature modules.                                                                                                                                                                                                 |
+| Parcelable stack                          | Common Android/iOS routes use Kotlin serialization.                                                                                                                                                                                        |
+| Fragment / View interop                   | The application consists of Compose Multiplatform screens.                                                                                                                                                                                 |
 
-## Resmi belgelerle karşılaştırma
+## Comparison with official documentation
 
-29 Eylül 2026 tarihinde resmi belgeler tekrar kontrol edildi. Uygulamanın kullandığı
-karşılıklar aşağıdadır; tablo uygulama politikası ile kütüphane API'sini ayırır.
+The official documentation was checked again on September 29, 2026. The mappings used by the application are below; the table distinguishes application policy from library APIs.
 
-| Kontrol | Uygulama | Resmi dayanak |
-|---|---|---|
-| Uygulama chrome'u | Chrome her sahnede aynı olduğundan `NavDisplay` dışında, Material `NavigationSuiteScaffold` içindedir (resmi `commonui` tarifinin yaklaşımı). Sahne dekoratörü, chrome sahneye göre değiştiğinde gerekir; burada gerekmez. | [Common navigation UI tarifi](https://github.com/android/nav3-recipes), [NavigationSuiteScaffold](https://developer.android.com/develop/ui/compose/layouts/adaptive/build-adaptive-navigation) |
-| Adaptif ekranlar | Resmi `rememberListDetailSceneStrategy`, `listPane/detailPane/extraPane` ve `detailPlaceholder` kullanılır. Özel list–detail sahnesi yoktur. | [Material Adaptive sahneleri](https://developer.android.com/guide/navigation/navigation-3/scenes) |
-| Animasyon | `NavDisplay` üç transition spec'i kullanır; hedefe özel metadata geçişi yoktur. | [Navigation animasyonları](https://developer.android.com/guide/navigation/navigation-3/animate-destinations) |
-| State ve ViewModel | Her sekmenin decorator sırası saveable-state, ardından ViewModel store'dur. Aktif olmayan sekmelerin decorator'ları composition'da tutulur. | [State ve ViewModel](https://developer.android.com/guide/navigation/navigation-3/save-state), [Çoklu geçmiş](https://developer.android.com/guide/navigation/navigation-3/recipes/multiple-backstacks) |
-| KMP serialization | Feature serializer modülleri birleşir; `rememberNavBackStack` açık `SavedStateConfiguration` alır. Android reflection overload'u common kodda kullanılmaz. | [KMP route serialization](https://kotlinlang.org/docs/multiplatform/compose-navigation-3.html) |
+| Check               | Implementation                                                                                                                                                                                                                                    | Official basis                                                                                                                                                                                               |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Application chrome  | Since chrome is the same in every scene, it is outside `NavDisplay`, within Material `NavigationSuiteScaffold` (the approach of the official `commonui` recipe). A scene decorator is needed when chrome varies by scene; it is unnecessary here. | [Common navigation UI recipe](https://github.com/android/nav3-recipes), [NavigationSuiteScaffold](https://developer.android.com/develop/ui/compose/layouts/adaptive/build-adaptive-navigation)               |
+| Adaptive screens    | Official `rememberListDetailSceneStrategy`, `listPane/detailPane/extraPane`, and `detailPlaceholder` are used. There is no custom list–detail scene.                                                                                              | [Material Adaptive scenes](https://developer.android.com/guide/navigation/navigation-3/scenes)                                                                                                               |
+| Animation           | `NavDisplay` uses three transition specs; there is no destination-specific metadata transition.                                                                                                                                                   | [Navigation animations](https://developer.android.com/guide/navigation/navigation-3/animate-destinations)                                                                                                    |
+| State and ViewModel | Each tab's decorator order is state-saving, then ViewModel store. Decorators for inactive tabs remain in composition.                                                                                                                             | [State and ViewModel](https://developer.android.com/guide/navigation/navigation-3/save-state), [Multiple histories](https://developer.android.com/guide/navigation/navigation-3/recipes/multiple-backstacks) |
+| KMP serialization   | Feature serializer modules are combined; `rememberNavBackStack` receives an explicit `SavedStateConfiguration`. The Android reflection overload is not used in common code.                                                                       | [KMP route serialization](https://kotlinlang.org/docs/multiplatform/compose-navigation-3.html)                                                                                                               |
 
-Panel içi geri oku ile sistem geri işlemi ayrı kurallardır. Sistem geri işlemi en sağdaki
-paneli kapatır. Kategori ve ses yan yana görünürken bu panel sestir. Kategori panelindeki
-ok ise kategori panelini ve ondan açılan sesleri kapatır; o panelde daha önce seçilmiş
-kategoriler de gider (`Navigator.goUp`). Tek panelde ok, hedefin kendi geri eylemini kullanır.
+The in-pane Up arrow and the system Back action follow separate rules. System Back closes the rightmost pane. When Category and Sound are side by side, that pane is Sound. The arrow in the Category pane closes the Category pane and sounds opened from it; categories previously selected in that pane also go away (`Navigator.goUp`). With one pane, the arrow uses the destination's own back action.
 
-`Navigator`'ın pop-to-existing, reselect, replacement ve panel oku kuralları, `TabKey` ile
-sekme kimliği ve `ParentPaneKey` ile Up görünürlüğü uygulama politikasıdır; bunlar resmi
-API gibi sunulmaz. `RetiredRoute` de eski sürümden gelen tanınmayan kayıtlı hedefleri
-temizlemek için kullanılan aktif migration kodudur. Resmi kütüphane bu ürün politikasını
-kendiliğinden uygulamaz; kullanım ve regresyon testleri olduğu için kaldırılmamıştır.
+`Navigator`'s pop-to-existing, reselection, replacement, and pane-arrow rules, tab identity through `TabKey`, and Up visibility through `ParentPaneKey` are application policies; they are not presented as official APIs. `RetiredRoute` is active migration code used to clean up unknown saved destinations from an older version. The official library does not implement this product policy by itself; the code remains because it has usage and regression tests.
 
-## Doğrulama
+## Verification
 
-- `NavigatorTest`: tab seçimi, reselect, tekrar dokunma, pop-to-existing, entry replacement,
-  root koruması ve geçersiz stack'in reddi.
-- `AppEntryMetadataTest`: resmi Material stratejisiyle compact fallback, list/detail/extra,
-  placeholder, sekme izolasyonu ve `PopUntilCurrentDestinationChange` ile eski seçimlerin tek
-  geri işlemiyle atlanması.
-- Serializer, retired-route ve content-key regresyon testleri korunur.
-- `src/composeTest/.../NavigationCompositionTest`: gerçek `AppNavigationDisplay` üzerinden
-  entry store ayrılığı, sekme değiştirme, recreation, saveable state, pop temizliği ve tek
-  root chrome ViewModel'i. ViewModel'ler üretimdeki gibi MetroX ile alınır; entry ViewModel'inin
-  `SavedStateHandle`'ı recreation'dan sonra kendi entry'sine döner, bu da dekoratör sırasını
-  sınar. Compact/adaptif düzen değişiminde entry state'inin korunması ve
-  görünür ebeveyn panelinde gereksiz geri kontrolünün gizlenmesi de sınanır. Sistem geri işlemi
-  `Navigator` çağrılmadan, `NavDisplay`'in dinlediği navigation event dispatcher'ına gerçek
-  geri olayı (tamamlanan ve predictive) gönderilerek sınanır: telefonda tek ekran kapanır,
-  başlangıç sekmesine düşülür; liste yanında tek geri işlemi paneldeki eski seçimleri de atlar
-  (`PopLatest` ile bu test düşer). Android cihaz ve iOS simulator source set'leri aynı testleri
-  kullanır; CI bunları iOS simulator'da koşar, Android'de yerel cihazda koşulur.
-- `src/composeTest/.../RetiredRouteRestoreTest`: eski bir sürümün kaydettiği, argüman taşıyan ve
-  bu sürümde olmayan bir route içeren back stack, `rememberNavBackStack`'in kullandığı saved-state
-  biçiminde gerçek platformda çözülür; route `RetiredRoute` olarak okunur ve temizlenir.
-- İçerik anahtarı ve sekme kimliği `toString()` yerine route'un kayıtlı biçiminden
-  (`@SerialName` ve argüman değerleri, `savedIdentity`) türetilir; sınıf adı değişse de kayıtlı
-  arayüz durumu korunur. Feature'ın kendi seçtiği içerik anahtarı korunur.
-- `checkArchitecture` kural 23: feature'da tanımlanan her route kendi serializer modülüne kayıtlı,
-  her feature'ın serializer modülü de shell'deki `FEATURE_SERIALIZERS`'a eklenmiş olmalıdır;
-  aksi durumda eksik yalnızca bir sonraki açılıştaki geri yüklemede ortaya çıkardı.
-- Statik analiz, mimari kontrol, Android lint ve APK derlemesi.
+- `NavigatorTest`: tab selection, reselection, repeated taps, pop-to-existing, entry replacement, root protection, and rejection of invalid stacks.
+- `AppEntryMetadataTest`: compact fallback, list/detail/extra, placeholder, tab isolation, and skipping old selections with one Back action through `PopUntilCurrentDestinationChange`, using the official Material strategy.
+- Serializer, retired-route, and content-key regression tests remain.
+- `src/composeTest/.../NavigationCompositionTest`: entry-store separation, tab switching, recreation, restorable state, pop cleanup, and a single root chrome ViewModel through the real `AppNavigationDisplay`. ViewModels are obtained through MetroX as in production; after recreation, an entry ViewModel's `SavedStateHandle` returns to its own entry, which also tests decorator order. Preservation of entry state across compact/adaptive layout changes and hiding a redundant back control when the parent pane is visible are also tested. System Back is tested without calling `Navigator`, by sending real back events (completed and predictive) to the navigation event dispatcher observed by `NavDisplay`: on a phone, one screen closes and navigation falls back to the start tab; beside the list, one Back action also skips old selections in the pane (this test fails with `PopLatest`). Android device and iOS simulator source sets use the same tests; CI runs them on an iOS simulator, and they run locally on an Android device.
+- `src/composeTest/.../RetiredRouteRestoreTest`: on a real platform, a back stack saved by an older version and containing an argument-bearing route absent from this version is decoded in the saved-state format used by `rememberNavBackStack`; the route is read as `RetiredRoute` and removed.
+- Content keys and tab identity are derived from the route's registered form (`@SerialName` and argument values, `savedIdentity`) rather than `toString()`; the saved UI state survives a class rename. A feature's chosen content key is preserved.
+- `checkArchitecture` rule 23: every route defined in a feature must be registered in its serializer module, and every feature serializer module must be added to the shell's `FEATURE_SERIALIZERS`; otherwise, an omission would only surface during restoration at the next launch.
+- Static analysis, architecture checks, Android lint, and APK build.
 
-Windows üzerinde iOS framework derlemesi ve simulator testleri çalıştırılamaz. Katlanır cihaz
-donanımı ve gerçek iOS geri hareketi bu ortamın test kapsamının dışındadır.
+The iOS framework build and simulator tests cannot run on Windows. Foldable hardware and real iOS back gestures are outside this environment's test coverage.
 
-## Resmi kaynaklar
+## Official sources
 
-- [Navigation 3 tarif kataloğu](https://github.com/android/nav3-recipes)
-- [Adaptif navigasyon (NavigationSuiteScaffold)](https://developer.android.com/develop/ui/compose/layouts/adaptive/build-adaptive-navigation)
-- [Material Adaptive sahneleri](https://developer.android.com/guide/navigation/navigation-3/scenes)
-- [İleri, geri, predictive Back ve shared transition](https://developer.android.com/guide/navigation/navigation-3/animate-destinations)
-- [Çoklu back stack](https://developer.android.com/guide/navigation/navigation-3/recipes/multiple-backstacks)
-- [State saklama ve entry dekoratörleri](https://developer.android.com/guide/navigation/navigation-3/save-state)
+- [Navigation 3 recipe catalog](https://github.com/android/nav3-recipes)
+- [Adaptive navigation (NavigationSuiteScaffold)](https://developer.android.com/develop/ui/compose/layouts/adaptive/build-adaptive-navigation)
+- [Material Adaptive scenes](https://developer.android.com/guide/navigation/navigation-3/scenes)
+- [Forward, back, predictive Back, and shared transitions](https://developer.android.com/guide/navigation/navigation-3/animate-destinations)
+- [Multiple back stacks](https://developer.android.com/guide/navigation/navigation-3/recipes/multiple-backstacks)
+- [Saving state and entry decorators](https://developer.android.com/guide/navigation/navigation-3/save-state)
 - [Compose Multiplatform Navigation 3](https://kotlinlang.org/docs/multiplatform/compose-navigation-3.html)
-- [Compose Multiplatform adaptif düzenler](https://kotlinlang.org/docs/multiplatform/compose-adaptive-layouts.html)
-- [Adaptif geri davranışları](https://developer.android.com/reference/kotlin/androidx/compose/material3/adaptive/navigation/BackNavigationBehavior)
-- [AndroidX Test sürüm notları](https://developer.android.com/jetpack/androidx/releases/test)
+- [Compose Multiplatform adaptive layouts](https://kotlinlang.org/docs/multiplatform/compose-adaptive-layouts.html)
+- [Adaptive back behaviors](https://developer.android.com/reference/kotlin/androidx/compose/material3/adaptive/navigation/BackNavigationBehavior)
+- [AndroidX Test release notes](https://developer.android.com/jetpack/androidx/releases/test)

@@ -41,21 +41,11 @@ import kotlinx.coroutines.flow.updateAndGet
 internal class DefaultPlaybackAdapter(
     private val enginePort: PlaybackEnginePort,
     /**
-     * One resolver per content kind, keyed by the kind each module registered itself under.
-     *
-     * Injected as a multibinding rather than built here, which is the whole of this module's
-     * independence from content: a new content type contributes its own entry from its own module
-     * and this constructor never changes. Metro aggregates the map in the application graph from
-     * the compile classpath, and [SessionGraphAdapter] hands it to this module's graph, so the map
-     * holds exactly the content modules the composition root declares — a removed one is simply
-     * absent, and the kind it used to answer for reports `ItemNotFound`. With no contributions
-     * [SessionGraphAdapter] passes an empty map, so the session still exists after the last content
-     * module is removed.
-     *
-     * Keys cannot collide: a map is a map, and two modules registering the same kind is a Metro
-     * duplicate-binding error at compile time rather than one resolver silently never running.
+     * Metro aggregates providers by content kind in the application graph; [SessionGraphAdapter]
+     * passes them into this module. A provider is invoked only for a needed source lookup.
+     * Removing a contribution removes its kind; removing every contribution leaves an empty map.
      */
-    private val resolversByKind: Map<String, PlaybackItemResolver>,
+    private val resolvers: ContentResolvers,
 ) : PlaybackPort {
 
     /**
@@ -78,10 +68,10 @@ internal class DefaultPlaybackAdapter(
     override val sleepTimerRemainingMs: Flow<Long?> = enginePort.sleepTimerState.map { it.remainingMs }
 
     override suspend fun play(itemId: PlaybackItemId) {
-        val resolver = resolversByKind[itemId.kind]
+        val resolverProvider = resolvers.byKind[itemId.kind]
         val engine = enginePort.state.value
         if (
-            resolver != null &&
+            resolverProvider != null &&
             itemOf(engine.activeSource) == itemId &&
             engine.phase != PlaybackPhase.Failed
         ) {
@@ -100,9 +90,9 @@ internal class DefaultPlaybackAdapter(
         try {
             // A kind nothing can resolve is a wiring gap rather than a listener error, and it is
             // reported as "nothing could find this" instead of pretending a source was unreachable.
-            if (resolver == null) return settle(generation, PlaybackFailure.ItemNotFound(itemId))
+            if (resolverProvider == null) return settle(generation, PlaybackFailure.ItemNotFound(itemId))
 
-            when (val resolution = resolver.resolve(itemId.value)) {
+            when (val resolution = resolverProvider().resolve(itemId.value)) {
                 is ItemResolution.Resolved -> {
                     // A newer play() or a pause() arrived while the lookup was running; its own
                     // state is the current one, and loading now would undo what was last asked for.

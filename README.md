@@ -178,8 +178,9 @@ graph; a new module without a contract fails the check.
 `:core:session` publishes the `PlaybackItemResolver` port it consumes. A content module implements
 it and contributes it with
 `@ContributesIntoMap(AppScope::class) @StringKey(ITS_OWN_KIND)`. `:core:session` injects
-`Map<String, PlaybackItemResolver>` and looks up the requested kind. Its only core dependency is
-`:core:playback`; the session never names a sound, story or other content implementation.
+`Map<String, () -> PlaybackItemResolver>` and invokes the requested kind's provider only when a
+source lookup is needed. Its only core dependency is `:core:playback`; the session never names a
+sound, story or other content implementation.
 
 A new playable content type supplies an internal `PlaybackItemResolver` backed by its own private
 sources. The session needs no edits and supports an empty resolver map. Infrastructure capabilities

@@ -14,16 +14,13 @@ import kotlinx.coroutines.flow.map
 
 /** Serves metadata from one immutable manifest. */
 @SingleIn(SoundScope::class)
+@Inject
 internal class ManifestSoundCatalogAdapter internal constructor(
     tracks: List<Track>,
-    categories: List<Category> = emptyList(),
-    private val delivery: DeliveryPort? = null,
-    private val sources: SoundSources? = null,
+    categories: List<Category>,
+    private val delivery: DeliveryPort,
+    private val sources: SoundSources,
 ) : SoundPort {
-    @Inject
-    internal constructor(delivery: DeliveryPort, sources: SoundSources) :
-        this(catalogManifest, catalogCategories, delivery, sources)
-
     init {
         val duplicates = tracks.groupBy(Track::id).filterValues { it.size > 1 }.keys
         require(duplicates.isEmpty()) {
@@ -45,7 +42,7 @@ internal class ManifestSoundCatalogAdapter internal constructor(
         allTracks.map { values -> values.find { it.id == trackId } }
 
     override fun observeOfflineReady(trackId: TrackId): Flow<Boolean> {
-        val request = sources?.requestFor(trackId).takeIf { trackId in trackIds }
-        return request?.let { delivery?.observeCached(it.key) } ?: flowOf(false)
+        val request = sources.requestFor(trackId).takeIf { trackId in trackIds }
+        return request?.let { delivery.observeCached(it.key) } ?: flowOf(false)
     }
 }

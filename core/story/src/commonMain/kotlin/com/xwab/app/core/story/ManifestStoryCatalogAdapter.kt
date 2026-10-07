@@ -11,10 +11,8 @@ import kotlinx.coroutines.flow.map
 
 /** Serves metadata from one immutable manifest. */
 @SingleIn(StoryScope::class)
+@Inject
 internal class ManifestStoryCatalogAdapter internal constructor(stories: List<Story>) : StoryPort {
-    @Inject
-    internal constructor() : this(storyManifest)
-
     init {
         val duplicates = stories.groupBy(Story::id).filterValues { it.size > 1 }.keys
         require(duplicates.isEmpty()) {
