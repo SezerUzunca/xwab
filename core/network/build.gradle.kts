@@ -17,6 +17,11 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.ktor.client.mock)
         }
+        // A real OkHttp engine against a local HTTPS server, for what MockEngine cannot reproduce.
+        getByName("androidHostTest").dependencies {
+            implementation(libs.okhttp.mockwebserver)
+            implementation(libs.okhttp.tls)
+        }
         if (gradle.extra["enableIos"] as Boolean) {
             iosMain.dependencies {
                 implementation(libs.ktor.client.darwin)

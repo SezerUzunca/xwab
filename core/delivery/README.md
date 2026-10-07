@@ -29,7 +29,9 @@ status to show confirmed offline availability instead of assuming a streamed ite
 
 Request headers are caller-owned too, because this module knows nothing about the host it fetches
 from — and some hosts, Wikimedia among them, refuse a request that does not identify its client.
-Such a refusal arrives as a 4xx, which is treated as a permanently unusable source, so the effect
+Such a refusal arrives as a 4xx, which is treated as a permanently unusable source, as is a 3xx:
+the network client follows every other redirect, so one that arrives here is a redirect it refused,
+such as HTTPS to cleartext. The effect
 of omitting a required header is a cache that never fills while playback keeps streaming. `Accept`
 is the exception: it is derived from `acceptedContentTypes`, and a request that also states it is
 rejected rather than silently preferring one of the two.

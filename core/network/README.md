@@ -23,5 +23,12 @@ graph.
 Tests run against the production graph with only the engine replaced by a `MockEngine`, so the
 client's own timeouts, redirects and status handling are what they exercise. They cover response
 metadata, bytes, headers, URL/redirect validation, transport failures, callback
-errors and cancellation. A real-engine test for a response interrupted mid-body is still needed;
-the MockEngine harness does not reliably reproduce that case.
+errors and cancellation.
+
+A body shorter than its declared `Content-Length` is a transport failure. Over HTTP/2, which
+OkHttp negotiates with any server that offers it, a connection dropped mid-body can end the
+response without an engine error, so the adapter compares the bytes it streamed with the declared
+length. `RealEngineInterruptionTest` runs the production client on the real OkHttp engine against a
+local HTTPS server that drops the connection mid-body, over HTTP/2 and HTTP/1.1. Without a
+declared length a truncation cannot be detected. This is a host test, so the Darwin engine is not
+covered.
