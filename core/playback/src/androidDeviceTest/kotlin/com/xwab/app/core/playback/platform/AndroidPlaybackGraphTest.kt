@@ -55,6 +55,12 @@ class AndroidPlaybackGraphTest {
     }
 
     private companion object {
-        const val MAIN_THREAD_TIMEOUT_SECONDS = 10L
+        /**
+         * Ten seconds timed out on the two-core CI emulator, where the main thread can stay busy
+         * that long. It failed both attempts of the device job on main twice. The test asserts
+         * what the graph builds, not how fast, so it waits as long as PlaybackServiceDeviceTest's
+         * controller connection, which hit the same limit first.
+         */
+        const val MAIN_THREAD_TIMEOUT_SECONDS = 45L
     }
 }
