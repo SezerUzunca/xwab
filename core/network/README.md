@@ -4,8 +4,10 @@
 redirects, connection/socket timeouts and transport errors. `core:delivery` owns response policy
 and destination writes. Android uses OkHttp; iOS uses Darwin. Neither engine leaks into the port.
 
-The connection timeout is 10 seconds and the socket timeout is 30 seconds between chunks. There
-is no whole-download deadline, so a slow transfer can complete while it continues making progress.
+The connection timeout is 10 seconds and the socket timeout is 30 seconds between chunks. Darwin does
+not support a connection timeout, so on iOS only the socket timeout applies
+([Ktor timeout limitations](https://ktor.io/docs/client-timeout.html#limitations)). There is no
+whole-download deadline, so a slow transfer can complete while it continues making progress.
 
 Connection and response-stream failures surface as `NetworkTransportException`, with their cause
 retained for diagnostics. Callback failures and caller cancellation propagate unchanged. Invalid
