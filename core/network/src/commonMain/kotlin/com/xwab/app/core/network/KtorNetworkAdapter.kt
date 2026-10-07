@@ -45,10 +45,17 @@ internal class KtorNetworkAdapter(
 
                 val channel = response.bodyAsChannel()
                 val buffer = ByteArray(STREAM_BUFFER_BYTES)
+                var received = 0L
                 while (true) {
                     val count = channel.readAvailable(buffer)
                     if (count < 0) break
+                    received += count
                     if (count > 0) downloadCallback { onChunk(buffer, count) }
+                }
+                // Over HTTP/2 a dropped connection can end the body without an error, so a body
+                // shorter than it declared is a transport failure the engine did not report.
+                metadata.contentLength?.let { declared ->
+                    check(received >= declared) { "The response body ended after $received of $declared bytes." }
                 }
             }
         }

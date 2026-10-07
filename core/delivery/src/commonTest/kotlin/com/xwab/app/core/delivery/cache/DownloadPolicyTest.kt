@@ -20,7 +20,8 @@ class DownloadPolicyTest {
         assertFailsWith<UnusableContentSourceException> { requireUsableStatus(404) }
         assertFailsWith<UnusableContentSourceException> { requireUsableStatus(403) }
         assertFailsWith<IllegalStateException> { requireUsableStatus(500) }
-        assertFailsWith<IllegalStateException> { requireUsableStatus(302) }
+        // Only a redirect the client refused to follow, such as HTTPS to cleartext, gets here.
+        assertFailsWith<UnusableContentSourceException> { requireUsableStatus(302) }
     }
 
     @Test

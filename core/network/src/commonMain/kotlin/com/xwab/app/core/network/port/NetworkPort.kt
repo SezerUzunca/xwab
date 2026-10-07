@@ -22,7 +22,8 @@ class NetworkTransportException(cause: Throwable) :
  * Callers exchange only application-owned values through this boundary. Ktor, its engines and its
  * response pipeline remain private implementation details of `core:network`.
  *
- * Transport failures surface as [NetworkTransportException]. Caller cancellation is propagated
+ * Transport failures surface as [NetworkTransportException], including a body that ends before
+ * its declared `Content-Length`. Caller cancellation is propagated
  * unchanged. Initial URLs rejected by the URL parser or using a non-HTTPS scheme fail with
  * [IllegalArgumentException].
  */
