@@ -11,50 +11,23 @@ import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlinx.serialization.modules.SerializersModule
 
 /**
- * Every route this app can put on a back stack has to be saveable and restorable through
- * [FEATURE_SERIALIZERS].
+ * Routes contributed to [FEATURE_SERIALIZERS] preserve their arguments, saved identities and
+ * wire names when saved and restored.
  *
- * Only the composition root can check this: a feature knows its own route and nothing about the
- * module the app assembles. A route with an entry but left out of
- * [FEATURE_SERIALIZERS] costs nothing until a saved back stack comes back, and then
- * `rememberNavBackStack` throws on restore rather than falling back.
-
+ * [SAVEABLE_ROUTES] derives the fixtures from the assembled serializer registrations. The
+ * architecture check guards missing registrations; AppEntryProviderTest checks that each
+ * registered route also has a screen.
  */
 class FeatureSerializersTest {
 
     private val routeSerializer = PolymorphicSerializer(NavKey::class)
     private val format = Json { serializersModule = FEATURE_SERIALIZERS }
 
-    /** Stated once in [SAVEABLE_ROUTES]; AppEntryProviderTest checks the same list for screens. */
+    /** Derived from registrations; AppEntryProviderTest checks the same routes for screens. */
     private val routes: List<NavKey> = SAVEABLE_ROUTES
-
-    @Test
-    fun everyRouteCanBeSaved() {
-        routes.forEach { route ->
-            assertNotNull(
-                FEATURE_SERIALIZERS.serializerFor(route),
-                "${route::class.simpleName} has no serializer: its feature's SerializersModule is " +
-                    "missing from FEATURE_SERIALIZERS, so saving a back stack holding it fails",
-            )
-        }
-    }
-
-    @OptIn(ExperimentalSerializationApi::class)
-    @Test
-    fun everyRouteCanBeRestoredFromTheNameItWasSavedUnder() {
-        routes.forEach { route ->
-            val serialName = FEATURE_SERIALIZERS.serializerFor(route)?.descriptor?.serialName
-            assertNotNull(serialName, "${route::class.simpleName} has no serializer")
-            assertNotNull(
-                FEATURE_SERIALIZERS.getPolymorphic(NavKey::class, serialName),
-                "$serialName cannot be read back, so restoring a back stack holding it throws",
-            )
-        }
-    }
 
     @Test
     fun everyRouteRoundTripsWithItsArgumentsIntact() {
