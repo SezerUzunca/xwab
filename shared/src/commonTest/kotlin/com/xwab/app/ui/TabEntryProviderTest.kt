@@ -2,6 +2,7 @@ package com.xwab.app.ui
 
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
+import com.xwab.app.composition.appEntryGraph
 import com.xwab.app.composition.appEntryProvider
 import com.xwab.app.composition.appEntryMetadata
 import com.xwab.app.feature.browse.navigation.BrowseRoute
@@ -10,6 +11,7 @@ import com.xwab.app.feature.favorites.navigation.FavoritesRoute
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.navigation.NavigationState
 import com.xwab.app.navigation.Navigator
+import com.xwab.app.navigation.appNavigationState
 import com.xwab.app.navigation.savedIdentity
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,7 +19,6 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 import androidx.navigation3.runtime.get
-import kotlinx.coroutines.flow.emptyFlow
 
 class TabEntryProviderTest {
     @Test
@@ -84,9 +85,7 @@ class TabEntryProviderTest {
     }
 }
 
-private fun appEntries() = appEntryProvider(
-    onNavigate = {}, onBack = {}, onReselect = { emptyFlow() },
-)
+private fun appEntries() = appEntryProvider(appEntryGraph(appNavigationState()))
 
 /** The production metadata; these tests are about identity, not what the back arrow does. */
 private fun tabEntries(tab: NavKey, provider: (NavKey) -> NavEntry<NavKey>) =

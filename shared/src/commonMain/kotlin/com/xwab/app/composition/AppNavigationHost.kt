@@ -5,7 +5,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.xwab.app.feature.nowplaying.shell.NowPlayingBar
-import com.xwab.app.navigation.Navigator
 import com.xwab.app.navigation.rememberNavigationState
 import com.xwab.app.ui.AppNavigationDisplay
 import com.xwab.app.ui.rememberTabEntries
@@ -14,10 +13,9 @@ import com.xwab.app.ui.rememberTabEntries
 @Composable
 internal fun AppNavigationHost() {
     val state = rememberNavigationState()
-    val navigator = remember(state) { Navigator(state) }
-    val provider = remember(navigator) {
-        appEntryProvider(navigator::navigate, navigator::goBack, navigator::reselections)
-    }
+    val graph = remember(state) { appEntryGraph(state) }
+    val navigator = graph.navigator
+    val provider = remember(graph) { appEntryProvider(graph) }
     AppNavigationDisplay(
         entries = rememberTabEntries(state, provider, ::appEntryMetadata, navigator::goUp),
         selectedTab = state.topLevelRoute,

@@ -23,6 +23,8 @@ The version catalog is the source of truth. The official documentation's latest 
 | `*GraphHolder` | Build one local graph shared by multiple bridges; used by sound and story |
 | `@BindingContainer` | Share binding declarations between graphs without making the container a complete graph |
 | Feature ViewModel factory | Combine injected dependencies with runtime route arguments through MetroX |
+| `AppEntryGraph` | Aggregate the entry installers features contribute to `EntryProviderScope::class` and supply feature-owned navigation callbacks from the composition root |
+| `RouteSerializersGraph` | Aggregate the route serializer modules features contribute to `NavKey::class` for saved back stacks |
 | Resource owner | Cancel jobs, release players and sessions, and close resources when its lifetime ends |
 | `checkArchitecture` | Enforce project dependency, visibility, port and ViewModel-registration rules |
 
@@ -45,9 +47,9 @@ Kotlin visibility and Gradle dependency declarations establish the boundaries; t
 
 `AppGraph` extends MetroX's `ViewModelGraph`. `AndroidAppGraph` and `IosAppGraph` declare `@DependencyGraph(AppScope::class)` and implement that shared surface.
 
-Android provides its application `Context` through `AndroidAppGraph.Factory`, using `@Provides @GraphPrivate`. `MainApplication` creates the application graph once. iOS provides no factory input: `MainViewController.kt` holds one lazy application graph reused by its controllers. Platform capability graphs derive their own native values.
+Android provides its application `Context` through `AndroidAppGraph.Factory`, using `@Provides @GraphPrivate`. `MainApplication` implements MetroX's `MetroApplication` and creates the application graph once, lazily. `AndroidAppGraph` also extends `MetroAppComponentProviders`, so MetroX's `AppComponentFactory` (API 28+, hence `minSdk` 28) constructor-injects `MainActivity`, contributed with `@ActivityKey`; it receives the `MetroViewModelFactory` and passes it to `App`. The Activity lives in `:shared`'s Android sources beside the graph, because only the module declaring a graph sees its contributions. `:shared`'s own device-test APK restores AndroidX's default factory, since it has no `MetroApplication`; lint's `Instantiatable` check is silenced on the Activity as in Metro's Android sample. iOS provides no factory input: `MainViewController.kt` holds one lazy application graph reused by its controllers. Platform capability graphs derive their own native values.
 
-`shared/build.gradle.kts` includes all core modules from the module list discovered by settings. Feature dependencies remain explicit. Metro discovers contributions from the compilation classpath: annotating a class in an uninstalled module does not install that module. Architecture checks enforce module registration and dependency direction.
+`shared/build.gradle.kts` includes all core and feature modules from the module lists discovered by settings; neither is listed by hand. Metro discovers contributions from the compilation classpath: annotating a class in an uninstalled module does not install that module. Architecture checks enforce module registration and dependency direction.
 
 The base convention sets:
 
@@ -199,14 +201,48 @@ Replacing an implementation preserves its port and installs one binding for that
 
 ## ViewModels and Navigation 3
 
-`AppViewModelFactory` extends the official `MetroViewModelFactory` and receives the three provider maps exposed by `ViewModelGraph`. It contains no manual list of feature classes. `App` supplies it through `LocalMetroViewModelFactory`. This is the [MetroX ViewModel setup](https://zacsweers.github.io/metro/latest/metrox-viewmodel/) and its [Compose integration](https://zacsweers.github.io/metro/latest/metrox-viewmodel-compose/).
+Feature entries use the Metro set-multibinding pattern from Google's
+[Navigation 3 Metro modular recipe](https://github.com/android/nav3-recipes/tree/f4d115959f4f3a1e903e67705954c66aa008adef/metroapp/src/main/java/com/example/nav3recipes/modular/metro).
+Each feature's public navigation binding container defines a `@Provides @IntoSet` installer of
+type `EntryProviderScope<NavKey>.() -> Unit` and is contributed with
+`@ContributesTo(EntryProviderScope::class)`. `AppEntryGraph`, in shared's composition boundary,
+aggregates that scope and collects the set using its internal `EntryProviderInstaller` alias;
+`AppEntryProvider` runs it. Route `SerializersModule`s follow the same [aggregation](https://github.com/ZacSweers/metro/blob/1.4.5/docs/aggregation.md)
+into `NavKey::class`, collected by `RouteSerializersGraph` for `FEATURE_SERIALIZERS`. That graph is
+separate because back stacks are restored before the navigator, and so the callbacks, exist. The
+recipe's scope marker lives in a common module; XWAB uses Navigation 3's own types instead, since
+features and shared already see them. `AppEntryGraph` supplies feature-owned callback contracts, so
+destination mapping stays in the app and features acquire no shared or cross-feature dependency.
+This graph receives the restored `NavigationState` as a factory input, inside the host's
+`remember(state)`, and builds the one `Navigator` over it, `@SingleIn(EntryProviderScope::class)`, that
+the host and every callback share. The navigator stays internal to shared and is never an
+`AppScope` binding; the graph owns no ViewModels, and installer order defines no navigation policy. See
+[Metro and Navigation 3](METRO_NAVIGATION3_ARCHITECTURE.md) for the upstream comparison.
+
+MetroX 1.4.5 requires the application to supply a `MetroViewModelFactory` subclass when using `ViewModelGraph`. `AppViewModelFactory` is that adapter: Metro injects the three provider maps assembled through multibindings, and the adapter contains no manual list of feature classes or ViewModel-construction branches. `App` receives it as its one parameter and supplies it through `LocalMetroViewModelFactory`. This is the [MetroX ViewModel setup](https://zacsweers.github.io/metro/1.4.5/metrox-viewmodel/) and its [Compose integration](https://zacsweers.github.io/metro/1.4.5/metrox-viewmodel-compose/).
 
 | ViewModel kind | Registration | Entry lookup |
 | --- | --- | --- |
 | Plain ViewModel | `@Inject`, `@ViewModelKey`, `@ContributesIntoMap(AppScope::class)` | `metroViewModel()` |
 | Route-dependent ViewModel | `@AssistedInject`; nested `@AssistedFactory` implements `ManualViewModelAssistedFactory`, with `@ManualViewModelAssistedFactoryKey` and map contribution | `assistedMetroViewModel<VM, VM.Factory> { create(id) }` |
 
+The current feature registrations use these two patterns:
+
+| Feature module | ViewModel | Construction and lookup | Runtime factory input |
+| --- | --- | --- | --- |
+| `feature:browse` | `BrowseViewModel` | Plain injection; `metroViewModel()` | None |
+| `feature:category` | `CategoryViewModel` | Assisted injection; `assistedMetroViewModel()` | `CategoryId` from the route |
+| `feature:favorites` | `FavoritesViewModel` | Plain injection; `metroViewModel()` | None |
+| `feature:nowplaying` | `NowPlayingViewModel` | Plain injection; `metroViewModel()` in `NowPlayingBar` | None |
+| `feature:sound` | `SoundViewModel` | Assisted injection; `assistedMetroViewModel()` | `TrackId` from the route |
+| `feature:story` | `StoriesViewModel` | Plain injection; `metroViewModel()` | None |
+| `feature:story` | `StoryDetailViewModel` | Assisted injection; `assistedMetroViewModel()` | `StoryId` from the route |
+
 Category, sound and story-detail entries supply their typed IDs to generated assisted factories. Despite its name, `ManualViewModelAssistedFactory` is an official MetroX interface; these implementations are generated by Metro. Its role is to let the entry supply runtime arguments explicitly.
+
+Feature-owned use cases receive their capability ports through constructor `@Inject`. The sound, category and favorites use cases consume `SoundPort`, `FavoritesPort` and `PlaybackPort`; the story list and detail use cases consume `StoryPort` and `PlaybackPort`. Browse and now-playing inject their ports directly into their ViewModels. MetroX registration and lookup supply the construction path; the features declare assisted factory interfaces where needed, and Metro generates their implementations.
+
+`FavoritesViewModel` keeps `timeSource: TimeSource = TimeSource.Monotonic` as an intentional [optional binding](https://github.com/ZacSweers/metro/blob/1.4.5/docs/bindings.md#optional-bindings). Metro uses the default when the application graph has no `TimeSource` binding; an installed binding can supply another clock. `FavoritesRemovalTest` passes a `TestTimeSource` through the constructor and advances it to verify the ten-second Undo window without waiting for wall-clock time. This feature clock remains a constructor default, independently of the explicit infrastructure providers described above.
 
 Contributing a ViewModel factory to `AppScope` does not make the ViewModel an application singleton. Provider maps defer construction until a screen asks. Navigation 3's `rememberViewModelStoreNavEntryDecorator` supplies the entry's owner; Lifecycle retains and clears its ViewModels. The now-playing bar uses the root owner because it is application chrome outside destination entries.
 
@@ -248,6 +284,10 @@ The following tests exist in the current source tree. Listing them describes cov
 | `ServiceSleepTimerTest` | The service's sleep timer through its injected clock and scheduler: refusal of a past deadline, the fade, cancel and restart |
 | `AndroidAppGraphTest`, `IosAppGraphTest` | Production application graph and MetroX map/factory availability |
 | `NavigationCompositionTest` | MetroX resolution with entry owners, restoration, saved-state handles and root chrome ownership |
+| `AppEntryCallbacksTest` | One scoped navigator per entry graph; each feature intent's destination and id, detail Back callbacks and per-tab reselection |
+| `AndroidAppIntegrationTest`, `IosAppIntegrationTest` | The real app root on the production graph, only the catalog replaced through a dynamic graph: the Metro-collected Browse entry, a category tap, and the Category screen with its assisted ViewModel |
+
+For features, `AndroidAppGraphTest` and `IosAppGraphTest` call `assertEveryViewModelResolves`. That helper checks factory identity, that `viewModelProviders` and `manualAssistedFactoryProviders` are nonempty, and whether each registered manual assisted factory matches its class key. It does not assert the complete expected set of feature registrations or instantiate every plain ViewModel. `checkArchitecture` checks source annotations and module dependencies; individual ViewModel and use-case tests construct models with fakes to verify behavior. These checks provide complementary coverage, but do not resolve every feature's ViewModel through the real graph.
 
 Graph tests follow three patterns:
 
@@ -285,8 +325,8 @@ Avoid creating public containers outside `.port` or moving SDK configuration int
 - [Metro 1.4.5 scopes](https://github.com/ZacSweers/metro/blob/1.4.5/docs/scopes.md)
 - [Metro 1.4.5 bindings, qualifiers and optional bindings](https://github.com/ZacSweers/metro/blob/1.4.5/docs/bindings.md)
 - [Metro 1.4.5 aggregation and contribution providers](https://github.com/ZacSweers/metro/blob/1.4.5/docs/aggregation.md)
-- [MetroX ViewModel](https://zacsweers.github.io/metro/latest/metrox-viewmodel/)
-- [MetroX ViewModel Compose](https://zacsweers.github.io/metro/latest/metrox-viewmodel-compose/)
+- [MetroX ViewModel at 1.4.5](https://zacsweers.github.io/metro/1.4.5/metrox-viewmodel/)
+- [MetroX ViewModel Compose at 1.4.5](https://zacsweers.github.io/metro/1.4.5/metrox-viewmodel-compose/)
 - [MetroX ViewModel sources at 1.4.5](https://github.com/ZacSweers/metro/tree/1.4.5/metrox-viewmodel)
 - [MetroX ViewModel Compose sources at 1.4.5](https://github.com/ZacSweers/metro/tree/1.4.5/metrox-viewmodel-compose)
 - [Metro coroutine support and scope ownership](https://zacsweers.github.io/metro/latest/coroutines/)

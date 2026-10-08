@@ -41,7 +41,6 @@ import org.jetbrains.compose.resources.stringResource
  * consumes the side of whichever navigation component it shows; the rest is padded here.
  */
 @Composable
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Suppress("LongParameterList") // Tabs, entries, Back and the now-playing bar slot are independent contracts.
 internal fun AppNavigationDisplay(
     entries: List<NavEntry<NavKey>>,

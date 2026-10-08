@@ -29,15 +29,11 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.v2.runComposeUiTest
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.createSavedStateHandle
-import androidx.lifecycle.enableSavedStateHandles
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
@@ -46,14 +42,13 @@ import androidx.navigationevent.NavigationEvent
 import androidx.navigationevent.NavigationEventDispatcherOwner
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.rememberNavigationEventDispatcherOwner
-import androidx.savedstate.SavedStateRegistryController
-import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.compose.LocalSavedStateRegistryOwner
 import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.composition.appEntryMetadata
+import com.xwab.app.TestRootOwner
 import com.xwab.app.designsystem.components.LocalBackButtonVisibility
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import com.xwab.app.ui.AppNavigationDisplay
@@ -449,26 +444,6 @@ private class ChromeViewModel : ViewModel() {
 
     override fun onCleared() {
         cleared = true
-    }
-}
-
-private class TestRootOwner : ViewModelStoreOwner, SavedStateRegistryOwner {
-    override val viewModelStore = ViewModelStore()
-    override val lifecycle = LifecycleRegistry.createUnsafe(this)
-    private val controller = SavedStateRegistryController.create(this)
-    override val savedStateRegistry get() = controller.savedStateRegistry
-
-    init {
-        controller.performAttach()
-        controller.performRestore(null)
-        // As ComponentActivity does. Entries must not lean on the root's handles to keep their own.
-        enableSavedStateHandles()
-        lifecycle.currentState = Lifecycle.State.RESUMED
-    }
-
-    fun close() {
-        lifecycle.currentState = Lifecycle.State.DESTROYED
-        viewModelStore.clear()
     }
 }
 

@@ -9,8 +9,8 @@ import xwab.shared.generated.resources.allStringResources
  * The tab labels this module ships and the tabs that use them are the same set.
  *
  * The only thing in a feature's removal that the compiler has nothing to say about. Deleting
- * `:feature:story` breaks every other reference to it — the graph accessor, the entry provider, the
- * serializer list, the tab itself — but `tab_stories` keeps resolving happily to a string no screen
+ * `:feature:story` breaks every other reference to it — the graph accessor, the callback bindings, the
+ * tab itself — but `tab_stories` keeps resolving happily to a string no screen
  * asks for, and ships in the APK forever.
  *
  * Checked in both directions on purpose. A label with no tab is the leftover; a tab with no label

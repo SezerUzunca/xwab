@@ -39,21 +39,16 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // Metro discovers installed capabilities on this classpath. A new core module owns
-            // its contributions; no app-level list needs updating for each adapter or content kind.
-            // Settings discovers them and publishes the list, so this module never reads another
-            // project's state to find them.
-            @Suppress("UNCHECKED_CAST")
-            val coreModules = gradle.extra["coreModules"] as List<String>
-            coreModules.forEach { implementation(project(it)) }
+            // Metro discovers installed capabilities and features on this classpath: their ViewModels,
+            // entries and route serializers. A new core or feature module owns its contributions; no
+            // app-level list needs updating for each one. Settings discovers them and publishes the
+            // lists, so this module never reads another project's state to find them.
+            listOf("coreModules", "featureModules").forEach { group ->
+                @Suppress("UNCHECKED_CAST")
+                val modules = gradle.extra[group] as List<String>
+                modules.forEach { implementation(project(it)) }
+            }
             implementation(projects.designsystem)
-
-            implementation(projects.feature.browse)
-            implementation(projects.feature.favorites)
-            implementation(projects.feature.category)
-            implementation(projects.feature.sound)
-            implementation(projects.feature.story)
-            implementation(projects.feature.nowplaying)
 
             implementation(libs.compose.ui)
             implementation(libs.compose.foundation)
@@ -75,6 +70,13 @@ kotlin {
             implementation(libs.kotlinx.serialization.core)
             implementation(libs.kotlinx.coroutines.core)
         }
+        androidMain.dependencies {
+            // The launcher Activity lives here, beside the graph that constructs it: Metro builds
+            // app components through MetroX's AppComponentFactory (API 28+), and only the module
+            // declaring the graph sees its contributions.
+            implementation(libs.metrox.android)
+            implementation(libs.androidx.activity.compose)
+        }
         commonTest.dependencies {
             implementation(libs.kotlinx.serialization.json)
         }
@@ -86,6 +88,8 @@ kotlin {
             dependencies {
                 implementation(libs.compose.uiTest)
                 implementation(libs.androidx.lifecycle.viewmodelCompose)
+                // The integration scenario replaces the downloaded catalog with this module's fake.
+                implementation(projects.testing.sound)
             }
         }
         getByName("androidDeviceTest") {

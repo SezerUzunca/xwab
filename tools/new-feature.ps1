@@ -4,11 +4,12 @@
 
 .DESCRIPTION
     Creates feature/<name> with navigation, UI, state, a Metro-contributed ViewModel and tests in
-    one Gradle module. Gradle discovers the module automatically.
+    one Gradle module. Gradle discovers the module and adds it to the shell automatically.
 
-    The feature is intentionally not self-registering. The script prints the explicit app-shell
-    steps and requires choosing either a top-level destination or an existing feature intent that
-    the composition root connects to it.
+    The feature contributes its entry installer and route serializers through Metro, so the shell
+    picks both up from its classpath. The script prints the remaining app-shell steps and requires
+    choosing either a top-level destination or an existing feature intent that the composition
+    root connects to it.
 
 .PARAMETER Name
     Lower-case, dash-separated directory name, for example 'favorites' or 'sleep-timer'.
@@ -83,6 +84,10 @@ Write-GeneratedFile (Join-Path $navSrc "${Pascal}Navigation.kt") @"
 package com.xwab.app.feature.${pkg}.navigation
 
 import androidx.navigation3.runtime.NavKey
+import dev.zacsweers.metro.BindingContainer
+import dev.zacsweers.metro.ContributesTo
+import dev.zacsweers.metro.IntoSet
+import dev.zacsweers.metro.Provides
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.modules.SerializersModule
@@ -99,9 +104,15 @@ import kotlinx.serialization.modules.subclass
 @SerialName("com.xwab.app.feature.${pkg}.navigation.${Pascal}Route")
 data object ${Pascal}Route : NavKey
 
-val ${camel}NavigationSerializers = SerializersModule {
-    polymorphic(NavKey::class) {
-        subclass(${Pascal}Route::class)
+@ContributesTo(NavKey::class)
+@BindingContainer
+object ${Pascal}NavigationBindings {
+    @Provides
+    @IntoSet
+    fun provideRouteSerializers(): SerializersModule = SerializersModule {
+        polymorphic(NavKey::class) {
+            subclass(${Pascal}Route::class)
+        }
     }
 }
 "@
@@ -170,12 +181,21 @@ package com.xwab.app.feature.${pkg}.navigation
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.xwab.app.feature.${pkg}.${Pascal}ScreenRoute
+import dev.zacsweers.metro.BindingContainer
+import dev.zacsweers.metro.ContributesTo
+import dev.zacsweers.metro.IntoSet
+import dev.zacsweers.metro.Provides
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 
-/** Converts this feature's route into its internal UI. */
-fun EntryProviderScope<NavKey>.${camel}Entry() {
-    entry<${Pascal}Route> {
-        ${Pascal}ScreenRoute(viewModel = metroViewModel())
+@ContributesTo(EntryProviderScope::class)
+@BindingContainer
+object ${Pascal}EntryBindings {
+    @Provides
+    @IntoSet
+    fun provideEntryProviderInstaller(): EntryProviderScope<NavKey>.() -> Unit = {
+        entry<${Pascal}Route> {
+            ${Pascal}ScreenRoute(viewModel = metroViewModel())
+        }
     }
 }
 "@
@@ -196,8 +216,8 @@ class ${Pascal}ViewModelTest {
 
 Write-Host ""
 Write-Host "Done. Wire the feature in the app shell:" -ForegroundColor Green
-Write-Host "  1. Add implementation(projects.feature.${camel}) to shared/build.gradle.kts. Metro finds the ViewModel there."
-Write-Host "  2. Register ${camel}Entry in AppEntryProvider.kt and ${camel}NavigationSerializers in FEATURE_SERIALIZERS (FeatureSerializers.kt)."
-Write-Host "  3. Add ${Pascal}Route as a top-level route or connect it to an existing intent."
+Write-Host "  1. Add ${Pascal}Route as a top-level route or connect it to an existing intent."
+Write-Host "  2. If the feature gains outgoing intents, expose its callback contract in navigation and provide it in AppEntryGraph."
+Write-Host "  3. Pin the route's serial name in FeatureSerializersTest.routeSerialNamesAreTheSavedWireFormat: it is a saved wire format."
 Write-Host ""
 Write-Host "Then: ./gradlew :feature:${Name}:compileCommonMainKotlinMetadata checkArchitecture"

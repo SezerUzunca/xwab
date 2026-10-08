@@ -57,7 +57,6 @@ private fun AdaptiveBackControl(metadata: Map<String, Any>, onUp: () -> Unit, co
     )
 }
 
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 private val PANE_ROLES = listOf(
     ListDetailPaneScaffoldRole.List,
     ListDetailPaneScaffoldRole.Detail,

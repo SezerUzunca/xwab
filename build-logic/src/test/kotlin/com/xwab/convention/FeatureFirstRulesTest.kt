@@ -1163,7 +1163,7 @@ class FeatureFirstRulesTest {
     }
 
     @Test
-    fun aRouteEveryFeatureRegistersInItsOwnModuleIsAccepted() {
+    fun aRouteEveryFeatureRegistersInItsOwnContributionIsAccepted() {
         assertEquals(
             emptyList(),
             FeatureFirstRules.unregisteredRouteViolations(
@@ -1173,10 +1173,32 @@ class FeatureFirstRulesTest {
                         """
                         data object StoriesRoute : NavKey
                         data class StoryRoute(val storyId: String) : NavKey
-                        val storiesNavigationSerializers = SerializersModule {
-                            polymorphic(NavKey::class) {
-                                subclass(StoriesRoute::class)
-                                subclass(StoryRoute::class, StoryRouteSerializer)
+                        @ContributesTo(NavKey::class)
+                        @BindingContainer
+                        object StoriesNavigationBindings {
+                            @Provides
+                            @IntoSet
+                            fun provideRouteSerializers(): SerializersModule = SerializersModule {
+                                polymorphic(NavKey::class) {
+                                    subclass(StoriesRoute::class)
+                                    subclass(StoryRoute::class, StoryRouteSerializer)
+                                }
+                            }
+                        }
+                        """.trimIndent(),
+                    ),
+                    // A block body and annotations in the other order are still one contribution.
+                    "feature/browse/src/commonMain/kotlin/BrowseNavigation.kt" to featureSource(
+                        ".navigation",
+                        """
+                        data object BrowseRoute : NavKey
+                        @ContributesTo(NavKey::class)
+                        @BindingContainer
+                        object BrowseNavigationBindings {
+                            @IntoSet
+                            @Provides
+                            fun provideRouteSerializers(): SerializersModule {
+                                return SerializersModule { polymorphic(NavKey::class) { subclass(BrowseRoute::class) } }
                             }
                         }
                         """.trimIndent(),
@@ -1188,7 +1210,7 @@ class FeatureFirstRulesTest {
 
     /** Registered by another feature, or only in a comment, is still not registered by this one. */
     @Test
-    fun aRouteMissingFromItsFeaturesModuleIsReported() {
+    fun aRouteMissingFromItsFeaturesContributionIsReported() {
         val violations = FeatureFirstRules.unregisteredRouteViolations(
             mapOf(
                 "feature/story/src/commonMain/kotlin/StoriesNavigation.kt" to featureSource(
@@ -1196,8 +1218,12 @@ class FeatureFirstRulesTest {
                     """
                     data object StoriesRoute : NavKey
                     data class StoryRoute(val storyId: String) : NavKey
-                    val storiesNavigationSerializers = SerializersModule {
-                        polymorphic(NavKey::class) {
+                    @ContributesTo(NavKey::class)
+                    @BindingContainer
+                    object StoriesNavigationBindings {
+                        @Provides
+                        @IntoSet
+                        fun provideRouteSerializers(): SerializersModule = SerializersModule {
                             subclass(StoriesRoute::class)
                             // subclass(StoryRoute::class)
                         }
@@ -1206,7 +1232,15 @@ class FeatureFirstRulesTest {
                 ),
                 "feature/sound/src/commonMain/kotlin/SoundNavigation.kt" to featureSource(
                     ".navigation",
-                    "val soundNavigationSerializers = SerializersModule { subclass(StoryRoute::class) }",
+                    """
+                    @ContributesTo(NavKey::class)
+                    @BindingContainer
+                    object SoundNavigationBindings {
+                        @Provides
+                        @IntoSet
+                        fun provideRouteSerializers(): SerializersModule = SerializersModule { subclass(StoryRoute::class) }
+                    }
+                    """.trimIndent(),
                 ),
             ),
         )
@@ -1216,34 +1250,60 @@ class FeatureFirstRulesTest {
         assertTrue(violations.single().contains("feature/story"))
     }
 
+    /** Every marker the rule needs is in the feature, but not on the one provider that counts. */
     @Test
-    fun everyFeaturesRouteModuleMustBeIncludedByTheShell() {
-        val features = mapOf(
-            "feature/browse/src/commonMain/kotlin/BrowseNavigation.kt" to featureSource(
-                ".navigation",
-                "val browseNavigationSerializers = SerializersModule {}",
-            ),
-            "feature/story/src/commonMain/kotlin/StoriesNavigation.kt" to featureSource(
-                ".navigation",
-                "val storiesNavigationSerializers: SerializersModule = SerializersModule {}",
-            ),
-        )
-        val shell = mapOf(
-            "shared/src/commonMain/kotlin/FeatureSerializers.kt" to sharedSource(
-                "navigation",
-                """
-                internal val FEATURE_SERIALIZERS = SerializersModule {
-                    include(browseNavigationSerializers)
-                    // include(storiesNavigationSerializers)
-                }
-                """.trimIndent(),
+    fun aRegistrationOutsideAnIntoSetProviderOfTheRouteScopeIsReported() {
+        val violations = FeatureFirstRules.unregisteredRouteViolations(
+            mapOf(
+                // Registered, but its provider lacks @IntoSet; the entry container below has one.
+                "feature/favorites/src/commonMain/kotlin/FavoritesNavigation.kt" to featureSource(
+                    ".navigation",
+                    """
+                    data object FavoritesRoute : NavKey
+                    @ContributesTo(NavKey::class)
+                    @BindingContainer
+                    object FavoritesNavigationBindings {
+                        @Provides
+                        fun provideRouteSerializers(): SerializersModule = SerializersModule {
+                            subclass(FavoritesRoute::class)
+                        }
+                    }
+                    """.trimIndent(),
+                ),
+                "feature/favorites/src/commonMain/kotlin/FavoritesEntry.kt" to featureSource(
+                    ".navigation",
+                    """
+                    @ContributesTo(EntryProviderScope::class)
+                    @BindingContainer
+                    object FavoritesEntryBindings {
+                        @Provides
+                        @IntoSet
+                        fun provideEntryProviderInstaller(): EntryProviderScope<NavKey>.() -> Unit = {}
+                    }
+                    """.trimIndent(),
+                ),
+                // Provided @IntoSet, but into the entry scope the route serializers graph never reads.
+                "feature/sound/src/commonMain/kotlin/SoundNavigation.kt" to featureSource(
+                    ".navigation",
+                    """
+                    data class SoundRoute(val trackId: String) : NavKey
+                    @ContributesTo(EntryProviderScope::class)
+                    @BindingContainer
+                    object SoundNavigationBindings {
+                        @Provides
+                        @IntoSet
+                        fun provideRouteSerializers(): SerializersModule = SerializersModule {
+                            subclass(SoundRoute::class)
+                        }
+                    }
+                    """.trimIndent(),
+                ),
             ),
         )
 
-        val violations = FeatureFirstRules.unassembledRouteModuleViolations(features, shell)
-
-        assertEquals(1, violations.size)
-        assertTrue(violations.single().contains("storiesNavigationSerializers"))
+        assertEquals(2, violations.size)
+        assertTrue(violations.any { "FavoritesRoute" in it })
+        assertTrue(violations.any { "SoundRoute" in it })
     }
 
     @Test
