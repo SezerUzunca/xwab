@@ -64,9 +64,13 @@ internal object FeatureFirstRules {
     /** `subclass(SoundRoute::class)` or `subclass(SoundRoute::class, SoundRouteSerializer)`. */
     private val ROUTE_REGISTRATION = Regex("""\bsubclass\(\s*(\w+)::class""")
 
-    /** `val soundNavigationSerializers = SerializersModule {`, optionally with its type stated. */
-    private val ROUTE_MODULE_DECLARATION =
-        Regex("""\bval\s+(\w+NavigationSerializers)\s*(?::\s*SerializersModule\s*)?=\s*SerializersModule\b""")
+    /** The scope the shell's `RouteSerializersGraph` collects route serializers modules from. */
+    private val ROUTE_SERIALIZER_SCOPE = Regex("""@ContributesTo\(\s*NavKey::class\s*\)""")
+
+    /** A provider's start: the annotations in front of a `fun`, in any order, then the `fun`. */
+    private val PROVIDER_START = Regex("""(?:@\w+(?:\([^)]*\))?\s*)*\bfun\b""")
+
+    private val INTO_SET = Regex("""@IntoSet\b""")
 
     /** `@StringKey(SOUND_PLAYBACK_KIND)` — the kind a content module registers its resolver under. */
     private val CONTRIBUTED_PLAYBACK_KIND =
@@ -385,10 +389,9 @@ internal object FeatureFirstRules {
     /**
      * A capability or a screen the shell never declares is in no application.
      *
-     * Metro aggregates a scope's contributions from the compile classpath. The shell discovers
-     * core dependencies automatically; feature wiring remains explicit application policy. This
-     * check guards both paths, so a broken discovery loop or forgotten feature dependency cannot
-     * leave a registered, tested module absent from the application graph.
+     * Metro aggregates a scope's contributions from the compile classpath. The shell adds the core
+     * and feature modules settings discovers; this check guards that loop, so a broken discovery
+     * cannot leave a registered, tested module absent from the application graph.
      */
     fun unwiredModuleViolations(graph: Map<String, List<String>>): List<String> {
         val shell = graph[SHELL_MODULE] ?: return emptyList()
@@ -399,8 +402,8 @@ internal object FeatureFirstRules {
             }
             .sorted()
             .map { module ->
-                "$module is in the build but $SHELL_MODULE does not depend on it. Check core discovery " +
-                    "or declare the feature in shared/build.gradle.kts: a core capability the shell " +
+                "$module is in the build but $SHELL_MODULE does not depend on it. Check module discovery " +
+                    "in settings.gradle.kts and shared/build.gradle.kts: a core capability the shell " +
                     "does not see contributes nothing to the application graph, and a feature it " +
                     "does not see is in no app."
             }
@@ -481,7 +484,12 @@ internal object FeatureFirstRules {
         }.sorted()
 
     /**
-     * Every route a feature declares is registered in that feature's serializers module.
+     * Every route a feature declares reaches the shell's route serializers.
+     *
+     * Metro collects them from `@IntoSet` providers in containers contributed with
+     * `@ContributesTo(NavKey::class)`, so that is where a route must be registered with
+     * `subclass(Route::class)`. The markers must meet in one provider: a registration in a provider
+     * without `@IntoSet`, or an `@IntoSet` in the entry container, proves nothing.
      *
      * A route with an entry but no registration opens and saves nothing wrong in a single run. It
      * fails on the next launch, when the saved back stack holding it is restored and the polymorphic
@@ -492,42 +500,31 @@ internal object FeatureFirstRules {
     fun unregisteredRouteViolations(featureSources: Map<String, String>): List<String> =
         featureSources.entries.groupBy { (path, _) -> path.split('/').take(2).joinToString("/") }
             .flatMap { (module, sources) ->
-                val registered = sources.flatMap { (_, source) ->
-                    ROUTE_REGISTRATION.findAll(codeOnly(source)).map { it.groupValues[1] }.toList()
-                }.toSet()
+                val registered = sources.flatMap { (_, source) -> contributedRoutes(codeOnly(source)) }.toSet()
                 sources.flatMap { (path, source) ->
                     codeOnly(source).lines().mapIndexedNotNull { index, line ->
                         val route = ROUTE_DECLARATION.find(line)?.groupValues?.get(1)
                             ?: return@mapIndexedNotNull null
                         if (route in registered) return@mapIndexedNotNull null
-                        "$path:${index + 1} declares route $route, but no SerializersModule in $module " +
-                            "registers it with subclass($route::class). A saved back stack holding it " +
-                            "would not restore."
+                        "$path:${index + 1} declares route $route, but no @IntoSet provider in a " +
+                            "@ContributesTo(NavKey::class) container of $module registers it with " +
+                            "subclass($route::class). A saved back stack holding it would not restore."
                     }
                 }
             }.sorted()
 
-    /**
-     * Every feature's route serializers module is included in the shell's `FEATURE_SERIALIZERS`.
-     *
-     * The shell assembles the modules by hand, because only it knows which features this build has.
-     * A feature whose module is left out registers its routes nowhere the saved state can see.
-     */
-    fun unassembledRouteModuleViolations(
-        featureSources: Map<String, String>,
-        shellSources: Map<String, String>,
-    ): List<String> {
-        val shell = shellSources.values.joinToString("\n", transform = ::codeOnly)
-        return featureSources.flatMap { (path, source) ->
-            ROUTE_MODULE_DECLARATION.findAll(codeOnly(source)).map { it.groupValues[1] }
-                .filterNot { module -> Regex("""\binclude\(\s*$module\s*\)""").containsMatchIn(shell) }
-                .map { module ->
-                    "$path declares $module, but $SHELL_MODULE never includes it in its route serializers " +
-                        "(include($module)). Saved back stacks holding this feature's routes would not restore."
+    /** The routes each `@ContributesTo(NavKey::class)` container's own `@IntoSet` providers register. */
+    private fun contributedRoutes(code: String): List<String> =
+        ROUTE_SERIALIZER_SCOPE.findAll(code).flatMap { scope ->
+            val body = classBody(code, scope.range.last + 1)
+            val providers = PROVIDER_START.findAll(body).toList()
+            providers.withIndex()
+                .filter { (_, provider) -> INTO_SET.containsMatchIn(provider.value) }
+                .flatMap { (index, provider) ->
+                    val end = providers.getOrNull(index + 1)?.range?.first ?: body.length
+                    ROUTE_REGISTRATION.findAll(body.substring(provider.range.first, end)).map { it.groupValues[1] }
                 }
-                .toList()
-        }.sorted()
-    }
+        }.toList()
 
     /** Neither modules nor source/package directories may recreate the old `api` / `impl` split. */
     fun legacySplitDirectoryViolations(paths: List<String>): List<String> =

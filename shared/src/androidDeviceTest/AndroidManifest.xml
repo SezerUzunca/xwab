@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!--
+      MetroX's AppComponentFactory comes in with this module's dependencies, but it needs the app's
+      MetroApplication, which this library's test APK does not have; the instrumentation would fail
+      before any test runs. The tests build their graphs themselves, so the factory AndroidX would
+      otherwise merge is restored here.
+    -->
+    <application
+        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+        tools:replace="android:appComponentFactory">
         <activity android:name="androidx.activity.ComponentActivity" android:exported="true" />
     </application>
 </manifest>

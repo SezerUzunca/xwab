@@ -4,22 +4,35 @@ import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.feature.favorites.FavoritesScreenRoute
+import dev.zacsweers.metro.BindingContainer
+import dev.zacsweers.metro.ContributesTo
+import dev.zacsweers.metro.IntoSet
+import dev.zacsweers.metro.Provides
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 
-/** Where this feature's routes turn into screens. */
-fun EntryProviderScope<NavKey>.favoritesEntry(
-    onTrackClick: (TrackId) -> Unit,
-    onBrowse: () -> Unit,
-    reselectEvents: Flow<Unit> = emptyFlow(),
-) {
-    entry<FavoritesRoute> {
-        FavoritesScreenRoute(
-            onTrackClick = onTrackClick,
-            onBrowse = onBrowse,
-            reselectEvents = reselectEvents,
-            viewModel = metroViewModel(),
-        )
+/** Actions supplied by the application's composition root. */
+class FavoritesEntryCallbacks(
+    val onTrackClick: (TrackId) -> Unit,
+    val onBrowse: () -> Unit,
+    val reselectEvents: Flow<Unit>,
+)
+
+@ContributesTo(EntryProviderScope::class)
+@BindingContainer
+object FavoritesEntryBindings {
+    @Provides
+    @IntoSet
+    fun provideEntryProviderInstaller(
+        callbacks: FavoritesEntryCallbacks,
+    ): EntryProviderScope<NavKey>.() -> Unit = {
+        entry<FavoritesRoute> {
+            FavoritesScreenRoute(
+                onTrackClick = callbacks.onTrackClick,
+                onBrowse = callbacks.onBrowse,
+                reselectEvents = callbacks.reselectEvents,
+                viewModel = metroViewModel(),
+            )
+        }
     }
 }

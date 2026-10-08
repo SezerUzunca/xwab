@@ -1,11 +1,7 @@
 package com.xwab.app.navigation
 
 import androidx.navigation3.runtime.NavKey
-import com.xwab.app.feature.browse.navigation.browseNavigationSerializers
-import com.xwab.app.feature.category.navigation.categoryNavigationSerializers
-import com.xwab.app.feature.favorites.navigation.favoritesNavigationSerializers
-import com.xwab.app.feature.sound.navigation.soundNavigationSerializers
-import com.xwab.app.feature.story.navigation.storiesNavigationSerializers
+import dev.zacsweers.metro.createGraph
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.encoding.AbstractEncoder
 import kotlinx.serialization.modules.SerializersModule
@@ -14,23 +10,18 @@ import kotlinx.serialization.modules.polymorphic
 /**
  * Every route this app can put on a saved back stack, and how each one is written and read back.
  *
- * The app assembles this explicitly from the modules feature navigation packages export: a feature
- * knows its own route, and only the composition root knows which features this build has.
+ * Each feature contributes its own module through Metro, so a feature on shared's classpath is
+ * registered without being listed here.
  *
- * A route registered with `appEntryProvider` but missing here fails only when a saved back stack is
- * restored. checkArchitecture fails the build instead: every route a feature declares must be in its
- * module, and every feature's module must be included here. FeatureSerializersTest checks the
- * wire format of the routes that are.
+ * A route with an entry but no registration fails only when a saved back stack is restored.
+ * checkArchitecture fails the build instead: every route a feature declares must be registered in the
+ * module its feature contributes. FeatureSerializersTest checks the wire format of the routes that are.
  *
  * The reverse direction is [RetiredRoute]: a name in saved state that this build no longer
  * registers, which is what every route of a removed feature becomes.
  */
 internal val FEATURE_SERIALIZERS: SerializersModule = SerializersModule {
-    include(browseNavigationSerializers)
-    include(favoritesNavigationSerializers)
-    include(categoryNavigationSerializers)
-    include(soundNavigationSerializers)
-    include(storiesNavigationSerializers)
+    createGraph<RouteSerializersGraph>().routeSerializers.forEach { include(it) }
 
     // Not a feature's contribution, which is why this one is spelled out rather than included: it
     // is the app's answer for a name none of the installed features registers. A saved back stack is

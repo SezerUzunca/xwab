@@ -1,6 +1,10 @@
 package com.xwab.app.feature.story.navigation
 
 import androidx.navigation3.runtime.NavKey
+import dev.zacsweers.metro.BindingContainer
+import dev.zacsweers.metro.ContributesTo
+import dev.zacsweers.metro.IntoSet
+import dev.zacsweers.metro.Provides
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.modules.SerializersModule
@@ -17,9 +21,16 @@ data object StoriesRoute : NavKey
 @SerialName("com.xwab.app.feature.story.navigation.StoryRoute")
 data class StoryRoute(val storyId: String) : NavKey
 
-val storiesNavigationSerializers = SerializersModule {
-    polymorphic(NavKey::class) {
-        subclass(StoriesRoute::class)
-        subclass(StoryRoute::class)
+/** Contributes this feature's routes to the serializers saved back stacks are restored with. */
+@ContributesTo(NavKey::class)
+@BindingContainer
+object StoriesNavigationBindings {
+    @Provides
+    @IntoSet
+    fun provideRouteSerializers(): SerializersModule = SerializersModule {
+        polymorphic(NavKey::class) {
+            subclass(StoriesRoute::class)
+            subclass(StoryRoute::class)
+        }
     }
 }

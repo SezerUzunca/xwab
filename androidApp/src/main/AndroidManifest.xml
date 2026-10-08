@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:name=".MainApplication"
@@ -21,9 +22,15 @@
             android:name="com.xwab.app.core.playback.USER_AGENT"
             android:value="SleepSounds/1.0 (https://github.com/SezerUzunca/xwab)" />
 
+        <!--
+          Constructed by MetroX's AppComponentFactory, merged in from its manifest, with its
+          dependencies; it has no no-argument constructor for lint to find. Metro's own Android
+          sample silences the same check the same way.
+        -->
         <activity
             android:exported="true"
-            android:name=".MainActivity">
+            android:name=".MainActivity"
+            tools:ignore="Instantiatable">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

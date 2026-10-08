@@ -1,12 +1,23 @@
 package com.xwab.app.navigation
 
+import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 
-/** App policies around the Navigation 3 stacks; features receive only intent callbacks. */
+/**
+ * App policies around the Navigation 3 stacks; features receive only intent callbacks.
+ *
+ * Built by the host's entry graph over the stacks the host restored, one per graph: the host's tab
+ * selection and the features' callbacks must reach the same instance, or a list would never hear
+ * its tab being reselected. Plain construction still works where no graph is needed.
+ */
+@Inject
+@SingleIn(EntryProviderScope::class)
 internal class Navigator(private val state: NavigationState) {
     private val reselectEvents = MutableSharedFlow<NavKey>(extraBufferCapacity = 1)
 

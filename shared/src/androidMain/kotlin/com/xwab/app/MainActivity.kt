@@ -1,5 +1,6 @@
 package com.xwab.app
 
+import android.app.Activity
 import android.graphics.Color
 import android.media.AudioManager
 import android.os.Bundle
@@ -7,8 +8,21 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesIntoMap
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.binding
+import dev.zacsweers.metrox.android.ActivityKey
+import dev.zacsweers.metrox.viewmodel.MetroViewModelFactory
 
-class MainActivity : ComponentActivity() {
+/**
+ * Constructed by Metro: MetroX's `AppComponentFactory` asks the application graph for it, so it
+ * receives what it needs instead of reaching into the application object for the graph.
+ */
+@ContributesIntoMap(AppScope::class, binding<Activity>())
+@ActivityKey
+@Inject
+class MainActivity(private val viewModelFactory: MetroViewModelFactory) : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         // Stated outright rather than left to `enableEdgeToEdge()`'s default, which follows the
         // *device's* theme. This app has no light theme — every screen paints the same dark
@@ -20,10 +34,8 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
 
-        val appGraph = (application as MainApplication).appGraph
-
         setContent {
-            App(appGraph)
+            App(viewModelFactory)
         }
     }
 

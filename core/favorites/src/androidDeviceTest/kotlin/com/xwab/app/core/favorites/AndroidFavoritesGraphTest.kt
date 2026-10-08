@@ -25,7 +25,6 @@ class AndroidFavoritesGraphTest {
      */
     @Test
     fun theModuleGraphSharesOneAdapterAndLeavesTheFileForItsFirstAccess() {
-        // Metro warns that the Context is unused here: the file it would build is the one replaced.
         val graph = createDynamicGraphFactory<AndroidFavoritesGraph.Factory>(UnresolvableFile()).create(context)
 
         assertSame(graph.favorites, graph.favorites)
@@ -47,12 +46,17 @@ class AndroidFavoritesGraphTest {
         }
     }
 
-    /** Replaces the platform's favorites file with one that fails the test if anything resolves it. */
+    /**
+     * Replaces the platform's favorites file with one that fails the test if anything resolves it.
+     *
+     * It takes the Context as the real file does, so the graph's factory input is still consumed.
+     */
     @BindingContainer
     private class UnresolvableFile {
         @Provides
-        fun file(): FavoritesFile =
-            FavoritesFile { error("The DataStore file was resolved while the graph was built.") }
+        fun file(context: Context): FavoritesFile = FavoritesFile {
+            error("The DataStore file in ${context.filesDir} was resolved while the graph was built.")
+        }
     }
 
     private companion object {

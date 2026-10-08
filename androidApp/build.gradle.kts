@@ -2,8 +2,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.androidApplication)
-    alias(libs.plugins.composeMultiplatform)
-    alias(libs.plugins.composeCompiler)
     // Reports this module's project dependencies for `checkArchitecture`, as every module does.
     id("xwab.architecture.module")
     // detekt, as every module applies it.
@@ -18,7 +16,8 @@ kotlin {
 dependencies {
     implementation(projects.shared)
 
-    implementation(libs.androidx.activity.compose)
+    // `MainApplication` hands the graph to MetroX's AppComponentFactory, which builds the Activity.
+    implementation(libs.metrox.android)
 
     debugImplementation(libs.compose.uiTooling)
 }
@@ -68,7 +67,7 @@ android {
     }
     lint {
         // Lint this module's project dependencies as well, so the one CI lint run reads every
-        // module the app ships rather than the two activity classes that live here. It only
+        // module the app ships rather than the one application class that lives here. It only
         // reaches a KMP library that applies `com.android.lint`, which `xwab.kmp.library` and
         // `:shared` do; the findings land in this module's report, which CI already prints.
         checkDependencies = true

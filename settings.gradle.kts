@@ -62,8 +62,9 @@ discoveredModules.values.flatten().forEach { include(it) }
 // off `rootProject.subprojects` from inside another project reaches into state that project does
 // not own, which Gradle's isolated projects mode refuses.
 //
-// `:shared` puts every installed capability on Metro's classpath.
+// `:shared` puts every installed capability and feature on Metro's classpath.
 gradle.extra["coreModules"] = discoveredModules.getValue("core")
+gradle.extra["featureModules"] = discoveredModules.getValue("feature")
 
 // `checkArchitecture` reads the dependencies each of these reports about itself. Every project
 // with a build script is one; the directories that only group modules (`core/`, `feature/`,

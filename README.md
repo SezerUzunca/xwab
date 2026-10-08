@@ -138,10 +138,11 @@ feature/
 └── story
 ```
 
-Every directory under `core` with a build script is a Gradle module, discovered by settings.
-`shared` automatically includes those modules on Metro's compilation classpath: settings publishes
-the discovered list, so `shared` never reads another project's state to find them. Application
-routes remain explicitly composed by the shell.
+Every directory under `core` or `feature` with a build script is a Gradle module, discovered by
+settings. `shared` automatically includes those modules on Metro's compilation classpath: settings
+publishes the discovered lists, so `shared` never reads another project's state to find them.
+Feature entries and route serializers are collected through Metro; tabs and where each feature's
+intents lead remain explicit in the shell.
 
 | Module | Owns | Delegates |
 |---|---|---|
@@ -229,7 +230,16 @@ Category, Sound and Story details are nested destinations. Every content row ope
 the row body; only its explicit play/pause button changes playback. `StoryRoute(storyId)` opens the
 selected story's description, author, narrator and duration. Each tab retains its own history and saved screen state.
 
-`AppNavigationHost` wires features to `Navigator`; `AppNavigationDisplay` owns the actual
+`AppNavigationHost` owns the remembered `Navigator`. Each feature's navigation package contributes
+two Metro binding containers: a `@Provides @IntoSet` entry installer of type
+`EntryProviderScope<NavKey>.() -> Unit` with `@ContributesTo(EntryProviderScope::class)`, and its
+route `SerializersModule` with `@ContributesTo(NavKey::class)`. `AppEntryGraph` and
+`RouteSerializersGraph` aggregate those scopes, so neither lists features; Navigation 3's own types
+serve as the scope markers because features and shared already see them, and no common module is
+needed. `AppEntryProvider` installs the entry set. `AppEntryGraph` supplies each feature's callbacks
+and keeps destination mappings in the composition root. The set's iteration order determines
+neither tab order nor the start destination.
+`AppNavigationDisplay` owns the actual
 `NavDisplay`. Saveable state and ViewModel entry decorators are retained for every tab, including
 inactive tabs, in the documented order. Tab-scoped content keys prevent the same sound in Browse
 and Favorites from sharing an entry store. A destination already on the stack is revisited by
@@ -333,10 +343,10 @@ playback. The architecture check requires these values to agree with the downloa
    navigation/composition boundary.
 7. Designsystem depends on an application project.
 8. A module directory is absent from the build, or a core/feature module is absent from shared's
-   compilation graph. Core registration is automatic; feature composition stays explicit.
-9. A feature route lacks `@SerialName` or is missing from its feature's serializers module, a
-   feature's serializers module is not included in the shell's route serializers, or a
-   contributed playback kind has no routing reference in the shell.
+   compilation graph. Both are added automatically from what settings discovers; this guards that.
+9. A feature route lacks `@SerialName` or is not registered in an `@IntoSet` provider of its feature's
+   `@ContributesTo(NavKey::class)` container, or a contributed playback kind has no routing reference
+   in the shell.
 10. The download source and native player application metadata disagree on the HTTP user agent.
 11. A capability renames a value it has already written onto devices. Playback kinds, favourites
     and cache namespaces are pinned in `wireFormat`; the constant and its pin must change together,
@@ -381,16 +391,20 @@ hidden across modules.
 ./tools/new-feature.ps1 sleep-timer
 ```
 
-The script creates one `:feature:sleep-timer` module whose ViewModel contributes itself to the
-graph. Then add the module, its entry provider and its serializer to `shared`, and make the route
-reachable from either a top-level destination or an existing feature intent.
+The script creates one `:feature:sleep-timer` module whose ViewModel, entry installer and route
+serializers contribute themselves to Metro. Settings adds the module to `shared`; make the route
+reachable from either a top-level destination or an existing feature intent. If the feature
+publishes outgoing intents, provide its own navigation callback contract from `AppEntryGraph`.
+Add the route's serial name to `routeSerialNamesAreTheSavedWireFormat` in `FeatureSerializersTest`:
+that list pins the names saved back stacks hold, so it changes only on purpose.
 
 ## Removing a feature
 
 Delete the `feature/<name>` directory. Gradle stops including it on its own, and every remaining
-reference is a compile error: the `projects.feature.<name>` accessor in `shared/build.gradle.kts`,
-the registration in `AppEntryProvider`, the entry in `FEATURE_SERIALIZERS`, and the tab in
-`TOP_LEVEL_DESTINATIONS` if it had one. Its ViewModels leave the graph with the module. Follow the
+reference is a compile error: its callback provider in `AppEntryGraph` if present, and the tab in
+`TOP_LEVEL_DESTINATIONS` if it had one. Its ViewModels, entry installers and route serializers leave
+their graphs with the module. Its serial names leave the pin in `FeatureSerializersTest` as well;
+saved back stacks may still hold them, which `RetiredRoute` reads back and drops. Follow the
 compiler until it stops, then run the checks below.
 
 Two things the compiler cannot point at:
