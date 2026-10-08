@@ -18,6 +18,7 @@ import com.xwab.app.TestRootOwner
 import com.xwab.app.composition.OfflineCatalog.Companion.CATEGORY
 import com.xwab.app.composition.OfflineCatalog.Companion.TRACK
 import com.xwab.app.di.AppGraph
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * The entry chain end to end, from the app's own root: a Metro-collected installer draws the Browse
@@ -31,7 +32,11 @@ import com.xwab.app.di.AppGraph
  * Runs on an Android device and an iOS simulator; each platform passes its own production graph,
  * built dynamically with [OfflineCatalog] in place of the downloaded catalog.
  */
-internal fun realEntriesOpenACategoryFromBrowse(createGraph: (OfflineCatalog) -> AppGraph) = runComposeUiTest {
+internal fun realEntriesOpenACategoryFromBrowse(createGraph: (OfflineCatalog) -> AppGraph) = runComposeUiTest(
+    // Two waits of up to TIMEOUT_MS each, past Compose's one-minute default, which the slow CI
+    // emulator already exceeded with lighter tests.
+    testTimeout = 3.minutes,
+) {
     val graph = createGraph(OfflineCatalog())
     val owner = runOnIdle { TestRootOwner() }
     setContent {
