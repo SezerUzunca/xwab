@@ -225,7 +225,8 @@ class NavigationCompositionTest {
             waitForIdle()
             runOnIdle { assertTrue(harness.reselections.isEmpty(), "returning to the root is not a reselection") }
 
-            val tabs = listOf(BrowseRoute, FavoritesRoute, StoriesRoute)
+            // Typed explicitly: Kotlin/Native cannot infer assertEquals' T from the routes' intersection type.
+            val tabs = listOf<NavKey>(BrowseRoute, FavoritesRoute, StoriesRoute)
             tabs.forEachIndexed { index, tab ->
                 runOnIdle {
                     if (harness.state.topLevelRoute != tab) harness.navigator.selectTab(tab)
