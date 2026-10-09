@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import com.xwab.app.feature.nowplaying.shell.NowPlayingBar
 import com.xwab.app.navigation.rememberNavigationState
 import com.xwab.app.ui.AppNavigationDisplay
 import com.xwab.app.ui.rememberTabEntries
@@ -22,9 +21,10 @@ internal fun AppNavigationHost() {
         onSelectTab = navigator::selectTab,
         onBack = navigator::goBack,
         nowPlayingBar = {
-            NowPlayingBar(
+            graph.nowPlayingBar.Content(
                 onOpen = { item -> openPlaybackDetails(item, navigator::openInTab) },
                 hiddenFor = state.currentBackStack.last().playbackItem(),
+                modifier = Modifier,
             )
         },
         modifier = Modifier.fillMaxSize(),

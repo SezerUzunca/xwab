@@ -27,7 +27,7 @@ class FeatureFirstRulesTest {
     @Test
     fun featuresNeverDependOnOtherFeatures() {
         val violations = dependencyViolations(
-            mapOf(":feature:category" to listOf(":feature:sound")),
+            mapOf(":feature:category:impl" to listOf(":feature:sound:api")),
         )
 
         assertEquals(1, violations.size)
@@ -35,38 +35,89 @@ class FeatureFirstRulesTest {
         assertEquals(
             emptyList(),
             dependencyViolations(
-                mapOf(":shared" to listOf(":feature:category", ":feature:sound")),
+                mapOf(
+                    ":feature:category:impl" to listOf(":feature:category:api"),
+                    ":shared" to listOf(
+                        ":feature:category:api", ":feature:category:impl",
+                        ":feature:sound:api", ":feature:sound:impl",
+                    ),
+                ),
             ),
         )
     }
 
     @Test
-    fun everyFeatureIsExactlyOneGradleModule() {
+    fun onlyTheShellInstallsAFeatureImplementation() {
+        val violations = dependencyViolations(
+            mapOf(
+                ":feature:sound:api" to listOf(":feature:sound:impl"),
+                ":testing:sound" to listOf(":feature:sound:impl"),
+                ":androidApp" to listOf(":feature:sound:impl"),
+            ),
+        )
+
+        assertEquals(3, violations.size)
+        assertTrue(violations.all { it.contains("Only :shared installs a feature's implementation") })
+        assertEquals(
+            emptyList(),
+            dependencyViolations(mapOf(":testing:sound" to listOf(":feature:sound:api"))),
+        )
+    }
+
+    @Test
+    fun everyFeatureIsAnApiAndAnImplModule() {
         assertEquals(
             emptyList(),
             FeatureFirstRules.featureModuleShapeViolations(
-                setOf(":feature", ":feature:browse", ":core:sound"),
+                setOf(
+                    ":feature", ":core:sound",
+                    ":feature:browse:api", ":feature:browse:impl",
+                    ":feature:sleep-timer:api", ":feature:sleep-timer:impl",
+                ),
             ),
         )
 
-        val violations = FeatureFirstRules.featureModuleShapeViolations(
-            setOf(":feature:browse", ":feature:browse:api", ":feature:browse:impl"),
+        val misshapen = FeatureFirstRules.featureModuleShapeViolations(
+            setOf(":feature:browse", ":feature:story:ui", ":feature:story:api", ":feature:story:impl"),
         )
-        assertEquals(2, violations.size)
-        assertTrue(violations.all { it.contains("exactly one") })
+        assertEquals(2, misshapen.size)
+        assertTrue(misshapen.all { it.contains("is not a feature api or impl module") })
+
+        val unpaired = FeatureFirstRules.featureModuleShapeViolations(
+            setOf(":feature:browse:api", ":feature:sound:impl"),
+        )
+        assertEquals(
+            listOf(
+                ":feature:browse has no impl module. A feature is its api and impl modules together.",
+                ":feature:sound has no api module. A feature is its api and impl modules together.",
+            ),
+            unpaired,
+        )
     }
 
     @Test
-    fun apiImplSourceDirectoriesCannotReturn() {
-        val violations = FeatureFirstRules.legacySplitDirectoryViolations(
-            listOf(
-                "feature/browse/api",
-                "feature/browse/src/commonMain/kotlin/com/xwab/app/feature/browse/navigation",
-                "core/network/src/commonMain/kotlin/com/xwab/app/core/network/impl",
+    fun onlyAFeatureRootSplitsIntoApiAndImpl() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.legacySplitDirectoryViolations(
+                listOf(
+                    "feature/browse/api",
+                    "feature/browse/impl",
+                    "feature/browse/impl/src/commonMain/kotlin/com/xwab/app/feature/browse/navigation",
+                ),
             ),
         )
 
-        assertEquals(2, violations.size)
+        val violations = FeatureFirstRules.legacySplitDirectoryViolations(
+            listOf(
+                "core/network/api",
+                "core/network/src/commonMain/kotlin/com/xwab/app/core/network/impl",
+                "feature/browse/impl/src/commonMain/kotlin/com/xwab/app/feature/browse/api",
+                "feature/browse/impl/api",
+            ),
+        )
+
+        assertEquals(4, violations.size)
         assertTrue(violations.all { it.contains("api/impl split") })
     }
 
@@ -248,6 +299,36 @@ class FeatureFirstRulesTest {
     }
 
     @Test
+    fun featureApiDeclarationsAreReadFromApiModulesOnly() {
+        val declarations = FeatureFirstRules.featureApiDeclarations(
+            mapOf(
+                "feature/browse/api/src/commonMain/kotlin/BrowseNavigation.kt" to featureSource(
+                    ".navigation",
+                    """
+                        @Serializable
+                        @SerialName("browse")
+                        data object BrowseRoute : NavKey
+
+                        class BrowseEntryCallbacks(val onBack: () -> Unit)
+                    """.trimIndent(),
+                ),
+                "feature/browse/impl/src/commonMain/kotlin/BrowseEntry.kt" to featureSource(
+                    ".navigation",
+                    "@ContributesTo(EntryProviderScope::class)\nobject BrowseEntryBindings",
+                ),
+            ),
+        )
+
+        assertEquals(
+            setOf(
+                "com.xwab.app.feature.browse.navigation.BrowseRoute",
+                "com.xwab.app.feature.browse.navigation.BrowseEntryCallbacks",
+            ),
+            declarations,
+        )
+    }
+
+    @Test
     fun sharedUsesFeatureContractsOnlyAtTheirApplicationBoundaries() {
         assertEquals(
             emptyList(),
@@ -257,17 +338,40 @@ class FeatureFirstRulesTest {
                         "navigation",
                         "import com.xwab.app.feature.browse.navigation.BrowseRoute",
                     ),
-                    "shared/src/commonMain/kotlin/AppEntryProvider.kt" to sharedSource(
+                    "shared/src/commonMain/kotlin/AppEntryGraph.kt" to sharedSource(
                         "composition",
-                        "import com.xwab.app.feature.browse.navigation.browseEntry as entry",
+                        "import com.xwab.app.feature.browse.navigation.BrowseEntryCallbacks as Callbacks",
                     ),
                     "shared/src/commonMain/kotlin/AppNavigationHost.kt" to sharedSource(
                         "composition",
                         "import com.xwab.app.feature.nowplaying.shell.NowPlayingBar",
                     ),
                 ),
+                featureApi,
             ),
         )
+    }
+
+    @Test
+    fun sharedCannotNameAFeatureImplementationEvenAtItsBoundary() {
+        val violations = FeatureFirstRules.sharedFeatureReferenceViolations(
+            mapOf(
+                // Public, and on shared's classpath for Metro, but declared by the impl module.
+                "shared/src/commonMain/kotlin/AppEntryGraph.kt" to sharedSource(
+                    "composition",
+                    "import com.xwab.app.feature.browse.navigation.BrowseEntryBindings",
+                ),
+                // A wildcard over a package api and impl share would bring both in.
+                "shared/src/commonMain/kotlin/Routes.kt" to sharedSource(
+                    "navigation",
+                    "import com.xwab.app.feature.browse.navigation.*",
+                ),
+            ),
+            featureApi,
+        )
+
+        assertEquals(2, violations.size)
+        assertTrue(violations.all { it.contains("which no feature api module declares") })
     }
 
     @Test
@@ -307,12 +411,19 @@ class FeatureFirstRulesTest {
                     "di",
                     "import com.xwab.app.feature.browse.di.BrowseDependencies",
                 ),
+                // An api contract is still out of bounds outside navigation/composition.
+                "shared/src/commonMain/kotlin/App.kt" to sharedSource(
+                    "ui",
+                    "import com.xwab.app.feature.nowplaying.shell.NowPlayingBar",
+                ),
             ),
+            featureApi,
         )
-        assertEquals(8, violations.size)
+        assertEquals(9, violations.size)
         assertTrue(violations.any { it.contains("androidMain") })
         assertTrue(violations.any { it.contains("iosMain") })
-        assertTrue(violations.all { it.contains("Other shared packages may not reference features") })
+        assertEquals(6, violations.count { it.contains("Other shared packages may not reference features") })
+        assertEquals(3, violations.count { it.contains("which no feature api module declares") })
     }
 
     @Test
@@ -327,7 +438,7 @@ class FeatureFirstRulesTest {
         )
         assertEquals(
             emptyList(),
-            FeatureFirstRules.sharedFeatureReferenceViolations(mapOf("Ui.kt" to allowed)),
+            FeatureFirstRules.sharedFeatureReferenceViolations(mapOf("Ui.kt" to allowed), featureApi),
         )
 
         val forbidden = sharedSource(
@@ -336,26 +447,35 @@ class FeatureFirstRulesTest {
         )
         assertEquals(
             1,
-            FeatureFirstRules.sharedFeatureReferenceViolations(mapOf("Ui.kt" to forbidden)).size,
+            FeatureFirstRules.sharedFeatureReferenceViolations(mapOf("Ui.kt" to forbidden), featureApi).size,
         )
     }
 
     @Test
-    fun featurePublicSurfaceIsLimitedToNavigationAndShell() {
+    fun aFeatureImplementationExposesOnlyItsContributedContainers() {
         val sources = mapOf(
-            "feature/browse/src/commonMain/kotlin/Navigation.kt" to featureSource(
+            // The api module is the feature's public surface.
+            "feature/browse/api/src/commonMain/kotlin/Navigation.kt" to featureSource(
                 ".navigation",
                 """
                     data object BrowseRoute : NavKey
-                    val browseNavigationSerializers = SerializersModule {}
-                    fun EntryProviderScope<NavKey>.browseEntry(onCategoryClick: (CategoryId) -> Unit) {}
+                    class BrowseEntryCallbacks(val onBack: () -> Unit)
+                    interface BrowseBar
                 """.trimIndent(),
             ),
-            "feature/browse/src/commonMain/kotlin/Bar.kt" to featureSource(
-                ".shell",
-                "@Composable fun BrowseBar() = Unit",
+            "feature/browse/impl/src/commonMain/kotlin/Entry.kt" to featureSource(
+                ".navigation",
+                """
+                    @ContributesTo(EntryProviderScope::class)
+                    @BindingContainer
+                    object BrowseEntryBindings
+                """.trimIndent(),
             ),
-            "feature/browse/src/commonMain/kotlin/Screen.kt" to featureSource(
+            "feature/browse/impl/src/commonMain/kotlin/Bar.kt" to featureSource(
+                ".shell",
+                "@ContributesTo(EntryProviderScope::class) object BrowseBarBindings\nprivate object ViewModelBrowseBar",
+            ),
+            "feature/browse/impl/src/commonMain/kotlin/Screen.kt" to featureSource(
                 "",
                 """
                     internal class BrowseViewModel
@@ -368,25 +488,29 @@ class FeatureFirstRulesTest {
         assertEquals(emptyList(), FeatureFirstRules.featureVisibilityViolations(sources))
 
         val leaks = mapOf(
-            "feature/browse/src/commonMain/kotlin/ViewModel.kt" to
+            "feature/browse/impl/src/commonMain/kotlin/ViewModel.kt" to
                 featureSource("", "public class BrowseViewModel"),
-            "feature/browse/src/androidMain/kotlin/Screen.kt" to
+            "feature/browse/impl/src/androidMain/kotlin/Screen.kt" to
                 featureSource("", "@Composable fun BrowseScreen() = Unit"),
-            "feature/browse/src/commonMain/kotlin/State.kt" to
+            "feature/browse/impl/src/commonMain/kotlin/State.kt" to
                 featureSource("", "data class BrowseState(val loading: Boolean)"),
-            "feature/browse/src/commonMain/kotlin/UseCase.kt" to
+            "feature/browse/impl/src/commonMain/kotlin/UseCase.kt" to
                 featureSource(".domain", "class BrowseUseCase"),
-            "feature/browse/src/commonMain/kotlin/Factory.kt" to
-                featureSource(".di", "class BrowseViewModelFactory"),
-            "feature/browse/src/commonMain/kotlin/NavigationHelper.kt" to
-                featureSource(".navigation.internal", "class NavigationHelper"),
-            "feature/browse/src/commonMain/kotlin/ShellHelper.kt" to
-                featureSource(".shell.internal", "class ShellHelper"),
+            // Routes and callbacks belong in the api module, even in the navigation package.
+            "feature/browse/impl/src/commonMain/kotlin/Route.kt" to
+                featureSource(".navigation", "data object BrowseRoute : NavKey"),
+            "feature/browse/impl/src/commonMain/kotlin/Bar.kt" to
+                featureSource(".shell", "@Composable fun BrowseBar() = Unit"),
+            // Public but not contributed: nothing collects it, so nothing needs to see it.
+            "feature/browse/impl/src/commonMain/kotlin/Bindings.kt" to
+                featureSource(".navigation", "@BindingContainer\nobject BrowseBindings"),
             // A ViewModel contributes itself to the graph; no public dependency bag is needed.
-            "feature/browse/src/commonMain/kotlin/Dependencies.kt" to
+            "feature/browse/impl/src/commonMain/kotlin/Dependencies.kt" to
                 featureSource(".di", "class BrowseDependencies(internal val catalog: SoundPort)"),
         )
-        assertEquals(8, FeatureFirstRules.featureVisibilityViolations(leaks).size)
+        val violations = FeatureFirstRules.featureVisibilityViolations(leaks)
+        assertEquals(8, violations.size)
+        assertTrue(violations.all { it.contains("from a feature implementation") })
     }
 
     @Test
@@ -989,29 +1113,40 @@ class FeatureFirstRulesTest {
             ":core:session" to listOf(":core:playback"),
             ":designsystem" to emptyList<String>(),
             ":testing" to listOf(":core:sound", ":core:favorites", ":core:session"),
-            ":feature:browse" to listOf(":core:sound", ":designsystem"),
-            ":feature:category" to listOf(
-                ":core:sound", ":core:favorites", ":core:session",
+            ":feature:browse:api" to listOf(":core:sound"),
+            ":feature:browse:impl" to listOf(":feature:browse:api", ":core:sound", ":designsystem"),
+            ":feature:category:api" to listOf(":core:sound"),
+            ":feature:category:impl" to listOf(
+                ":feature:category:api", ":core:sound", ":core:favorites", ":core:session",
                 ":designsystem",
             ),
-            ":feature:favorites" to listOf(
-                ":core:sound", ":core:favorites", ":core:session",
+            ":feature:favorites:api" to listOf(":core:sound"),
+            ":feature:favorites:impl" to listOf(
+                ":feature:favorites:api", ":core:sound", ":core:favorites", ":core:session",
                 ":designsystem",
             ),
-            ":feature:sound" to listOf(
-                ":core:sound", ":core:favorites", ":core:session",
+            ":feature:sound:api" to emptyList(),
+            ":feature:sound:impl" to listOf(
+                ":feature:sound:api", ":core:sound", ":core:favorites", ":core:session",
                 ":designsystem",
             ),
-            ":feature:story" to listOf(
-                ":core:story", ":core:session", ":designsystem",
+            ":feature:story:api" to listOf(":core:story"),
+            ":feature:story:impl" to listOf(
+                ":feature:story:api", ":core:story", ":core:session", ":designsystem",
             ),
-            ":feature:nowplaying" to listOf(":core:session", ":designsystem"),
+            ":feature:nowplaying:api" to listOf(":core:session"),
+            ":feature:nowplaying:impl" to listOf(":feature:nowplaying:api", ":core:session", ":designsystem"),
             ":shared" to listOf(
                 ":core:sound", ":core:delivery",
                 ":core:favorites", ":core:story",
                 ":core:session", ":core:playback", ":core:network",
-                ":designsystem", ":feature:browse", ":feature:category",
-                ":feature:favorites", ":feature:sound", ":feature:story", ":feature:nowplaying",
+                ":designsystem",
+                ":feature:browse:api", ":feature:browse:impl",
+                ":feature:category:api", ":feature:category:impl",
+                ":feature:favorites:api", ":feature:favorites:impl",
+                ":feature:sound:api", ":feature:sound:impl",
+                ":feature:story:api", ":feature:story:impl",
+                ":feature:nowplaying:api", ":feature:nowplaying:impl",
             ),
             ":androidApp" to listOf(":shared"),
         )
@@ -1409,6 +1544,13 @@ class FeatureFirstRulesTest {
             packageName = "com.xwab.app.core.sample$packageSuffix",
             source = "package com.xwab.app.core.sample$packageSuffix\n$declaration",
         )
+
+    /** What the api modules of browse and nowplaying declare, as `featureApiDeclarations` reads it. */
+    private val featureApi = setOf(
+        "com.xwab.app.feature.browse.navigation.BrowseRoute",
+        "com.xwab.app.feature.browse.navigation.BrowseEntryCallbacks",
+        "com.xwab.app.feature.nowplaying.shell.NowPlayingBar",
+    )
 
     private fun sharedSource(packageSuffix: String, declarations: String): String =
         "package com.xwab.app.$packageSuffix\n$declarations"

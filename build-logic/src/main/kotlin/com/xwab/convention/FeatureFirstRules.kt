@@ -25,12 +25,10 @@ internal object FeatureFirstRules {
     private val QUALIFIED_FEATURE_REFERENCE =
         Regex("""\bcom\.xwab\.app\.feature(?:\.[A-Za-z_][A-Za-z0-9_]*)*""")
 
-    private val FEATURE_NAVIGATION_PACKAGE =
-        Regex("""com\.xwab\.app\.feature\.[A-Za-z0-9_]+\.navigation""")
+    /** `:feature:browse:api`, `:feature:sleep-timer:impl` — the only shapes a feature module takes. */
+    private val FEATURE_MODULE = Regex(""":feature:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:(?:api|impl)""")
 
-    /** UI the app shell places around destinations, such as the persistent now-playing bar. */
-    private val FEATURE_SHELL_PACKAGE =
-        Regex("""com\.xwab\.app\.feature\.[A-Za-z0-9_]+\.shell""")
+    private val CONTRIBUTES_TO = Regex("""@ContributesTo\(""")
 
     private val CORE_PORT_PACKAGE =
         Regex("""com\.xwab\.app\.core\.[a-z][A-Za-z0-9]*\.port""")
@@ -354,15 +352,50 @@ internal object FeatureFirstRules {
             else "${source.path} uses ${source.packageName}; ${source.module} owns only $expected and its subpackages."
         }.sorted()
 
-    /** A feature is one Gradle module; nested `api` / `impl` projects are not part of the model. */
-    fun featureModuleShapeViolations(modules: Set<String>): List<String> =
-        modules.filter { module ->
-            module.startsWith(FEATURE_PREFIX) &&
-                module.removePrefix(FEATURE_PREFIX).contains(':')
-        }.sorted().map { module ->
-            "$module is a nested feature project. Each feature must be exactly one " +
-                ":feature:<name> module; keep Navigation 3 contracts and implementation together."
+    /**
+     * A feature is exactly two modules: `api`, the routes and contracts the shell compiles against,
+     * and `impl`, the screens it installs. One without the other is half a feature.
+     */
+    fun featureModuleShapeViolations(modules: Set<String>): List<String> {
+        val features = modules.filter { it.startsWith(FEATURE_PREFIX) }
+        val misshapen = features.filterNot(FEATURE_MODULE::matches).sorted().map { module ->
+            "$module is not a feature api or impl module. Each feature is exactly " +
+                ":feature:<name>:api and :feature:<name>:impl: routes and contracts in api, " +
+                "screens and their state in impl."
         }
+        val unpaired = features.filter(FEATURE_MODULE::matches).groupBy(::featureOf)
+            .filterValues { it.size != 2 }
+            .toSortedMap()
+            .map { (feature, halves) ->
+                val missing = if (halves.single().endsWith(":api")) "impl" else "api"
+                ":feature:$feature has no $missing module. A feature is its api and impl modules together."
+            }
+        return misshapen + unpaired
+    }
+
+    fun isFeatureImplementation(module: String): Boolean =
+        module.startsWith(FEATURE_PREFIX) && module.endsWith(":impl")
+
+    /** `feature/<name>/api/src/...` — a source the shell may compile against. */
+    fun isFeatureApiSource(relativePath: String): Boolean {
+        val segments = relativePath.replace('\\', '/').split('/')
+        return segments.firstOrNull() == "feature" && segments.getOrNull(2) == "api"
+    }
+
+    /**
+     * Every top-level declaration a feature api module makes, fully qualified: the complete list of
+     * feature names the shell may use.
+     */
+    fun featureApiDeclarations(featureSources: Map<String, String>): Set<String> =
+        featureSources.filterKeys(::isFeatureApiSource).flatMap { (_, source) ->
+            val packageName = PACKAGE.find(codeOnly(source))?.groupValues?.get(1)
+                ?: return@flatMap emptyList()
+            declarations(source, includeNested = false).mapNotNull { parsed ->
+                parsed.match.groupValues[3].removeSurrounding("`").substringAfterLast('.')
+                    .takeIf(String::isNotBlank)
+                    ?.let { "$packageName.$it" }
+            }
+        }.toSet()
 
     /**
      * A module directory that no `include` names builds nothing and fails nothing.
@@ -498,7 +531,7 @@ internal object FeatureFirstRules {
      * entries, so the build checks the declarations against the registrations instead.
      */
     fun unregisteredRouteViolations(featureSources: Map<String, String>): List<String> =
-        featureSources.entries.groupBy { (path, _) -> path.split('/').take(2).joinToString("/") }
+        featureSources.entries.groupBy { (path, _) -> path.substringBefore("/src/") }
             .flatMap { (module, sources) ->
                 val registered = sources.flatMap { (_, source) -> contributedRoutes(codeOnly(source)) }.toSet()
                 sources.flatMap { (path, source) ->
@@ -526,15 +559,23 @@ internal object FeatureFirstRules {
                 }
         }.toList()
 
-    /** Neither modules nor source/package directories may recreate the old `api` / `impl` split. */
+    /**
+     * Only a feature splits, and only at its root. Core exposes contracts from its port package, and
+     * a source or package directory named `api` / `impl` would be a split no build file states.
+     */
     fun legacySplitDirectoryViolations(paths: List<String>): List<String> =
         paths.map { it.replace('\\', '/') }
-            .filter { path -> path.split('/').any { it == "api" || it == "impl" } }
+            .filter { path ->
+                val segments = path.split('/')
+                val isInsideFeatureHalf = segments.firstOrNull() == "feature" &&
+                    segments.getOrNull(2) in setOf("api", "impl")
+                (if (isInsideFeatureHalf) segments.drop(3) else segments).any { it == "api" || it == "impl" }
+            }
             .distinct()
             .sorted()
             .map { path ->
-                "$path recreates an api/impl split. Keep each feature cohesive and expose core " +
-                    "contracts from its port package."
+                "$path recreates an api/impl split. Features split only into feature/<name>/api and " +
+                    "feature/<name>/impl; core exposes its contracts from its port package."
             }
 
     /**
@@ -662,6 +703,11 @@ internal object FeatureFirstRules {
                     violations += "$module depends on $dependency. Feature modules must not depend " +
                         "on another feature; connect destination intents in :shared."
                 }
+
+                if (isFeatureImplementation(dependency) && module != SHELL_MODULE) {
+                    violations += "$module depends on $dependency. Only $SHELL_MODULE installs a " +
+                        "feature's implementation; compile against the feature's api module instead."
+                }
             }
 
             if (module.startsWith(FEATURE_PREFIX)) {
@@ -742,10 +788,21 @@ internal object FeatureFirstRules {
     }
 
     /**
-     * Every shared source set observes the same composition and navigation boundary. Shared DI
-     * names no feature type: feature ViewModels reach the graph through Metro contributions.
+     * Every shared source set observes the same composition and navigation boundary, and inside it
+     * names a feature only by what that feature's api module declares. Shared still has every
+     * implementation on its classpath, because Metro collects contributions from there; this is what
+     * keeps it from using one. Shared DI names no feature type: feature ViewModels reach the graph
+     * through Metro contributions.
+     *
+     * A wildcard import is refused outright: a feature's api and impl share package names, so one
+     * would bring an implementation's public binding containers in with the contracts.
+     *
+     * @param featureApiDeclarations [featureApiDeclarations] of the feature sources.
      */
-    fun sharedFeatureReferenceViolations(sources: Map<String, String>): List<String> =
+    fun sharedFeatureReferenceViolations(
+        sources: Map<String, String>,
+        featureApiDeclarations: Set<String>,
+    ): List<String> =
         sources.flatMap { (path, source) ->
             val code = codeOnly(source)
             val packageName = PACKAGE.find(code)?.groupValues?.get(1).orEmpty()
@@ -755,32 +812,47 @@ internal object FeatureFirstRules {
             references(code, QUALIFIED_FEATURE_REFERENCE).mapNotNull { reference ->
                 if (!reference.isWithin("com.xwab.app.feature")) return@mapNotNull null
 
-                val target = reference.removePrefix("com.xwab.app.feature.").split('.')
-                val allowed = isCompositionBoundary && target.size >= 3 &&
-                    target[1] in setOf("navigation", "shell")
-                if (allowed) return@mapNotNull null
+                val isApiContract = !reference.endsWith(".*") &&
+                    featureApiDeclarations.any { reference == it || reference.startsWith("$it.") }
+                when {
+                    !isCompositionBoundary ->
+                        "$path references $reference. Shared navigation/composition may reference only " +
+                            "feature api contracts. Other shared packages may not reference features."
 
-                "$path references $reference. Shared navigation/composition may reference only " +
-                    "feature navigation contracts and shell UI. Other shared packages may not reference features."
+                    !isApiContract ->
+                        "$path references $reference, which no feature api module declares. The shell " +
+                            "compiles against feature contracts only (routes, entry callbacks and shell " +
+                            "chrome in feature/<name>/api) and names each one it uses."
+
+                    else -> null
+                }
             }.toList()
         }.sorted()
 
-    /** Feature screens, state, ViewModels and use cases stay inside their own module. */
+    /**
+     * A feature's api module is its public surface, so anything there may be public. Its
+     * implementation exposes only the binding containers Metro collects into the shell's graphs: a
+     * container contributed with `@ContributesTo` must be public to cross the module boundary.
+     * Screens, state, ViewModels and use cases stay internal or private.
+     */
     fun featureVisibilityViolations(sources: Map<String, String>): List<String> =
-        sources.flatMap { (path, source) ->
-            val packageName = PACKAGE.find(codeOnly(source))?.groupValues?.get(1).orEmpty()
-            val isNavigationPackage = FEATURE_NAVIGATION_PACKAGE.matches(packageName) ||
-                FEATURE_SHELL_PACKAGE.matches(packageName)
-            if (isNavigationPackage) return@flatMap emptyList()
-
+        sources.filterKeys { !isFeatureApiSource(it) }.flatMap { (path, source) ->
+            val lines = codeOnly(source).lines()
             declarations(source, includeNested = false).mapNotNull { parsed ->
                 val declaration = parsed.match
                 val modifiers = declaration.groupValues[1].trim().split(Regex("""\s+"""))
                 if (modifiers.any { it == "internal" || it == "private" }) return@mapNotNull null
 
+                val annotations = lines.take(parsed.lineNumber - 1).asReversed()
+                    .takeWhile { it.isBlank() || it.trimStart().startsWith("@") } + declaration.value
+                val isContributedContainer = declaration.groupValues[2] == "object" &&
+                    annotations.any(CONTRIBUTES_TO::containsMatchIn)
+                if (isContributedContainer) return@mapNotNull null
+
                 val name = declaration.groupValues[3].removeSurrounding("`").substringAfterLast('.')
-                "$path:${parsed.lineNumber} exposes $name outside feature navigation contracts " +
-                    "or shell UI. Feature implementations must be internal or private."
+                "$path:${parsed.lineNumber} exposes $name from a feature implementation. Only binding " +
+                    "containers contributed with @ContributesTo may be public there; routes and " +
+                    "contracts belong in the feature's api module, everything else is internal or private."
             }
         }.sorted()
 

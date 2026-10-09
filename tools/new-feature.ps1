@@ -1,15 +1,17 @@
 <#
 .SYNOPSIS
-    Writes a single-module feature skeleton.
+    Writes a feature skeleton: an api module and an impl module.
 
 .DESCRIPTION
-    Creates feature/<name> with navigation, UI, state, a Metro-contributed ViewModel and tests in
-    one Gradle module. Gradle discovers the module and adds it to the shell automatically.
+    Creates feature/<name>/api with the route, its serializer registration and the callback
+    contract the app shell supplies, and feature/<name>/impl with the UI, state, a Metro-contributed
+    ViewModel, the entry installer and tests. Gradle discovers both modules and adds them to the
+    shell automatically.
 
-    The feature contributes its entry installer and route serializers through Metro, so the shell
-    picks both up from its classpath. The script prints the remaining app-shell steps and requires
-    choosing either a top-level destination or an existing feature intent that the composition
-    root connects to it.
+    The shell compiles against the api module only; the impl module reaches the app through Metro,
+    which collects its entry installer and ViewModel from the shell's classpath. The script prints
+    the remaining app-shell steps and requires choosing either a top-level destination or an
+    existing feature intent that the composition root connects to it.
 
 .PARAMETER Name
     Lower-case, dash-separated directory name, for example 'favorites' or 'sleep-timer'.
@@ -49,15 +51,35 @@ function Write-GeneratedFile {
     Write-Host "  created $($Path.Substring($repoRoot.Length + 1))"
 }
 
-$mainSrc = Join-Path $featureDir "src\commonMain\kotlin\com\xwab\app\feature\$pkg"
-$testSrc = Join-Path $featureDir "src\commonTest\kotlin\com\xwab\app\feature\$pkg"
+$apiDir = Join-Path $featureDir "api"
+$implDir = Join-Path $featureDir "impl"
+$apiNavSrc = Join-Path $apiDir "src\commonMain\kotlin\com\xwab\app\feature\$pkg\navigation"
+$mainSrc = Join-Path $implDir "src\commonMain\kotlin\com\xwab\app\feature\$pkg"
+$testSrc = Join-Path $implDir "src\commonTest\kotlin\com\xwab\app\feature\$pkg"
 $navSrc = Join-Path $mainSrc "navigation"
 
 Write-Host "Creating feature '$Name'..."
 
-Write-GeneratedFile (Join-Path $featureDir "build.gradle.kts") @"
+Write-GeneratedFile (Join-Path $apiDir "build.gradle.kts") @"
 plugins {
-    id("xwab.kmp.feature")
+    id("xwab.kmp.feature.api")
+}
+
+kotlin {
+    android { namespace = "com.xwab.app.feature.${pkg}.api" }
+
+    // If a callback contract names a core type, declare that one port here, for example:
+    // sourceSets {
+    //     commonMain.dependencies {
+    //         implementation(projects.core.sound)
+    //     }
+    // }
+}
+"@
+
+Write-GeneratedFile (Join-Path $implDir "build.gradle.kts") @"
+plugins {
+    id("xwab.kmp.feature.impl")
 }
 
 kotlin {
@@ -80,7 +102,7 @@ kotlin {
 }
 "@
 
-Write-GeneratedFile (Join-Path $navSrc "${Pascal}Navigation.kt") @"
+Write-GeneratedFile (Join-Path $apiNavSrc "${Pascal}Navigation.kt") @"
 package com.xwab.app.feature.${pkg}.navigation
 
 import androidx.navigation3.runtime.NavKey
@@ -217,7 +239,7 @@ class ${Pascal}ViewModelTest {
 Write-Host ""
 Write-Host "Done. Wire the feature in the app shell:" -ForegroundColor Green
 Write-Host "  1. Add ${Pascal}Route as a top-level route or connect it to an existing intent."
-Write-Host "  2. If the feature gains outgoing intents, expose its callback contract in navigation and provide it in AppEntryGraph."
+Write-Host "  2. If the feature gains outgoing intents, declare its callback contract in the api module's navigation package and provide it in AppEntryGraph."
 Write-Host "  3. Pin the route's serial name in FeatureSerializersTest.routeSerialNamesAreTheSavedWireFormat: it is a saved wire format."
 Write-Host ""
-Write-Host "Then: ./gradlew :feature:${Name}:compileCommonMainKotlinMetadata checkArchitecture"
+Write-Host "Then: ./gradlew :feature:${Name}:impl:compileCommonMainKotlinMetadata checkArchitecture"

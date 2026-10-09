@@ -92,9 +92,9 @@ jobs:
 
       # One task across the whole build, so a new module is picked up without touching this file.
       # It runs every module's `commonTest` on the simulator, plus the `iosTest` source sets that
-      # exist only here: the AVFoundation engine in core:playback, and the screen tests in
-      # feature:sound and feature:category, whose composables are common code with no second
-      # harness on the Android side.
+      # exist only here: the AVFoundation engine in core:playback, and the screen tests in the
+      # feature impl modules, whose composables are common code with no second harness on the
+      # Android side.
       - name: Run Simulator ARM64 tests
         # Step limits keep the job's own limit out of reach, so the cache save below always runs.
         timeout-minutes: 55

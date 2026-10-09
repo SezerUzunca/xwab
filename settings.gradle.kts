@@ -47,13 +47,25 @@ include(":shared")
 // automatically into shared's Metro classpath; their own architecture.properties defines the
 // permitted dependencies and public ports. Adding/removing a module needs no central core list.
 //
+// A feature is a pair, `feature/<name>/api` and `feature/<name>/impl`: a directory without a build
+// script is searched one level further, so the pair is found the same way a flat module is.
+//
 // Test fakes are split the same way, one module per port they stand in for, so a test compiles
 // against only the capabilities it reads. They sit outside core for the reason UI support does.
+fun modulesIn(dir: File, path: String, depth: Int): List<String> = when {
+    dir.resolve("build.gradle.kts").isFile -> listOf(path)
+    depth == 0 -> emptyList()
+    else -> dir.listFiles()
+        ?.filter { it.isDirectory && it.name != "build" }
+        ?.sortedBy { it.name }
+        ?.flatMap { modulesIn(it, "$path:${it.name}", depth - 1) }
+        .orEmpty()
+}
 val discoveredModules = listOf("core", "feature", "testing").associateWith { group ->
     rootDir.resolve(group).listFiles()
-        ?.filter { it.isDirectory && it.resolve("build.gradle.kts").isFile }
+        ?.filter { it.isDirectory && it.name != "build" }
         ?.sortedBy { it.name }
-        ?.map { moduleDir -> ":$group:${moduleDir.name}" }
+        ?.flatMap { moduleDir -> modulesIn(moduleDir, ":$group:${moduleDir.name}", depth = 1) }
         .orEmpty()
 }
 discoveredModules.values.flatten().forEach { include(it) }

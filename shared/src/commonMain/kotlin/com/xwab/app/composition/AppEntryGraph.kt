@@ -8,6 +8,7 @@ import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.category.navigation.CategoryEntryCallbacks
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesEntryCallbacks
+import com.xwab.app.feature.nowplaying.shell.NowPlayingBar
 import com.xwab.app.feature.sound.navigation.SoundEntryCallbacks
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoriesEntryCallbacks
@@ -31,6 +32,8 @@ internal typealias EntryProviderInstaller = EntryProviderScope<NavKey>.() -> Uni
  * classpath is installed without being listed here. The scope is Navigation 3's own type because
  * it is the one class both sides already see; a marker of the app's own would need a module of its
  * own. The callbacks below are what remains here: where each feature's intents lead is app policy.
+ * The now-playing bar arrives the same way, so this module names only feature api contracts and
+ * never a feature's implementation.
  *
  * The input is the [NavigationState] Compose restored; the graph builds the one [Navigator] over it
  * that the host and every feature callback share. The host remembers one graph per state. Kept
@@ -41,6 +44,9 @@ internal interface AppEntryGraph {
     val navigator: Navigator
     val resultEventBus: ResultEventBus
     val entryProviderInstallers: Set<EntryProviderInstaller>
+
+    /** The chrome under every tab, contributed beside the entries by the feature that draws it. */
+    val nowPlayingBar: NowPlayingBar
 
     @DependencyGraph.Factory
     fun interface Factory {

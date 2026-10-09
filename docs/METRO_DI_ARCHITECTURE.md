@@ -16,14 +16,15 @@ The version catalog is the source of truth. The official documentation's latest 
 | Component | Responsibility |
 | --- | --- |
 | `xwab.kmp.library` | Apply Metro to library modules, generate contribution providers and reject unsupported non-public contributions |
-| `xwab.kmp.feature` | Configure feature contributions, including the diagnostic policy for internal assisted ViewModel factories |
+| `xwab.kmp.feature.api` | Configure a feature's contract module: routes, their serializer contributions and callback / shell chrome contracts, with no UI toolkit or ViewModel |
+| `xwab.kmp.feature.impl` | Configure feature contributions, including the diagnostic policy for internal assisted ViewModel factories, and add the sibling api module |
 | Android / iOS application graph | Aggregate installed `AppScope` contributions and expose the MetroX ViewModel integration |
 | Internal capability graph | Construct and connect one core module's implementation, SDK objects and internal services |
 | `*GraphAdapter` | Contribute a capability port to the application graph and pass external inputs into the local graph |
 | `*GraphHolder` | Build one local graph shared by multiple bridges; used by sound and story |
 | `@BindingContainer` | Share binding declarations between graphs without making the container a complete graph |
 | Feature ViewModel factory | Combine injected dependencies with runtime route arguments through MetroX |
-| `AppEntryGraph` | Aggregate the entry installers features contribute to `EntryProviderScope::class` and supply feature-owned navigation callbacks from the composition root |
+| `AppEntryGraph` | Aggregate the entry installers and the now-playing bar features contribute to `EntryProviderScope::class` and supply feature-owned navigation callbacks from the composition root |
 | `RouteSerializersGraph` | Aggregate the route serializer modules features contribute to `NavKey::class` for saved back stacks |
 | Resource owner | Cancel jobs, release players and sessions, and close resources when its lifetime ends |
 | `checkArchitecture` | Enforce project dependency, visibility, port and ViewModel-registration rules |
@@ -38,8 +39,8 @@ The rules are written in the root README, each core module's `architecture.prope
 - Core modules reference other core modules only through those modules' ports. Port contracts cannot refer to implementation packages, including their own.
 - Each core module declares its responsibility, allowed project dependencies, feature accessibility and public callable interfaces in `architecture.properties`.
 - Features consume only capabilities permitted by those contracts. Infrastructure modules such as network, delivery and playback are not directly feature-accessible.
-- Core and feature modules stay flat. Repository/provider abstraction layers, Koin, and physical `api` / `impl` module splits are not part of this architecture.
-- Feature implementation types remain internal. Navigation contracts and shell UI form the feature's public composition surface.
+- Core modules stay flat. Repository/provider abstraction layers and Koin are not part of this architecture.
+- Each feature is an `api` module and an `impl` module. The api module is the feature's public composition surface: routes, callback contracts and shell chrome contracts. The impl module keeps its types internal and exposes only the binding containers it contributes with `@ContributesTo`; only `:shared` depends on it, and shared's code names only api declarations.
 
 Kotlin visibility and Gradle dependency declarations establish the boundaries; the architecture task checks them. Metro supplies objects within those boundaries. A compiling graph alone does not prove that a module obeys its responsibility.
 
@@ -203,11 +204,14 @@ Replacing an implementation preserves its port and installs one binding for that
 
 Feature entries use the Metro set-multibinding pattern from Google's
 [Navigation 3 Metro modular recipe](https://github.com/android/nav3-recipes/tree/f4d115959f4f3a1e903e67705954c66aa008adef/metroapp/src/main/java/com/example/nav3recipes/modular/metro).
-Each feature's public navigation binding container defines a `@Provides @IntoSet` installer of
-type `EntryProviderScope<NavKey>.() -> Unit` and is contributed with
+Each feature's impl module has a public binding container that defines a `@Provides @IntoSet`
+installer of type `EntryProviderScope<NavKey>.() -> Unit` and is contributed with
 `@ContributesTo(EntryProviderScope::class)`. `AppEntryGraph`, in shared's composition boundary,
 aggregates that scope and collects the set using its internal `EntryProviderInstaller` alias;
-`AppEntryProvider` runs it. Route `SerializersModule`s follow the same [aggregation](https://github.com/ZacSweers/metro/blob/1.4.5/docs/aggregation.md)
+`AppEntryProvider` runs it. The now-playing bar reaches the host the same way: `feature:nowplaying:api`
+declares the `NowPlayingBar` contract, its impl module contributes a `@Provides` for it to the same
+scope, and `AppEntryGraph` exposes it, so shared draws the bar without naming its implementation.
+Route `SerializersModule`s, declared in each feature's api module beside its routes, follow the same [aggregation](https://github.com/ZacSweers/metro/blob/1.4.5/docs/aggregation.md)
 into `NavKey::class`, collected by `RouteSerializersGraph` for `FEATURE_SERIALIZERS`. That graph is
 separate because back stacks are restored before the navigator, and so the callbacks, exist. The
 recipe's scope marker lives in a common module; XWAB uses Navigation 3's own types instead, since
@@ -237,7 +241,7 @@ The current feature registrations use these two patterns:
 | `feature:browse` | `BrowseViewModel` | Plain injection; `metroViewModel()` | None |
 | `feature:category` | `CategoryViewModel` | Assisted injection; `assistedMetroViewModel()` | `CategoryId` from the route |
 | `feature:favorites` | `FavoritesViewModel` | Plain injection; `metroViewModel()` | None |
-| `feature:nowplaying` | `NowPlayingViewModel` | Plain injection; `metroViewModel()` in `NowPlayingBar` | None |
+| `feature:nowplaying` | `NowPlayingViewModel` | Plain injection; `metroViewModel()` in the bar's `NowPlayingBarRoute` | None |
 | `feature:sound` | `SoundViewModel` | Assisted injection; `assistedMetroViewModel()` | `TrackId` from the route |
 | `feature:story` | `StoriesViewModel` | Plain injection; `metroViewModel()` | None |
 | `feature:story` | `StoryDetailViewModel` | Assisted injection; `assistedMetroViewModel()` | `StoryId` from the route |
@@ -342,7 +346,8 @@ Avoid creating public containers outside `.port` or moving SDK configuration int
 
 - [Root architecture and rules](../README.md)
 - [Library convention](../build-logic/src/main/kotlin/com/xwab/convention/KmpLibraryConventionPlugin.kt)
-- [Feature convention](../build-logic/src/main/kotlin/com/xwab/convention/KmpFeatureConventionPlugin.kt)
+- [Feature api convention](../build-logic/src/main/kotlin/com/xwab/convention/KmpFeatureApiConventionPlugin.kt)
+- [Feature impl convention](../build-logic/src/main/kotlin/com/xwab/convention/KmpFeatureImplConventionPlugin.kt)
 - [Architecture task](../build-logic/src/main/kotlin/com/xwab/convention/CheckArchitectureTask.kt)
 - [Architecture rule implementations](../build-logic/src/main/kotlin/com/xwab/convention/FeatureFirstRules.kt)
 - [Shared application graph surface](../shared/src/commonMain/kotlin/com/xwab/app/di/AppGraph.kt)

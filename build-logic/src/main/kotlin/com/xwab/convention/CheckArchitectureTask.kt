@@ -20,22 +20,24 @@ import org.gradle.api.tasks.TaskAction
  * 1. A core module may not depend on a feature. Dependencies point one way.
  * 2. A feature may not depend on another feature module. Cross-feature navigation is application
  *    policy: an entry provider exposes an intent callback and `:shared` connects it to a route.
- * 3. A feature is exactly one `:feature:<name>` module; nested `api` / `impl` projects are invalid.
+ *    Only `:shared` depends on a feature's `impl` module.
+ * 3. A feature is exactly `:feature:<name>:api` and `:feature:<name>:impl`, both present.
  * 4. A use case in a core module must serve more than one feature. A screen-specific one belongs
  *    to that screen's module, otherwise screen logic leaks into shared capabilities.
  * 5. Each core owns an architecture.properties file declaring its responsibility, feature access,
  *    exhaustive project dependency boundary and complete set of public callable interfaces.
  * 6. All shared production source sets may reference features only at the navigation/composition
- *    boundary (navigation contracts and shell UI). Feature ViewModels reach the app graph through
- *    Metro contributions, so shared DI names no feature type.
+ *    boundary, and there only by declarations of a feature's api module. Feature ViewModels reach
+ *    the app graph through Metro contributions, so shared DI names no feature type.
  * 7. A core capability exposes declarations only from an explicit `port` package; everything else
  *    is internal or private.
  * 8. References crossing between core modules target only `port` packages.
  * 9. Core declares no repository/provider abstractions; a feature may own one if it truly needs it.
- * 10. Koin and physical `api` / `impl` source layouts may not return; Metro and cohesive modules
- *     are project-wide decisions.
- * 11. Features expose only navigation contracts and shell UI (`shell` package: what the app shell
- *     places around destinations); implementation declarations stay internal or private.
+ * 10. Koin may not return, and no `api` / `impl` directory exists except a feature's two module
+ *     roots; core keeps its contracts in port packages.
+ * 11. A feature's implementation exposes only the binding containers it contributes to the shell's
+ *     graphs; its routes and contracts live in its api module, everything else is internal or
+ *     private.
  * 12. Designsystem has no application project dependencies; core cannot
  *     depend on it or on the app shell.
  * 13. Loading/Ready state types stay inside feature modules. Whether a screen has content yet is
@@ -127,7 +129,10 @@ abstract class CheckArchitectureTask : DefaultTask() {
             FeatureFirstRules.userAgentAgreementViolations(clientIdentitySources(root)) +
             FeatureFirstRules.dependencyViolations(graph, apiGraph, policies) +
             leakedUseCaseViolations(root, graph.keys) +
-            FeatureFirstRules.sharedFeatureReferenceViolations(productionSources(root, "shared")) +
+            FeatureFirstRules.sharedFeatureReferenceViolations(
+                productionSources(root, "shared"),
+                FeatureFirstRules.featureApiDeclarations(productionSources(root, "feature")),
+            ) +
             FeatureFirstRules.featureVisibilityViolations(productionSources(root, "feature")) +
             FeatureFirstRules.unregisteredViewModelViolations(productionSources(root, "feature")) +
             FeatureFirstRules.featureStateViolations(nonFeatureProductionSources(root)) +
