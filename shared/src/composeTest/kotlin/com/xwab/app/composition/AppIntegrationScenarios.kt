@@ -6,7 +6,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
@@ -61,7 +60,9 @@ internal fun realEntriesOpenACategoryFromBrowse(createGraph: (OfflineCatalog) ->
     try {
         waitUntilAtLeastOneExists(hasText(CATEGORY), TIMEOUT_MS)
         onNode(hasScrollToIndexAction()).performScrollToIndex(FILLER_CATEGORIES)
-        onNodeWithText(CATEGORY).assertIsNotDisplayed()
+        // Gone, not merely hidden: on iOS `assertIsNotDisplayed` throws for a node the lazy grid
+        // already disposed, while Android reports it as not displayed.
+        onNodeWithText(CATEGORY).assertDoesNotExist()
         // The production bus, entry decorator and feature receiver must agree on one bus and key.
         repeat(RESELECTIONS) { onNodeWithText(browseLabel).performClick() }
         waitForIdle()
