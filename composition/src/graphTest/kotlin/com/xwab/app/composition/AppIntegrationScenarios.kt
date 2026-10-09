@@ -5,7 +5,9 @@ package com.xwab.app.composition
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.hasScrollToIndexAction
@@ -24,6 +26,8 @@ import com.xwab.app.App
 import com.xwab.app.TestRootOwner
 import com.xwab.app.composition.OfflineCatalog.Companion.CATEGORY
 import com.xwab.app.composition.OfflineCatalog.Companion.FILLER_CATEGORIES
+import com.xwab.app.composition.OfflineCatalog.Companion.NARRATOR
+import com.xwab.app.composition.OfflineCatalog.Companion.STORY
 import com.xwab.app.composition.OfflineCatalog.Companion.TRACK
 import com.xwab.app.di.AppGraph
 import kotlin.time.Duration.Companion.minutes
@@ -45,18 +49,7 @@ internal fun realEntriesOpenACategoryFromBrowse(createGraph: (OfflineCatalog) ->
     // emulator already exceeded with lighter tests.
     testTimeout = 3.minutes,
 ) {
-    val graph = createGraph(OfflineCatalog())
-    val owner = runOnIdle { TestRootOwner() }
-    setContent {
-        CompositionLocalProvider(
-            LocalViewModelStoreOwner provides owner,
-            LocalLifecycleOwner provides owner,
-            LocalSavedStateRegistryOwner provides owner,
-            LocalNavigationEventDispatcherOwner provides rememberNavigationEventDispatcherOwner(parent = null),
-        ) {
-            App(graph.metroViewModelFactory, AppEntryGraphs)
-        }
-    }
+    val owner = setApp(createGraph(OfflineCatalog()))
     try {
         waitUntilAtLeastOneExists(hasText(CATEGORY), TIMEOUT_MS)
         onNode(hasScrollToIndexAction()).performScrollToIndex(FILLER_CATEGORIES)
@@ -76,6 +69,71 @@ internal fun realEntriesOpenACategoryFromBrowse(createGraph: (OfflineCatalog) ->
 }
 
 /**
+ * Every screen the app has, opened through its real entry on the production graph: the sound's own
+ * screen, the Favorites tab, the Stories tab and a story's own screen, after Browse and Category.
+ *
+ * Together with the bar on the root, that resolves all seven contributed ViewModels — four plain,
+ * three through assisted factories with the id their route carries — rather than only checking the
+ * maps are non-empty, as the graph test does. A screen whose ViewModel or installer never reached
+ * the graph throws here when it opens.
+ *
+ * The expected texts are the screens' own English strings: their resources belong to the feature
+ * modules, which this module installs but cannot read.
+ */
+internal fun realEntriesOpenEveryScreen(createGraph: (OfflineCatalog) -> AppGraph) = runComposeUiTest(
+    // Five waits of up to TIMEOUT_MS each; the first carries the engine's start on a slow emulator.
+    testTimeout = 4.minutes,
+) {
+    val owner = setApp(createGraph(OfflineCatalog()))
+    try {
+        // A sound's own screen, behind Category: two assisted ViewModels, each given its route's id.
+        waitUntilAtLeastOneExists(hasText(CATEGORY), TIMEOUT_MS)
+        onNodeWithText(CATEGORY).performClick()
+        waitUntilAtLeastOneExists(hasText(TRACK), TIMEOUT_MS)
+        onNodeWithText(TRACK).performClick()
+        // Only the sound's screen states its availability; the fake reports nothing cached.
+        waitUntilAtLeastOneExists(hasText(SOUND_ONLINE_ONLY), TIMEOUT_MS)
+
+        // The Favorites tab lists the favourite the fake starts with.
+        onAllNodes(TAB)[FAVORITES_TAB].performClick()
+        waitUntilAtLeastOneExists(hasText(FAVORITES_TITLE), TIMEOUT_MS)
+        waitUntil(timeoutMillis = TIMEOUT_MS) { isDisplayed(TRACK) }
+
+        // The Stories tab, then the story's own screen, which alone names its narrator.
+        onAllNodes(TAB)[STORIES_TAB].performClick()
+        waitUntilAtLeastOneExists(hasText(STORY), TIMEOUT_MS)
+        onNodeWithText(STORY).performClick()
+        waitUntilAtLeastOneExists(hasText("Narrated by $NARRATOR"), TIMEOUT_MS)
+    } finally {
+        runOnIdle { owner.close() }
+    }
+}
+
+/** The app's own root on [graph], under one owner the scenario closes. */
+private fun ComposeUiTest.setApp(graph: AppGraph): TestRootOwner {
+    val owner = runOnIdle { TestRootOwner() }
+    setContent {
+        CompositionLocalProvider(
+            LocalViewModelStoreOwner provides owner,
+            LocalLifecycleOwner provides owner,
+            LocalSavedStateRegistryOwner provides owner,
+            LocalNavigationEventDispatcherOwner provides rememberNavigationEventDispatcherOwner(parent = null),
+        ) {
+            App(graph.metroViewModelFactory, AppEntryGraphs)
+        }
+    }
+    return owner
+}
+
+/** Whether any node with [text] is on screen; another tab may still hold one that is not. */
+private fun ComposeUiTest.isDisplayed(text: String): Boolean {
+    val nodes = onAllNodesWithText(text)
+    return nodes.fetchSemanticsNodes().indices.any { index ->
+        runCatching { nodes[index].assertIsDisplayed() }.isSuccess
+    }
+}
+
+/**
  * The now-playing bar builds the real playback engine on the main thread on the first frame. The
  * device tests settled on 45 seconds for that on a 2-core CI emulator; ten was not always enough.
  */
@@ -90,3 +148,12 @@ private const val RESELECTIONS = 3
  * as tabs.
  */
 private val SELECTED_TAB = isSelected() and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
+
+/** Every navigation tab, in the shell's order: Browse, Favorites, Stories. */
+private val TAB = SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
+private const val FAVORITES_TAB = 1
+private const val STORIES_TAB = 2
+
+/** `feature:sound`'s `internet_required` and `feature:favorites`' `favorites_title`. */
+private const val SOUND_ONLINE_ONLY = "Internet required"
+private const val FAVORITES_TITLE = "Favorite sounds"

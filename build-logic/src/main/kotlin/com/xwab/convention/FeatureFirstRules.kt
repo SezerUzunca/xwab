@@ -4,6 +4,9 @@ package com.xwab.convention
 internal object FeatureFirstRules {
     const val CORE_PREFIX = ":core:"
     const val FEATURE_PREFIX = ":feature:"
+
+    /** Test fakes, one module per port they stand in for. */
+    const val TESTING_PREFIX = ":testing:"
     const val SHELL_MODULE = ":shared"
 
     /** The one module that sees every implementation and declares the graphs that collect them. */
@@ -386,6 +389,22 @@ internal object FeatureFirstRules {
                         "module. Ports belong in the api module consumers compile against."
                 else -> null
             }
+        }.sorted()
+
+    /**
+     * A feature's sources stay in its own package, `com.xwab.app.feature.<name>`, in both its
+     * modules. A declaration filed under another feature's package would read as that feature's,
+     * and a package outside any feature would escape the rules that key on feature packages.
+     */
+    fun featurePackageOwnershipViolations(sources: Map<String, String>): List<String> =
+        sources.mapNotNull { (path, source) ->
+            val segments = path.replace('\\', '/').split('/')
+            if (segments.firstOrNull() != "feature") return@mapNotNull null
+            val feature = segments.getOrNull(1) ?: return@mapNotNull null
+            val expected = "com.xwab.app.feature.${feature.replace("-", "")}"
+            val packageName = PACKAGE.find(codeOnly(source))?.groupValues?.get(1).orEmpty()
+            if (packageName.isWithin(expected)) null
+            else "$path uses $packageName; feature/$feature owns only $expected and its subpackages."
         }.sorted()
 
     /** A module cannot disguise its own implementation as somebody else's public contract. */
@@ -782,6 +801,12 @@ internal object FeatureFirstRules {
                 ) {
                     violations += "$module depends on $dependency. Feature modules must not depend " +
                         "on another feature; connect destination intents in :shared."
+                }
+
+                // The graph holds production configurations only, so any edge here ships the fake.
+                if (dependency.startsWith(TESTING_PREFIX) && !module.startsWith(TESTING_PREFIX)) {
+                    violations += "$module depends on $dependency in production. Test fakes belong to " +
+                        "test configurations; one in production code would ship in the app."
                 }
 
                 if (isImplementation(dependency) && module != COMPOSITION_ROOT) {

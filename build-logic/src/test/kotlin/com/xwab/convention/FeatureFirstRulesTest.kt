@@ -627,6 +627,55 @@ class FeatureFirstRulesTest {
         assertTrue(FeatureFirstRules.staleRuleViolations(modules - ":composition")
             .single().contains("COMPOSITION_ROOT"))
     }
+
+    @Test
+    fun aFeatureDeclaresOnlyInItsOwnPackage() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.featurePackageOwnershipViolations(
+                mapOf(
+                    "feature/browse/api/src/commonMain/kotlin/Route.kt" to featureSource(".navigation", "data object BrowseRoute"),
+                    "feature/browse/impl/src/commonMain/kotlin/Screen.kt" to featureSource("", "internal fun BrowseScreen() = Unit"),
+                    "feature/sleep-timer/impl/src/commonMain/kotlin/Timer.kt" to
+                        "package com.xwab.app.feature.sleeptimer.domain\ninternal class Timer",
+                    // Not a feature source; the rule leaves it to the others.
+                    "shared/src/commonMain/kotlin/App.kt" to "package com.xwab.app\nfun App() = Unit",
+                ),
+            ),
+        )
+
+        val violations = FeatureFirstRules.featurePackageOwnershipViolations(
+            mapOf(
+                // Filed under another feature's package.
+                "feature/category/impl/src/commonMain/kotlin/Browse.kt" to featureSource("", "internal class Leak"),
+                // Under no feature at all.
+                "feature/browse/impl/src/commonMain/kotlin/Shared.kt" to "package com.xwab.app.ui\ninternal class Leak",
+                // A name that only starts like the feature's.
+                "feature/sound/impl/src/commonMain/kotlin/Sounds.kt" to
+                    "package com.xwab.app.feature.soundscape\ninternal class Leak",
+            ),
+        )
+        assertEquals(3, violations.size)
+        assertTrue(violations.all { it.contains("owns only com.xwab.app.feature.") })
+    }
+
+    @Test
+    fun onlyTestsAndOtherFakesDependOnTestFakes() {
+        val violations = dependencyViolations(
+            mapOf(
+                ":feature:sound:impl" to listOf(":testing:sound"),
+                ":shared" to listOf(":testing:session"),
+                ":composition" to listOf(":testing:favorites"),
+            ),
+        )
+        assertEquals(3, violations.count { it.contains("in production. Test fakes belong to test configurations") })
+
+        assertEquals(
+            emptyList(),
+            dependencyViolations(mapOf(":testing:sound" to listOf(":core:sound:api", ":testing:favorites"))),
+        )
+    }
+
     @Test
     fun featureSpecificUseCasesStayInTheirFeature() {
         val violations = FeatureFirstRules.leakedUseCaseViolations(

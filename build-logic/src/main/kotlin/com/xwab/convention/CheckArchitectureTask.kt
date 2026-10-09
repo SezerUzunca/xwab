@@ -74,6 +74,10 @@ import org.gradle.api.tasks.TaskAction
  * 24. Every ViewModel a feature declares is registered in the app graph's ViewModel map, itself or
  *     through its assisted factory. Screens resolve ViewModels from that map at runtime, so a missing
  *     registration compiles and throws only when the screen opens.
+ * 25. A feature's sources, in both its modules, stay in its own `com.xwab.app.feature.<name>`
+ *     package.
+ * 26. Only test configurations and other test-fake modules depend on a `:testing:*` module; a
+ *     production edge would ship the fake.
  *
  * The rules themselves live in [FeatureFirstRules], where they are unit-tested from both sides.
  * This task is only their plumbing: it reads the dependency report each module publishes about
@@ -140,6 +144,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
             FeatureFirstRules.sharedFeatureReferenceViolations(productionSources(root, "shared")) +
             FeatureFirstRules.compositionRootFeatureReferenceViolations(productionSources(root, "composition")) +
             FeatureFirstRules.featureVisibilityViolations(productionSources(root, "feature")) +
+            FeatureFirstRules.featurePackageOwnershipViolations(productionSources(root, "feature")) +
             FeatureFirstRules.unregisteredViewModelViolations(productionSources(root, "feature")) +
             FeatureFirstRules.featureStateViolations(nonFeatureProductionSources(root)) +
             FeatureFirstRules.lazyListKeyViolations(
