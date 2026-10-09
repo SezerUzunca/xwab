@@ -35,9 +35,9 @@ kotlin {
             (gradle.extra["featureApiModules"] as List<String>).forEach { implementation(project(it)) }
             // The capability types the shell itself names: playback item ids and each content
             // module's playback kind, which the shell maps to the screen an item opens.
-            implementation(projects.core.session)
-            implementation(projects.core.sound)
-            implementation(projects.core.story)
+            implementation(projects.core.session.api)
+            implementation(projects.core.sound.api)
+            implementation(projects.core.story.api)
             implementation(projects.designsystem)
 
             implementation(libs.compose.ui)

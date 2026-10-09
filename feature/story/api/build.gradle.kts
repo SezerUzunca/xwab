@@ -7,7 +7,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(projects.core.story)
+            implementation(projects.core.story.api)
         }
     }
 }

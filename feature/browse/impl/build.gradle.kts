@@ -7,7 +7,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(projects.core.sound)
+            implementation(projects.core.sound.api)
         }
         commonTest.dependencies {
             implementation(projects.testing.sound)

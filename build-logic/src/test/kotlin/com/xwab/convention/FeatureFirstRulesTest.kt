@@ -59,7 +59,7 @@ class FeatureFirstRulesTest {
         )
 
         assertEquals(4, violations.size)
-        assertTrue(violations.all { it.contains("Only :composition installs a feature's implementation") })
+        assertTrue(violations.all { it.contains("Only :composition installs an implementation") })
         assertEquals(
             emptyList(),
             dependencyViolations(mapOf(":testing:sound" to listOf(":feature:sound:api"))),
@@ -98,13 +98,15 @@ class FeatureFirstRulesTest {
     }
 
     @Test
-    fun onlyAFeatureRootSplitsIntoApiAndImpl() {
+    fun onlyACapabilityOrFeatureRootSplitsIntoApiAndImpl() {
         assertEquals(
             emptyList(),
             FeatureFirstRules.legacySplitDirectoryViolations(
                 listOf(
                     "feature/browse/api",
                     "feature/browse/impl",
+                    "core/network/api",
+                    "core/network/impl",
                     "feature/browse/impl/src/commonMain/kotlin/com/xwab/app/feature/browse/navigation",
                 ),
             ),
@@ -112,8 +114,8 @@ class FeatureFirstRulesTest {
 
         val violations = FeatureFirstRules.legacySplitDirectoryViolations(
             listOf(
-                "core/network/api",
-                "core/network/src/commonMain/kotlin/com/xwab/app/core/network/impl",
+                "core/network/impl/src/commonMain/kotlin/com/xwab/app/core/network/impl",
+                "core/network/impl/api",
                 "feature/browse/impl/src/commonMain/kotlin/com/xwab/app/feature/browse/api",
                 "feature/browse/impl/api",
             ),
@@ -1039,50 +1041,57 @@ class FeatureFirstRulesTest {
 
     @Test
     fun currentModuleGraphSatisfiesDependencyRules() {
+        val capabilities = listOf("sound", "story", "network", "delivery", "favorites", "playback", "session")
+        val coreModules = capabilities.flatMap { listOf(":core:$it:api", ":core:$it:impl") }
         val graph = mapOf(
-            ":core:sound" to listOf(":core:session", ":core:delivery"),
-            ":core:story" to listOf(":core:session"),
-            ":core:network" to emptyList<String>(),
-            ":core:delivery" to listOf(":core:network"),
-            ":core:favorites" to emptyList<String>(),
-            ":core:playback" to emptyList<String>(),
-            ":core:session" to listOf(":core:playback"),
-            ":designsystem" to emptyList<String>(),
-            ":testing" to listOf(":core:sound", ":core:favorites", ":core:session"),
-            ":feature:browse:api" to listOf(":core:sound"),
-            ":feature:browse:impl" to listOf(":feature:browse:api", ":core:sound", ":designsystem"),
-            ":feature:category:api" to listOf(":core:sound"),
+            ":core:sound:api" to emptyList(),
+            ":core:sound:impl" to listOf(":core:sound:api", ":core:session:api", ":core:delivery:api"),
+            ":core:story:api" to emptyList(),
+            ":core:story:impl" to listOf(":core:story:api", ":core:session:api"),
+            ":core:network:api" to emptyList(),
+            ":core:network:impl" to listOf(":core:network:api"),
+            ":core:delivery:api" to emptyList(),
+            ":core:delivery:impl" to listOf(":core:delivery:api", ":core:network:api"),
+            ":core:favorites:api" to emptyList(),
+            ":core:favorites:impl" to listOf(":core:favorites:api"),
+            ":core:playback:api" to emptyList(),
+            ":core:playback:impl" to listOf(":core:playback:api"),
+            ":core:session:api" to emptyList(),
+            ":core:session:impl" to listOf(":core:session:api", ":core:playback:api"),
+            ":designsystem" to emptyList(),
+            ":testing:sound" to listOf(":core:sound:api", ":testing:favorites"),
+            ":testing:favorites" to listOf(":core:favorites:api"),
+            ":testing:session" to listOf(":core:session:api"),
+            ":feature:browse:api" to listOf(":core:sound:api"),
+            ":feature:browse:impl" to listOf(":feature:browse:api", ":core:sound:api", ":designsystem"),
+            ":feature:category:api" to listOf(":core:sound:api"),
             ":feature:category:impl" to listOf(
-                ":feature:category:api", ":core:sound", ":core:favorites", ":core:session",
+                ":feature:category:api", ":core:sound:api", ":core:favorites:api", ":core:session:api",
                 ":designsystem",
             ),
-            ":feature:favorites:api" to listOf(":core:sound"),
+            ":feature:favorites:api" to listOf(":core:sound:api"),
             ":feature:favorites:impl" to listOf(
-                ":feature:favorites:api", ":core:sound", ":core:favorites", ":core:session",
+                ":feature:favorites:api", ":core:sound:api", ":core:favorites:api", ":core:session:api",
                 ":designsystem",
             ),
             ":feature:sound:api" to emptyList(),
             ":feature:sound:impl" to listOf(
-                ":feature:sound:api", ":core:sound", ":core:favorites", ":core:session",
+                ":feature:sound:api", ":core:sound:api", ":core:favorites:api", ":core:session:api",
                 ":designsystem",
             ),
-            ":feature:story:api" to listOf(":core:story"),
+            ":feature:story:api" to listOf(":core:story:api"),
             ":feature:story:impl" to listOf(
-                ":feature:story:api", ":core:story", ":core:session", ":designsystem",
+                ":feature:story:api", ":core:story:api", ":core:session:api", ":designsystem",
             ),
-            ":feature:nowplaying:api" to listOf(":core:session"),
-            ":feature:nowplaying:impl" to listOf(":feature:nowplaying:api", ":core:session", ":designsystem"),
+            ":feature:nowplaying:api" to listOf(":core:session:api"),
+            ":feature:nowplaying:impl" to listOf(":feature:nowplaying:api", ":core:session:api", ":designsystem"),
             ":shared" to listOf(
-                ":core:session", ":core:sound", ":core:story",
+                ":core:session:api", ":core:sound:api", ":core:story:api",
                 ":designsystem",
                 ":feature:browse:api", ":feature:category:api", ":feature:favorites:api",
                 ":feature:sound:api", ":feature:story:api", ":feature:nowplaying:api",
             ),
-            ":composition" to listOf(
-                ":shared",
-                ":core:sound", ":core:delivery",
-                ":core:favorites", ":core:story",
-                ":core:session", ":core:playback", ":core:network",
+            ":composition" to listOf(":shared") + coreModules + listOf(
                 ":feature:browse:api", ":feature:browse:impl",
                 ":feature:category:api", ":feature:category:impl",
                 ":feature:favorites:api", ":feature:favorites:impl",
@@ -1093,16 +1102,16 @@ class FeatureFirstRulesTest {
             ":androidApp" to listOf(":composition"),
         )
         val apiEdges = mapOf(
-            ":core:delivery" to emptyList(),
-            ":core:favorites" to emptyList(),
-            ":core:session" to emptyList(),
-            ":testing" to listOf(":core:sound", ":core:favorites", ":core:session"),
+            ":testing:sound" to listOf(":core:sound:api", ":testing:favorites"),
+            ":testing:favorites" to listOf(":core:favorites:api"),
+            ":testing:session" to listOf(":core:session:api"),
         )
 
         assertEquals(emptyList(), FeatureFirstRules.staleRuleViolations(graph.keys))
         assertEquals(emptyList(), FeatureFirstRules.corePolicyViolations(graph.keys, corePolicies))
         assertEquals(emptyList(), FeatureFirstRules.unwiredModuleViolations(graph))
         assertEquals(emptyList(), FeatureFirstRules.featureModuleShapeViolations(graph.keys))
+        assertEquals(emptyList(), FeatureFirstRules.coreModuleShapeViolations(graph.keys))
         assertEquals(emptyList(), dependencyViolations(graph, apiEdges))
     }
 

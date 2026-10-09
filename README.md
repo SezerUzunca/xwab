@@ -19,9 +19,9 @@ iosApp ─────┘        │
                      └── feature:<name>:impl           ◄── only the composition root installs these
                               │                            browse · favorites · category
                               │                            sound · story · nowplaying
-                              └── public core ports
-                                      │
-                                      └── internal Metro adapters
+                              └── core:<name>:api      ◄── public ports; everyone compiles against these
+                                       ▲
+                                  core:<name>:impl     ◄── internal Metro adapters; only the composition root installs these
 ```
 
 Every feature is two Gradle modules. `feature/<name>/api` holds what the app shell compiles against:
@@ -57,11 +57,18 @@ Designsystem is independent of application projects; core cannot depend on it or
 
 ## Core boundary
 
-Every type crossing a core-module boundary lives in a `.port` package and is public. Kotlin's
+Each core capability is two Gradle modules, like a feature. `core/<name>/api` holds its `.port`
+package and nothing else; `core/<name>/impl` holds the adapters, manifests and module graph behind
+it, and depends on its own api. Features, the shell, the test fakes and other capabilities compile
+against api modules only; only `composition` depends on an impl module. The capability's
+`architecture.properties` and README sit beside the two modules, because they describe the
+capability rather than either half.
+
+Every type crossing a capability boundary lives in a `.port` package and is public. Kotlin's
 implicit public visibility and an explicit `public` modifier are both valid, and the port code uses
 both. Hand-written production declarations outside `.port` packages are
-`internal` or `private`. Core modules may import another core module only through that module's
-`.port` package.
+`internal` or `private`. A capability may import another only through that capability's `.port`
+package, which its api module is.
 
 There is no shared repository abstraction. A feature consumes the narrow capability it needs:
 
@@ -128,13 +135,13 @@ any other non-public contribution in a feature is still reported.
 
 ```text
 core/
-├── network
-├── sound
-├── story
-├── delivery
-├── favorites
-├── session
-└── playback
+├── network     api · impl
+├── sound       api · impl
+├── story       api · impl
+├── delivery    api · impl
+├── favorites   api · impl
+├── session     api · impl
+└── playback    api · impl
 
 designsystem/
 testing/
@@ -151,8 +158,8 @@ feature/
 ```
 
 Every directory under `core` or `feature` with a build script is a Gradle module, discovered by
-settings; a feature directory has none of its own, so its `api` and `impl` are found one level
-down. `composition` automatically includes those modules on Metro's compilation classpath, and
+settings; a capability or feature directory has none of its own, so its `api` and `impl` are found
+one level down. `composition` automatically includes those modules on Metro's compilation classpath, and
 `shared` the feature api modules: settings publishes the discovered lists, so neither reads another
 project's state to find them. Feature entries, route serializers and the now-playing bar are
 collected through Metro; tabs and where each feature's intents lead remain explicit in the shell.
@@ -185,12 +192,15 @@ resolvers and the session's own adapter opt in, and screens have no reason to. S
 `adapterOnlyTypes` policy makes `checkArchitecture` reject feature references to the same types,
 the opt-in annotation included, so a feature cannot opt in quietly either.
 
-Contracts and models live in each module's `.port` package. Adapters and manifests remain internal.
-Every core module supplies an [architecture.properties](core/session/architecture.properties)
+Contracts and models live in each capability's `.port` package, in its api module. Adapters and
+manifests remain internal to its impl module. Every core capability supplies, beside its two
+modules, an [architecture.properties](core/session/architecture.properties)
 contract declaring its responsibility, feature visibility, permitted dependencies and public
-interfaces, with optional `adapterOnlyTypes` for contracts reserved for adapters.
+interfaces, with optional `adapterOnlyTypes` for contracts reserved for adapters. Permitted
+dependencies name capabilities: a capability's impl may depend on its own api and on the api of
+each capability it lists, never on another impl.
 `checkArchitecture` validates those declarations against the actual code and production dependency
-graph; a new module without a contract fails the check.
+graph, read per capability across both modules; a new capability without a contract fails the check.
 
 ### Adding a content type
 
@@ -213,10 +223,12 @@ check verifies that the app shell names every registered playback kind in its ro
 
 ### Adding, removing or replacing core modules
 
-1. Add a flat `core/<name>` module with `build.gradle.kts` and `architecture.properties`.
+1. Add `core/<name>/api` and `core/<name>/impl`, each with a `build.gradle.kts`, and
+   `core/<name>/architecture.properties` beside them. The impl module depends on its own api and
+   on the api modules of the capabilities it uses.
 2. Declare its owned responsibility and exact public interfaces; specify only required core
-   dependencies. Empty `dependencies=` means the module is independent.
-3. Keep public contracts in `.port`. Wire the internal implementation in the module's own
+   dependencies, by capability. Empty `dependencies=` means the capability is independent.
+3. Keep public contracts in `.port`, in the api module. Wire the internal implementation in the impl module's own
    internal Metro graph, and contribute only its port to `AppScope` through a `*GraphAdapter`
    that passes the graph whatever it needs from other modules. Playable content modules also
    contribute their resolver under a stable key and keep physical sources private to the module.
@@ -351,9 +363,10 @@ playback. The architecture check requires these values to agree with the downloa
    callable interfaces, or declares a dependency outside its allowed list. Missing dependency
    targets and core dependency cycles also fail.
 2. A core module depends on a non-core application module, a feature depends on another feature, or
-   anything but `composition` depends on a feature's impl module. Core modules are flat; a feature is
-   exactly `:feature:<name>:api` and `:feature:<name>:impl`, and no other `api`/`impl` directory
-   may appear.
+   anything but `composition` depends on an impl module. A capability is exactly
+   `:core:<name>:api`, its port package alone, and `:core:<name>:impl`, holding no port; a feature
+   is exactly `:feature:<name>:api` and `:feature:<name>:impl`. No other `api`/`impl` directory may
+   appear.
 3. A feature reaches a core module marked `featureAccessible=false`, directly or through an
    exported dependency, or references a port type listed in that module's `adapterOnlyTypes`.
    A core module that implements another's `adapterOnlyTypes` may not reference that module's

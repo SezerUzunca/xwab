@@ -71,7 +71,7 @@ kotlin {
     // If a callback contract names a core type, declare that one port here, for example:
     // sourceSets {
     //     commonMain.dependencies {
-    //         implementation(projects.core.sound)
+    //         implementation(projects.core.sound.api)
     //     }
     // }
 }
@@ -88,9 +88,9 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             // Declare only the public core ports this feature consumes, for example:
-            // implementation(projects.core.sound)
-            // implementation(projects.core.favorites)
-            // implementation(projects.core.session)
+            // implementation(projects.core.sound.api)
+            // implementation(projects.core.favorites.api)
+            // implementation(projects.core.session.api)
         }
         commonTest.dependencies {
             // Declare only the fakes for the ports declared above, for example:

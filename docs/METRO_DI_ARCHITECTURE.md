@@ -39,7 +39,7 @@ The rules are written in the root README, each core module's `architecture.prope
 - Core modules reference other core modules only through those modules' ports. Port contracts cannot refer to implementation packages, including their own.
 - Each core module declares its responsibility, allowed project dependencies, feature accessibility and public callable interfaces in `architecture.properties`.
 - Features consume only capabilities permitted by those contracts. Infrastructure modules such as network, delivery and playback are not directly feature-accessible.
-- Core modules stay flat. Repository/provider abstraction layers and Koin are not part of this architecture.
+- Each core capability is an `api` module, holding its `.port` package alone, and an `impl` module, holding the adapters and the internal module graph; its `architecture.properties` sits beside them. Every consumer compiles against api modules; a capability's impl depends on its own api and the api of the capabilities it declares; only `:composition` depends on an impl. Repository/provider abstraction layers and Koin are not part of this architecture.
 - Each feature is an `api` module and an `impl` module. The api module is the feature's public composition surface: routes, callback contracts and shell chrome contracts. The impl module keeps its types internal and exposes only the binding containers it contributes with `@ContributesTo`; only `:composition` depends on it.
 - `:composition` is the composition root: the only module that sees every implementation, so it declares the graphs that collect them and names no feature itself. `:shared`, the app shell, depends on feature api modules only and receives what the graphs build through `App`'s parameters.
 

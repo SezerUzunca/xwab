@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>TooGenericExceptionCaught:BackgroundContentPrefetcher.kt:BackgroundContentPrefetcher$error: Throwable</ID>
+    <ID>TooGenericExceptionCaught:LocalFirstDeliveryAdapter.kt:LocalFirstDeliveryAdapter$error: Exception</ID>
+  </CurrentIssues>
+</SmellBaseline>

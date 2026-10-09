@@ -31,6 +31,9 @@ internal object FeatureFirstRules {
     /** `:feature:browse:api`, `:feature:sleep-timer:impl` — the only shapes a feature module takes. */
     private val FEATURE_MODULE = Regex(""":feature:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:(?:api|impl)""")
 
+    /** `:core:sound:api`, `:core:sound:impl` — the only shapes a core module takes. */
+    private val CORE_MODULE = Regex(""":core:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:(?:api|impl)""")
+
     private val CONTRIBUTES_TO = Regex("""@ContributesTo\(""")
 
     private val CORE_PORT_PACKAGE =
@@ -107,7 +110,7 @@ internal object FeatureFirstRules {
         modules: Set<String>,
         policies: Map<String, CoreModulePolicy>,
     ): List<String> = policies.flatMap { (module, policy) ->
-        (policy.dependencies - modules).sorted().map { dependency ->
+        (policy.dependencies - modules.map(::capabilityOf).toSet()).sorted().map { dependency ->
             "$module architecture.properties still names absent dependency $dependency. " +
                 "Update this module's boundary when replacing or removing that capability."
         }
@@ -345,11 +348,45 @@ internal object FeatureFirstRules {
         return violations.distinct().sorted()
     }
 
-    fun coreModuleShapeViolations(modules: Set<String>): List<String> =
-        modules.filter { it.startsWith(CORE_PREFIX) && !Regex(":core:[a-z][a-z0-9]*(?:-[a-z0-9]+)*").matches(it) }
-            .sorted().map {
-                "$it is not a flat core capability. Each core must be exactly one :core:<name> module."
+    /**
+     * A core capability is exactly two modules: `api`, its port package, and `impl`, the adapters and
+     * the module graph behind it. One without the other is half a capability.
+     */
+    fun coreModuleShapeViolations(modules: Set<String>): List<String> {
+        val core = modules.filter { it.startsWith(CORE_PREFIX) }
+        val misshapen = core.filterNot(CORE_MODULE::matches).sorted().map { module ->
+            "$module is not a core api or impl module. Each capability is exactly :core:<name>:api, " +
+                "its port package, and :core:<name>:impl, the adapters and graph behind it."
+        }
+        val unpaired = core.filter(CORE_MODULE::matches).groupBy(::capabilityOf)
+            .filterValues { it.size != 2 }
+            .toSortedMap()
+            .map { (capability, halves) ->
+                val missing = if (halves.single().endsWith(":api")) "impl" else "api"
+                "$capability has no $missing module. A capability is its api and impl modules together."
             }
+        return misshapen + unpaired
+    }
+
+    /**
+     * A capability's api module holds its port package and nothing else; its impl module holds no
+     * port. The split is what lets a consumer compile against the contract without the adapters,
+     * so a port left in impl, or an adapter moved into api, would quietly undo it.
+     */
+    fun corePortPlacementViolations(sources: List<CoreSource>): List<String> =
+        sources.mapNotNull { source ->
+            val half = source.path.replace('\\', '/').split('/').getOrNull(2)
+            val isPort = CORE_PORT_PACKAGE.matches(source.packageName)
+            when {
+                half == "api" && !isPort ->
+                    "${source.path} uses ${source.packageName} in ${source.module}'s api module, which " +
+                        "holds only its port package. Move the implementation to the impl module."
+                half == "impl" && isPort ->
+                    "${source.path} declares port package ${source.packageName} in ${source.module}'s impl " +
+                        "module. Ports belong in the api module consumers compile against."
+                else -> null
+            }
+        }.sorted()
 
     /** A module cannot disguise its own implementation as somebody else's public contract. */
     fun corePackageOwnershipViolations(sources: List<CoreSource>): List<String> =
@@ -381,8 +418,17 @@ internal object FeatureFirstRules {
         return misshapen + unpaired
     }
 
-    fun isFeatureImplementation(module: String): Boolean =
-        module.startsWith(FEATURE_PREFIX) && module.endsWith(":impl")
+    /** A core capability's or a feature's `impl` module: something only the composition root installs. */
+    fun isImplementation(module: String): Boolean =
+        (module.startsWith(CORE_PREFIX) || module.startsWith(FEATURE_PREFIX)) && module.endsWith(":impl")
+
+    /**
+     * The capability a core module belongs to: `:core:sound:api` and `:core:sound:impl` are both
+     * `:core:sound`, which is what `architecture.properties` and the source rules speak about.
+     */
+    fun capabilityOf(module: String): String =
+        if (module.startsWith(CORE_PREFIX)) CORE_PREFIX + module.removePrefix(CORE_PREFIX).substringBefore(':')
+        else module
 
     /** `feature/<name>/api/src/...` — a source the shell may compile against. */
     fun isFeatureApiSource(relativePath: String): Boolean {
@@ -582,22 +628,23 @@ internal object FeatureFirstRules {
         }.toList()
 
     /**
-     * Only a feature splits, and only at its root. Core exposes contracts from its port package, and
-     * a source or package directory named `api` / `impl` would be a split no build file states.
+     * Capabilities and features split only at their root, into `<group>/<name>/api` and
+     * `<group>/<name>/impl`. A source or package directory named `api` / `impl` inside one of those
+     * would be a split no build file states.
      */
     fun legacySplitDirectoryViolations(paths: List<String>): List<String> =
         paths.map { it.replace('\\', '/') }
             .filter { path ->
                 val segments = path.split('/')
-                val isInsideFeatureHalf = segments.firstOrNull() == "feature" &&
+                val isInsideModuleHalf = segments.firstOrNull() in setOf("core", "feature") &&
                     segments.getOrNull(2) in setOf("api", "impl")
-                (if (isInsideFeatureHalf) segments.drop(3) else segments).any { it == "api" || it == "impl" }
+                (if (isInsideModuleHalf) segments.drop(3) else segments).any { it == "api" || it == "impl" }
             }
             .distinct()
             .sorted()
             .map { path ->
-                "$path recreates an api/impl split. Features split only into feature/<name>/api and " +
-                    "feature/<name>/impl; core exposes its contracts from its port package."
+                "$path recreates an api/impl split. Capabilities and features split only into " +
+                    "<core|feature>/<name>/api and <core|feature>/<name>/impl."
             }
 
     /**
@@ -699,8 +746,10 @@ internal object FeatureFirstRules {
         val violations = mutableListOf<String>()
 
         graph.forEach { (module, dependencies) ->
-            val allowedDependencies = policies[module]?.dependencies
+            val allowedDependencies = policies[capabilityOf(module)]?.dependencies
             dependencies.forEach { dependency ->
+                val sameCapability = module.startsWith(CORE_PREFIX) && dependency.startsWith(CORE_PREFIX) &&
+                    capabilityOf(module) == capabilityOf(dependency)
                 if (module.startsWith(CORE_PREFIX) && dependency.startsWith(FEATURE_PREFIX)) {
                     violations += "$module depends on $dependency. A core module may not depend on a feature."
                 } else if (module.startsWith(CORE_PREFIX) &&
@@ -708,8 +757,16 @@ internal object FeatureFirstRules {
                         dependency in INDEPENDENT_SUPPORT_MODULES)
                 ) {
                     violations += "$module depends on $dependency. Core capabilities may not depend on UI or the app shell."
-                } else if (module.startsWith(CORE_PREFIX) && dependency !in allowedDependencies.orEmpty()) {
-                    violations += "$module depends on $dependency. This module states its project " +
+                } else if (sameCapability) {
+                    // A self dependency is the cycle rule's to report.
+                    if (module != dependency && !(module.endsWith(":impl") && dependency.endsWith(":api"))) {
+                        violations += "$module depends on $dependency. Within a capability only the impl " +
+                            "module depends on its own api module."
+                    }
+                } else if (module.startsWith(CORE_PREFIX) &&
+                    capabilityOf(dependency) !in allowedDependencies.orEmpty()
+                ) {
+                    violations += "$module depends on $dependency. This capability states its project " +
                         "dependencies exhaustively in architecture.properties and $dependency is not among them: " +
                         "${allowedDependencies.orEmpty().sorted()}."
                 }
@@ -727,9 +784,9 @@ internal object FeatureFirstRules {
                         "on another feature; connect destination intents in :shared."
                 }
 
-                if (isFeatureImplementation(dependency) && module != COMPOSITION_ROOT) {
-                    violations += "$module depends on $dependency. Only $COMPOSITION_ROOT installs a " +
-                        "feature's implementation; compile against the feature's api module instead."
+                if (isImplementation(dependency) && module != COMPOSITION_ROOT) {
+                    violations += "$module depends on $dependency. Only $COMPOSITION_ROOT installs an " +
+                        "implementation; compile against the api module instead."
                 }
             }
 
@@ -756,10 +813,12 @@ internal object FeatureFirstRules {
             val reached = path.last()
             if (!visited.add(reached)) continue
 
-            val policy = policies[reached]
+            val policy = policies[capabilityOf(reached)]
             val reason = when {
                 reached == SHELL_MODULE -> "the app shell owns navigation state and destination policy"
                 reached == COMPOSITION_ROOT -> "the composition root installs features; it is not one's dependency"
+                reached.startsWith(CORE_PREFIX) && isImplementation(reached) ->
+                    "this is a capability's implementation; features compile against its api module"
                 reached.startsWith(CORE_PREFIX) && policy?.featureAccessible != true ->
                     policy?.let { "this is an adapter-only capability: ${it.responsibility}" }
                         ?: "this core has no valid architecture.properties declaring feature access"
@@ -788,7 +847,21 @@ internal object FeatureFirstRules {
     fun isProductionConfiguration(configurationName: String): Boolean =
         !configurationName.startsWith("test", ignoreCase = true) && !configurationName.contains("Test")
 
-    fun coreDependencyCycleViolations(graph: Map<String, List<String>>): List<String> {
+    /**
+     * Read between capabilities, not modules: `:core:a:impl -> :core:b:api` and
+     * `:core:b:impl -> :core:a:api` is no Gradle cycle, but each capability then needs the other.
+     * A capability's impl depending on its own api is how it is built, not a cycle; a module
+     * depending on itself still is one.
+     */
+    fun coreDependencyCycleViolations(modules: Map<String, List<String>>): List<String> {
+        val graph = modules.filterKeys { it.startsWith(CORE_PREFIX) }.entries
+            .groupBy({ capabilityOf(it.key) }) { (module, dependencies) ->
+                dependencies.filter { dependency ->
+                    dependency.startsWith(CORE_PREFIX) &&
+                        (capabilityOf(dependency) != capabilityOf(module) || dependency == module)
+                }.map(::capabilityOf)
+            }
+            .mapValues { (_, dependencies) -> dependencies.flatten().distinct() }
         val complete = mutableSetOf<String>()
         val active = mutableListOf<String>()
         val cycles = sortedSetOf<String>()

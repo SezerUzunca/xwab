@@ -7,7 +7,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(projects.core.session)
+            implementation(projects.core.session.api)
             implementation(libs.compose.ui)
         }
     }

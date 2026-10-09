@@ -8,7 +8,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             // One port, and no content type: favorites store whatever namespace a caller owns.
-            api(projects.core.favorites)
+            api(projects.core.favorites.api)
         }
     }
 }
