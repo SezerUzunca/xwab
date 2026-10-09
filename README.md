@@ -430,15 +430,16 @@ content type's favorites stay stored until something deletes them.
 ./gradlew :check
 ```
 
-`:check` runs the architecture check and the build-logic regression tests. Android CI runs it
-alongside the Android host tests before assembling the APK. CI also runs
-`./gradlew :androidApp:lintDebug`, which with `checkDependencies` lints every module the app ships.
+`:check` runs the architecture check and the build-logic regression tests. Run it before a PR with
+the Android host tests, `staticAnalysis`, the APK builds and the device tests on an emulator: the
+Android workflow repeats these only when started by hand, and CI runs only the iOS work on its own.
+Also run `./gradlew :androidApp:lintDebug`, which with `checkDependencies` lints every module the app ships.
 A KMP library only has lint tasks when it applies `com.android.lint`; `xwab.kmp.library` and
 `:shared` do.
 
 `./gradlew staticAnalysis` runs detekt in every module (`xwab.detekt`, on detekt's defaults plus
 [config/detekt/detekt.yml](config/detekt/detekt.yml)). Findings that predate it are in each
-module's `detekt-baseline-*.xml`, so only new ones fail CI. Sources generated into `build/` are not
+module's `detekt-baseline-*.xml`, so only new ones fail `staticAnalysis`. Sources generated into `build/` are not
 analysed. To record a module's current findings after a deliberate change, run
 `./gradlew :<module>:staticAnalysisBaseline`. detekt is on 2.0.0-alpha, the first line built for
 Kotlin 2.4; move to 2.0.0 once it is released.

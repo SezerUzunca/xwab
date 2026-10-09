@@ -1,16 +1,9 @@
 name: Android
 
+# Manual only, at the owner's request. Every step here also runs on the development machine, and is
+# run there before a PR: `./gradlew :check testAndroidHostTest staticAnalysis :androidApp:lintDebug
+# :androidApp:assembleRelease` plus the device tests on an emulator. Only iOS needs a CI runner.
 on:
-  pull_request:
-    paths-ignore:
-      - "**/*.md"
-      - "LICENSE"
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - "**/*.md"
-      - "LICENSE"
   workflow_dispatch:
 
 permissions:
