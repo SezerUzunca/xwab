@@ -68,10 +68,10 @@ plugins {
 kotlin {
     android { namespace = "com.xwab.app.feature.${pkg}.api" }
 
-    // If a callback contract names a core type, declare that one port here, for example:
+    // If a callback contract names a core type, publish that one port with `api`, for example:
     // sourceSets {
     //     commonMain.dependencies {
-    //         implementation(projects.core.sound.api)
+    //         api(projects.core.sound.api)
     //     }
     // }
 }

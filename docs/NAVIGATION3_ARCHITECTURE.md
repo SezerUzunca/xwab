@@ -47,8 +47,8 @@ over each restored state and passes it to the entry graph, so the host and the c
 ViewModels still resolve when entries are drawn. Set iteration defines no tab or restoration
 policy. See [Metro and Navigation 3](METRO_NAVIGATION3_ARCHITECTURE.md) for the upstream mapping.
 
-The same entry graph supplies one scoped `ResultEventBus` to the navigator and every tab's
-`rememberResultEventBusNavEntryDecorator`. Reselecting a tab at its root sends that concrete root
+The host builds one `ResultEventBus` beside the navigator, for each restored state, and hands it
+to the navigator and to every tab's `rememberResultEventBusNavEntryDecorator`. Reselecting a tab at its root sends that concrete root
 route as a signal; Browse, Favorites and Stories receive it with their own `ResultEffect<Route>`.
 Scroll animations run in each screen's coroutine scope, so a new tap can interrupt the current
 animation. Navigation away clears any queued request for the outgoing tab; clearing closes that

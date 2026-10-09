@@ -33,9 +33,9 @@ the application graph receives only the catalog port and session's resolver cont
 [Metro providers](https://github.com/ZacSweers/metro/blob/1.4.5/docs/provides.md),
 [Metro scopes](https://github.com/ZacSweers/metro/blob/1.4.5/docs/scopes.md).
 
-Metadata lives in [StoryManifest.kt](src/commonMain/kotlin/com/xwab/app/core/story/StoryManifest.kt).
+Metadata lives in [StoryManifest.kt](impl/src/commonMain/kotlin/com/xwab/app/core/story/StoryManifest.kt).
 Add the corresponding physical address in
-[StorySourceManifest.kt](src/commonMain/kotlin/com/xwab/app/core/story/StorySourceManifest.kt) in the
+[StorySourceManifest.kt](impl/src/commonMain/kotlin/com/xwab/app/core/story/StorySourceManifest.kt) in the
 same change. Keep `STORY_PLAYBACK_KIND` and story IDs stable because engine IDs and saved routes use
 them. Adding or removing a story module changes only its own resolver contribution and consumers;
 there is no shared source registry to update.

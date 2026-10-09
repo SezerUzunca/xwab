@@ -36,8 +36,8 @@ later download can change the URI from HTTPS to a cached local file. No resolved
 [Metro scopes](https://github.com/ZacSweers/metro/blob/1.4.5/docs/scopes.md).
 
 Add track metadata in
-[CatalogManifest.kt](src/commonMain/kotlin/com/xwab/app/core/sound/CatalogManifest.kt), and add its
-physical source in [SoundSourceManifest.kt](src/commonMain/kotlin/com/xwab/app/core/sound/SoundSourceManifest.kt)
+[CatalogManifest.kt](impl/src/commonMain/kotlin/com/xwab/app/core/sound/CatalogManifest.kt), and add its
+physical source in [SoundSourceManifest.kt](impl/src/commonMain/kotlin/com/xwab/app/core/sound/SoundSourceManifest.kt)
 in the same change. Local tests validate unique IDs, valid categories, positive durations, at least
 four tracks per category, matching metadata/source IDs, unique cache filenames and required host
 headers. Resolver tests cover missing tracks and sources, delivery failures, playback metadata,

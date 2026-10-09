@@ -334,13 +334,13 @@ The explanation distinguishes the following evidence:
 | Pinned `android/nav3-recipes` source | Exact setup, annotations, route types, installers, factories and navigation calls in the two Metro recipes |
 | Pinned MetroX sources and Android Developers guidance | Factory internals and lifecycle interpretation |
 | Linked local project files | XWAB implementation and its architectural constraints |
-| Project adaptation | Installer collection with feature-owned callbacks and one graph-built navigator over the stacks Compose restores; no upstream mandate is claimed |
+| Project adaptation | Installer collection with feature-owned callbacks and one host-built navigator over the stacks Compose restores, passed to the entry graph; no upstream mandate is claimed |
 
 The existing
 [NavigationCompositionTest](../shared/src/composeTest/kotlin/com/xwab/app/navigation/NavigationCompositionTest.kt)
 covers MetroX creation through the production navigation display, distinct entry
 stores, tab switching, entry cleanup and saved-state restoration. It also checks typed tab
-reselection delivery through the graph's shared `ResultEventBus`, discarding a queued event
+reselection delivery through the host's shared `ResultEventBus`, discarding a queued event
 when navigating away, and that a receiver which stays composed through that clear, including a
 list beside a detail pane, keeps receiving. Architecture
 checks enforce ViewModel registration and feature serializer installation.

@@ -5,10 +5,12 @@ plugins {
 kotlin {
     android { namespace = "com.xwab.app.feature.nowplaying.api" }
 
+    // Every dependency here names a type in this module's public signatures, so it is part of the
+    // contract and published with `api`.
     sourceSets {
         commonMain.dependencies {
-            implementation(projects.core.session.api)
-            implementation(libs.compose.ui)
+            api(projects.core.session.api)
+            api(libs.compose.ui)
         }
     }
 }

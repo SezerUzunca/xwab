@@ -294,7 +294,7 @@ The following tests exist in the current source tree. Listing them describes cov
 | `AndroidPlaybackGraphTest`, `IosPlaybackGraphTest` | Platform graph construction and facade identity on the required main thread; construction off the main thread is refused |
 | `ServiceSleepTimerTest` | The service's sleep timer through its injected clock and scheduler: refusal of a past deadline, the fade, cancel and restart |
 | `AndroidAppGraphTest`, `IosAppGraphTest` | In `:composition`: production application graph and MetroX map/factory availability |
-| `NavigationCompositionTest` | MetroX resolution with entry owners, restoration, saved-state handles and root chrome ownership; typed tab reselection through the graph's shared result bus, queued-event cleanup, and delivery to a receiver that stays composed through a cleanup |
+| `NavigationCompositionTest` | MetroX resolution with entry owners, restoration, saved-state handles and root chrome ownership; typed tab reselection through the host's shared result bus, queued-event cleanup, and delivery to a receiver that stays composed through a cleanup |
 | `AppEntryCallbacksTest` | The shell's callback container on a real navigator: each feature intent's destination and id, and detail Back callbacks |
 | `AndroidAppIntegrationTest`, `IosAppIntegrationTest` | The real app root on the production graph, only the catalog replaced through a dynamic graph: repeated Browse reselection scrolls the real list to its start, then a category tap reaches the Category screen with its assisted ViewModel |
 
