@@ -7,9 +7,9 @@ retaining the composition root's callback mappings and saved navigation state.
 
 ## Versions
 
-- Google `navigation3-runtime`: 1.1.7.
-- JetBrains `navigation3-ui`: 1.1.2. Google and JetBrains use different version numbers; this UI version matches runtime 1.1.7.
-- JetBrains `adaptive-navigation3`: 1.3.0-rc01. The Material Adaptive API is marked experimental; opt-in is limited to the shared files that use it.
+- Google `navigation3-runtime`: 1.2.0.
+- JetBrains `navigation3-ui`: 1.2.0-rc01. Google and JetBrains use different version lines; this UI version is built against runtime 1.2.0, so the two are upgraded together.
+- JetBrains `adaptive-navigation3`: 1.3.0. The Material Adaptive API is marked experimental; opt-in is limited to the shared files that use it.
 - Lifecycle ViewModel Navigation 3: 2.11.0; the existing Metro DI remains in place.
 
 The recipes repository's main branch may use alpha or snapshot APIs. The code here builds with the versions resolved by the project; version numbers in examples are not copied directly.
@@ -45,6 +45,15 @@ exist. Navigation 3's own types are the scope markers, so no common module is ne
 `composition/AppEntryProvider` installs every contribution. The host remembers one entry graph per restored state; that graph builds the single `Navigator`
 the host and the callbacks share; ViewModels still resolve when entries are drawn. Set iteration defines no tab or restoration
 policy. See [Metro and Navigation 3](METRO_NAVIGATION3_ARCHITECTURE.md) for the upstream mapping.
+
+The same entry graph supplies one scoped `ResultEventBus` to the navigator and every tab's
+`rememberResultEventBusNavEntryDecorator`. Reselecting a tab at its root sends that concrete root
+route as a signal; Browse, Favorites and Stories receive it with their own `ResultEffect<Route>`.
+Scroll animations run in each screen's coroutine scope, so a new tap can interrupt the current
+animation. Navigation away clears any queued request for the outgoing tab; clearing closes that
+key's channel, and a receiver that stays composed, such as the list beside a detail pane, moves to
+the next one, as the documented clear-inside-`ResultEffect` pattern relies on. These are transient UI
+events, not saved results; favorites and playback still use their existing port state.
 
 There is no `NavController` or cross-feature route dependency. Existing `@SerialName` values and route arguments in the saved-state format are unchanged. KMP uses an explicit serializer module; Android-specific reflection is not brought into common code.
 
@@ -124,9 +133,9 @@ The in-pane Up arrow and the system Back action follow separate rules. System Ba
 - `NavigatorTest`: tab selection, reselection, repeated taps, pop-to-existing, entry replacement, root protection, and rejection of invalid stacks.
 - `AppEntryMetadataTest`: compact fallback, list/detail/extra, placeholder, tab isolation, and skipping old selections with one Back action through `PopUntilCurrentDestinationChange`, using the official Material strategy.
 - Serializer, retired-route, and content-key regression tests remain.
-- `AppEntryCallbacksTest`: the entry graph builds one navigator; every feature intent reaches its destination with its id, detail Back callbacks close their own screen, and each list hears only its own tab's reselection. `AppEntryProviderTest`: every route the features register has a screen, with the route list read from `FEATURE_SERIALIZERS` rather than written down.
-- `src/composeTest/.../AppIntegrationScenarios`: the real app root on the production graph, only the catalog replaced, from Browse to Category through the collected entries, the callback, the navigator and the assisted ViewModel. Runs on Android devices and iOS simulators.
-- `src/composeTest/.../NavigationCompositionTest`: entry-store separation, tab switching, recreation, restorable state, pop cleanup, and a single root chrome ViewModel through the real `AppNavigationDisplay`. ViewModels are obtained through MetroX as in production; after recreation, an entry ViewModel's `SavedStateHandle` returns to its own entry, which also tests decorator order. Preservation of entry state across compact/adaptive layout changes and hiding a redundant back control when the parent pane is visible are also tested. System Back is tested without calling `Navigator`, by sending real back events (completed and predictive) to the navigation event dispatcher observed by `NavDisplay`: on a phone, one screen closes and navigation falls back to the start tab; beside the list, one Back action also skips old selections in the pane (this test fails with `PopLatest`). Android device and iOS simulator source sets use the same tests; CI runs them on an iOS simulator, and they run locally on an Android device.
+- `AppEntryCallbacksTest`: the entry graph builds one navigator; every feature intent reaches its destination with its id, and detail Back callbacks close their own screen. `AppEntryProviderTest`: every route the features register has a screen, with the route list read from `FEATURE_SERIALIZERS` rather than written down.
+- `src/composeTest/.../AppIntegrationScenarios`: the real app root on the production graph, only the catalog replaced; repeated Browse reselection scrolls the actual list back to its start, then a category tap reaches the assisted ViewModel through the collected entries, callback and navigator. Runs on Android devices and iOS simulators.
+- `src/composeTest/.../NavigationCompositionTest`: entry-store separation, tab switching, recreation, restorable state, pop cleanup, and a single root chrome ViewModel through the real `AppNavigationDisplay`. ViewModels are obtained through MetroX as in production; after recreation, an entry ViewModel's `SavedStateHandle` returns to its own entry, which also tests decorator order. Preservation of entry state across compact/adaptive layout changes and hiding a redundant back control when the parent pane is visible are also tested. System Back is tested without calling `Navigator`, by sending real back events (completed and predictive) to the navigation event dispatcher observed by `NavDisplay`: on a phone, one screen closes and navigation falls back to the start tab; beside the list, one Back action also skips old selections in the pane (this test fails with `PopLatest`). Tab reselection reaches only its own root through the graph's bus; a request queued before its receiver was composed is dropped on leaving, and a receiver that stays composed through a clear — on a phone, and as the list beside a detail pane that opens and closes — still hears the next reselection. Android device and iOS simulator source sets use the same tests; CI runs them on an iOS simulator, and they run locally on an Android device.
 - `src/composeTest/.../RetiredRouteRestoreTest`: on a real platform, a back stack saved by an older version and containing an argument-bearing route absent from this version is decoded in the saved-state format used by `rememberNavBackStack`; the route is read as `RetiredRoute` and removed.
 - Content keys and tab identity are derived from the route's registered form (`@SerialName` and argument values, `savedIdentity`) rather than `toString()`; the saved UI state survives a class rename. A feature's chosen content key is preserved.
 - `checkArchitecture` rule 23: every route defined in a feature must be registered with `subclass` in an `@IntoSet` provider of the feature's `@ContributesTo(NavKey::class)` container; otherwise, an omission would only surface during restoration at the next launch.

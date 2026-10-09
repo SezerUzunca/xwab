@@ -9,13 +9,11 @@ import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.IntoSet
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metrox.viewmodel.metroViewModel
-import kotlinx.coroutines.flow.Flow
 
 /** Actions supplied by the application's composition root. */
 class FavoritesEntryCallbacks(
     val onTrackClick: (TrackId) -> Unit,
     val onBrowse: () -> Unit,
-    val reselectEvents: Flow<Unit>,
 )
 
 @ContributesTo(EntryProviderScope::class)
@@ -30,7 +28,6 @@ object FavoritesEntryBindings {
             FavoritesScreenRoute(
                 onTrackClick = callbacks.onTrackClick,
                 onBrowse = callbacks.onBrowse,
-                reselectEvents = callbacks.reselectEvents,
                 viewModel = metroViewModel(),
             )
         }

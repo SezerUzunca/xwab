@@ -44,8 +44,8 @@ different module policy is discussed only in the project comparison below.
 | --- | --- | --- |
 | Metro compiler plugin and MetroX | `1.0.0` | `1.4.5` |
 | Kotlin | `2.3.20` | `2.4.20` |
-| Navigation 3 runtime | `1.2.0-SNAPSHOT` | `1.1.7` |
-| Navigation 3 UI | AndroidX `1.2.0-SNAPSHOT` | JetBrains Multiplatform `1.1.2` |
+| Navigation 3 runtime | `1.2.0-SNAPSHOT` | `1.2.0` |
+| Navigation 3 UI | AndroidX `1.2.0-SNAPSHOT` | JetBrains Multiplatform `1.2.0-rc01` |
 | Lifecycle ViewModel Navigation 3 | AndroidX `2.11.0-beta01` | JetBrains Multiplatform `2.11.0` |
 
 Sources: [upstream version catalog][versions] and
@@ -333,15 +333,18 @@ The explanation distinguishes the following evidence:
 The existing
 [NavigationCompositionTest](../shared/src/composeTest/kotlin/com/xwab/app/navigation/NavigationCompositionTest.kt)
 covers MetroX creation through the production navigation display, distinct entry
-stores, tab switching, entry cleanup and saved-state restoration. Architecture
+stores, tab switching, entry cleanup and saved-state restoration. It also checks typed tab
+reselection delivery through the graph's shared `ResultEventBus`, discarding a queued event
+when navigating away, and that a receiver which stays composed through that clear, including a
+list beside a detail pane, keeps receiving. Architecture
 checks enforce ViewModel registration and feature serializer installation.
 `AppEntryProviderTest` resolves every saveable route through the production Metro
 installer set without rendering a screen, detecting a missing feature installer binding or container.
-`AppEntryCallbacksTest` checks intent destinations and ID forwarding, detail Back callbacks, and
-the distinct reselection flows supplied to each top-level list.
+`AppEntryCallbacksTest` checks intent destinations and ID forwarding, and detail Back callbacks.
 `AndroidAppIntegrationTest` and `IosAppIntegrationTest` draw the real app root on the production
-graph, with only the catalog replaced, and follow Browse to Category through the collected entries,
-the feature callback, the navigator and the category's assisted ViewModel.
+graph, with only the catalog replaced, verify repeated Browse reselection scrolls the real list to
+its start, and follow Browse to Category through the collected entries, the feature callback, the
+navigator and the category's assisted ViewModel.
 When integration code changes, run the applicable architecture and composition
 checks and validate platform behavior. iOS framework and simulator validation
 requires a supported macOS environment.

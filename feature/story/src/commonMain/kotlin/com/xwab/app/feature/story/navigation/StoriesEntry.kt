@@ -12,13 +12,11 @@ import dev.zacsweers.metro.IntoSet
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
 import dev.zacsweers.metrox.viewmodel.metroViewModel
-import kotlinx.coroutines.flow.Flow
 
 /** Actions supplied by the application's composition root. */
 class StoriesEntryCallbacks(
     val onStoryClick: (StoryId) -> Unit,
     val onBack: () -> Unit,
-    val reselectEvents: Flow<Unit>,
 )
 
 @ContributesTo(EntryProviderScope::class)
@@ -32,7 +30,6 @@ object StoriesEntryBindings {
         entry<StoriesRoute> {
             StoriesScreenRoute(
                 onStoryClick = callbacks.onStoryClick,
-                reselectEvents = callbacks.reselectEvents,
                 viewModel = metroViewModel(),
             )
         }

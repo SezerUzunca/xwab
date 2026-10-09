@@ -17,7 +17,7 @@ internal fun AppNavigationHost() {
     val navigator = graph.navigator
     val provider = remember(graph) { appEntryProvider(graph) }
     AppNavigationDisplay(
-        entries = rememberTabEntries(state, provider, ::appEntryMetadata, navigator::goUp),
+        entries = rememberTabEntries(state, provider, ::appEntryMetadata, navigator::goUp, graph.resultEventBus),
         selectedTab = state.topLevelRoute,
         onSelectTab = navigator::selectTab,
         onBack = navigator::goBack,

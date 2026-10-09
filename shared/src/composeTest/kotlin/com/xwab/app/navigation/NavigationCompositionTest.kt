@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -37,6 +38,7 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.result.ResultEffect
 import androidx.navigationevent.DirectNavigationEventInput
 import androidx.navigationevent.NavigationEvent
 import androidx.navigationevent.NavigationEventDispatcherOwner
@@ -47,6 +49,8 @@ import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
 import com.xwab.app.feature.sound.navigation.SoundRoute
+import com.xwab.app.feature.story.navigation.StoriesRoute
+import com.xwab.app.composition.appEntryGraph
 import com.xwab.app.composition.appEntryMetadata
 import com.xwab.app.TestRootOwner
 import com.xwab.app.designsystem.components.LocalBackButtonVisibility
@@ -211,6 +215,99 @@ class NavigationCompositionTest {
         }
     }
 
+    @Test
+    fun rootReselectionsReachOnlyTheirOwnEntriesThroughTheGraphBus() = runComposeUiTest {
+        withNavigation { harness ->
+            runOnIdle {
+                harness.navigator.navigate(CategoryRoute("rain"))
+                harness.navigator.selectTab(BrowseRoute)
+            }
+            waitForIdle()
+            runOnIdle { assertTrue(harness.reselections.isEmpty(), "returning to the root is not a reselection") }
+
+            // Typed explicitly: Kotlin/Native cannot infer assertEquals' T from the routes' intersection type.
+            val tabs = listOf<NavKey>(BrowseRoute, FavoritesRoute, StoriesRoute)
+            tabs.forEachIndexed { index, tab ->
+                runOnIdle {
+                    if (harness.state.topLevelRoute != tab) harness.navigator.selectTab(tab)
+                }
+                waitForIdle()
+                runOnIdle {
+                    assertEquals(tabs.take(index), harness.reselections, "switching tabs must not send a result")
+                    harness.navigator.selectTab(tab)
+                }
+                waitForIdle()
+                runOnIdle { assertEquals(tabs.take(index + 1), harness.reselections) }
+            }
+        }
+    }
+
+    @Test
+    fun leavingTheRootDiscardsAReselectionQueuedBeforeItsReceiverWasReady() = runComposeUiTest {
+        withNavigation { harness ->
+            runOnIdle { harness.receiveReselections = false }
+            waitForIdle()
+            runOnIdle {
+                harness.navigator.selectTab(BrowseRoute)
+                harness.navigator.navigate(CategoryRoute("rain"))
+            }
+            waitForIdle()
+            runOnIdle {
+                harness.navigator.goBack()
+                harness.receiveReselections = true
+            }
+            waitForIdle()
+            runOnIdle {
+                assertTrue(harness.reselections.isEmpty(), "a later visit must not replay an old scroll request")
+                harness.navigator.selectTab(BrowseRoute)
+            }
+            waitForIdle()
+            runOnIdle { assertEquals(listOf<NavKey>(BrowseRoute), harness.reselections) }
+        }
+    }
+
+    /**
+     * Clearing closes the channel a composed receiver is collecting; it must move to the new one.
+     * Back at the start tab's root changes nothing on screen but still clears the root's key.
+     */
+    @Test
+    fun aReceiverThatStaysComposedStillHearsReselectionsAfterAClear() = runComposeUiTest {
+        withNavigation { harness ->
+            val starts = runOnIdle { harness.receiverStarts.getValue(BrowseRoute) }
+            back(harness)
+            runOnIdle {
+                assertEquals(listOf<NavKey>(BrowseRoute), harness.currentStack())
+                harness.navigator.selectTab(BrowseRoute)
+            }
+            waitForIdle()
+            runOnIdle {
+                assertEquals(listOf<NavKey>(BrowseRoute), harness.reselections)
+                assertEquals(starts, harness.receiverStarts.getValue(BrowseRoute), "the receiver was recreated")
+            }
+        }
+    }
+
+    /** Beside a detail pane the list stays composed through both clears: opening and closing it. */
+    @Test
+    fun aListBesideADetailPaneStillHearsReselectionsOnceThePaneCloses() = runComposeUiTest {
+        withNavigation { harness ->
+            runOnIdle { harness.wide = true }
+            waitForIdle()
+            val starts = runOnIdle { harness.receiverStarts.getValue(BrowseRoute) }
+            navigate(harness, CategoryRoute("rain"))
+            systemBack(harness)
+            runOnIdle {
+                assertEquals(listOf<NavKey>(BrowseRoute), harness.currentStack())
+                harness.navigator.selectTab(BrowseRoute)
+            }
+            waitForIdle()
+            runOnIdle {
+                assertEquals(listOf<NavKey>(BrowseRoute), harness.reselections)
+                assertEquals(starts, harness.receiverStarts.getValue(BrowseRoute), "the list left composition")
+            }
+        }
+    }
+
     /** Platform Back, completed or as a predictive gesture, reaches `NavDisplay` and pops one screen. */
     @Test
     fun systemBackPopsTheLatestScreenAndFallsThroughToTheStartTab() = runComposeUiTest {
@@ -263,12 +360,12 @@ private fun ComposeUiTest.withNavigation(block: ComposeUiTest.(NavigationHarness
 }
 
 private fun ComposeUiTest.navigate(harness: NavigationHarness, route: NavKey) {
-    runOnIdle { Navigator(harness.state).navigate(route) }
+    runOnIdle { harness.navigator.navigate(route) }
     waitForIdle()
 }
 
 private fun ComposeUiTest.back(harness: NavigationHarness) {
-    runOnIdle { Navigator(harness.state).goBack() }
+    runOnIdle { harness.navigator.goBack() }
     waitForIdle()
 }
 
@@ -297,6 +394,13 @@ private class NavigationHarness {
         private set
     lateinit var state: NavigationState
         private set
+    lateinit var navigator: Navigator
+        private set
+    var receiveReselections by mutableStateOf(true)
+    val reselections = mutableListOf<NavKey>()
+
+    /** How often each root's receiver entered composition: unchanged means it stayed composed. */
+    val receiverStarts = mutableMapOf<NavKey, Int>()
     lateinit var navigationEvents: NavigationEventDispatcherOwner
         private set
     val models = mutableListOf<EntryViewModel>()
@@ -360,13 +464,23 @@ private class NavigationHarness {
     @Composable
     private fun NavigationContent() {
         val navigationState = rememberNavigationState()
-        val navigator = remember(navigationState) { Navigator(navigationState) }
+        val graph = remember(navigationState) { appEntryGraph(navigationState) }
+        val navigator = graph.navigator
         val provider: (NavKey) -> NavEntry<NavKey> = remember {
             { route -> NavEntry(route) { Entry(route) } }
         }
-        SideEffect { state = navigationState }
+        SideEffect {
+            state = navigationState
+            this.navigator = navigator
+        }
         AppNavigationDisplay(
-            entries = rememberTabEntries(navigationState, provider, ::appEntryMetadata, navigator::goUp),
+            entries = rememberTabEntries(
+                navigationState,
+                provider,
+                ::appEntryMetadata,
+                navigator::goUp,
+                graph.resultEventBus,
+            ),
             selectedTab = navigationState.topLevelRoute,
             onSelectTab = navigator::selectTab,
             onBack = navigator::goBack,
@@ -377,6 +491,17 @@ private class NavigationHarness {
 
     @Composable
     private fun Entry(route: NavKey) {
+        if (receiveReselections) {
+            DisposableEffect(route) {
+                receiverStarts[route] = (receiverStarts[route] ?: 0) + 1
+                onDispose {}
+            }
+            when (route) {
+                BrowseRoute -> ResultEffect<BrowseRoute> { reselections += it }
+                FavoritesRoute -> ResultEffect<FavoritesRoute> { reselections += it }
+                StoriesRoute -> ResultEffect<StoriesRoute> { reselections += it }
+            }
+        }
         val owner = checkNotNull(LocalViewModelStoreOwner.current)
         // The lookup production entries make, taking the entry's saved state the way a screen that
         // needs one would: from the extras MetroX passes to the lambda.

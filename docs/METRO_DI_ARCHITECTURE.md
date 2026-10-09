@@ -215,7 +215,11 @@ features and shared already see them. `AppEntryGraph` supplies feature-owned cal
 destination mapping stays in the app and features acquire no shared or cross-feature dependency.
 This graph receives the restored `NavigationState` as a factory input, inside the host's
 `remember(state)`, and builds the one `Navigator` over it, `@SingleIn(EntryProviderScope::class)`, that
-the host and every callback share. The navigator stays internal to shared and is never an
+the host and every callback share. The same graph provides one `ResultEventBus`, an SDK object
+built with `@Provides` under the same scope, which the navigator sends tab reselections on and the
+host hands to every tab's `rememberResultEventBusNavEntryDecorator`; Navigation 3 documents passing
+a hoisted bus into DI graphs ([return results](https://developer.android.com/guide/navigation/navigation-3/return-results#hoist)).
+The navigator stays internal to shared and is never an
 `AppScope` binding; the graph owns no ViewModels, and installer order defines no navigation policy. See
 [Metro and Navigation 3](METRO_NAVIGATION3_ARCHITECTURE.md) for the upstream comparison.
 
@@ -283,9 +287,9 @@ The following tests exist in the current source tree. Listing them describes cov
 | `AndroidPlaybackGraphTest`, `IosPlaybackGraphTest` | Platform graph construction and facade identity on the required main thread; construction off the main thread is refused |
 | `ServiceSleepTimerTest` | The service's sleep timer through its injected clock and scheduler: refusal of a past deadline, the fade, cancel and restart |
 | `AndroidAppGraphTest`, `IosAppGraphTest` | Production application graph and MetroX map/factory availability |
-| `NavigationCompositionTest` | MetroX resolution with entry owners, restoration, saved-state handles and root chrome ownership |
-| `AppEntryCallbacksTest` | One scoped navigator per entry graph; each feature intent's destination and id, detail Back callbacks and per-tab reselection |
-| `AndroidAppIntegrationTest`, `IosAppIntegrationTest` | The real app root on the production graph, only the catalog replaced through a dynamic graph: the Metro-collected Browse entry, a category tap, and the Category screen with its assisted ViewModel |
+| `NavigationCompositionTest` | MetroX resolution with entry owners, restoration, saved-state handles and root chrome ownership; typed tab reselection through the graph's shared result bus, queued-event cleanup, and delivery to a receiver that stays composed through a cleanup |
+| `AppEntryCallbacksTest` | One scoped navigator per entry graph; each feature intent's destination and id, and detail Back callbacks |
+| `AndroidAppIntegrationTest`, `IosAppIntegrationTest` | The real app root on the production graph, only the catalog replaced through a dynamic graph: repeated Browse reselection scrolls the real list to its start, then a category tap reaches the Category screen with its assisted ViewModel |
 
 For features, `AndroidAppGraphTest` and `IosAppGraphTest` call `assertEveryViewModelResolves`. That helper checks factory identity, that `viewModelProviders` and `manualAssistedFactoryProviders` are nonempty, and whether each registered manual assisted factory matches its class key. It does not assert the complete expected set of feature registrations or instantiate every plain ViewModel. `checkArchitecture` checks source annotations and module dependencies; individual ViewModel and use-case tests construct models with fakes to verify behavior. These checks provide complementary coverage, but do not resolve every feature's ViewModel through the real graph.
 

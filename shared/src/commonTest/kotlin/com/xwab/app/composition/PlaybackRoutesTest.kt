@@ -6,6 +6,7 @@ import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoryRoute
 import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.result.ResultEventBus
 import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
@@ -48,7 +49,7 @@ class PlaybackRoutesTest {
     @Test
     fun theBarOpensTheItemInItsOwnTabAndLeavesTheCurrentTabAlone() {
         val state = navigationState()
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
         navigator.navigate(FavoritesRoute)
         navigator.navigate(SoundRoute("rain"))
 
@@ -68,7 +69,7 @@ class PlaybackRoutesTest {
     @Test
     fun aSoundFromTheBarLeavesACategoryItDoesNotBelongTo() {
         val state = navigationState()
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
         navigator.navigate(CategoryRoute("rain"))
 
         openPlaybackDetails(PlaybackItemId(SOUND_PLAYBACK_KIND, "waves"), navigator::openInTab)
@@ -80,7 +81,7 @@ class PlaybackRoutesTest {
     @Test
     fun anItemAlreadyOpenInItsTabIsReturnedTo() {
         val state = navigationState()
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
         navigator.navigate(CategoryRoute("rain"))
         navigator.navigate(SoundRoute("rain"))
         navigator.navigate(FavoritesRoute)
@@ -97,7 +98,7 @@ class PlaybackRoutesTest {
     @Test
     fun anUnknownContentKindOpensNothing() {
         val state = navigationState()
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
         navigator.navigate(FavoritesRoute)
 
         openPlaybackDetails(PlaybackItemId("removed-kind", "item"), navigator::openInTab)

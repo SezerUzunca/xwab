@@ -4,8 +4,11 @@ package com.xwab.app.composition
 
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasScrollToIndexAction
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.test.waitUntilAtLeastOneExists
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -16,8 +19,11 @@ import androidx.savedstate.compose.LocalSavedStateRegistryOwner
 import com.xwab.app.App
 import com.xwab.app.TestRootOwner
 import com.xwab.app.composition.OfflineCatalog.Companion.CATEGORY
+import com.xwab.app.composition.OfflineCatalog.Companion.FILLER_CATEGORIES
 import com.xwab.app.composition.OfflineCatalog.Companion.TRACK
 import com.xwab.app.di.AppGraph
+import com.xwab.app.navigation.TOP_LEVEL_DESTINATIONS
+import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Duration.Companion.minutes
 
 /**
@@ -39,7 +45,9 @@ internal fun realEntriesOpenACategoryFromBrowse(createGraph: (OfflineCatalog) ->
 ) {
     val graph = createGraph(OfflineCatalog())
     val owner = runOnIdle { TestRootOwner() }
+    var browseLabel = ""
     setContent {
+        browseLabel = stringResource(TOP_LEVEL_DESTINATIONS.first().label)
         CompositionLocalProvider(
             LocalViewModelStoreOwner provides owner,
             LocalLifecycleOwner provides owner,
@@ -51,6 +59,14 @@ internal fun realEntriesOpenACategoryFromBrowse(createGraph: (OfflineCatalog) ->
     }
     try {
         waitUntilAtLeastOneExists(hasText(CATEGORY), TIMEOUT_MS)
+        onNode(hasScrollToIndexAction()).performScrollToIndex(FILLER_CATEGORIES)
+        // Gone, not merely hidden: on iOS `assertIsNotDisplayed` throws for a node the lazy grid
+        // already disposed, while Android reports it as not displayed.
+        onNodeWithText(CATEGORY).assertDoesNotExist()
+        // The production bus, entry decorator and feature receiver must agree on one bus and key.
+        repeat(RESELECTIONS) { onNodeWithText(browseLabel).performClick() }
+        waitForIdle()
+        onNodeWithText(CATEGORY).assertIsDisplayed()
         onNodeWithText(CATEGORY).performClick()
 
         waitUntilAtLeastOneExists(hasText(TRACK), TIMEOUT_MS)
@@ -64,3 +80,6 @@ internal fun realEntriesOpenACategoryFromBrowse(createGraph: (OfflineCatalog) ->
  * device tests settled on 45 seconds for that on a 2-core CI emulator; ten was not always enough.
  */
 private const val TIMEOUT_MS = 45_000L
+
+/** Repeated taps on the selected tab at its root; every one asks the list to scroll to its start. */
+private const val RESELECTIONS = 3

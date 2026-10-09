@@ -11,10 +11,6 @@ import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import com.xwab.app.feature.story.navigation.StoryRoute
 import com.xwab.app.navigation.appNavigationState
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.yield
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -34,9 +30,8 @@ class AppEntryCallbacksTest {
      * The graph builds one navigator, not one per request.
      *
      * The host reads `graph.navigator` and every callback provider is injected with the same
-     * binding, so this scope is what makes them share it. Were it unscoped, each would get its own
-     * and a list would never hear its tab reselected. What the callbacks then do with it is checked
-     * below, and end to end by the integration scenario.
+     * binding. What the callbacks then do with it is checked below, and end to end by the integration
+     * scenario. Reselection delivery is checked through the result decorator in composition tests.
      */
     @Test
     fun theGraphBuildsOneNavigator() {
@@ -78,28 +73,5 @@ class AppEntryCallbacksTest {
         navigator.navigate(StoryRoute("forest"))
         graph.provideStoriesCallbacks(navigator).onBack()
         assertEquals(listOf<NavKey>(StoriesRoute), state.currentBackStack)
-    }
-
-    @Test
-    fun eachListReceivesOnlyItsOwnTabsReselection() = runBlocking {
-        val received = mutableListOf<NavKey>()
-        val lists = mapOf(
-            BrowseRoute to graph.provideBrowseCallbacks(navigator).reselectEvents,
-            FavoritesRoute to graph.provideFavoritesCallbacks(navigator).reselectEvents,
-            StoriesRoute to graph.provideStoriesCallbacks(navigator).reselectEvents,
-        )
-        val collectors = lists.map { (tab, events) ->
-            launch(start = CoroutineStart.UNDISPATCHED) { events.collect { received += tab } }
-        }
-
-        // Selecting a tab switches to it; selecting it again at its root is the reselection.
-        listOf(BrowseRoute, FavoritesRoute, StoriesRoute).forEach { tab ->
-            if (state.topLevelRoute != tab) navigator.selectTab(tab)
-            navigator.selectTab(tab)
-            yield()
-        }
-        collectors.forEach { it.cancel() }
-
-        assertEquals(listOf<NavKey>(BrowseRoute, FavoritesRoute, StoriesRoute), received)
     }
 }

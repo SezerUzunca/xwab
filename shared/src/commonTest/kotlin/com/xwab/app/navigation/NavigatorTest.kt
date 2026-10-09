@@ -1,13 +1,10 @@
 package com.xwab.app.navigation
 
 import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.result.ResultEventBus
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.async
-import kotlinx.coroutines.runBlocking
 
 /**
  * The tab rules, driven without a composition.
@@ -30,7 +27,7 @@ class NavigatorTest {
     fun navigatingToANonTopLevelRouteStaysInTheCurrentTab() {
         val state = state()
 
-        Navigator(state).navigate(DetailRoute)
+        Navigator(state, ResultEventBus()).navigate(DetailRoute)
 
         assertEquals(HomeRoute, state.topLevelRoute)
         assertEquals(listOf<NavKey>(HomeRoute, DetailRoute), state.backStacks.getValue(HomeRoute))
@@ -42,7 +39,7 @@ class NavigatorTest {
     fun navigatingToATopLevelRouteSwitchesTabsInsteadOfPushing() {
         val state = state()
 
-        Navigator(state).navigate(StoriesRoute)
+        Navigator(state, ResultEventBus()).navigate(StoriesRoute)
 
         assertEquals(StoriesRoute, state.topLevelRoute)
         assertEquals(listOf<NavKey>(HomeRoute), state.backStacks.getValue(HomeRoute))
@@ -52,7 +49,7 @@ class NavigatorTest {
     @Test
     fun reselectingTheCurrentTopLevelRouteClearsItsSubStack() {
         val state = state()
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
         navigator.navigate(DetailRoute)
 
         navigator.selectTab(HomeRoute)
@@ -64,7 +61,7 @@ class NavigatorTest {
     @Test
     fun navigatingToAnExistingNonTopLevelRoutePopsToItWithoutReorderingParents() {
         val state = state()
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
         navigator.navigate(DetailRoute)
         navigator.navigate(AnotherDetailRoute)
 
@@ -79,7 +76,7 @@ class NavigatorTest {
     @Test
     fun eachTabKeepsItsOwnHistoryAcrossASwitch() {
         val state = state()
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
 
         navigator.navigate(DetailRoute)
         navigator.navigate(StoriesRoute)
@@ -92,7 +89,7 @@ class NavigatorTest {
     @Test
     fun goBackRemovesTheCurrentEntry() {
         val state = state()
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
         navigator.navigate(DetailRoute)
 
         navigator.goBack()
@@ -105,7 +102,7 @@ class NavigatorTest {
     fun goBackKeepsTheStartTabsRoot() {
         val state = state()
 
-        Navigator(state).goBack()
+        Navigator(state, ResultEventBus()).goBack()
 
         assertEquals(HomeRoute, state.topLevelRoute)
         assertEquals(listOf<NavKey>(HomeRoute), state.currentBackStack)
@@ -114,7 +111,7 @@ class NavigatorTest {
     @Test
     fun goBackFromAnotherTabsRootFallsThroughToTheStartTab() {
         val state = state()
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
         navigator.navigate(StoriesRoute)
 
         navigator.goBack()
@@ -129,7 +126,7 @@ class NavigatorTest {
         val state = state()
         assertEquals(listOf<NavKey>(HomeRoute), state.routesInUse)
 
-        Navigator(state).navigate(StoriesRoute)
+        Navigator(state, ResultEventBus()).navigate(StoriesRoute)
 
         assertEquals(listOf<NavKey>(HomeRoute, StoriesRoute), state.routesInUse)
     }
@@ -147,7 +144,7 @@ class NavigatorTest {
     @Test
     fun aProgrammaticTabIntentDoesNotClearTheSelectedTabsHistory() {
         val state = state()
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
         navigator.navigate(DetailRoute)
         navigator.navigate(HomeRoute)
         assertEquals(listOf<NavKey>(HomeRoute, DetailRoute), state.currentBackStack)
@@ -156,7 +153,7 @@ class NavigatorTest {
     @Test
     fun rapidRepeatedNavigationCannotCreateDuplicateContentKeys() {
         val state = state()
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
         repeat(10) { navigator.navigate(DetailRoute) }
         assertEquals(listOf<NavKey>(HomeRoute, DetailRoute), state.currentBackStack)
     }
@@ -164,7 +161,7 @@ class NavigatorTest {
     @Test
     fun replacingATransientEntryWithAnExistingDestinationPopsToThatDestination() {
         val state = state()
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
         navigator.navigate(DetailRoute)
         navigator.navigate(AnotherDetailRoute)
         navigator.replaceCurrent(DetailRoute)
@@ -176,7 +173,7 @@ class NavigatorTest {
     @Test
     fun aNewDestinationReplacingATransientEntryOpensFromTheTabsRoot() {
         val state = state()
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
         navigator.navigate(DetailRoute)
         navigator.navigate(AnotherDetailRoute)
 
@@ -186,19 +183,9 @@ class NavigatorTest {
     }
 
     @Test
-    fun rootReselectionEmitsOnlyToThatTabsList() = runBlocking {
-        val state = state()
-        val navigator = Navigator(state)
-        val event = async(start = CoroutineStart.UNDISPATCHED) { navigator.reselections(HomeRoute).first() }
-        navigator.selectTab(HomeRoute)
-        assertEquals(Unit, event.await())
-        assertEquals(listOf<NavKey>(HomeRoute), state.currentBackStack)
-    }
-
-    @Test
     fun selectingANonTabIsRejectedWithoutMutatingTheStack() {
         val state = state()
-        assertFailsWith<IllegalArgumentException> { Navigator(state).selectTab(DetailRoute) }
+        assertFailsWith<IllegalArgumentException> { Navigator(state, ResultEventBus()).selectTab(DetailRoute) }
         assertEquals(listOf<NavKey>(HomeRoute), state.currentBackStack)
     }
 
@@ -209,7 +196,7 @@ class NavigatorTest {
     @Test
     fun upFromAMiddlePaneClosesThatPaneAndWhatWasOpenedFromIt() {
         val state = state()
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
         navigator.navigate(DetailRoute)
         navigator.navigate(AnotherDetailRoute)
 
@@ -221,7 +208,7 @@ class NavigatorTest {
     @Test
     fun upFromTheLatestPaneIsBackAndAnUnknownOrRootDestinationFallsBackToIt() {
         val state = state()
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
         navigator.navigate(DetailRoute)
         navigator.navigate(AnotherDetailRoute)
 
@@ -246,7 +233,7 @@ class NavigatorTest {
     @Test
     fun anotherDestinationOfTheSameKindIsPushedAboveTheEarlierOne() {
         val state = state()
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
         navigator.navigate(ItemRoute("rain"))
 
         navigator.navigate(ItemRoute("ocean"))
@@ -258,7 +245,7 @@ class NavigatorTest {
     @Test
     fun upFromAPaneAlsoClosesEarlierSelectionsThatHeldIt() {
         val state = state()
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
         navigator.navigate(ItemRoute("rain"))
         navigator.navigate(ItemRoute("ocean"))
         navigator.navigate(DetailRoute)

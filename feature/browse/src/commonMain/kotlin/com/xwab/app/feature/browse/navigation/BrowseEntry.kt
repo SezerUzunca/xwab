@@ -9,7 +9,6 @@ import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.IntoSet
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metrox.viewmodel.metroViewModel
-import kotlinx.coroutines.flow.Flow
 import org.jetbrains.compose.resources.StringResource
 
 /** Application-owned labels and actions; this feature does not name destination features. */
@@ -17,7 +16,6 @@ class BrowseEntryCallbacks(
     val title: StringResource,
     val subtitle: StringResource,
     val onCategoryClick: (CategoryId) -> Unit,
-    val reselectEvents: Flow<Unit>,
 )
 
 @ContributesTo(EntryProviderScope::class)
@@ -33,7 +31,6 @@ object BrowseEntryBindings {
                 title = callbacks.title,
                 subtitle = callbacks.subtitle,
                 onCategoryClick = callbacks.onCategoryClick,
-                reselectEvents = callbacks.reselectEvents,
                 viewModel = metroViewModel(),
             )
         }
