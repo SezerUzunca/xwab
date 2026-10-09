@@ -396,6 +396,10 @@ playback. The architecture check requires these values to agree with the downloa
     `@ViewModelKey` and `@ContributesIntoMap(AppScope::class)`, or an `@AssistedInject` one has no
     nested factory with an assisted-factory key and that contribution. Screens resolve ViewModels
     from the map at runtime, so this would otherwise compile and throw when the screen opens.
+13. A feature's source, in either of its modules, is outside its own `com.xwab.app.feature.<name>`
+    package.
+14. Production code depends on a `:testing:*` fake. Only test configurations and the other fake
+    modules may; a production edge would ship the fake.
 
 The core policy is module-owned rather than a central list of sound/story-specific exceptions.
 For example, `core/session/architecture.properties` permits only playback and declares its screen
