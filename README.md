@@ -220,6 +220,9 @@ including when the engine still holds an ID belonging to a removed module.
 Each content module owns the string naming its kind — `SOUND_PLAYBACK_KIND`, `STORY_PLAYBACK_KIND`
 — because that string is the engine source id's prefix and outlives the process. The architecture
 check verifies that the app shell names every registered playback kind in its routing composition.
+Naming it puts the new module's api on the shell's classpath, and settings does not do that for
+you: the shell compiles against only the capabilities it names, so add the module beside
+`:core:sound:api` and `:core:story:api` in `shared/build.gradle.kts`.
 
 ### Adding, removing or replacing core modules
 
@@ -385,8 +388,9 @@ playback. The architecture check requires these values to agree with the downloa
    composition root's compilation graph, or a feature api module from shared's. All are added
    automatically from what settings discovers; this guards that.
 9. A feature route lacks `@SerialName` or is not registered in an `@IntoSet` provider of its feature's
-   `@ContributesTo(NavKey::class)` container, or a contributed playback kind has no routing reference
-   in the shell.
+   `@ContributesTo(NavKey::class)` container, the shell never opens a feature route (no tab, entry
+   callback or playback mapping constructs or passes one; matching it in pane metadata does not
+   count), or a contributed playback kind has no routing reference in the shell.
 10. The download source and native player application metadata disagree on the HTTP user agent.
 11. A capability renames a value it has already written onto devices. Playback kinds, favourites
     and cache namespaces are pinned in `wireFormat`; the constant and its pin must change together,
@@ -438,9 +442,10 @@ hidden across modules.
 The script creates `:feature:sleep-timer:api`, holding the route and its serializer registration,
 and `:feature:sleep-timer:impl`, whose ViewModel and entry installer contribute themselves to
 Metro. Settings adds both modules to `composition` and the api module to `shared`; make the route
-reachable from either a top-level destination or an existing feature intent. If the feature
-publishes outgoing intents, declare its callback contract in the api module and provide it from
-the shell's `AppEntryCallbacks`.
+reachable from either a top-level destination or an existing feature intent. Until something in the
+shell opens it, `checkArchitecture` fails: the feature would build and install a screen nothing
+leads to. If the feature publishes outgoing intents, declare its callback contract in the api module
+and provide it from the shell's `AppEntryCallbacks`.
 Add the route's serial name to `routeSerialNamesAreTheSavedWireFormat` in `FeatureSerializersTest`:
 that list pins the names saved back stacks hold, so it changes only on purpose.
 

@@ -135,6 +135,10 @@ abstract class CheckArchitectureTask : DefaultTask() {
                 coreSources = productionSources(root, "core"),
                 compositionSources = productionSources(root, "shared"),
             ) +
+            FeatureFirstRules.unopenedRouteViolations(
+                featureSources = productionSources(root, "feature"),
+                shellSources = productionSources(root, "shared"),
+            ) +
             FeatureFirstRules.featureModuleShapeViolations(graph.keys) +
             FeatureFirstRules.legacySplitDirectoryViolations(legacySplitDirectories(root)) +
             FeatureFirstRules.koinUsageViolations(architectureTextSources(root)) +

@@ -571,6 +571,44 @@ internal object FeatureFirstRules {
     }
 
     /**
+     * Every route a feature declares is one the app shell opens.
+     *
+     * A feature never pushes a destination itself: the navigator belongs to the shell, and a feature
+     * only states intents through its callback contract. A route reaches a back stack only where the
+     * shell produces one — a tab in `TOP_LEVEL_DESTINATIONS`, a callback in `AppEntryCallbacks`, the
+     * now-playing bar's mapping in `PlaybackRoutes`. A route the shell never produces still compiles,
+     * registers its serializer and installs its entry, and nothing in the app leads to it.
+     *
+     * Being named is not being opened. The shell's pane metadata and its reverse playback mapping
+     * name routes in `is SoundRoute ->` checks and `BrowseRoute ->` branches, which recognise a
+     * screen already showing; a rule satisfied by those would pass a feature whose only shell edit
+     * was its pane layout. So a data class counts where it is constructed, and an object where it is
+     * handed on as a value — an argument, a named argument, a `when` result, a return value — and
+     * not where it is compared or matched.
+     */
+    fun unopenedRouteViolations(
+        featureSources: Map<String, String>,
+        shellSources: Map<String, String>,
+    ): List<String> {
+        val shell = shellSources.values.joinToString("\n", transform = ::codeOnly)
+        return featureSources.flatMap { (path, source) ->
+            codeOnly(source).lines().mapIndexedNotNull { index, line ->
+                val route = ROUTE_DECLARATION.find(line)?.groupValues?.get(1)
+                    ?: return@mapIndexedNotNull null
+                val opened = if (Regex("""\bobject\s+$route\b""").containsMatchIn(line)) {
+                    Regex("""(?:[(,]|(?<![=!<>])=(?!=)|->|\breturn)\s*$route\b(?!\s*->)""")
+                } else {
+                    Regex("""\b$route\s*\(""")
+                }
+                if (opened.containsMatchIn(shell)) return@mapIndexedNotNull null
+                "$path:${index + 1} declares route $route, but the app shell never opens it: no tab, " +
+                    "entry callback or playback mapping in :shared produces one. Features cannot " +
+                    "navigate on their own, so its screen would be installed with nothing leading to it."
+            }
+        }.sorted()
+    }
+
+    /**
      * A route's serial name is a wire format, so it is stated rather than inferred.
      *
      * Left implicit, a `@Serializable` route is named after its package. A saved back stack holds

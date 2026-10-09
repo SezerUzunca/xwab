@@ -1559,6 +1559,93 @@ class FeatureFirstRulesTest {
         )
     }
 
+    /** Each way the shell opens a destination today: a tab, a callback, the now-playing bar. */
+    @Test
+    fun aRouteTheShellOpensIsAccepted() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.unopenedRouteViolations(
+                featureSources = mapOf(
+                    "feature/browse/api/src/commonMain/kotlin/BrowseNavigation.kt" to featureSource(
+                        ".navigation",
+                        "data object BrowseRoute : NavKey\ndata class CategoryRoute(val categoryId: String) : NavKey",
+                    ),
+                    "feature/story/api/src/commonMain/kotlin/StoriesNavigation.kt" to featureSource(
+                        ".navigation",
+                        "data object StoriesRoute : NavKey\ndata class StoryRoute(val storyId: String) : NavKey",
+                    ),
+                    "feature/favorites/api/src/commonMain/kotlin/FavoritesNavigation.kt" to featureSource(
+                        ".navigation",
+                        "data object FavoritesRoute : NavKey",
+                    ),
+                ),
+                shellSources = mapOf(
+                    "shared/src/commonMain/kotlin/TopLevelDestination.kt" to sharedSource(
+                        "navigation",
+                        "val TABS = listOf(TopLevelDestination(route = BrowseRoute, label = tab_browse))",
+                    ),
+                    "shared/src/commonMain/kotlin/AppEntryCallbacks.kt" to sharedSource(
+                        "composition",
+                        """
+                        fun provideBrowseCallbacks(navigator: Navigator) = BrowseEntryCallbacks(
+                            onCategoryClick = { navigator.navigate(CategoryRoute (it.value)) },
+                        )
+                        fun provideFavoritesCallbacks(navigator: Navigator) = FavoritesEntryCallbacks(
+                            onBrowse = { navigator.navigate(FavoritesRoute) },
+                        )
+                        """.trimIndent(),
+                    ),
+                    "shared/src/commonMain/kotlin/PlaybackRoutes.kt" to sharedSource(
+                        "composition",
+                        "fun open(kind: String) = when (kind) { STORY -> open(StoriesRoute, StoryRoute(id)) }",
+                    ),
+                ),
+            ),
+        )
+    }
+
+    /**
+     * Pane layout, a reverse mapping, a comparison, an import and a comment all name a route, and
+     * none of them opens it. A feature whose only shell edit was its pane metadata is still
+     * unreachable.
+     */
+    @Test
+    fun aRouteTheShellOnlyRecognisesIsReported() {
+        val violations = FeatureFirstRules.unopenedRouteViolations(
+            featureSources = mapOf(
+                "feature/sleep-timer/api/src/commonMain/kotlin/SleepTimerNavigation.kt" to featureSource(
+                    ".navigation",
+                    "data object TimersRoute : NavKey\ndata class TimerRoute(val timerId: String) : NavKey",
+                ),
+            ),
+            shellSources = mapOf(
+                "shared/src/commonMain/kotlin/AppEntryMetadata.kt" to sharedSource(
+                    "composition",
+                    """
+                    import com.xwab.app.feature.sleeptimer.navigation.TimerRoute
+                    fun metadata(tab: NavKey, route: NavKey) = when (tab) {
+                        BrowseRoute,
+                        TimersRoute -> when (route) {
+                            TimersRoute -> listPane()
+                            is TimerRoute -> detailPane()
+                            else -> emptyMap()
+                        }
+                        else -> emptyMap()
+                    }
+                    fun isTimers(tab: NavKey) = tab == TimersRoute || tab != TimersRoute
+                    // navigator.navigate(TimerRoute(id)); route = TimersRoute
+                    val hint = "open(TimersRoute)"
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        assertEquals(2, violations.size)
+        assertTrue(violations.any { "route TimersRoute" in it })
+        assertTrue(violations.any { "route TimerRoute" in it })
+        assertTrue(violations.all { "never opens it" in it && "feature/sleep-timer" in it })
+    }
+
     private val corePolicies = mapOf(
         ":core:sound" to policy(true, "SoundPort", ":core:session", ":core:delivery"),
         ":core:story" to policy(true, "StoryPort", ":core:session"),
