@@ -54,7 +54,7 @@ internal fun realEntriesOpenACategoryFromBrowse(createGraph: (OfflineCatalog) ->
             LocalSavedStateRegistryOwner provides owner,
             LocalNavigationEventDispatcherOwner provides rememberNavigationEventDispatcherOwner(parent = null),
         ) {
-            App(graph.metroViewModelFactory)
+            App(graph.metroViewModelFactory, AppEntryGraphs)
         }
     }
     try {

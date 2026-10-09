@@ -6,6 +6,9 @@ internal object FeatureFirstRules {
     const val FEATURE_PREFIX = ":feature:"
     const val SHELL_MODULE = ":shared"
 
+    /** The one module that sees every implementation and declares the graphs that collect them. */
+    const val COMPOSITION_ROOT = ":composition"
+
     val USE_CASE_DECLARATION =
         Regex("""^\s*(?:internal\s+|public\s+)?class\s+(\w+UseCase)\b""", RegexOption.MULTILINE)
 
@@ -93,6 +96,11 @@ internal object FeatureFirstRules {
                 "Update INDEPENDENT_SUPPORT_MODULES."
         } + if (SHELL_MODULE !in modules) listOf(
             "The shell-wiring rule names $SHELL_MODULE, which is not a module in this build. Update SHELL_MODULE.",
+        ) else {
+            emptyList()
+        } + if (COMPOSITION_ROOT !in modules) listOf(
+            "The composition-root rule names $COMPOSITION_ROOT, which is not a module in this build. " +
+                "Update COMPOSITION_ROOT.",
         ) else emptyList()
 
     fun corePolicyViolations(
@@ -420,27 +428,56 @@ internal object FeatureFirstRules {
     }
 
     /**
-     * A capability or a screen the shell never declares is in no application.
+     * A capability or a screen the composition root never declares is in no application, and a
+     * feature contract the shell never declares has routes no saved back stack can restore.
      *
-     * Metro aggregates a scope's contributions from the compile classpath. The shell adds the core
-     * and feature modules settings discovers; this check guards that loop, so a broken discovery
-     * cannot leave a registered, tested module absent from the application graph.
+     * Metro aggregates a scope's contributions from the compile classpath. The composition root
+     * adds the core and feature modules settings discovers, and the shell the feature api modules;
+     * this check guards both loops, so a broken discovery cannot leave a registered, tested module
+     * absent from the application graph or a feature's routes absent from the shell's serializers.
      */
     fun unwiredModuleViolations(graph: Map<String, List<String>>): List<String> {
-        val shell = graph[SHELL_MODULE] ?: return emptyList()
-        return graph.keys
-            .filter { module ->
-                (module.startsWith(CORE_PREFIX) || module.startsWith(FEATURE_PREFIX)) &&
-                    module !in shell
-            }
-            .sorted()
-            .map { module ->
-                "$module is in the build but $SHELL_MODULE does not depend on it. Check module discovery " +
-                    "in settings.gradle.kts and shared/build.gradle.kts: a core capability the shell " +
-                    "does not see contributes nothing to the application graph, and a feature it " +
-                    "does not see is in no app."
-            }
+        val root = graph[COMPOSITION_ROOT]
+        val unwiredFromRoot = root?.let {
+            graph.keys
+                .filter { module ->
+                    (module.startsWith(CORE_PREFIX) || module.startsWith(FEATURE_PREFIX)) && module !in root
+                }
+                .map { module ->
+                    "$module is in the build but $COMPOSITION_ROOT does not depend on it. Check module " +
+                        "discovery in settings.gradle.kts and composition/build.gradle.kts: a core " +
+                        "capability the composition root does not see contributes nothing to the " +
+                        "application graph, and a feature it does not see is in no app."
+                }
+        }.orEmpty()
+        val shell = graph[SHELL_MODULE]
+        val unwiredFromShell = shell?.let {
+            graph.keys
+                .filter { module -> module.startsWith(FEATURE_PREFIX) && module.endsWith(":api") && module !in shell }
+                .map { module ->
+                    "$module is in the build but $SHELL_MODULE does not depend on it. Check module " +
+                        "discovery in settings.gradle.kts and shared/build.gradle.kts: the shell restores " +
+                        "saved back stacks with the route serializers of the feature contracts it sees."
+                }
+        }.orEmpty()
+        return (unwiredFromRoot + unwiredFromShell).sorted()
     }
+
+    /**
+     * The composition root names no feature. It reaches every implementation through Metro and hands
+     * the shell what its graphs build as the shell's own contracts, so a feature type written here
+     * would be the one place an implementation could be wired by hand.
+     */
+    fun compositionRootFeatureReferenceViolations(sources: Map<String, String>): List<String> =
+        sources.flatMap { (path, source) ->
+            references(codeOnly(source), QUALIFIED_FEATURE_REFERENCE)
+                .filter { it.isWithin("com.xwab.app.feature") }
+                .map { reference ->
+                    "$path references $reference. The composition root names no feature: features " +
+                        "reach its graphs through Metro contributions and the shell through their api modules."
+                }
+                .toList()
+        }.sorted()
 
     /**
      * Every content kind the app can play has somewhere to open.
@@ -682,7 +719,8 @@ internal object FeatureFirstRules {
                 if (module.startsWith(CORE_PREFIX) && dependency.startsWith(FEATURE_PREFIX)) {
                     violations += "$module depends on $dependency. A core module may not depend on a feature."
                 } else if (module.startsWith(CORE_PREFIX) &&
-                    (dependency == ":shared" || dependency in INDEPENDENT_SUPPORT_MODULES)
+                    (dependency == SHELL_MODULE || dependency == COMPOSITION_ROOT ||
+                        dependency in INDEPENDENT_SUPPORT_MODULES)
                 ) {
                     violations += "$module depends on $dependency. Core capabilities may not depend on UI or the app shell."
                 } else if (module.startsWith(CORE_PREFIX) && dependency !in allowedDependencies.orEmpty()) {
@@ -704,8 +742,8 @@ internal object FeatureFirstRules {
                         "on another feature; connect destination intents in :shared."
                 }
 
-                if (isFeatureImplementation(dependency) && module != SHELL_MODULE) {
-                    violations += "$module depends on $dependency. Only $SHELL_MODULE installs a " +
+                if (isFeatureImplementation(dependency) && module != COMPOSITION_ROOT) {
+                    violations += "$module depends on $dependency. Only $COMPOSITION_ROOT installs a " +
                         "feature's implementation; compile against the feature's api module instead."
                 }
             }
@@ -736,6 +774,7 @@ internal object FeatureFirstRules {
             val policy = policies[reached]
             val reason = when {
                 reached == SHELL_MODULE -> "the app shell owns navigation state and destination policy"
+                reached == COMPOSITION_ROOT -> "the composition root installs features; it is not one's dependency"
                 reached.startsWith(CORE_PREFIX) && policy?.featureAccessible != true ->
                     policy?.let { "this is an adapter-only capability: ${it.responsibility}" }
                         ?: "this core has no valid architecture.properties declaring feature access"
@@ -789,10 +828,10 @@ internal object FeatureFirstRules {
 
     /**
      * Every shared source set observes the same composition and navigation boundary, and inside it
-     * names a feature only by what that feature's api module declares. Shared still has every
-     * implementation on its classpath, because Metro collects contributions from there; this is what
-     * keeps it from using one. Shared DI names no feature type: feature ViewModels reach the graph
-     * through Metro contributions.
+     * names a feature only by what that feature's api module declares. No implementation is on the
+     * shell's production classpath — only the composition root may depend on one — but its tests
+     * run against the composition root, and a declaration an impl module makes public, such as a
+     * contributed binding container, would otherwise be one import away.
      *
      * A wildcard import is refused outright: a feature's api and impl share package names, so one
      * would bring an implementation's public binding containers in with the contracts.

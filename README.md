@@ -10,13 +10,15 @@ core boundary.
 
 ```text
 androidApp ─┐
-            ├── shared (app shell, Navigation 3 policy, Metro graph)
+            ├── composition (composition root: Metro graphs, MainActivity, iOS framework)
 iosApp ─────┘        │
-                     ├── feature:<name>:api   ◄── names only these
-                     │        ▲
-                     └── feature:<name>:impl  ◄── installs these through Metro
-                              │                   browse · favorites · category
-                              │                   sound · story · nowplaying
+                     ├── shared (app shell: App, Navigation 3 policy, tabs)
+                     │        │
+                     │        └── feature:<name>:api   ◄── the shell names only these
+                     │                 ▲
+                     └── feature:<name>:impl           ◄── only the composition root installs these
+                              │                            browse · favorites · category
+                              │                            sound · story · nowplaying
                               └── public core ports
                                       │
                                       └── internal Metro adapters
@@ -26,8 +28,17 @@ Every feature is two Gradle modules. `feature/<name>/api` holds what the app she
 routes with their serializer registration, the callback contracts the shell supplies, and shell
 chrome contracts such as the now-playing bar's. `feature/<name>/impl` holds the screens, state,
 ViewModels, use cases and the entry installer that puts them behind the routes; it depends on its
-own api and is installed only by the shell. Features never depend on one another, not even on
-another feature's api. The app shell connects outgoing feature intents to destination routes.
+own api and is installed only by the composition root. Features never depend on one another, not
+even on another feature's api. The app shell connects outgoing feature intents to destination routes.
+
+`composition` is the one module that sees every implementation. Metro collects contributions from
+the compile classpath of the module that declares a graph, so the application graphs and the
+navigation host's entry graph live there, with the Android launcher Activity and the iOS view
+controller they construct; it also produces the iOS framework, still named `Shared`. `shared` is the
+app shell: `App`, navigation policy, tabs and the layout around destinations. Its production
+classpath holds feature api modules only, so the shell cannot reach an implementation even by
+mistake; it receives what the graphs build through `App`'s parameters — the ViewModel factory and
+an `AppEntriesFactory` that turns the host's navigator into the features' entries and bar.
 
 `designsystem` and the `testing` modules are top-level support modules. They are deliberately
 outside `core`: core reserves its public surface for ports, while UI components and reusable test
@@ -141,13 +152,15 @@ feature/
 
 Every directory under `core` or `feature` with a build script is a Gradle module, discovered by
 settings; a feature directory has none of its own, so its `api` and `impl` are found one level
-down. `shared` automatically includes those modules on Metro's compilation classpath: settings
-publishes the discovered lists, so `shared` never reads another project's state to find them.
-Shared needs each feature's impl on that classpath, because Metro collects contributions from
-there, but its code names only api declarations — `checkArchitecture` reads every api module's
-declarations and refuses any other feature reference. Feature entries, route serializers and the
-now-playing bar are collected through Metro; tabs and where each feature's intents lead remain
-explicit in the shell.
+down. `composition` automatically includes those modules on Metro's compilation classpath, and
+`shared` the feature api modules: settings publishes the discovered lists, so neither reads another
+project's state to find them. Feature entries, route serializers and the now-playing bar are
+collected through Metro; tabs and where each feature's intents lead remain explicit in the shell.
+
+The shell's tests are the exception to its classpath: they draw and resolve real entries and build
+the real application graph, so they depend on `composition` and the modules it installs. Test
+configurations are not production dependencies, and `checkArchitecture` still refuses any shell
+source naming something a feature api module does not declare.
 
 | Module | Owns | Delegates |
 |---|---|---|
@@ -236,15 +249,17 @@ Category, Sound and Story details are nested destinations. Every content row ope
 the row body; only its explicit play/pause button changes playback. `StoryRoute(storyId)` opens the
 selected story's description, author, narrator and duration. Each tab retains its own history and saved screen state.
 
-`AppNavigationHost` owns the remembered `Navigator`. Each feature contributes two Metro binding
-containers: its impl module a `@Provides @IntoSet` entry installer of type
-`EntryProviderScope<NavKey>.() -> Unit` with `@ContributesTo(EntryProviderScope::class)`, and its
-api module the route `SerializersModule` with `@ContributesTo(NavKey::class)`. `AppEntryGraph` and
+`AppNavigationHost` builds and remembers the `Navigator` and its result bus over the stacks it
+restored. Each feature contributes two Metro binding containers: its impl module a `@Provides
+@IntoSet` entry installer of type `EntryProviderScope<NavKey>.() -> Unit` with
+`@ContributesTo(EntryProviderScope::class)`, and its api module the route `SerializersModule` with
+`@ContributesTo(NavKey::class)`. The composition root's `AppEntryGraph` and the shell's
 `RouteSerializersGraph` aggregate those scopes, so neither lists features; Navigation 3's own types
-serve as the scope markers because features and shared already see them, and no common module is
-needed. `AppEntryProvider` installs the entry set. `AppEntryGraph` supplies each feature's callbacks
-and keeps destination mappings in the composition root. The set's iteration order determines
-neither tab order nor the start destination.
+serve as the scope markers because every side already sees them, and no common module is needed.
+`AppEntryGraph` takes the host's navigator as its input and exposes the entry set and the bar as the
+shell's `AppEntries`; `AppEntryProvider` installs the set. The shell's `AppEntryCallbacks`
+contributes each feature's callbacks to the same scope and keeps destination mappings in the shell.
+The set's iteration order determines neither tab order nor the start destination.
 `AppNavigationDisplay` owns the actual
 `NavDisplay`. Saveable state and ViewModel entry decorators are retained for every tab, including
 inactive tabs, in the documented order. Tab-scoped content keys prevent the same sound in Browse
@@ -273,8 +288,8 @@ local devices, because on CI's emulator it exceeded Compose's test timeout.
 
 `feature:nowplaying` is only the persistent now-playing bar; it has no route or screen of its own.
 Its api module declares the `NowPlayingBar` contract in its `shell` package, and its impl module
-contributes the bar to `AppEntryGraph` beside the entry installers, so the shell draws it without
-naming the implementation. Tapping the bar opens the playing item's own screen in the tab it
+contributes the bar to the composition root's `AppEntryGraph` beside the entry installers; the
+shell draws it from `AppEntries.nowPlayingBar` without its implementation on its classpath. Tapping the bar opens the playing item's own screen in the tab it
 belongs to — `SoundRoute` under Sounds, `StoryRoute` under Stories — as a fresh selection from that
 tab's root, or returns to it if that detail is already open there. The tab the listener was on
 keeps its stack. The shell owns that mapping; nowplaying consumes only the content-neutral session
@@ -336,7 +351,7 @@ playback. The architecture check requires these values to agree with the downloa
    callable interfaces, or declares a dependency outside its allowed list. Missing dependency
    targets and core dependency cycles also fail.
 2. A core module depends on a non-core application module, a feature depends on another feature, or
-   anything but `shared` depends on a feature's impl module. Core modules are flat; a feature is
+   anything but `composition` depends on a feature's impl module. Core modules are flat; a feature is
    exactly `:feature:<name>:api` and `:feature:<name>:impl`, and no other `api`/`impl` directory
    may appear.
 3. A feature reaches a core module marked `featureAccessible=false`, directly or through an
@@ -349,11 +364,13 @@ playback. The architecture check requires these values to agree with the downloa
 5. Screen state or a feature-specific use case leaks into core; a `Repository` / DI-style
    `Provider` abstraction appears in core; or Koin is reintroduced.
 6. A feature's impl module exposes anything except the binding containers it contributes with
-   `@ContributesTo`, or shared references a feature outside the navigation/composition boundary or
-   by anything its api module does not declare (a wildcard import included).
+   `@ContributesTo`, shared references a feature outside the navigation/composition boundary or
+   by anything its api module does not declare (a wildcard import included), or the composition
+   root names a feature at all.
 7. Designsystem depends on an application project.
-8. A module directory is absent from the build, or a core/feature module is absent from shared's
-   compilation graph. Both are added automatically from what settings discovers; this guards that.
+8. A module directory is absent from the build, a core/feature module is absent from the
+   composition root's compilation graph, or a feature api module from shared's. All are added
+   automatically from what settings discovers; this guards that.
 9. A feature route lacks `@SerialName` or is not registered in an `@IntoSet` provider of its feature's
    `@ContributesTo(NavKey::class)` container, or a contributed playback kind has no routing reference
    in the shell.
@@ -403,16 +420,17 @@ hidden across modules.
 
 The script creates `:feature:sleep-timer:api`, holding the route and its serializer registration,
 and `:feature:sleep-timer:impl`, whose ViewModel and entry installer contribute themselves to
-Metro. Settings adds both modules to `shared`; make the route reachable from either a top-level
-destination or an existing feature intent. If the feature publishes outgoing intents, declare its
-callback contract in the api module and provide it from `AppEntryGraph`.
+Metro. Settings adds both modules to `composition` and the api module to `shared`; make the route
+reachable from either a top-level destination or an existing feature intent. If the feature
+publishes outgoing intents, declare its callback contract in the api module and provide it from
+the shell's `AppEntryCallbacks`.
 Add the route's serial name to `routeSerialNamesAreTheSavedWireFormat` in `FeatureSerializersTest`:
 that list pins the names saved back stacks hold, so it changes only on purpose.
 
 ## Removing a feature
 
 Delete the `feature/<name>` directory, both modules with it. Gradle stops including them on its own,
-and every remaining reference is a compile error: its callback provider in `AppEntryGraph` if present, and the tab in
+and every remaining reference is a compile error: its callback provider in `AppEntryCallbacks` if present, and the tab in
 `TOP_LEVEL_DESTINATIONS` if it had one. Its ViewModels, entry installers and route serializers leave
 their graphs with the module. Its serial names leave the pin in `FeatureSerializersTest` as well;
 saved back stacks may still hold them, which `RetiredRoute` reads back and drops. Follow the

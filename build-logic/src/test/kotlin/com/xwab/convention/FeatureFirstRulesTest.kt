@@ -37,7 +37,7 @@ class FeatureFirstRulesTest {
             dependencyViolations(
                 mapOf(
                     ":feature:category:impl" to listOf(":feature:category:api"),
-                    ":shared" to listOf(
+                    ":composition" to listOf(
                         ":feature:category:api", ":feature:category:impl",
                         ":feature:sound:api", ":feature:sound:impl",
                     ),
@@ -47,17 +47,19 @@ class FeatureFirstRulesTest {
     }
 
     @Test
-    fun onlyTheShellInstallsAFeatureImplementation() {
+    fun onlyTheCompositionRootInstallsAFeatureImplementation() {
         val violations = dependencyViolations(
             mapOf(
                 ":feature:sound:api" to listOf(":feature:sound:impl"),
                 ":testing:sound" to listOf(":feature:sound:impl"),
                 ":androidApp" to listOf(":feature:sound:impl"),
+                // The shell compiles against contracts; it never installs what is behind them.
+                ":shared" to listOf(":feature:sound:impl"),
             ),
         )
 
-        assertEquals(3, violations.size)
-        assertTrue(violations.all { it.contains("Only :shared installs a feature's implementation") })
+        assertEquals(4, violations.size)
+        assertTrue(violations.all { it.contains("Only :composition installs a feature's implementation") })
         assertEquals(
             emptyList(),
             dependencyViolations(mapOf(":testing:sound" to listOf(":feature:sound:api"))),
@@ -138,7 +140,10 @@ class FeatureFirstRulesTest {
 
     @Test
     fun featuresCannotDeclareOrReachAdapterModules() {
-        (corePolicies.filterValues { !it.featureAccessible }.keys + FeatureFirstRules.SHELL_MODULE).forEach { offLimits ->
+        (
+            corePolicies.filterValues { !it.featureAccessible }.keys +
+                FeatureFirstRules.SHELL_MODULE + FeatureFirstRules.COMPOSITION_ROOT
+            ).forEach { offLimits ->
             val violations = dependencyViolations(
                 mapOf(":feature:sound" to listOf(offLimits)),
             )
@@ -681,13 +686,16 @@ class FeatureFirstRulesTest {
 
     @Test
     fun fixedApplicationStructureStillDetectsStaleRules() {
-        val modules = FeatureFirstRules.INDEPENDENT_SUPPORT_MODULES + FeatureFirstRules.SHELL_MODULE
+        val modules = FeatureFirstRules.INDEPENDENT_SUPPORT_MODULES + FeatureFirstRules.SHELL_MODULE +
+            FeatureFirstRules.COMPOSITION_ROOT
         assertEquals(emptyList(), FeatureFirstRules.staleRuleViolations(modules))
-        assertEquals(2, FeatureFirstRules.staleRuleViolations(emptySet()).size)
+        assertEquals(3, FeatureFirstRules.staleRuleViolations(emptySet()).size)
         assertTrue(FeatureFirstRules.staleRuleViolations(modules - ":designsystem")
             .single().contains("INDEPENDENT_SUPPORT_MODULES"))
         assertTrue(FeatureFirstRules.staleRuleViolations(modules - ":shared")
             .single().contains("SHELL_MODULE"))
+        assertTrue(FeatureFirstRules.staleRuleViolations(modules - ":composition")
+            .single().contains("COMPOSITION_ROOT"))
     }
     @Test
     fun featureSpecificUseCasesStayInTheirFeature() {
@@ -1071,7 +1079,7 @@ class FeatureFirstRulesTest {
     @Test
     fun aModuleWithAnExhaustiveDependencyListCannotStrayFromIt() {
         for (module in listOf(":core:favorites", ":core:delivery")) {
-            for (dependency in listOf(":core:sound", ":core:story", ":core:session", ":shared")) {
+            for (dependency in listOf(":core:sound", ":core:story", ":core:session", ":shared", ":composition")) {
                 assertTrue(
                     dependencyViolations(mapOf(module to listOf(dependency)))
                         .any { it.contains("is not among them") || it.contains("may not depend on UI") },
@@ -1137,10 +1145,16 @@ class FeatureFirstRulesTest {
             ":feature:nowplaying:api" to listOf(":core:session"),
             ":feature:nowplaying:impl" to listOf(":feature:nowplaying:api", ":core:session", ":designsystem"),
             ":shared" to listOf(
+                ":core:session", ":core:sound", ":core:story",
+                ":designsystem",
+                ":feature:browse:api", ":feature:category:api", ":feature:favorites:api",
+                ":feature:sound:api", ":feature:story:api", ":feature:nowplaying:api",
+            ),
+            ":composition" to listOf(
+                ":shared",
                 ":core:sound", ":core:delivery",
                 ":core:favorites", ":core:story",
                 ":core:session", ":core:playback", ":core:network",
-                ":designsystem",
                 ":feature:browse:api", ":feature:browse:impl",
                 ":feature:category:api", ":feature:category:impl",
                 ":feature:favorites:api", ":feature:favorites:impl",
@@ -1148,7 +1162,7 @@ class FeatureFirstRulesTest {
                 ":feature:story:api", ":feature:story:impl",
                 ":feature:nowplaying:api", ":feature:nowplaying:impl",
             ),
-            ":androidApp" to listOf(":shared"),
+            ":androidApp" to listOf(":composition"),
         )
         val apiEdges = mapOf(
             ":core:delivery" to emptyList(),
@@ -1167,7 +1181,7 @@ class FeatureFirstRulesTest {
     @Test
     fun supportModulesCannotAcquireApplicationDependencies() {
         for (module in listOf(":designsystem")) {
-            for (dependency in listOf(":feature:sound", ":core:sound", ":shared", ":testing")) {
+            for (dependency in listOf(":feature:sound", ":core:sound", ":shared", ":composition", ":testing")) {
                 assertTrue(dependencyViolations(mapOf(module to listOf(dependency)))
                     .any { it.contains("must remain independent") })
             }
@@ -1177,7 +1191,7 @@ class FeatureFirstRulesTest {
 
     @Test
     fun coreCannotDependOnUiOrTheShell() {
-        for (dependency in listOf(":designsystem", ":shared")) {
+        for (dependency in listOf(":designsystem", ":shared", ":composition")) {
             assertTrue(dependencyViolations(mapOf(":core:sound" to listOf(dependency)))
                 .any { it.contains("may not depend on UI") })
         }
@@ -1207,36 +1221,82 @@ class FeatureFirstRulesTest {
     }
 
     @Test
-    fun aCapabilityOrScreenTheShellNeverDeclaresIsReported() {
+    fun aCapabilityOrScreenTheCompositionRootNeverDeclaresIsReported() {
         val violations = FeatureFirstRules.unwiredModuleViolations(
             mapOf(
-                FeatureFirstRules.SHELL_MODULE to listOf(":core:sound"),
+                FeatureFirstRules.COMPOSITION_ROOT to listOf(":core:sound", ":feature:browse:api"),
                 ":core:sound" to emptyList(),
                 ":core:meditation" to emptyList(),
-                ":feature:browse" to emptyList(),
+                ":feature:browse:api" to emptyList(),
+                ":feature:browse:impl" to emptyList(),
             ),
         )
 
         assertEquals(2, violations.size)
+        assertTrue(violations.all { it.contains("${FeatureFirstRules.COMPOSITION_ROOT} does not depend on it") })
         assertTrue(violations.any { it.contains(":core:meditation") })
-        assertTrue(violations.any { it.contains(":feature:browse") })
+        assertTrue(violations.any { it.contains(":feature:browse:impl") })
+    }
+
+    @Test
+    fun aFeatureContractTheShellNeverDeclaresIsReported() {
+        val violations = FeatureFirstRules.unwiredModuleViolations(
+            mapOf(
+                FeatureFirstRules.SHELL_MODULE to listOf(":feature:browse:api"),
+                ":feature:browse:api" to emptyList(),
+                ":feature:sound:api" to emptyList(),
+                // The shell is not where implementations are installed; their absence is right.
+                ":feature:sound:impl" to emptyList(),
+                ":core:sound" to emptyList(),
+            ),
+        )
+
+        assertEquals(1, violations.size)
+        assertTrue(violations.single().contains(":feature:sound:api is in the build but ${FeatureFirstRules.SHELL_MODULE}"))
     }
 
     /** Support modules are not capabilities; the rule is scoped to core and feature on purpose. */
     @Test
-    fun theShellNeedNotDeclareSupportModules() {
+    fun theCompositionRootNeedNotDeclareSupportModules() {
         assertEquals(
             emptyList(),
             FeatureFirstRules.unwiredModuleViolations(
                 mapOf(
-                    FeatureFirstRules.SHELL_MODULE to listOf(":core:sound", ":feature:browse"),
+                    FeatureFirstRules.COMPOSITION_ROOT to listOf(":core:sound", ":feature:browse:api"),
                     ":core:sound" to emptyList(),
-                    ":feature:browse" to emptyList(),
+                    ":feature:browse:api" to emptyList(),
                     ":testing" to emptyList(),
-                    ":androidApp" to listOf(FeatureFirstRules.SHELL_MODULE),
+                    ":androidApp" to listOf(FeatureFirstRules.COMPOSITION_ROOT),
                 ),
             ),
         )
+    }
+
+    @Test
+    fun theCompositionRootNamesNoFeature() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.compositionRootFeatureReferenceViolations(
+                mapOf(
+                    "composition/src/commonMain/kotlin/AppEntryGraph.kt" to
+                        "package com.xwab.app.composition\n" +
+                        "import com.xwab.app.navigation.Navigator\n" +
+                        "// Entries come from com.xwab.app.feature.browse.navigation through Metro.\n" +
+                        "internal interface AppEntryGraph : AppEntries",
+                ),
+            ),
+        )
+
+        val violations = FeatureFirstRules.compositionRootFeatureReferenceViolations(
+            mapOf(
+                "composition/src/commonMain/kotlin/AppEntryGraph.kt" to
+                    "package com.xwab.app.composition\n" +
+                    "import com.xwab.app.feature.nowplaying.shell.NowPlayingBar\n" +
+                    "val bar = com.xwab.app.feature.browse.navigation.BrowseEntryBindings",
+            ),
+        )
+        assertEquals(2, violations.size)
+        assertTrue(violations.all { it.contains("The composition root names no feature") })
     }
 
     @Test

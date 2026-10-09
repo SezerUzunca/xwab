@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.xwab.app.composition.AppEntryGraphs
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -35,7 +36,7 @@ class MainActivity(private val viewModelFactory: MetroViewModelFactory) : Compon
         super.onCreate(savedInstanceState)
 
         setContent {
-            App(viewModelFactory)
+            App(viewModelFactory, AppEntryGraphs)
         }
     }
 

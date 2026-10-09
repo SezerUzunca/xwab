@@ -20,15 +20,15 @@ import org.gradle.api.tasks.TaskAction
  * 1. A core module may not depend on a feature. Dependencies point one way.
  * 2. A feature may not depend on another feature module. Cross-feature navigation is application
  *    policy: an entry provider exposes an intent callback and `:shared` connects it to a route.
- *    Only `:shared` depends on a feature's `impl` module.
+ *    Only `:composition` depends on a feature's `impl` module.
  * 3. A feature is exactly `:feature:<name>:api` and `:feature:<name>:impl`, both present.
  * 4. A use case in a core module must serve more than one feature. A screen-specific one belongs
  *    to that screen's module, otherwise screen logic leaks into shared capabilities.
  * 5. Each core owns an architecture.properties file declaring its responsibility, feature access,
  *    exhaustive project dependency boundary and complete set of public callable interfaces.
  * 6. All shared production source sets may reference features only at the navigation/composition
- *    boundary, and there only by declarations of a feature's api module. Feature ViewModels reach
- *    the app graph through Metro contributions, so shared DI names no feature type.
+ *    boundary, and there only by declarations of a feature's api module. The composition root
+ *    names no feature at all: feature contributions reach its graphs through Metro.
  * 7. A core capability exposes declarations only from an explicit `port` package; everything else
  *    is internal or private.
  * 8. References crossing between core modules target only `port` packages.
@@ -39,13 +39,14 @@ import org.gradle.api.tasks.TaskAction
  *     graphs; its routes and contracts live in its api module, everything else is internal or
  *     private.
  * 12. Designsystem has no application project dependencies; core cannot
- *     depend on it or on the app shell.
+ *     depend on it, on the app shell or on the composition root.
  * 13. Loading/Ready state types stay inside feature modules. Whether a screen has content yet is
  *     that screen's own question, not a vocabulary every feature has to share.
  * 14. Every directory holding a build script is a module in the build.
- * 15. Every core and feature module is a direct dependency of `:shared`. Metro aggregates
- *     contributions from the compile classpath, so a capability the shell does not declare reaches
- *     no graph, and a feature it does not declare is in no app — neither fails to build.
+ * 15. Every core and feature module is a direct dependency of `:composition`, and every feature
+ *     api module one of `:shared`. Metro aggregates contributions from the compile classpath, so a
+ *     capability the composition root does not declare reaches no graph, and a feature it does not
+ *     declare is in no app — neither fails to build.
  * 16. Every feature route declares an explicit `@SerialName`. The name is what a saved back stack
  *     holds, so left implicit it follows the package and moving the file breaks every restore.
  * 17. Every playback kind a content module registers a resolver under has a route in the app
@@ -133,6 +134,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
                 productionSources(root, "shared"),
                 FeatureFirstRules.featureApiDeclarations(productionSources(root, "feature")),
             ) +
+            FeatureFirstRules.compositionRootFeatureReferenceViolations(productionSources(root, "composition")) +
             FeatureFirstRules.featureVisibilityViolations(productionSources(root, "feature")) +
             FeatureFirstRules.unregisteredViewModelViolations(productionSources(root, "feature")) +
             FeatureFirstRules.featureStateViolations(nonFeatureProductionSources(root)) +
@@ -229,7 +231,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
      * land without any other rule noticing.
      */
     private fun nonFeatureProductionSources(root: File): Map<String, String> =
-        listOf("androidApp", "core", "designsystem", "shared", "testing")
+        listOf("androidApp", "composition", "core", "designsystem", "shared", "testing")
             .fold(emptyMap<String, String>()) { sources, directory ->
                 sources + productionSources(root, directory)
             }

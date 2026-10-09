@@ -150,10 +150,11 @@ jobs:
           fi
 
       # The device target is a separate compilation; linking the framework the iOS app
-      # actually consumes is what proves every module builds for real hardware.
+      # actually consumes is what proves every module builds for real hardware. The composition
+      # root produces it, because it is the module that sees every implementation.
       - name: Link the iPhone ARM64 framework
         timeout-minutes: 30
-        run: set -o pipefail; ./gradlew -PenableIos=true :shared:linkDebugFrameworkIosArm64 --stacktrace 2>&1 | tee -a gradle-output.log
+        run: set -o pipefail; ./gradlew -PenableIos=true :composition:linkDebugFrameworkIosArm64 --stacktrace 2>&1 | tee -a gradle-output.log
 
       # The kept results above only exist once a test has run, and they download from the same
       # blob storage a job log does. Annotations come back from the API itself, so a failure that

@@ -50,7 +50,7 @@ import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
-import com.xwab.app.composition.appEntryGraph
+import androidx.navigation3.runtime.result.ResultEventBus
 import com.xwab.app.composition.appEntryMetadata
 import com.xwab.app.TestRootOwner
 import com.xwab.app.designsystem.components.LocalBackButtonVisibility
@@ -464,8 +464,8 @@ private class NavigationHarness {
     @Composable
     private fun NavigationContent() {
         val navigationState = rememberNavigationState()
-        val graph = remember(navigationState) { appEntryGraph(navigationState) }
-        val navigator = graph.navigator
+        val resultEventBus = remember(navigationState) { ResultEventBus() }
+        val navigator = remember(navigationState) { Navigator(navigationState, resultEventBus) }
         val provider: (NavKey) -> NavEntry<NavKey> = remember {
             { route -> NavEntry(route) { Entry(route) } }
         }
@@ -479,7 +479,7 @@ private class NavigationHarness {
                 provider,
                 ::appEntryMetadata,
                 navigator::goUp,
-                graph.resultEventBus,
+                resultEventBus,
             ),
             selectedTab = navigationState.topLevelRoute,
             onSelectTab = navigator::selectTab,

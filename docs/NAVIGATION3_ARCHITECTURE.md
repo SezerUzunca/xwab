@@ -18,7 +18,7 @@ The recipes repository's main branch may use alpha or snapshot APIs. The code he
 
 | Component                                                              | Responsibility                                                                                                                                                                                                                                                                                                                                                                  |
 | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `composition/AppEntryGraph`, `AppEntryProvider` | Collect feature installers through Metro, supply outgoing-intent callback mappings, and build the entry provider |
+| `composition/AppEntries`, `AppEntryCallbacks`, `AppEntryProvider` | The contract the composition root's `AppEntryGraph` fulfils with the features' installers and bar, the outgoing-intent callback mappings it collects with them, and the entry provider built from the result |
 | `App`                                                                  | Theme                                                                                                                                                                                                                                                                                                                                                                           |
 | `composition/AppNavigationHost`                                        | Connect feature entry contracts, callbacks, and the now-playing strip                                                                                                                                                                                                                                                                                                           |
 | `composition/AppEntryMetadata`                                         | Cross-feature presentation policy and official pane metadata                                                                                                                                                                                                                                                                                                                    |
@@ -36,14 +36,15 @@ The recipes repository's main branch may use alpha or snapshot APIs. The code he
 Feature entry registration uses the Metro modular recipe's set multibinding and scope discovery:
 public binding containers in each feature's impl module provide `EntryProviderScope<NavKey>.() -> Unit` values
 with `@Provides @IntoSet` and `@ContributesTo(EntryProviderScope::class)`.
-`composition/AppEntryGraph` aggregates that scope and collects the set using its internal
-`EntryProviderInstaller` alias. Route serializer modules are contributed the same way to
+`AppEntryGraph`, in the `:composition` module that sees feature implementations, aggregates that
+scope and hands the set to this module as `AppEntries`. Route serializer modules are contributed the same way to
 `NavKey::class` and collected by `navigation/RouteSerializersGraph` into `FEATURE_SERIALIZERS`;
 that graph is separate because back stacks are restored before the navigator, and its callbacks,
 exist. Navigation 3's own types are the scope markers, so no common module is needed.
-`AppEntryGraph` supplies each feature's intent callbacks, and
-`composition/AppEntryProvider` installs every contribution. The host remembers one entry graph per restored state; that graph builds the single `Navigator`
-the host and the callbacks share; ViewModels still resolve when entries are drawn. Set iteration defines no tab or restoration
+`composition/AppEntryCallbacks` contributes each feature's intent callbacks to the same scope, and
+`composition/AppEntryProvider` installs every contribution. The host builds the single `Navigator`
+over each restored state and passes it to the entry graph, so the host and the callbacks share it;
+ViewModels still resolve when entries are drawn. Set iteration defines no tab or restoration
 policy. See [Metro and Navigation 3](METRO_NAVIGATION3_ARCHITECTURE.md) for the upstream mapping.
 
 The same entry graph supplies one scoped `ResultEventBus` to the navigator and every tab's

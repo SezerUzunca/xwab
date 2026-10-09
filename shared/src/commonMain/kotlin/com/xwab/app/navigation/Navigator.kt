@@ -1,20 +1,19 @@
 package com.xwab.app.navigation
 
-import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.result.ResultEventBus
-import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.SingleIn
 
 /**
  * App policies around the Navigation 3 stacks; features receive only intent callbacks.
  *
- * Built by the host's entry graph over the stacks the host restored, one per graph. Its result bus
- * is also provided to the entries: a root reselection sends that tab's route as a scroll signal.
+ * Built by the navigation host over the stacks it restored, one per host. Its result bus is the
+ * one the host hands to every tab's entries: a root reselection sends that tab's route as a scroll
+ * signal.
+ *
+ * The type is public so the composition root's entry graph can take one as its input and hand it
+ * to the shell's callbacks. Nothing outside this module can build one or call it.
  */
-@Inject
-@SingleIn(EntryProviderScope::class)
-internal class Navigator(
+class Navigator internal constructor(
     private val state: NavigationState,
     private val resultEventBus: ResultEventBus,
 ) {
@@ -29,7 +28,7 @@ internal class Navigator(
      * keeps Rain in history; Material's list–detail scene skips both on Back, because they share a
      * pane (`PopUntilCurrentDestinationChange`, set where the scene strategy is created).
      */
-    fun navigate(key: NavKey) {
+    internal fun navigate(key: NavKey) {
         if (key in state.backStacks) {
             if (key != state.topLevelRoute) clearReselection()
             state.topLevelRoute = key
@@ -42,7 +41,7 @@ internal class Navigator(
     }
 
     /** Reselect returns to the root; another tap at the root asks the list to scroll to the start. */
-    fun selectTab(key: NavKey) {
+    internal fun selectTab(key: NavKey) {
         require(key in state.backStacks) { "A tab needs its own back stack: $key" }
         if (key != state.topLevelRoute) navigate(key)
         else {
@@ -61,7 +60,7 @@ internal class Navigator(
      * popped to instead, and keeps the context it was opened in. Both changes land before the next
      * frame, so no intermediate destination is ever drawn.
      */
-    fun replaceCurrent(key: NavKey) {
+    internal fun replaceCurrent(key: NavKey) {
         val stack = state.currentBackStack
         if (key !in stack && key !in state.backStacks && stack.size > 1) stack.subList(1, stack.size).clear()
         navigate(key)
@@ -73,7 +72,7 @@ internal class Navigator(
      * The now-playing bar's way to an item: a sound opens under Sounds and a story under Stories,
      * whichever tab the listener is on. Any other tab keeps its stack exactly as it was.
      */
-    fun openInTab(tab: NavKey, key: NavKey) {
+    internal fun openInTab(tab: NavKey, key: NavKey) {
         require(tab in state.backStacks) { "A tab needs its own back stack: $tab" }
         navigate(tab)
         replaceCurrent(key)
@@ -87,7 +86,7 @@ internal class Navigator(
      * pane and go too, as Back would skip them. A destination not in the current stack, or its
      * root, falls back to [goBack].
      */
-    fun goUp(from: NavKey) {
+    internal fun goUp(from: NavKey) {
         clearReselection()
         val stack = state.currentBackStack
         var index = stack.indexOf(from)
@@ -95,7 +94,7 @@ internal class Navigator(
         if (index > 0) stack.subList(index, stack.size).clear() else goBack()
     }
 
-    fun goBack() {
+    internal fun goBack() {
         clearReselection()
         val stack = state.currentBackStack
         when {
