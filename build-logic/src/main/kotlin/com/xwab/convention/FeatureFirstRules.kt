@@ -12,6 +12,15 @@ internal object FeatureFirstRules {
     /** The one module that sees every implementation and declares the graphs that collect them. */
     const val COMPOSITION_ROOT = ":composition"
 
+    /** The Android application: it starts the process and hosts the shell over the root's graph. */
+    const val ANDROID_APP = ":androidApp"
+
+    /** What the Android application builds on: the graphs it keeps and the UI it hosts. */
+    private val ANDROID_APP_DEPENDENCIES = setOf(COMPOSITION_ROOT, SHELL_MODULE)
+
+    /** Drawing and hosting a screen: Compose UI, and the Activity that holds it on Android. */
+    private val UI_HOST_IMPORT = Regex("""^(?:androidx\.compose|androidx\.activity)\.""")
+
     val USE_CASE_DECLARATION =
         Regex("""^\s*(?:internal\s+|public\s+)?class\s+(\w+UseCase)\b""", RegexOption.MULTILINE)
 
@@ -107,6 +116,10 @@ internal object FeatureFirstRules {
         } + if (COMPOSITION_ROOT !in modules) listOf(
             "The composition-root rule names $COMPOSITION_ROOT, which is not a module in this build. " +
                 "Update COMPOSITION_ROOT.",
+        ) else {
+            emptyList()
+        } + if (ANDROID_APP !in modules) listOf(
+            "The Android-app rule names $ANDROID_APP, which is not a module in this build. Update ANDROID_APP.",
         ) else emptyList()
 
     fun corePolicyViolations(
@@ -530,6 +543,26 @@ internal object FeatureFirstRules {
         }.sorted()
 
     /**
+     * The composition root builds graphs and hands them on; it draws nothing and hosts nothing.
+     *
+     * The shell draws — `App`, and on iOS the view controller that holds it — and the platform apps
+     * start the process, keep the graph and host that UI: the Android Activity lives in
+     * `androidApp`. A Compose or Activity import here would put one of those jobs back beside the
+     * graphs, where every implementation is in reach of it.
+     */
+    fun compositionRootUiViolations(sources: Map<String, String>): List<String> =
+        sources.flatMap { (path, source) ->
+            IMPORT.findAll(source)
+                .map { it.groupValues[1] }
+                .filter { UI_HOST_IMPORT.containsMatchIn(it) }
+                .map { import ->
+                    "$path imports $import. The composition root draws nothing and hosts nothing: UI " +
+                        "belongs to $SHELL_MODULE, and the Android Activity to $ANDROID_APP."
+                }
+                .toList()
+        }.sorted()
+
+    /**
      * Every content kind the app can play has somewhere to open.
      *
      * This replaces a guarantee the compiler used to give. While a playback kind was a closed enum,
@@ -850,6 +883,11 @@ internal object FeatureFirstRules {
                 if (isImplementation(dependency) && module != COMPOSITION_ROOT) {
                     violations += "$module depends on $dependency. Only $COMPOSITION_ROOT installs an " +
                         "implementation; compile against the api module instead."
+                } else if (module == ANDROID_APP && dependency !in ANDROID_APP_DEPENDENCIES) {
+                    violations += "$module depends on $dependency. The Android app hosts the shell's UI " +
+                        "over the composition root's graph and builds on those two alone: " +
+                        "${ANDROID_APP_DEPENDENCIES.sorted()}. What it needs from a capability or a " +
+                        "feature reaches it through them."
                 }
             }
 

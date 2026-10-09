@@ -86,8 +86,12 @@ bootstrap path, not only on the Metro annotations on their constructors:
 The launcher `RecipePickerActivity` selects between these recipe Activities.
 Its UI and the shared colors, content wrappers and edge-to-edge helpers are demo
 presentation support. XWAB uses the same MetroX Activity injection for its one launcher
-Activity, with the graph and that Activity in `:composition`; iOS has no equivalent and builds its
-graph in `MainViewController`.
+Activity, and, as in the sample, the application module declares the graph MetroX reads and
+contributes the Activity to a scope of its own. That graph, `AndroidComponentGraph` in
+`androidApp`, holds only the Android components and includes the application graph `:composition`
+declares; the application graph cannot collect the Activity, which sits above it. iOS has no
+equivalent: the Swift `App` creates the runtime holding the iOS graph once and hands it to each
+scene's `MainViewController`.
 
 ## Responsibility boundaries
 
@@ -302,8 +306,9 @@ scope, and describes physical `api` / `impl` modules. XWAB uses `NavKey`, the sa
 `api` / `impl` feature modules and composition-owned saved tab state. Tab order,
 the start destination and route wire formats remain explicit and independent of
 set iteration. On Android, `MainActivity` is constructor-injected through MetroX as in the
-recipe; in the composition root, both platforms then hand the same ViewModel factory and entry
-graph factory to the shell's `App` root.
+recipe; both platforms then hand the same ViewModel factory and entry graph factory to the shell's
+`App` root — the Activity in `androidApp`, and on iOS the composition root through the shell's
+`AppViewController`.
 
 XWAB splits each feature into `api` and `impl` as the recipe's README proposes, with
 one difference: the recipe's split exists so a feature can navigate through another

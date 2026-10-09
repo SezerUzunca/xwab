@@ -1,7 +1,20 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+/**
+ * The Android application: the process and the screen the platform starts, and the settings only
+ * an application can state — its manifest, its identity, its release build. It hosts what the
+ * composition root builds in the shell's UI, and depends on those two modules only.
+ *
+ * Metro runs here for one small graph of its own, the components Android constructs (the launcher
+ * Activity); every other module's Metro and Compose setup stays in its convention plugin, since a
+ * compiler plugin runs per compilation and one project may not configure another.
+ */
 plugins {
     alias(libs.plugins.androidApplication)
+    // `MainActivity` draws the shell's `App`.
+    alias(libs.plugins.composeCompiler)
+    // `AndroidComponentGraph`, which builds `MainActivity`.
+    alias(libs.plugins.metro)
     // Reports this module's project dependencies for `checkArchitecture`, as every module does.
     id("xwab.architecture.module")
     // detekt, as every module applies it.
@@ -14,12 +27,20 @@ kotlin {
     }
 }
 dependencies {
+    // The application graph, which the component graph includes.
     implementation(projects.composition)
+    // The shell's `App`, which `MainActivity` draws.
+    implementation(projects.shared)
 
-    // `MainApplication` hands the graph to MetroX's AppComponentFactory, which builds the Activity.
+    // MetroX's AppComponentFactory, merged in from its manifest, builds `MainActivity` from the
+    // component graph `MainApplication` hands it.
     implementation(libs.metrox.android)
+    implementation(libs.metrox.viewmodel)
+    implementation(libs.androidx.activity.compose)
 
     debugImplementation(libs.compose.uiTooling)
+
+    testImplementation(libs.kotlin.test.junit)
 }
 
 android {

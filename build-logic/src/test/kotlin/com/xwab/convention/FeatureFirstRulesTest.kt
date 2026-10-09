@@ -617,9 +617,11 @@ class FeatureFirstRulesTest {
     @Test
     fun fixedApplicationStructureStillDetectsStaleRules() {
         val modules = FeatureFirstRules.INDEPENDENT_SUPPORT_MODULES + FeatureFirstRules.SHELL_MODULE +
-            FeatureFirstRules.COMPOSITION_ROOT
+            FeatureFirstRules.COMPOSITION_ROOT + FeatureFirstRules.ANDROID_APP
         assertEquals(emptyList(), FeatureFirstRules.staleRuleViolations(modules))
-        assertEquals(3, FeatureFirstRules.staleRuleViolations(emptySet()).size)
+        assertEquals(4, FeatureFirstRules.staleRuleViolations(emptySet()).size)
+        assertTrue(FeatureFirstRules.staleRuleViolations(modules - ":androidApp")
+            .single().contains("ANDROID_APP"))
         assertTrue(FeatureFirstRules.staleRuleViolations(modules - ":designsystem")
             .single().contains("INDEPENDENT_SUPPORT_MODULES"))
         assertTrue(FeatureFirstRules.staleRuleViolations(modules - ":shared")
@@ -1283,6 +1285,54 @@ class FeatureFirstRulesTest {
         )
         assertEquals(2, violations.size)
         assertTrue(violations.all { it.contains("The composition root names no feature") })
+    }
+
+    @Test
+    fun theCompositionRootDrawsNothing() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.compositionRootUiViolations(
+                mapOf(
+                    "composition/src/iosMain/kotlin/MainViewController.kt" to
+                        "package com.xwab.app\n" +
+                        "import com.xwab.app.composition.AppEntryGraphs\n" +
+                        "import platform.UIKit.UIViewController\n" +
+                        "// Not `import androidx.compose.ui.window.ComposeUIViewController`: the shell's job.\n" +
+                        "fun MainViewController(runtime: AppRuntime): UIViewController = TODO()",
+                    "composition/src/commonMain/kotlin/AppEntryGraph.kt" to
+                        "package com.xwab.app.composition\n" +
+                        "import androidx.navigation3.runtime.EntryProviderScope\n",
+                ),
+            ),
+        )
+
+        val violations = FeatureFirstRules.compositionRootUiViolations(
+            mapOf(
+                "composition/src/iosMain/kotlin/MainViewController.kt" to
+                    "package com.xwab.app\n" +
+                    "import androidx.compose.ui.window.ComposeUIViewController\n",
+                "composition/src/androidMain/kotlin/MainActivity.kt" to
+                    "package com.xwab.app\n" +
+                    "import androidx.activity.ComponentActivity\n" +
+                    "import androidx.activity.compose.setContent\n",
+            ),
+        )
+        assertEquals(3, violations.size)
+        assertTrue(violations.all { it.contains("The composition root draws nothing and hosts nothing") })
+    }
+
+    @Test
+    fun theAndroidAppBuildsOnTheCompositionRootAndTheShellAlone() {
+        assertEquals(
+            emptyList(),
+            dependencyViolations(mapOf(":androidApp" to listOf(":composition", ":shared"))),
+        )
+
+        val violations = dependencyViolations(
+            mapOf(":androidApp" to listOf(":composition", ":core:sound:api", ":feature:sound:api", ":designsystem")),
+        )
+        assertEquals(3, violations.size)
+        assertTrue(violations.all { it.contains("The Android app hosts the shell's UI") })
     }
 
     @Test

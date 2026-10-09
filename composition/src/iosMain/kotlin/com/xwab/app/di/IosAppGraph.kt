@@ -12,5 +12,5 @@ import dev.zacsweers.metro.createGraph
 @DependencyGraph(AppScope::class)
 interface IosAppGraph : AppGraph
 
-/** Built once, by the view controller the app starts from. */
-fun createAppGraph(): AppGraph = createGraph<IosAppGraph>()
+/** Built once, for the runtime the iOS app creates at launch; Swift sees only that runtime. */
+internal fun createAppGraph(): AppGraph = createGraph<IosAppGraph>()

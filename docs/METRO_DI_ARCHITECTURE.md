@@ -1,6 +1,6 @@
 # Metro DI architecture and scope
 
-October 7, 2026. This document describes the source tree reviewed on this date, with Metro 1.4.5, including the platform-specific network graphs. It separates Metro's dependency-injection mechanisms from this project's port boundaries and resource ownership. Navigation composition and entry lifetimes are documented in [Navigation 3 architecture](NAVIGATION3_ARCHITECTURE.md).
+October 9, 2026. This document describes the source tree reviewed on this date, with Metro 1.4.5, including the platform-specific network graphs and the platform apps' ownership of the application graph. It separates Metro's dependency-injection mechanisms from this project's port boundaries and resource ownership. Navigation composition and entry lifetimes are documented in [Navigation 3 architecture](NAVIGATION3_ARCHITECTURE.md).
 
 ## Versions
 
@@ -19,6 +19,7 @@ The version catalog is the source of truth. The official documentation's latest 
 | `xwab.kmp.feature.api` | Configure a feature's contract module: routes, their serializer contributions and callback / shell chrome contracts, with no UI toolkit or ViewModel |
 | `xwab.kmp.feature.impl` | Configure feature contributions, including the diagnostic policy for internal assisted ViewModel factories, and add the sibling api module |
 | Android / iOS application graph | Aggregate installed `AppScope` contributions and expose the MetroX ViewModel integration |
+| `AndroidComponentGraph` | In `androidApp`: include the application graph and build the Android components MetroX's `AppComponentFactory` asks for — the launcher Activity |
 | Internal capability graph | Construct and connect one core module's implementation, SDK objects and internal services |
 | `*GraphAdapter` | Contribute a capability port to the application graph and pass external inputs into the local graph |
 | `*GraphHolder` | Build one local graph shared by multiple bridges; used by sound and story |
@@ -41,7 +42,8 @@ The rules are written in the root README, each core module's `architecture.prope
 - Features consume only capabilities permitted by those contracts. Infrastructure modules such as network, delivery and playback are not directly feature-accessible.
 - Each core capability is an `api` module, holding its `.port` package alone, and an `impl` module, holding the adapters and the internal module graph; its `architecture.properties` sits beside them. Every consumer compiles against api modules; a capability's impl depends on its own api and the api of the capabilities it declares; only `:composition` depends on an impl. Repository/provider abstraction layers and Koin are not part of this architecture.
 - Each feature is an `api` module and an `impl` module. The api module is the feature's public composition surface: routes, callback contracts and shell chrome contracts. The impl module keeps its types internal and exposes only the binding containers it contributes with `@ContributesTo`; only `:composition` depends on it.
-- `:composition` is the composition root: the only module that sees every implementation, so it declares the graphs that collect them and names no feature itself. `:shared`, the app shell, depends on feature api modules only and receives what the graphs build through `App`'s parameters.
+- `:composition` is the composition root: the only module that sees every implementation, so it declares the graphs that collect them and names no feature itself. It draws nothing and hosts nothing. `:shared`, the app shell, depends on feature api modules only and receives what the graphs build through `App`'s parameters.
+- The platform apps own what only an application decides: `androidApp` and `iosApp` create the application graph once, keep it for the process, state the app's identity (manifest, Info.plist) and host the shell's UI. `androidApp` depends on `:composition` and `:shared` alone. Metro's Gradle configuration stays in the convention plugins: the compiler plugin runs per compilation, in the module whose code it compiles, and Gradle's isolated projects mode forbids one project configuring another.
 
 Kotlin visibility and Gradle dependency declarations establish the boundaries; the architecture task checks them. Metro supplies objects within those boundaries. A compiling graph alone does not prove that a module obeys its responsibility.
 
@@ -49,7 +51,9 @@ Kotlin visibility and Gradle dependency declarations establish the boundaries; t
 
 `AppGraph` extends MetroX's `ViewModelGraph`. `AndroidAppGraph` and `IosAppGraph` declare `@DependencyGraph(AppScope::class)` and implement that shared surface.
 
-Android provides its application `Context` through `AndroidAppGraph.Factory`, using `@Provides @GraphPrivate`. `MainApplication` implements MetroX's `MetroApplication` and creates the application graph once, lazily. `AndroidAppGraph` also extends `MetroAppComponentProviders`, so MetroX's `AppComponentFactory` (API 28+, hence `minSdk` 28) constructor-injects `MainActivity`, contributed with `@ActivityKey`; it receives the `MetroViewModelFactory` and passes it to `App` with `AppEntryGraphs`, the factory for each navigation host's entry graph. The Activity lives in `:composition`'s Android sources beside the graph, because only the module declaring a graph sees its contributions. The device-test APKs of `:composition` (its graph tests and the app integration scenario) and `:shared` (the shell's navigation tests, which resolve real entries through the composition root) restore AndroidX's default factory, since neither has a `MetroApplication`; lint's `Instantiatable` check is silenced on the Activity as in Metro's Android sample. iOS provides no factory input: `MainViewController.kt` holds one lazy application graph reused by its controllers. Platform capability graphs derive their own native values.
+Android provides its application `Context` through `AndroidAppGraph.Factory`, using `@Provides @GraphPrivate`. `MainApplication`, in `androidApp`, implements MetroX's `MetroApplication` and creates the application graph once, lazily. MetroX's `AppComponentFactory` (API 28+, hence `minSdk` 28) constructor-injects `MainActivity` from `AndroidComponentGraph`, which `androidApp` declares beside the Activity: a graph collects only its own module's compile classpath, and the Activity sits above `:composition`. That graph implements `MetroAppComponentProviders`, includes the application graph through `@Includes` — whose accessors, the `MetroViewModelFactory` among them, become its bindings — and has its own scope, `AndroidComponentScope`, as Metro's Android sample contributes Activities to an `ActivityScope`; under `AppScope` it would also collect the composition root's own contributions. The Activity passes the factory to `App` with `AppEntryGraphs`, the factory for each navigation host's entry graph. MetroX Android is a dependency of `androidApp` alone, so the device-test APKs of `:composition` and `:shared` keep AndroidX's default component factory. Lint's `Instantiatable` check is silenced on the Activity as in Metro's Android sample.
+
+iOS provides no factory input. The Swift `App` calls `createAppRuntime()` once at launch and keeps the `AppRuntime` it returns — an opaque holder of the iOS application graph, so the framework header carries one type rather than the graph's bindings — and passes it to `MainViewController(runtime:)` for each scene. That function hands the graph's ViewModel factory and `AppEntryGraphs` to the shell's `AppViewController`, which wraps `App` in a `ComposeUIViewController`. Platform capability graphs derive their own native values.
 
 `composition/build.gradle.kts` includes all core and feature modules from the module lists discovered by settings, and `shared/build.gradle.kts` the feature api modules; none is listed by hand. The shell's tests also depend on `:composition` and the modules it installs, because a dynamic graph is generated from its own compilation's classpath; test configurations are not production dependencies. Metro discovers contributions from the compilation classpath: annotating a class in an uninstalled module does not install that module. Architecture checks enforce module registration and dependency direction.
 
@@ -293,7 +297,8 @@ The following tests exist in the current source tree. Listing them describes cov
 | `AndroidFavoritesGraphTest`, `IosFavoritesGraphTest` | Lazy file callback and adapter identity; unmodified platform graphs write a favorite to disk and read it back |
 | `AndroidPlaybackGraphTest`, `IosPlaybackGraphTest` | Platform graph construction and facade identity on the required main thread; construction off the main thread is refused |
 | `ServiceSleepTimerTest` | The service's sleep timer through its injected clock and scheduler: refusal of a past deadline, the fade, cancel and restart |
-| `AndroidAppGraphTest`, `IosAppGraphTest` | In `:composition`: production application graph and MetroX map/factory availability |
+| `AndroidAppGraphTest`, `IosAppGraphTest` | In `:composition`: production application graph and MetroX ViewModel map/factory availability |
+| `AndroidComponentGraphTest` | In `androidApp`, on the host: the launcher Activity is in the component graph's map MetroX reads, which a contribution to the wrong scope would leave empty and crash only at launch |
 | `NavigationCompositionTest` | MetroX resolution with entry owners, restoration, saved-state handles and root chrome ownership; typed tab reselection through the host's shared result bus, queued-event cleanup, and delivery to a receiver that stays composed through a cleanup |
 | `AppEntryCallbacksTest` | The shell's callback container on a real navigator: each feature intent's destination and id, and detail Back callbacks |
 | `AndroidAppIntegrationTest`, `IosAppIntegrationTest` | In `:composition`, where every feature's resources reach the test bundle: the real app root on the production graph, only the catalog replaced through a dynamic graph: repeated Browse reselection scrolls the real list to its start, then a category tap reaches the Category screen with its assisted ViewModel. A second scenario opens every screen — the sound, Favorites, Stories and a story — with favourites and the story catalog replaced as well, so nothing is written to the device |
@@ -336,6 +341,8 @@ Avoid creating public containers outside `.port` or moving SDK configuration int
 - [Metro 1.4.5 scopes](https://github.com/ZacSweers/metro/blob/1.4.5/docs/scopes.md)
 - [Metro 1.4.5 bindings, qualifiers and optional bindings](https://github.com/ZacSweers/metro/blob/1.4.5/docs/bindings.md)
 - [Metro 1.4.5 aggregation and contribution providers](https://github.com/ZacSweers/metro/blob/1.4.5/docs/aggregation.md)
+- [MetroX Android at 1.4.5](https://zacsweers.github.io/metro/1.4.5/metrox-android/)
+- [Gradle isolated projects: no project configures another](https://docs.gradle.org/current/userguide/isolated_projects.html)
 - [MetroX ViewModel at 1.4.5](https://zacsweers.github.io/metro/1.4.5/metrox-viewmodel/)
 - [MetroX ViewModel Compose at 1.4.5](https://zacsweers.github.io/metro/1.4.5/metrox-viewmodel-compose/)
 - [MetroX ViewModel sources at 1.4.5](https://github.com/ZacSweers/metro/tree/1.4.5/metrox-viewmodel)
@@ -354,6 +361,8 @@ Avoid creating public containers outside `.port` or moving SDK configuration int
 - [Architecture task](../build-logic/src/main/kotlin/com/xwab/convention/CheckArchitectureTask.kt)
 - [Architecture rule implementations](../build-logic/src/main/kotlin/com/xwab/convention/FeatureFirstRules.kt)
 - [Shared application graph surface](../composition/src/commonMain/kotlin/com/xwab/app/di/AppGraph.kt)
+- [Android component graph](../androidApp/src/main/kotlin/com/xwab/app/AndroidComponentGraph.kt)
+- [iOS application runtime](../composition/src/iosMain/kotlin/com/xwab/app/AppRuntime.kt)
 - [Application ViewModel factory](../composition/src/commonMain/kotlin/com/xwab/app/di/AppViewModelFactory.kt)
 - [Android workflow](../.github/workflows/android.yml)
 - [iOS workflow](../.github/workflows/ios.yml)

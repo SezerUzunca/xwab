@@ -1,12 +1,13 @@
 /**
  * The composition root: the one module that sees every installed implementation. It declares the
- * application graphs and the navigation host's entry graph, constructs the Android launcher
- * Activity and the iOS view controller, and produces the iOS framework.
+ * application graphs and the navigation host's entry graph, and produces the iOS framework, whose
+ * Swift-facing surface is the runtime the iOS app keeps and the view controller made over it.
  *
  * Metro collects contributions from the compile classpath of the module that declares a graph, so
  * the graphs live here, beside every core and feature module, and the shell they feed (`:shared`)
- * keeps feature implementations off its own classpath. There is no UI here beyond handing the
- * shell's `App` what the graphs build.
+ * keeps feature implementations off its own classpath. It draws nothing and hosts nothing: the
+ * shell draws, and the platform apps — `androidApp`, `iosApp` — start the process, keep the graph
+ * and host the shell's UI.
  */
 plugins {
     id("xwab.kmp.compose")
@@ -47,17 +48,10 @@ kotlin {
                 val modules = gradle.extra[group] as List<String>
                 modules.forEach { implementation(project(it)) }
             }
-            implementation(libs.compose.ui)
             implementation(libs.navigation3.runtime)
-            // The graph owns the ViewModel factory that feature entries read from composition.
-            implementation(libs.metrox.viewmodel)
-        }
-        androidMain.dependencies {
-            // The launcher Activity lives here, beside the graph that constructs it: Metro builds
-            // app components through MetroX's AppComponentFactory (API 28+), and only the module
-            // declaring the graph sees its contributions.
-            implementation(libs.metrox.android)
-            implementation(libs.androidx.activity.compose)
+            // The graph owns the ViewModel factory that feature entries read from composition. Its
+            // type is in `AppGraph`'s signature, which the platform apps read.
+            api(libs.metrox.viewmodel)
         }
         // The application graph checks and the app's integration scenario, written once for the two
         // places a production graph can be built: an Android device, which has a `Context`, and the
@@ -67,6 +61,7 @@ kotlin {
         val graphTest = create("graphTest") {
             dependsOn(commonTest.get())
             dependencies {
+                implementation(libs.compose.ui)
                 implementation(libs.compose.uiTest)
                 implementation(libs.androidx.lifecycle.viewmodelCompose)
                 implementation(libs.navigation3.ui)

@@ -147,6 +147,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
             leakedUseCaseViolations(root, graph.keys) +
             FeatureFirstRules.sharedFeatureReferenceViolations(productionSources(root, "shared")) +
             FeatureFirstRules.compositionRootFeatureReferenceViolations(productionSources(root, "composition")) +
+            FeatureFirstRules.compositionRootUiViolations(productionSources(root, "composition")) +
             FeatureFirstRules.featureVisibilityViolations(productionSources(root, "feature")) +
             FeatureFirstRules.featurePackageOwnershipViolations(productionSources(root, "feature")) +
             FeatureFirstRules.unregisteredViewModelViolations(productionSources(root, "feature")) +

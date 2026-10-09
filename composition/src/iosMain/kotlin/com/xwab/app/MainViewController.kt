@@ -1,10 +1,8 @@
 package com.xwab.app
 
-import androidx.compose.ui.window.ComposeUIViewController
 import com.xwab.app.composition.AppEntryGraphs
-import com.xwab.app.di.createAppGraph
+import platform.UIKit.UIViewController
 
-/** Built once for the process: the graph outlives every view controller made from it. */
-private val appGraph by lazy { createAppGraph() }
-
-fun MainViewController() = ComposeUIViewController { App(appGraph.metroViewModelFactory, AppEntryGraphs) }
+/** The view controller each scene of the iOS app shows: the shell's UI over [runtime]'s graph. */
+fun MainViewController(runtime: AppRuntime): UIViewController =
+    AppViewController(runtime.graph.metroViewModelFactory, AppEntryGraphs)

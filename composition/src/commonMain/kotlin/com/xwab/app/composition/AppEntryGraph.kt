@@ -27,7 +27,10 @@ internal interface AppEntryGraph : AppEntries {
     }
 }
 
-/** One entry graph per navigation host. Public for the shell's tests, which draw real entries. */
+/**
+ * One entry graph per navigation host. Public for the Android app, which hands it to the shell's
+ * `App`, and for the shell's tests, which draw real entries.
+ */
 object AppEntryGraphs : AppEntriesFactory {
     override fun create(navigator: Navigator): AppEntries =
         createGraphFactory<AppEntryGraph.Factory>().create(navigator)
