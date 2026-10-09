@@ -62,17 +62,11 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlinx.serialization.json)
-            // The shell's tests draw and resolve real entries and build the real application graph,
-            // so they run against the composition root and everything it installs. Metro generates a
-            // test's dynamic graph from that test's own classpath, which is why the installed modules
-            // are listed here as well. Test configurations are not production dependencies, so this
-            // does not give the shell's own code a way to the implementations.
+            // Two of the shell's tests resolve real entries (every saved route has a screen; tab
+            // identity), which only the composition root's entry graph can build. Test
+            // configurations are not production dependencies, so this gives the shell's own code no
+            // way to the implementations.
             implementation(projects.composition)
-            listOf("coreModules", "featureModules").forEach { group ->
-                @Suppress("UNCHECKED_CAST")
-                val modules = gradle.extra[group] as List<String>
-                modules.forEach { implementation(project(it)) }
-            }
         }
         // Tests that need a real platform: a Compose host (entry stores, recreation, the adaptive
         // layout, platform Back) or its saved-state format (a Bundle on Android). Written once, run on
@@ -82,8 +76,6 @@ kotlin {
             dependencies {
                 implementation(libs.compose.uiTest)
                 implementation(libs.androidx.lifecycle.viewmodelCompose)
-                // The integration scenario replaces the downloaded catalog with this module's fake.
-                implementation(projects.testing.sound)
             }
         }
         getByName("androidDeviceTest") {
@@ -91,10 +83,6 @@ kotlin {
             dependencies {
                 implementation(libs.androidx.test.core)
                 implementation(libs.androidx.test.runner)
-                // The integration test regenerates the Android application graph, which holds the
-                // composition root's launcher Activity under MetroX's `@ActivityKey`; Metro needs that
-                // map key on this compilation's classpath to read the contribution.
-                implementation(libs.metrox.android)
                 // Compose's older transitive Espresso uses InputManager reflection removed in API 37.
                 implementation(libs.androidx.test.espressoCore)
             }

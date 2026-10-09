@@ -59,17 +59,28 @@ kotlin {
             implementation(libs.metrox.android)
             implementation(libs.androidx.activity.compose)
         }
-        // The application graph checks, written once for the two places a production graph can be
-        // built: an Android device, which has a `Context`, and the iOS simulator. The host tests
-        // have neither, so they do not include this set.
+        // The application graph checks and the app's integration scenario, written once for the two
+        // places a production graph can be built: an Android device, which has a `Context`, and the
+        // iOS simulator. The host tests have neither, so they do not include this set. The scenario
+        // draws real screens, so it belongs here: Compose bundles an iOS test's resources from this
+        // module's own compilations, and only this module's main classpath holds every feature.
         val graphTest = create("graphTest") {
             dependsOn(commonTest.get())
+            dependencies {
+                implementation(libs.compose.uiTest)
+                implementation(libs.androidx.lifecycle.viewmodelCompose)
+                implementation(libs.navigation3.ui)
+                // The scenario replaces the downloaded catalog with this module's fake.
+                implementation(projects.testing.sound)
+            }
         }
         getByName("androidDeviceTest") {
             dependsOn(graphTest)
             dependencies {
                 implementation(libs.androidx.test.core)
                 implementation(libs.androidx.test.runner)
+                // Compose's older transitive Espresso uses InputManager reflection removed in API 37.
+                implementation(libs.androidx.test.espressoCore)
             }
         }
         if (gradle.extra["enableIos"] as Boolean) {

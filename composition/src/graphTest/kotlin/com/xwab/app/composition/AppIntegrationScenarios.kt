@@ -3,6 +3,10 @@
 package com.xwab.app.composition
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.assertIsDisplayed
@@ -22,8 +26,6 @@ import com.xwab.app.composition.OfflineCatalog.Companion.CATEGORY
 import com.xwab.app.composition.OfflineCatalog.Companion.FILLER_CATEGORIES
 import com.xwab.app.composition.OfflineCatalog.Companion.TRACK
 import com.xwab.app.di.AppGraph
-import com.xwab.app.navigation.TOP_LEVEL_DESTINATIONS
-import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Duration.Companion.minutes
 
 /**
@@ -45,9 +47,7 @@ internal fun realEntriesOpenACategoryFromBrowse(createGraph: (OfflineCatalog) ->
 ) {
     val graph = createGraph(OfflineCatalog())
     val owner = runOnIdle { TestRootOwner() }
-    var browseLabel = ""
     setContent {
-        browseLabel = stringResource(TOP_LEVEL_DESTINATIONS.first().label)
         CompositionLocalProvider(
             LocalViewModelStoreOwner provides owner,
             LocalLifecycleOwner provides owner,
@@ -64,7 +64,7 @@ internal fun realEntriesOpenACategoryFromBrowse(createGraph: (OfflineCatalog) ->
         // already disposed, while Android reports it as not displayed.
         onNodeWithText(CATEGORY).assertDoesNotExist()
         // The production bus, entry decorator and feature receiver must agree on one bus and key.
-        repeat(RESELECTIONS) { onNodeWithText(browseLabel).performClick() }
+        repeat(RESELECTIONS) { onNode(SELECTED_TAB).performClick() }
         waitForIdle()
         onNodeWithText(CATEGORY).assertIsDisplayed()
         onNodeWithText(CATEGORY).performClick()
@@ -83,3 +83,10 @@ private const val TIMEOUT_MS = 45_000L
 
 /** Repeated taps on the selected tab at its root; every one asks the list to scroll to its start. */
 private const val RESELECTIONS = 3
+
+/**
+ * The tab the app starts on, Browse, found as the one selected navigation tab. Its label is the
+ * shell's own resource, which this module cannot read; the bar and the rail both mark their items
+ * as tabs.
+ */
+private val SELECTED_TAB = isSelected() and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
