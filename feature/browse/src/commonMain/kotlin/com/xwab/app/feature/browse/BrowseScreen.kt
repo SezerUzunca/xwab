@@ -20,11 +20,10 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.navigation3.runtime.result.ResultEffect
 import androidx.lifecycle.compose.dropUnlessResumed
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xwab.app.core.sound.port.Category
 import com.xwab.app.core.sound.port.CategoryId
+import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.ScreenContainer
 import com.xwab.app.designsystem.components.screenContentPadding
@@ -56,11 +56,11 @@ internal fun BrowseScreenRoute(
     subtitle: StringResource,
     onCategoryClick: (CategoryId) -> Unit,
     viewModel: BrowseViewModel,
-    reselectEvents: Flow<Unit> = emptyFlow(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
-    LaunchedEffect(reselectEvents) { reselectEvents.collectLatest { gridState.animateScrollToItem(0) } }
+    val scope = rememberCoroutineScope()
+    ResultEffect<BrowseRoute> { scope.launch { gridState.animateScrollToItem(0) } }
     when (val content = state) {
         BrowseUiState.Loading -> LoadingContent()
         is BrowseUiState.Ready -> BrowseScreen(

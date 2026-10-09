@@ -8,6 +8,8 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.runtime.result.ResultEventBus
+import androidx.navigation3.runtime.result.rememberResultEventBusNavEntryDecorator
 import com.xwab.app.navigation.NavigationState
 
 /**
@@ -26,9 +28,10 @@ import com.xwab.app.navigation.NavigationState
  * route independent in two tabs once their entries are combined in one `NavDisplay`.
  *
  * @param state the back stack per tab, and which tab is showing.
- * @param entryProvider resolves a route to the entry that draws it. Navigation 3 1.1.x caches these
+ * @param entryProvider resolves a route to the entry that draws it. Navigation 3 caches these
  *   entries by back-stack contents; changing only the provider does not invalidate them.
  * @param onUp closes the given destination's pane; the back arrow's decorator calls it.
+ * @param resultEventBus the host graph's bus, shared with the navigator that sends tab reselections.
  */
 @Composable
 internal fun rememberTabEntries(
@@ -36,6 +39,7 @@ internal fun rememberTabEntries(
     entryProvider: (NavKey) -> NavEntry<NavKey>,
     metadataProvider: (NavKey, NavKey, List<NavKey>) -> Map<String, Any>,
     onUp: (NavKey) -> Unit,
+    resultEventBus: ResultEventBus,
 ): List<NavEntry<NavKey>> {
     val entriesByTab = state.backStacks.mapValues { (route, backStack) ->
         key(route) {
@@ -50,6 +54,7 @@ internal fun rememberTabEntries(
                     // SavedStateHandle is saved and restored with its entry rather than the root.
                     rememberSaveableStateHolderNavEntryDecorator(),
                     rememberViewModelStoreNavEntryDecorator(),
+                    rememberResultEventBusNavEntryDecorator(resultEventBus),
                     rememberAdaptiveBackNavEntryDecorator(onUp),
                 ),
                 entryProvider = tabEntryProvider,

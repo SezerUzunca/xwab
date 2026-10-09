@@ -2,21 +2,21 @@ package com.xwab.app.composition
 
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.result.ResultEventBus
 import com.xwab.app.feature.browse.navigation.BrowseEntryCallbacks
 import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.category.navigation.CategoryEntryCallbacks
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesEntryCallbacks
-import com.xwab.app.feature.favorites.navigation.FavoritesRoute
 import com.xwab.app.feature.sound.navigation.SoundEntryCallbacks
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoriesEntryCallbacks
-import com.xwab.app.feature.story.navigation.StoriesRoute
 import com.xwab.app.feature.story.navigation.StoryRoute
 import com.xwab.app.navigation.NavigationState
 import com.xwab.app.navigation.Navigator
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
+import dev.zacsweers.metro.SingleIn
 import xwab.shared.generated.resources.Res
 import xwab.shared.generated.resources.app_subtitle
 import xwab.shared.generated.resources.app_title
@@ -39,6 +39,7 @@ internal typealias EntryProviderInstaller = EntryProviderScope<NavKey>.() -> Uni
 @DependencyGraph(EntryProviderScope::class)
 internal interface AppEntryGraph {
     val navigator: Navigator
+    val resultEventBus: ResultEventBus
     val entryProviderInstallers: Set<EntryProviderInstaller>
 
     @DependencyGraph.Factory
@@ -47,18 +48,20 @@ internal interface AppEntryGraph {
     }
 
     @Provides
+    @SingleIn(EntryProviderScope::class)
+    fun provideResultEventBus(): ResultEventBus = ResultEventBus()
+
+    @Provides
     fun provideBrowseCallbacks(navigator: Navigator): BrowseEntryCallbacks = BrowseEntryCallbacks(
         title = Res.string.app_title,
         subtitle = Res.string.app_subtitle,
         onCategoryClick = { navigator.navigate(CategoryRoute(it.value)) },
-        reselectEvents = navigator.reselections(BrowseRoute),
     )
 
     @Provides
     fun provideFavoritesCallbacks(navigator: Navigator): FavoritesEntryCallbacks = FavoritesEntryCallbacks(
         onTrackClick = { navigator.navigate(SoundRoute(it.value)) },
         onBrowse = { navigator.navigate(BrowseRoute) },
-        reselectEvents = navigator.reselections(FavoritesRoute),
     )
 
     @Provides
@@ -76,6 +79,5 @@ internal interface AppEntryGraph {
     fun provideStoriesCallbacks(navigator: Navigator): StoriesEntryCallbacks = StoriesEntryCallbacks(
         onStoryClick = { navigator.navigate(StoryRoute(it.value)) },
         onBack = navigator::goBack,
-        reselectEvents = navigator.reselections(StoriesRoute),
     )
 }

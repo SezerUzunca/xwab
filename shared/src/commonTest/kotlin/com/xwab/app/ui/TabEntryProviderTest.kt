@@ -2,6 +2,7 @@ package com.xwab.app.ui
 
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.result.ResultEventBus
 import com.xwab.app.composition.appEntryGraph
 import com.xwab.app.composition.appEntryProvider
 import com.xwab.app.composition.appEntryMetadata
@@ -31,7 +32,7 @@ class TabEntryProviderTest {
                 FavoritesRoute to mutableListOf<NavKey>(FavoritesRoute),
             ),
         )
-        val navigator = Navigator(state)
+        val navigator = Navigator(state, ResultEventBus())
         navigator.navigate(CategoryRoute("rain"))
         navigator.navigate(SoundRoute("rain"))
         navigator.navigate(FavoritesRoute)

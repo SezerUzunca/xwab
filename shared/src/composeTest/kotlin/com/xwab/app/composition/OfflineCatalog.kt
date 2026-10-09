@@ -17,12 +17,16 @@ import dev.zacsweers.metro.Provides
 internal class OfflineCatalog {
     @Provides
     fun sound(): SoundPort = FakeSoundCatalog(
-        categories = listOf(category(CATEGORY, trackCount = 1)),
+        categories = listOf(category(CATEGORY, trackCount = 1)) +
+            List(FILLER_CATEGORIES) { category("category-$it", trackCount = 0) },
         tracks = listOf(track(TRACK, categoryId = CATEGORY)),
     )
 
     companion object {
         const val CATEGORY = "night-rain"
         const val TRACK = "ocean-waves"
+
+        /** Empty categories after [CATEGORY]: enough that scrolling to the last pushes it off screen. */
+        const val FILLER_CATEGORIES = 60
     }
 }

@@ -11,7 +11,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.navigation3.runtime.result.ResultEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
@@ -19,11 +20,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import com.xwab.app.core.story.port.Story
 import com.xwab.app.core.story.port.StoryId
+import com.xwab.app.feature.story.navigation.StoriesRoute
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.designsystem.components.PlayableRow
 import com.xwab.app.designsystem.format.formatDuration
@@ -47,11 +47,11 @@ import xwab.feature.story.generated.resources.story_unavailable
 internal fun StoriesScreenRoute(
     viewModel: StoriesViewModel,
     onStoryClick: (StoryId) -> Unit,
-    reselectEvents: Flow<Unit> = emptyFlow(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
-    LaunchedEffect(reselectEvents) { reselectEvents.collectLatest { listState.animateScrollToItem(0) } }
+    val scope = rememberCoroutineScope()
+    ResultEffect<StoriesRoute> { scope.launch { listState.animateScrollToItem(0) } }
 
     when (val content = state) {
         StoriesUiState.Loading -> LoadingContent()

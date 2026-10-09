@@ -18,6 +18,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.navigation3.runtime.result.ResultEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -27,12 +29,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.Track
 import com.xwab.app.core.sound.port.TrackId
+import com.xwab.app.feature.favorites.navigation.FavoritesRoute
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.PlayableRow
@@ -64,11 +65,11 @@ internal fun FavoritesScreenRoute(
     onTrackClick: (TrackId) -> Unit,
     onBrowse: () -> Unit,
     viewModel: FavoritesViewModel,
-    reselectEvents: Flow<Unit> = emptyFlow(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
-    LaunchedEffect(reselectEvents) { reselectEvents.collectLatest { listState.animateScrollToItem(0) } }
+    val scope = rememberCoroutineScope()
+    ResultEffect<FavoritesRoute> { scope.launch { listState.animateScrollToItem(0) } }
     val removedTrack by viewModel.removedTrack.collectAsStateWithLifecycle()
     val undoFailed by viewModel.undoFailed.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }

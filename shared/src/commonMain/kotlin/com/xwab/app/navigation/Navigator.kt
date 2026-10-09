@@ -2,27 +2,22 @@ package com.xwab.app.navigation
 
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.result.ResultEventBus
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.map
 
 /**
  * App policies around the Navigation 3 stacks; features receive only intent callbacks.
  *
- * Built by the host's entry graph over the stacks the host restored, one per graph: the host's tab
- * selection and the features' callbacks must reach the same instance, or a list would never hear
- * its tab being reselected. Plain construction still works where no graph is needed.
+ * Built by the host's entry graph over the stacks the host restored, one per graph. Its result bus
+ * is also provided to the entries: a root reselection sends that tab's route as a scroll signal.
  */
 @Inject
 @SingleIn(EntryProviderScope::class)
-internal class Navigator(private val state: NavigationState) {
-    private val reselectEvents = MutableSharedFlow<NavKey>(extraBufferCapacity = 1)
-
-    fun reselections(route: NavKey): Flow<Unit> = reselectEvents.filter { it == route }.map { }
-
+internal class Navigator(
+    private val state: NavigationState,
+    private val resultEventBus: ResultEventBus,
+) {
     /**
      * Switching tabs preserves history. Revisiting a key pops to it, preserving its entry store.
      *
@@ -36,11 +31,13 @@ internal class Navigator(private val state: NavigationState) {
      */
     fun navigate(key: NavKey) {
         if (key in state.backStacks) {
+            if (key != state.topLevelRoute) clearReselection()
             state.topLevelRoute = key
             return
         }
         val stack = state.currentBackStack
         val existing = stack.indexOf(key)
+        if (existing != stack.lastIndex) clearReselection()
         if (existing >= 0) stack.subList(existing + 1, stack.size).clear() else stack.add(key)
     }
 
@@ -51,7 +48,8 @@ internal class Navigator(private val state: NavigationState) {
         else {
             val stack = state.currentBackStack
             if (stack.size > 1) stack.subList(1, stack.size).clear()
-            else reselectEvents.tryEmit(key)
+            // Use the concrete tab type: sendResult(key) would use NavKey as the result type.
+            else resultEventBus.sendResult(key::class.toString(), key)
         }
     }
 
@@ -77,7 +75,7 @@ internal class Navigator(private val state: NavigationState) {
      */
     fun openInTab(tab: NavKey, key: NavKey) {
         require(tab in state.backStacks) { "A tab needs its own back stack: $tab" }
-        state.topLevelRoute = tab
+        navigate(tab)
         replaceCurrent(key)
     }
 
@@ -90,6 +88,7 @@ internal class Navigator(private val state: NavigationState) {
      * root, falls back to [goBack].
      */
     fun goUp(from: NavKey) {
+        clearReselection()
         val stack = state.currentBackStack
         var index = stack.indexOf(from)
         while (index > 1 && stack[index - 1]::class == from::class) index--
@@ -97,10 +96,19 @@ internal class Navigator(private val state: NavigationState) {
     }
 
     fun goBack() {
+        clearReselection()
         val stack = state.currentBackStack
         when {
             stack.size > 1 -> stack.removeAt(stack.lastIndex)
             state.topLevelRoute != state.startRoute -> state.topLevelRoute = state.startRoute
         }
     }
+
+    /**
+     * A later visit must not replay a scroll request queued before leaving this destination.
+     *
+     * Clearing closes the key's channel. A receiver still composed, such as a list beside a detail
+     * pane, moves to the next one, as the documented clear-inside-`ResultEffect` pattern relies on.
+     */
+    private fun clearReselection() = resultEventBus.removeResult(state.topLevelRoute::class.toString())
 }
