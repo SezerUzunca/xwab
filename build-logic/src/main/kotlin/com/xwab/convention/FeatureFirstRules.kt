@@ -391,21 +391,6 @@ internal object FeatureFirstRules {
     }
 
     /**
-     * Every top-level declaration a feature api module makes, fully qualified: the complete list of
-     * feature names the shell may use.
-     */
-    fun featureApiDeclarations(featureSources: Map<String, String>): Set<String> =
-        featureSources.filterKeys(::isFeatureApiSource).flatMap { (_, source) ->
-            val packageName = PACKAGE.find(codeOnly(source))?.groupValues?.get(1)
-                ?: return@flatMap emptyList()
-            declarations(source, includeNested = false).mapNotNull { parsed ->
-                parsed.match.groupValues[3].removeSurrounding("`").substringAfterLast('.')
-                    .takeIf(String::isNotBlank)
-                    ?.let { "$packageName.$it" }
-            }
-        }.toSet()
-
-    /**
      * A module directory that no `include` names builds nothing and fails nothing.
      *
      * Flat capabilities and features are discovered under `core/` and `feature/`. A directory in
@@ -827,45 +812,25 @@ internal object FeatureFirstRules {
     }
 
     /**
-     * Every shared source set observes the same composition and navigation boundary, and inside it
-     * names a feature only by what that feature's api module declares. No implementation is on the
-     * shell's production classpath — only the composition root may depend on one — but its tests
-     * run against the composition root, and a declaration an impl module makes public, such as a
-     * contributed binding container, would otherwise be one import away.
-     *
-     * A wildcard import is refused outright: a feature's api and impl share package names, so one
-     * would bring an implementation's public binding containers in with the contracts.
-     *
-     * @param featureApiDeclarations [featureApiDeclarations] of the feature sources.
+     * Every shared source set observes the same composition and navigation boundary. Which feature
+     * declarations the shell can name at all is settled by its classpath: only feature api modules
+     * are on it, because only the composition root may depend on an implementation.
      */
-    fun sharedFeatureReferenceViolations(
-        sources: Map<String, String>,
-        featureApiDeclarations: Set<String>,
-    ): List<String> =
+    fun sharedFeatureReferenceViolations(sources: Map<String, String>): List<String> =
         sources.flatMap { (path, source) ->
             val code = codeOnly(source)
             val packageName = PACKAGE.find(code)?.groupValues?.get(1).orEmpty()
             val isCompositionBoundary = packageName.isWithin("com.xwab.app.navigation") ||
                 packageName.isWithin("com.xwab.app.composition")
+            if (isCompositionBoundary) return@flatMap emptyList()
 
-            references(code, QUALIFIED_FEATURE_REFERENCE).mapNotNull { reference ->
-                if (!reference.isWithin("com.xwab.app.feature")) return@mapNotNull null
-
-                val isApiContract = !reference.endsWith(".*") &&
-                    featureApiDeclarations.any { reference == it || reference.startsWith("$it.") }
-                when {
-                    !isCompositionBoundary ->
-                        "$path references $reference. Shared navigation/composition may reference only " +
-                            "feature api contracts. Other shared packages may not reference features."
-
-                    !isApiContract ->
-                        "$path references $reference, which no feature api module declares. The shell " +
-                            "compiles against feature contracts only (routes, entry callbacks and shell " +
-                            "chrome in feature/<name>/api) and names each one it uses."
-
-                    else -> null
+            references(code, QUALIFIED_FEATURE_REFERENCE)
+                .filter { it.isWithin("com.xwab.app.feature") }
+                .map { reference ->
+                    "$path references $reference. Shared navigation/composition may reference feature " +
+                        "api contracts; other shared packages may not reference features."
                 }
-            }.toList()
+                .toList()
         }.sorted()
 
     /**

@@ -27,7 +27,11 @@ kotlin {
         }
     }
 
-    android { namespace = "com.xwab.app.composition" }
+    android {
+        namespace = "com.xwab.app.composition"
+        // The Android application graph needs a `Context`, which only a device has.
+        withDeviceTestBuilder { sourceSetTreeName = "test" }
+    }
 
     applyDefaultHierarchyTemplate()
 
@@ -54,6 +58,22 @@ kotlin {
             // declaring the graph sees its contributions.
             implementation(libs.metrox.android)
             implementation(libs.androidx.activity.compose)
+        }
+        // The application graph checks, written once for the two places a production graph can be
+        // built: an Android device, which has a `Context`, and the iOS simulator. The host tests
+        // have neither, so they do not include this set.
+        val graphTest = create("graphTest") {
+            dependsOn(commonTest.get())
+        }
+        getByName("androidDeviceTest") {
+            dependsOn(graphTest)
+            dependencies {
+                implementation(libs.androidx.test.core)
+                implementation(libs.androidx.test.runner)
+            }
+        }
+        if (gradle.extra["enableIos"] as Boolean) {
+            iosTest.get().dependsOn(graphTest)
         }
     }
 }

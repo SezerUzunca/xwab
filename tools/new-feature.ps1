@@ -239,7 +239,7 @@ class ${Pascal}ViewModelTest {
 Write-Host ""
 Write-Host "Done. Wire the feature in the app shell:" -ForegroundColor Green
 Write-Host "  1. Add ${Pascal}Route as a top-level route or connect it to an existing intent."
-Write-Host "  2. If the feature gains outgoing intents, declare its callback contract in the api module's navigation package and provide it in AppEntryGraph."
+Write-Host "  2. If the feature gains outgoing intents, declare its callback contract in the api module's navigation package and provide it in shared's AppEntryCallbacks."
 Write-Host "  3. Pin the route's serial name in FeatureSerializersTest.routeSerialNamesAreTheSavedWireFormat: it is a saved wire format."
 Write-Host ""
 Write-Host "Then: ./gradlew :feature:${Name}:impl:compileCommonMainKotlinMetadata checkArchitecture"

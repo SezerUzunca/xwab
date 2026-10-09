@@ -304,36 +304,6 @@ class FeatureFirstRulesTest {
     }
 
     @Test
-    fun featureApiDeclarationsAreReadFromApiModulesOnly() {
-        val declarations = FeatureFirstRules.featureApiDeclarations(
-            mapOf(
-                "feature/browse/api/src/commonMain/kotlin/BrowseNavigation.kt" to featureSource(
-                    ".navigation",
-                    """
-                        @Serializable
-                        @SerialName("browse")
-                        data object BrowseRoute : NavKey
-
-                        class BrowseEntryCallbacks(val onBack: () -> Unit)
-                    """.trimIndent(),
-                ),
-                "feature/browse/impl/src/commonMain/kotlin/BrowseEntry.kt" to featureSource(
-                    ".navigation",
-                    "@ContributesTo(EntryProviderScope::class)\nobject BrowseEntryBindings",
-                ),
-            ),
-        )
-
-        assertEquals(
-            setOf(
-                "com.xwab.app.feature.browse.navigation.BrowseRoute",
-                "com.xwab.app.feature.browse.navigation.BrowseEntryCallbacks",
-            ),
-            declarations,
-        )
-    }
-
-    @Test
     fun sharedUsesFeatureContractsOnlyAtTheirApplicationBoundaries() {
         assertEquals(
             emptyList(),
@@ -343,78 +313,38 @@ class FeatureFirstRulesTest {
                         "navigation",
                         "import com.xwab.app.feature.browse.navigation.BrowseRoute",
                     ),
-                    "shared/src/commonMain/kotlin/AppEntryGraph.kt" to sharedSource(
+                    "shared/src/commonMain/kotlin/AppEntryCallbacks.kt" to sharedSource(
                         "composition",
                         "import com.xwab.app.feature.browse.navigation.BrowseEntryCallbacks as Callbacks",
                     ),
-                    "shared/src/commonMain/kotlin/AppNavigationHost.kt" to sharedSource(
+                    "shared/src/commonMain/kotlin/AppEntries.kt" to sharedSource(
                         "composition",
                         "import com.xwab.app.feature.nowplaying.shell.NowPlayingBar",
                     ),
                 ),
-                featureApi,
             ),
         )
     }
 
     @Test
-    fun sharedCannotNameAFeatureImplementationEvenAtItsBoundary() {
+    fun sharedFeatureReferencesFailOutsideTheBoundaryInEveryPackageAndPlatform() {
         val violations = FeatureFirstRules.sharedFeatureReferenceViolations(
             mapOf(
-                // Public, and on shared's classpath for Metro, but declared by the impl module.
-                "shared/src/commonMain/kotlin/AppEntryGraph.kt" to sharedSource(
-                    "composition",
-                    "import com.xwab.app.feature.browse.navigation.BrowseEntryBindings",
-                ),
-                // A wildcard over a package api and impl share would bring both in.
-                "shared/src/commonMain/kotlin/Routes.kt" to sharedSource(
-                    "navigation",
-                    "import com.xwab.app.feature.browse.navigation.*",
-                ),
-            ),
-            featureApi,
-        )
-
-        assertEquals(2, violations.size)
-        assertTrue(violations.all { it.contains("which no feature api module declares") })
-    }
-
-    @Test
-    fun sharedImplementationReferencesFailInEveryPackageAndPlatform() {
-        val violations = FeatureFirstRules.sharedFeatureReferenceViolations(
-            mapOf(
-                "shared/src/commonMain/kotlin/Navigation.kt" to sharedSource(
-                    "navigation",
-                    "import com.xwab.app.feature.browse.BrowseScreen",
-                ),
-                "shared/src/commonMain/kotlin/Composition.kt" to sharedSource(
-                    "composition",
-                    "import com.xwab.app.feature.browse.di.BrowseDependencies",
-                ),
                 "shared/src/commonMain/kotlin/Ui.kt" to sharedSource(
                     "ui",
                     "import com.xwab.app.feature.browse.navigation.BrowseRoute",
                 ),
                 "shared/src/androidMain/kotlin/Platform.kt" to sharedSource(
                     "ui",
-                    "internal val screen = com.xwab.app.feature.browse.BrowseScreen()",
+                    "internal val route = com.xwab.app.feature.browse.navigation.BrowseRoute",
                 ),
-                "shared/src/iosMain/kotlin/Graph.kt" to sharedSource(
+                "shared/src/iosMain/kotlin/Root.kt" to sharedSource(
                     "di",
-                    "import com.xwab.app.feature.browse.BrowseViewModel as ScreenModel",
+                    "import com.xwab.app.feature.browse.navigation.BrowseRoute as Start",
                 ),
-                "shared/src/commonMain/kotlin/DiWildcard.kt" to sharedSource(
-                    "di",
-                    "import com.xwab.app.feature.browse.di.*",
-                ),
-                "shared/src/commonMain/kotlin/RootWildcard.kt" to sharedSource(
-                    "navigation",
-                    "import com.xwab.app.feature.browse.*",
-                ),
-                // Metro contributions reach the graph without the shell naming a feature type.
-                "shared/src/androidMain/kotlin/AndroidAppGraph.kt" to sharedSource(
-                    "di",
-                    "import com.xwab.app.feature.browse.di.BrowseDependencies",
+                "shared/src/commonMain/kotlin/Wildcard.kt" to sharedSource(
+                    "ui",
+                    "import com.xwab.app.feature.browse.navigation.*",
                 ),
                 // An api contract is still out of bounds outside navigation/composition.
                 "shared/src/commonMain/kotlin/App.kt" to sharedSource(
@@ -422,37 +352,35 @@ class FeatureFirstRulesTest {
                     "import com.xwab.app.feature.nowplaying.shell.NowPlayingBar",
                 ),
             ),
-            featureApi,
         )
-        assertEquals(9, violations.size)
+        assertEquals(5, violations.size)
         assertTrue(violations.any { it.contains("androidMain") })
         assertTrue(violations.any { it.contains("iosMain") })
-        assertEquals(6, violations.count { it.contains("Other shared packages may not reference features") })
-        assertEquals(3, violations.count { it.contains("which no feature api module declares") })
+        assertTrue(violations.all { it.contains("other shared packages may not reference features") })
     }
 
     @Test
     fun sharedReferenceChecksIgnoreCommentsAndStringsButKeepTrailingCommentImports() {
         val allowed = sharedSource(
             "ui",
-            "// import com.xwab.app.feature.browse.BrowseScreen\n" +
-                "/*\nimport com.xwab.app.feature.browse.BrowseViewModel\n*/\n" +
-                "internal val docs = \"com.xwab.app.feature.browse.BrowseScreen\"\n" +
+            "// import com.xwab.app.feature.browse.navigation.BrowseRoute\n" +
+                "/*\nimport com.xwab.app.feature.browse.navigation.BrowseRoute\n*/\n" +
+                "internal val docs = \"com.xwab.app.feature.browse.navigation.BrowseRoute\"\n" +
                 "internal val example = \"\"\"\n" +
-                "import com.xwab.app.feature.browse.BrowseScreen\n\"\"\"",
+                "import com.xwab.app.feature.browse.navigation.BrowseRoute\n\"\"\"",
         )
         assertEquals(
             emptyList(),
-            FeatureFirstRules.sharedFeatureReferenceViolations(mapOf("Ui.kt" to allowed), featureApi),
+            FeatureFirstRules.sharedFeatureReferenceViolations(mapOf("Ui.kt" to allowed)),
         )
 
         val forbidden = sharedSource(
             "ui",
-            "import com.xwab.app.feature.browse.BrowseScreen // implementation leak",
+            "import com.xwab.app.feature.browse.navigation.BrowseRoute // outside the boundary",
         )
         assertEquals(
             1,
-            FeatureFirstRules.sharedFeatureReferenceViolations(mapOf("Ui.kt" to forbidden), featureApi).size,
+            FeatureFirstRules.sharedFeatureReferenceViolations(mapOf("Ui.kt" to forbidden)).size,
         )
     }
 
@@ -1604,13 +1532,6 @@ class FeatureFirstRulesTest {
             packageName = "com.xwab.app.core.sample$packageSuffix",
             source = "package com.xwab.app.core.sample$packageSuffix\n$declaration",
         )
-
-    /** What the api modules of browse and nowplaying declare, as `featureApiDeclarations` reads it. */
-    private val featureApi = setOf(
-        "com.xwab.app.feature.browse.navigation.BrowseRoute",
-        "com.xwab.app.feature.browse.navigation.BrowseEntryCallbacks",
-        "com.xwab.app.feature.nowplaying.shell.NowPlayingBar",
-    )
 
     private fun sharedSource(packageSuffix: String, declarations: String): String =
         "package com.xwab.app.$packageSuffix\n$declarations"

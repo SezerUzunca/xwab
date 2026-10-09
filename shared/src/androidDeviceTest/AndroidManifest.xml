@@ -2,10 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <!--
-      MetroX's AppComponentFactory comes in with this module's dependencies, but it needs the app's
-      MetroApplication, which this library's test APK does not have; the instrumentation would fail
-      before any test runs. The tests build their graphs themselves, so the factory AndroidX would
-      otherwise merge is restored here.
+      MetroX's AppComponentFactory comes in with the composition root these tests run against, but it
+      needs the app's MetroApplication, which this library's test APK does not have; the
+      instrumentation would fail before any test runs. The tests build their graphs themselves, so
+      the factory AndroidX would otherwise merge is restored here.
     -->
     <application
         android:appComponentFactory="androidx.core.app.CoreComponentFactory"

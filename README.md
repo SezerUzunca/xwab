@@ -401,7 +401,7 @@ Port checks enforce code boundaries and dependency direction. The responsibility
 review contract: behavior and tests must still demonstrate that an adapter stays within its job.
 
 The dependency graph the check reads is reported by the modules themselves. Every module applies
-`xwab.architecture.module` — through `xwab.kmp.library`, or by id in `shared` and `androidApp` —
+`xwab.architecture.module` — through `xwab.kmp.library` and the conventions built on it, or by id in `androidApp` —
 which writes its own production project dependencies to a file. The root resolves those files like
 any other dependency, and settings publishes which modules there are. No project reads another's
 configurations, which keeps the check compatible with Gradle's isolated projects mode. A module

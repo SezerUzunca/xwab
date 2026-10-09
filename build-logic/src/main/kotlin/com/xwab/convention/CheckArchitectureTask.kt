@@ -27,8 +27,8 @@ import org.gradle.api.tasks.TaskAction
  * 5. Each core owns an architecture.properties file declaring its responsibility, feature access,
  *    exhaustive project dependency boundary and complete set of public callable interfaces.
  * 6. All shared production source sets may reference features only at the navigation/composition
- *    boundary, and there only by declarations of a feature's api module. The composition root
- *    names no feature at all: feature contributions reach its graphs through Metro.
+ *    boundary; only feature api modules are on their classpath. The composition root names no
+ *    feature at all: feature contributions reach its graphs through Metro.
  * 7. A core capability exposes declarations only from an explicit `port` package; everything else
  *    is internal or private.
  * 8. References crossing between core modules target only `port` packages.
@@ -130,10 +130,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
             FeatureFirstRules.userAgentAgreementViolations(clientIdentitySources(root)) +
             FeatureFirstRules.dependencyViolations(graph, apiGraph, policies) +
             leakedUseCaseViolations(root, graph.keys) +
-            FeatureFirstRules.sharedFeatureReferenceViolations(
-                productionSources(root, "shared"),
-                FeatureFirstRules.featureApiDeclarations(productionSources(root, "feature")),
-            ) +
+            FeatureFirstRules.sharedFeatureReferenceViolations(productionSources(root, "shared")) +
             FeatureFirstRules.compositionRootFeatureReferenceViolations(productionSources(root, "composition")) +
             FeatureFirstRules.featureVisibilityViolations(productionSources(root, "feature")) +
             FeatureFirstRules.unregisteredViewModelViolations(productionSources(root, "feature")) +
