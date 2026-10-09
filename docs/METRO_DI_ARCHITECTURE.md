@@ -16,14 +16,15 @@ The version catalog is the source of truth. The official documentation's latest 
 | Component | Responsibility |
 | --- | --- |
 | `xwab.kmp.library` | Apply Metro to library modules, generate contribution providers and reject unsupported non-public contributions |
-| `xwab.kmp.feature` | Configure feature contributions, including the diagnostic policy for internal assisted ViewModel factories |
+| `xwab.kmp.feature.api` | Configure a feature's contract module: routes, their serializer contributions and callback / shell chrome contracts, with no UI toolkit or ViewModel |
+| `xwab.kmp.feature.impl` | Configure feature contributions, including the diagnostic policy for internal assisted ViewModel factories, and add the sibling api module |
 | Android / iOS application graph | Aggregate installed `AppScope` contributions and expose the MetroX ViewModel integration |
 | Internal capability graph | Construct and connect one core module's implementation, SDK objects and internal services |
 | `*GraphAdapter` | Contribute a capability port to the application graph and pass external inputs into the local graph |
 | `*GraphHolder` | Build one local graph shared by multiple bridges; used by sound and story |
 | `@BindingContainer` | Share binding declarations between graphs without making the container a complete graph |
 | Feature ViewModel factory | Combine injected dependencies with runtime route arguments through MetroX |
-| `AppEntryGraph` | Aggregate the entry installers features contribute to `EntryProviderScope::class` and supply feature-owned navigation callbacks from the composition root |
+| `AppEntryGraph` | In `:composition`: aggregate the entry installers and the now-playing bar features contribute to `EntryProviderScope::class`, with the shell's navigation callbacks, over the navigator the host passes in |
 | `RouteSerializersGraph` | Aggregate the route serializer modules features contribute to `NavKey::class` for saved back stacks |
 | Resource owner | Cancel jobs, release players and sessions, and close resources when its lifetime ends |
 | `checkArchitecture` | Enforce project dependency, visibility, port and ViewModel-registration rules |
@@ -38,8 +39,9 @@ The rules are written in the root README, each core module's `architecture.prope
 - Core modules reference other core modules only through those modules' ports. Port contracts cannot refer to implementation packages, including their own.
 - Each core module declares its responsibility, allowed project dependencies, feature accessibility and public callable interfaces in `architecture.properties`.
 - Features consume only capabilities permitted by those contracts. Infrastructure modules such as network, delivery and playback are not directly feature-accessible.
-- Core and feature modules stay flat. Repository/provider abstraction layers, Koin, and physical `api` / `impl` module splits are not part of this architecture.
-- Feature implementation types remain internal. Navigation contracts and shell UI form the feature's public composition surface.
+- Each core capability is an `api` module, holding its `.port` package alone, and an `impl` module, holding the adapters and the internal module graph; its `architecture.properties` sits beside them. Every consumer compiles against api modules; a capability's impl depends on its own api and the api of the capabilities it declares; only `:composition` depends on an impl. Repository/provider abstraction layers and Koin are not part of this architecture.
+- Each feature is an `api` module and an `impl` module. The api module is the feature's public composition surface: routes, callback contracts and shell chrome contracts. The impl module keeps its types internal and exposes only the binding containers it contributes with `@ContributesTo`; only `:composition` depends on it.
+- `:composition` is the composition root: the only module that sees every implementation, so it declares the graphs that collect them and names no feature itself. `:shared`, the app shell, depends on feature api modules only and receives what the graphs build through `App`'s parameters.
 
 Kotlin visibility and Gradle dependency declarations establish the boundaries; the architecture task checks them. Metro supplies objects within those boundaries. A compiling graph alone does not prove that a module obeys its responsibility.
 
@@ -47,9 +49,9 @@ Kotlin visibility and Gradle dependency declarations establish the boundaries; t
 
 `AppGraph` extends MetroX's `ViewModelGraph`. `AndroidAppGraph` and `IosAppGraph` declare `@DependencyGraph(AppScope::class)` and implement that shared surface.
 
-Android provides its application `Context` through `AndroidAppGraph.Factory`, using `@Provides @GraphPrivate`. `MainApplication` implements MetroX's `MetroApplication` and creates the application graph once, lazily. `AndroidAppGraph` also extends `MetroAppComponentProviders`, so MetroX's `AppComponentFactory` (API 28+, hence `minSdk` 28) constructor-injects `MainActivity`, contributed with `@ActivityKey`; it receives the `MetroViewModelFactory` and passes it to `App`. The Activity lives in `:shared`'s Android sources beside the graph, because only the module declaring a graph sees its contributions. `:shared`'s own device-test APK restores AndroidX's default factory, since it has no `MetroApplication`; lint's `Instantiatable` check is silenced on the Activity as in Metro's Android sample. iOS provides no factory input: `MainViewController.kt` holds one lazy application graph reused by its controllers. Platform capability graphs derive their own native values.
+Android provides its application `Context` through `AndroidAppGraph.Factory`, using `@Provides @GraphPrivate`. `MainApplication` implements MetroX's `MetroApplication` and creates the application graph once, lazily. `AndroidAppGraph` also extends `MetroAppComponentProviders`, so MetroX's `AppComponentFactory` (API 28+, hence `minSdk` 28) constructor-injects `MainActivity`, contributed with `@ActivityKey`; it receives the `MetroViewModelFactory` and passes it to `App` with `AppEntryGraphs`, the factory for each navigation host's entry graph. The Activity lives in `:composition`'s Android sources beside the graph, because only the module declaring a graph sees its contributions. The device-test APKs of `:composition` (its graph tests and the app integration scenario) and `:shared` (the shell's navigation tests, which resolve real entries through the composition root) restore AndroidX's default factory, since neither has a `MetroApplication`; lint's `Instantiatable` check is silenced on the Activity as in Metro's Android sample. iOS provides no factory input: `MainViewController.kt` holds one lazy application graph reused by its controllers. Platform capability graphs derive their own native values.
 
-`shared/build.gradle.kts` includes all core and feature modules from the module lists discovered by settings; neither is listed by hand. Metro discovers contributions from the compilation classpath: annotating a class in an uninstalled module does not install that module. Architecture checks enforce module registration and dependency direction.
+`composition/build.gradle.kts` includes all core and feature modules from the module lists discovered by settings, and `shared/build.gradle.kts` the feature api modules; none is listed by hand. The shell's tests also depend on `:composition` and the modules it installs, because a dynamic graph is generated from its own compilation's classpath; test configurations are not production dependencies. Metro discovers contributions from the compilation classpath: annotating a class in an uninstalled module does not install that module. Architecture checks enforce module registration and dependency direction.
 
 The base convention sets:
 
@@ -203,23 +205,28 @@ Replacing an implementation preserves its port and installs one binding for that
 
 Feature entries use the Metro set-multibinding pattern from Google's
 [Navigation 3 Metro modular recipe](https://github.com/android/nav3-recipes/tree/f4d115959f4f3a1e903e67705954c66aa008adef/metroapp/src/main/java/com/example/nav3recipes/modular/metro).
-Each feature's public navigation binding container defines a `@Provides @IntoSet` installer of
-type `EntryProviderScope<NavKey>.() -> Unit` and is contributed with
-`@ContributesTo(EntryProviderScope::class)`. `AppEntryGraph`, in shared's composition boundary,
-aggregates that scope and collects the set using its internal `EntryProviderInstaller` alias;
-`AppEntryProvider` runs it. Route `SerializersModule`s follow the same [aggregation](https://github.com/ZacSweers/metro/blob/1.4.5/docs/aggregation.md)
-into `NavKey::class`, collected by `RouteSerializersGraph` for `FEATURE_SERIALIZERS`. That graph is
-separate because back stacks are restored before the navigator, and so the callbacks, exist. The
-recipe's scope marker lives in a common module; XWAB uses Navigation 3's own types instead, since
-features and shared already see them. `AppEntryGraph` supplies feature-owned callback contracts, so
+Each feature's impl module has a public binding container that defines a `@Provides @IntoSet`
+installer of type `EntryProviderScope<NavKey>.() -> Unit` and is contributed with
+`@ContributesTo(EntryProviderScope::class)`. `AppEntryGraph`, in the composition root (the only
+module that sees those impl modules), aggregates that scope and exposes the set as the shell's
+`AppEntries` contract; the shell's `AppEntryProvider` runs it. The now-playing bar reaches the host
+the same way: `feature:nowplaying:api` declares the `NowPlayingBar` contract, its impl module
+contributes a `@Provides` for it to the same scope, and `AppEntries` exposes it, so the shell draws
+the bar without its implementation on its classpath.
+Route `SerializersModule`s, declared in each feature's api module beside its routes, follow the same [aggregation](https://github.com/ZacSweers/metro/blob/1.4.5/docs/aggregation.md)
+into `NavKey::class`, collected by the shell's `RouteSerializersGraph` for `FEATURE_SERIALIZERS`. That graph is
+separate because back stacks are restored before the navigator, and so the callbacks, exist, and it
+needs only the api modules. The recipe's scope marker lives in a common module; XWAB uses
+Navigation 3's own types instead, since every side already sees them. The shell contributes the
+feature-owned callback contracts to the same scope from its public `AppEntryCallbacks` container, so
 destination mapping stays in the app and features acquire no shared or cross-feature dependency.
-This graph receives the restored `NavigationState` as a factory input, inside the host's
-`remember(state)`, and builds the one `Navigator` over it, `@SingleIn(EntryProviderScope::class)`, that
-the host and every callback share. The same graph provides one `ResultEventBus`, an SDK object
-built with `@Provides` under the same scope, which the navigator sends tab reselections on and the
-host hands to every tab's `rememberResultEventBusNavEntryDecorator`; Navigation 3 documents passing
-a hoisted bus into DI graphs ([return results](https://developer.android.com/guide/navigation/navigation-3/return-results#hoist)).
-The navigator stays internal to shared and is never an
+The host builds the one `Navigator` over its restored `NavigationState`, with one `ResultEventBus`,
+inside its `remember(state)`, and passes the navigator to `AppEntryGraphs`, which creates the entry
+graph with it as a factory input; every callback drives that navigator. The navigator sends tab
+reselections on the bus, which the host hands to every tab's `rememberResultEventBusNavEntryDecorator`;
+Navigation 3 documents hoisting a bus out of composition ([return results](https://developer.android.com/guide/navigation/navigation-3/return-results#hoist)).
+The `Navigator` type is public so the graph can take it, but only the shell can construct or call
+one, and it is never an
 `AppScope` binding; the graph owns no ViewModels, and installer order defines no navigation policy. See
 [Metro and Navigation 3](METRO_NAVIGATION3_ARCHITECTURE.md) for the upstream comparison.
 
@@ -237,7 +244,7 @@ The current feature registrations use these two patterns:
 | `feature:browse` | `BrowseViewModel` | Plain injection; `metroViewModel()` | None |
 | `feature:category` | `CategoryViewModel` | Assisted injection; `assistedMetroViewModel()` | `CategoryId` from the route |
 | `feature:favorites` | `FavoritesViewModel` | Plain injection; `metroViewModel()` | None |
-| `feature:nowplaying` | `NowPlayingViewModel` | Plain injection; `metroViewModel()` in `NowPlayingBar` | None |
+| `feature:nowplaying` | `NowPlayingViewModel` | Plain injection; `metroViewModel()` in the bar's `NowPlayingBarRoute` | None |
 | `feature:sound` | `SoundViewModel` | Assisted injection; `assistedMetroViewModel()` | `TrackId` from the route |
 | `feature:story` | `StoriesViewModel` | Plain injection; `metroViewModel()` | None |
 | `feature:story` | `StoryDetailViewModel` | Assisted injection; `assistedMetroViewModel()` | `StoryId` from the route |
@@ -286,10 +293,10 @@ The following tests exist in the current source tree. Listing them describes cov
 | `AndroidFavoritesGraphTest`, `IosFavoritesGraphTest` | Lazy file callback and adapter identity; unmodified platform graphs write a favorite to disk and read it back |
 | `AndroidPlaybackGraphTest`, `IosPlaybackGraphTest` | Platform graph construction and facade identity on the required main thread; construction off the main thread is refused |
 | `ServiceSleepTimerTest` | The service's sleep timer through its injected clock and scheduler: refusal of a past deadline, the fade, cancel and restart |
-| `AndroidAppGraphTest`, `IosAppGraphTest` | Production application graph and MetroX map/factory availability |
-| `NavigationCompositionTest` | MetroX resolution with entry owners, restoration, saved-state handles and root chrome ownership; typed tab reselection through the graph's shared result bus, queued-event cleanup, and delivery to a receiver that stays composed through a cleanup |
-| `AppEntryCallbacksTest` | One scoped navigator per entry graph; each feature intent's destination and id, and detail Back callbacks |
-| `AndroidAppIntegrationTest`, `IosAppIntegrationTest` | The real app root on the production graph, only the catalog replaced through a dynamic graph: repeated Browse reselection scrolls the real list to its start, then a category tap reaches the Category screen with its assisted ViewModel |
+| `AndroidAppGraphTest`, `IosAppGraphTest` | In `:composition`: production application graph and MetroX map/factory availability |
+| `NavigationCompositionTest` | MetroX resolution with entry owners, restoration, saved-state handles and root chrome ownership; typed tab reselection through the host's shared result bus, queued-event cleanup, and delivery to a receiver that stays composed through a cleanup |
+| `AppEntryCallbacksTest` | The shell's callback container on a real navigator: each feature intent's destination and id, and detail Back callbacks |
+| `AndroidAppIntegrationTest`, `IosAppIntegrationTest` | In `:composition`, where every feature's resources reach the test bundle: the real app root on the production graph, only the catalog replaced through a dynamic graph: repeated Browse reselection scrolls the real list to its start, then a category tap reaches the Category screen with its assisted ViewModel |
 
 For features, `AndroidAppGraphTest` and `IosAppGraphTest` call `assertEveryViewModelResolves`. That helper checks factory identity, that `viewModelProviders` and `manualAssistedFactoryProviders` are nonempty, and whether each registered manual assisted factory matches its class key. It does not assert the complete expected set of feature registrations or instantiate every plain ViewModel. `checkArchitecture` checks source annotations and module dependencies; individual ViewModel and use-case tests construct models with fakes to verify behavior. These checks provide complementary coverage, but do not resolve every feature's ViewModel through the real graph.
 
@@ -342,10 +349,11 @@ Avoid creating public containers outside `.port` or moving SDK configuration int
 
 - [Root architecture and rules](../README.md)
 - [Library convention](../build-logic/src/main/kotlin/com/xwab/convention/KmpLibraryConventionPlugin.kt)
-- [Feature convention](../build-logic/src/main/kotlin/com/xwab/convention/KmpFeatureConventionPlugin.kt)
+- [Feature api convention](../build-logic/src/main/kotlin/com/xwab/convention/KmpFeatureApiConventionPlugin.kt)
+- [Feature impl convention](../build-logic/src/main/kotlin/com/xwab/convention/KmpFeatureImplConventionPlugin.kt)
 - [Architecture task](../build-logic/src/main/kotlin/com/xwab/convention/CheckArchitectureTask.kt)
 - [Architecture rule implementations](../build-logic/src/main/kotlin/com/xwab/convention/FeatureFirstRules.kt)
-- [Shared application graph surface](../shared/src/commonMain/kotlin/com/xwab/app/di/AppGraph.kt)
-- [Application ViewModel factory](../shared/src/commonMain/kotlin/com/xwab/app/di/AppViewModelFactory.kt)
+- [Shared application graph surface](../composition/src/commonMain/kotlin/com/xwab/app/di/AppGraph.kt)
+- [Application ViewModel factory](../composition/src/commonMain/kotlin/com/xwab/app/di/AppViewModelFactory.kt)
 - [Android workflow](../.github/workflows/android.yml)
 - [iOS workflow](../.github/workflows/ios.yml)

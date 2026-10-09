@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MagicNumber:DeliveryRequest.kt:CacheKey$128</ID>
+    <ID>MagicNumber:DeliveryRequest.kt:DeliveryRequest$1024L</ID>
+    <ID>MagicNumber:DeliveryRequest.kt:DeliveryRequest$25L</ID>
+  </CurrentIssues>
+</SmellBaseline>

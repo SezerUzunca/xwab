@@ -14,7 +14,7 @@ kotlin {
     }
 }
 dependencies {
-    implementation(projects.shared)
+    implementation(projects.composition)
 
     // `MainApplication` hands the graph to MetroX's AppComponentFactory, which builds the Activity.
     implementation(libs.metrox.android)

@@ -56,7 +56,7 @@ internal fun parseCoreModulePolicy(module: String, source: String?): CoreModuleP
     }
     val dependencies = entries("dependencies")
     dependencies.filterNot { Regex(":core:[a-z][a-z0-9]*(?:-[a-z0-9]+)*").matches(it) }
-        .forEach { violations += "$location dependency $it must name a flat :core:<name> module." }
+        .forEach { violations += "$location dependency $it must name a :core:<name> capability." }
     if (module in dependencies) violations += "$location must not list its own module as a dependency."
     val interfaces = entries("publicInterfaces")
     if (interfaces.isEmpty()) violations += "$location must name at least one public capability or contribution interface."

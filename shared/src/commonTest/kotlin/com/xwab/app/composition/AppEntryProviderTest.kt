@@ -1,5 +1,7 @@
 package com.xwab.app.composition
 
+import androidx.navigation3.runtime.result.ResultEventBus
+import com.xwab.app.navigation.Navigator
 import com.xwab.app.navigation.SAVEABLE_ROUTES
 import com.xwab.app.navigation.appNavigationState
 import kotlin.test.Test
@@ -21,7 +23,8 @@ class AppEntryProviderTest {
 
     @Test
     fun everySaveableRouteHasAScreen() {
-        val entryProvider = appEntryProvider(appEntryGraph(appNavigationState()))
+        val navigator = Navigator(appNavigationState(), ResultEventBus())
+        val entryProvider = appEntryProvider(AppEntryGraphs.create(navigator))
 
         // Resolving is the assertion: Navigation 3's `entryProvider` throws `Unknown screen` from
         // its fallback for a key it was never given. The content keys are kept because they carry a

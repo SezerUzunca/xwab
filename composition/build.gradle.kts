@@ -1,0 +1,90 @@
+/**
+ * The composition root: the one module that sees every installed implementation. It declares the
+ * application graphs and the navigation host's entry graph, constructs the Android launcher
+ * Activity and the iOS view controller, and produces the iOS framework.
+ *
+ * Metro collects contributions from the compile classpath of the module that declares a graph, so
+ * the graphs live here, beside every core and feature module, and the shell they feed (`:shared`)
+ * keeps feature implementations off its own classpath. There is no UI here beyond handing the
+ * shell's `App` what the graphs build.
+ */
+plugins {
+    id("xwab.kmp.compose")
+}
+
+kotlin {
+    if (gradle.extra["enableIos"] as Boolean) {
+        // The convention creates both targets; this only adds the framework the iOS app links. The
+        // name stays `Shared`, which the Xcode project and its Swift imports already use.
+        listOf(
+            iosArm64(),
+            iosSimulatorArm64(),
+        ).forEach { iosTarget ->
+            iosTarget.binaries.framework {
+                baseName = "Shared"
+                isStatic = true
+            }
+        }
+    }
+
+    android {
+        namespace = "com.xwab.app.composition"
+        // The Android application graph needs a `Context`, which only a device has.
+        withDeviceTestBuilder { sourceSetTreeName = "test" }
+    }
+
+    applyDefaultHierarchyTemplate()
+
+    sourceSets {
+        commonMain.dependencies {
+            implementation(projects.shared)
+            // Metro discovers installed capabilities and features on this classpath: their ports,
+            // ViewModels, entries and the now-playing bar. A new core or feature module owns its
+            // contributions; no app-level list needs updating for each one. Settings discovers them
+            // and publishes the lists, so this module never reads another project's state.
+            listOf("coreModules", "featureModules").forEach { group ->
+                @Suppress("UNCHECKED_CAST")
+                val modules = gradle.extra[group] as List<String>
+                modules.forEach { implementation(project(it)) }
+            }
+            implementation(libs.compose.ui)
+            implementation(libs.navigation3.runtime)
+            // The graph owns the ViewModel factory that feature entries read from composition.
+            implementation(libs.metrox.viewmodel)
+        }
+        androidMain.dependencies {
+            // The launcher Activity lives here, beside the graph that constructs it: Metro builds
+            // app components through MetroX's AppComponentFactory (API 28+), and only the module
+            // declaring the graph sees its contributions.
+            implementation(libs.metrox.android)
+            implementation(libs.androidx.activity.compose)
+        }
+        // The application graph checks and the app's integration scenario, written once for the two
+        // places a production graph can be built: an Android device, which has a `Context`, and the
+        // iOS simulator. The host tests have neither, so they do not include this set. The scenario
+        // draws real screens, so it belongs here: Compose bundles an iOS test's resources from this
+        // module's own compilations, and only this module's main classpath holds every feature.
+        val graphTest = create("graphTest") {
+            dependsOn(commonTest.get())
+            dependencies {
+                implementation(libs.compose.uiTest)
+                implementation(libs.androidx.lifecycle.viewmodelCompose)
+                implementation(libs.navigation3.ui)
+                // The scenario replaces the downloaded catalog with this module's fake.
+                implementation(projects.testing.sound)
+            }
+        }
+        getByName("androidDeviceTest") {
+            dependsOn(graphTest)
+            dependencies {
+                implementation(libs.androidx.test.core)
+                implementation(libs.androidx.test.runner)
+                // Compose's older transitive Espresso uses InputManager reflection removed in API 37.
+                implementation(libs.androidx.test.espressoCore)
+            }
+        }
+        if (gradle.extra["enableIos"] as Boolean) {
+            iosTest.get().dependsOn(graphTest)
+        }
+    }
+}

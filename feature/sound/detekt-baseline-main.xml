@@ -1,8 +1,0 @@
-<?xml version="1.0" ?>
-<SmellBaseline>
-  <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>MatchingDeclarationName:SoundNavigation.kt:SoundRoute : NavKey</ID>
-    <ID>MaxLineLength:SoundViewModel.kt:SoundViewModel$favoriteWriteFailed.value = favoritesPort.toggle(SOUND_FAVORITES_NAMESPACE, trackId.value) == FavoriteToggleResult.Unavailable</ID>
-  </CurrentIssues>
-</SmellBaseline>

@@ -1,6 +1,7 @@
 package com.xwab.app.composition
 
 import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.result.ResultEventBus
 import com.xwab.app.core.sound.port.CategoryId
 import com.xwab.app.core.sound.port.TrackId
 import com.xwab.app.core.story.port.StoryId
@@ -10,52 +11,41 @@ import com.xwab.app.feature.favorites.navigation.FavoritesRoute
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import com.xwab.app.feature.story.navigation.StoryRoute
+import com.xwab.app.navigation.Navigator
 import com.xwab.app.navigation.appNavigationState
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertSame
 
 /**
  * Where each feature's intents lead, checked on the real navigator's stacks.
  *
  * The callbacks are the one part of entry wiring the shell still writes by hand, so a swapped
- * destination or a dropped id would compile and pass every feature's own tests.
+ * destination or a dropped id would compile and pass every feature's own tests. That the
+ * composition root's entry graph hands these to the real entries is checked end to end by the
+ * integration scenario.
  */
 class AppEntryCallbacksTest {
     private val state = appNavigationState()
-    private val graph = appEntryGraph(state)
-    private val navigator = graph.navigator
-
-    /**
-     * The graph builds one navigator, not one per request.
-     *
-     * The host reads `graph.navigator` and every callback provider is injected with the same
-     * binding. What the callbacks then do with it is checked below, and end to end by the integration
-     * scenario. Reselection delivery is checked through the result decorator in composition tests.
-     */
-    @Test
-    fun theGraphBuildsOneNavigator() {
-        assertSame(graph.navigator, graph.navigator)
-    }
+    private val navigator = Navigator(state, ResultEventBus())
 
     @Test
     fun featureIntentsOpenTheExpectedDestinationsWithTheirIds() {
-        graph.provideBrowseCallbacks(navigator).onCategoryClick(CategoryId("rain / yağmur:夜"))
-        graph.provideCategoryCallbacks(navigator).onTrackClick(TrackId("rain|night/%25"))
+        AppEntryCallbacks.provideBrowseCallbacks(navigator).onCategoryClick(CategoryId("rain / yağmur:夜"))
+        AppEntryCallbacks.provideCategoryCallbacks(navigator).onTrackClick(TrackId("rain|night/%25"))
         assertEquals(
             listOf(BrowseRoute, CategoryRoute("rain / yağmur:夜"), SoundRoute("rain|night/%25")),
             state.backStacks.getValue(BrowseRoute),
         )
 
         navigator.selectTab(FavoritesRoute)
-        graph.provideFavoritesCallbacks(navigator).onTrackClick(TrackId("ocean"))
+        AppEntryCallbacks.provideFavoritesCallbacks(navigator).onTrackClick(TrackId("ocean"))
         assertEquals(listOf(FavoritesRoute, SoundRoute("ocean")), state.backStacks.getValue(FavoritesRoute))
 
-        graph.provideFavoritesCallbacks(navigator).onBrowse()
+        AppEntryCallbacks.provideFavoritesCallbacks(navigator).onBrowse()
         assertEquals(BrowseRoute, state.topLevelRoute)
 
         navigator.selectTab(StoriesRoute)
-        graph.provideStoriesCallbacks(navigator).onStoryClick(StoryId("forest"))
+        AppEntryCallbacks.provideStoriesCallbacks(navigator).onStoryClick(StoryId("forest"))
         assertEquals(listOf(StoriesRoute, StoryRoute("forest")), state.backStacks.getValue(StoriesRoute))
     }
 
@@ -64,14 +54,14 @@ class AppEntryCallbacksTest {
         navigator.navigate(CategoryRoute("rain"))
         navigator.navigate(SoundRoute("ocean"))
 
-        graph.provideSoundCallbacks(navigator).onBack()
+        AppEntryCallbacks.provideSoundCallbacks(navigator).onBack()
         assertEquals(listOf(BrowseRoute, CategoryRoute("rain")), state.currentBackStack)
-        graph.provideCategoryCallbacks(navigator).onBack()
+        AppEntryCallbacks.provideCategoryCallbacks(navigator).onBack()
         assertEquals(listOf<NavKey>(BrowseRoute), state.currentBackStack)
 
         navigator.selectTab(StoriesRoute)
         navigator.navigate(StoryRoute("forest"))
-        graph.provideStoriesCallbacks(navigator).onBack()
+        AppEntryCallbacks.provideStoriesCallbacks(navigator).onBack()
         assertEquals(listOf<NavKey>(StoriesRoute), state.currentBackStack)
     }
 }

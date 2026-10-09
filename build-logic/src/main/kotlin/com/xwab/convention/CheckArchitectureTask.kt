@@ -20,38 +20,44 @@ import org.gradle.api.tasks.TaskAction
  * 1. A core module may not depend on a feature. Dependencies point one way.
  * 2. A feature may not depend on another feature module. Cross-feature navigation is application
  *    policy: an entry provider exposes an intent callback and `:shared` connects it to a route.
- * 3. A feature is exactly one `:feature:<name>` module; nested `api` / `impl` projects are invalid.
+ *    Only `:composition` depends on an `impl` module, a capability's or a feature's; a capability's
+ *    impl may depend on its own api and the api of the capabilities it declares.
+ * 3. A feature is exactly `:feature:<name>:api` and `:feature:<name>:impl`, and a core capability
+ *    `:core:<name>:api`, its port package alone, and `:core:<name>:impl`, with no port in it.
  * 4. A use case in a core module must serve more than one feature. A screen-specific one belongs
  *    to that screen's module, otherwise screen logic leaks into shared capabilities.
- * 5. Each core owns an architecture.properties file declaring its responsibility, feature access,
+ * 5. Each core capability owns an architecture.properties file, beside its two modules, declaring
+ *    its responsibility, feature access,
  *    exhaustive project dependency boundary and complete set of public callable interfaces.
  * 6. All shared production source sets may reference features only at the navigation/composition
- *    boundary (navigation contracts and shell UI). Feature ViewModels reach the app graph through
- *    Metro contributions, so shared DI names no feature type.
+ *    boundary; only feature api modules are on their classpath. The composition root names no
+ *    feature at all: feature contributions reach its graphs through Metro.
  * 7. A core capability exposes declarations only from an explicit `port` package; everything else
  *    is internal or private.
  * 8. References crossing between core modules target only `port` packages.
  * 9. Core declares no repository/provider abstractions; a feature may own one if it truly needs it.
- * 10. Koin and physical `api` / `impl` source layouts may not return; Metro and cohesive modules
- *     are project-wide decisions.
- * 11. Features expose only navigation contracts and shell UI (`shell` package: what the app shell
- *     places around destinations); implementation declarations stay internal or private.
+ * 10. Koin may not return, and no `api` / `impl` directory exists except the two module roots of
+ *     a capability or a feature.
+ * 11. A feature's implementation exposes only the binding containers it contributes to the shell's
+ *     graphs; its routes and contracts live in its api module, everything else is internal or
+ *     private.
  * 12. Designsystem has no application project dependencies; core cannot
- *     depend on it or on the app shell.
+ *     depend on it, on the app shell or on the composition root.
  * 13. Loading/Ready state types stay inside feature modules. Whether a screen has content yet is
  *     that screen's own question, not a vocabulary every feature has to share.
  * 14. Every directory holding a build script is a module in the build.
- * 15. Every core and feature module is a direct dependency of `:shared`. Metro aggregates
- *     contributions from the compile classpath, so a capability the shell does not declare reaches
- *     no graph, and a feature it does not declare is in no app — neither fails to build.
+ * 15. Every core and feature module is a direct dependency of `:composition`, and every feature
+ *     api module one of `:shared`. Metro aggregates contributions from the compile classpath, so a
+ *     capability the composition root does not declare reaches no graph, and a feature it does not
+ *     declare is in no app — neither fails to build.
  * 16. Every feature route declares an explicit `@SerialName`. The name is what a saved back stack
  *     holds, so left implicit it follows the package and moving the file breaks every restore.
  * 17. Every playback kind a content module registers a resolver under has a route in the app
  *     shell. Kinds are open strings, so the exhaustive `when` that used to guarantee this is gone.
  * 18. Core dependencies are acyclic, including production self dependencies. Test configurations
  *     are excluded from both dependency graphs.
- * 19. Public port contracts cannot reference their own implementation packages. Each flat core
- *     module owns only its matching package namespace.
+ * 19. Public port contracts cannot reference their own implementation packages. Each core
+ *     capability owns only its matching package namespace.
  * 20. Optional adapterOnlyTypes stay out of feature code and public consumer port contracts;
  *     their owner's marked types may refer to one another in their own source file.
  * 21. A core module that implements another's adapterOnlyTypes may not reference that module's
@@ -99,11 +105,14 @@ abstract class CheckArchitectureTask : DefaultTask() {
         )
         val root = repositoryRoot.get().asFile
         val coreSources = coreProductionSources(root, graph.keys)
+        // One policy per capability, beside its api and impl modules: `core/<name>/architecture.properties`.
         val policyResults = graph.keys.filter { it.startsWith(FeatureFirstRules.CORE_PREFIX) }
-            .associateWith { module ->
-                val file = root.resolve(module.removePrefix(":").replace(':', '/'))
+            .map(FeatureFirstRules::capabilityOf)
+            .distinct()
+            .associateWith { capability ->
+                val file = root.resolve(capability.removePrefix(":").replace(':', '/'))
                     .resolve("architecture.properties")
-                parseCoreModulePolicy(module, file.takeIf(File::isFile)?.readText())
+                parseCoreModulePolicy(capability, file.takeIf(File::isFile)?.readText())
             }
         val policies = policyResults.mapNotNull { (module, result) ->
             result.policy?.let { module to it }
@@ -113,6 +122,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
             FeatureFirstRules.corePolicyViolations(graph.keys, policies) +
             FeatureFirstRules.coreModuleShapeViolations(graph.keys) +
             FeatureFirstRules.corePackageOwnershipViolations(coreSources) +
+            FeatureFirstRules.corePortPlacementViolations(coreSources) +
             FeatureFirstRules.unregisteredModuleViolations(moduleDirectories(root), graph.keys) +
             FeatureFirstRules.unwiredModuleViolations(graph) +
             FeatureFirstRules.routeSerialNameViolations(productionSources(root, "feature")) +
@@ -128,6 +138,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
             FeatureFirstRules.dependencyViolations(graph, apiGraph, policies) +
             leakedUseCaseViolations(root, graph.keys) +
             FeatureFirstRules.sharedFeatureReferenceViolations(productionSources(root, "shared")) +
+            FeatureFirstRules.compositionRootFeatureReferenceViolations(productionSources(root, "composition")) +
             FeatureFirstRules.featureVisibilityViolations(productionSources(root, "feature")) +
             FeatureFirstRules.unregisteredViewModelViolations(productionSources(root, "feature")) +
             FeatureFirstRules.featureStateViolations(nonFeatureProductionSources(root)) +
@@ -166,7 +177,8 @@ abstract class CheckArchitectureTask : DefaultTask() {
                 .substringBefore('/')
             if (!sourceSet.endsWith("Main")) return@mapNotNull null
 
-            val module = FeatureFirstRules.owningModule(path, modulePaths) ?: return@mapNotNull null
+            val module = FeatureFirstRules.owningModule(path, modulePaths)
+                ?.let(FeatureFirstRules::capabilityOf) ?: return@mapNotNull null
             val text = file.readText()
             val packageName = packageDeclaration.find(text)?.groupValues?.get(1)
                 .orEmpty()
@@ -188,7 +200,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
                 val module = FeatureFirstRules.owningModule(
                     file.relativeTo(root).invariantSeparatorsPath,
                     modulePaths,
-                ) ?: return@flatMap emptyList<Pair<String, String>>()
+                )?.let(FeatureFirstRules::capabilityOf) ?: return@flatMap emptyList<Pair<String, String>>()
 
                 FeatureFirstRules.USE_CASE_DECLARATION.findAll(file.readText())
                     .map { match -> match.groupValues[1] to module }
@@ -224,7 +236,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
      * land without any other rule noticing.
      */
     private fun nonFeatureProductionSources(root: File): Map<String, String> =
-        listOf("androidApp", "core", "designsystem", "shared", "testing")
+        listOf("androidApp", "composition", "core", "designsystem", "shared", "testing")
             .fold(emptyMap<String, String>()) { sources, directory ->
                 sources + productionSources(root, directory)
             }

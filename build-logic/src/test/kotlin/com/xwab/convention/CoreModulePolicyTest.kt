@@ -125,6 +125,70 @@ class CoreModulePolicyTest {
     }
 
     @Test
+    fun aCapabilityIsReadAcrossItsApiAndImplModules() {
+        val policies = mapOf(
+            ":core:sound" to assertNotNull(parseCoreModulePolicy(":core:sound", policyText).policy)
+                .copy(dependencies = setOf(":core:session")),
+            ":core:session" to assertNotNull(parseCoreModulePolicy(":core:session", policyText).policy),
+        )
+        // An impl builds on its own api and on the api of what it declares.
+        assertEquals(emptyList(), FeatureFirstRules.dependencyViolations(
+            mapOf(":core:sound:impl" to listOf(":core:sound:api", ":core:session:api")),
+            policies = policies,
+        ))
+
+        val violations = FeatureFirstRules.dependencyViolations(
+            mapOf(
+                // The contract never depends on what implements it.
+                ":core:sound:api" to listOf(":core:sound:impl"),
+                // Another capability is reached through its contract, never its implementation.
+                ":core:sound:impl" to listOf(":core:session:impl"),
+                // Undeclared, even through the api.
+                ":core:session:impl" to listOf(":core:sound:api"),
+                // Features compile against a capability's api only.
+                ":feature:sample:impl" to listOf(":core:session:impl"),
+            ),
+            policies = policies,
+        )
+        assertTrue(violations.any { it.startsWith(":core:sound:api depends on :core:sound:impl. Within a capability") })
+        assertTrue(violations.any { it.startsWith(":core:sound:impl depends on :core:session:impl. Only :composition") })
+        assertTrue(violations.any { it.startsWith(":core:session:impl depends on :core:sound:api. This capability") })
+        assertTrue(violations.any { it.contains(":feature:sample:impl depends on :core:session:impl. A feature may not") })
+    }
+
+    @Test
+    fun capabilitiesThatNeedEachOtherFormACycleAcrossTheirModules() {
+        assertEquals(
+            listOf("Core capability dependencies must be acyclic: :core:a -> :core:b -> :core:a."),
+            FeatureFirstRules.coreDependencyCycleViolations(mapOf(
+                ":core:a:api" to emptyList(),
+                ":core:a:impl" to listOf(":core:a:api", ":core:b:api"),
+                ":core:b:api" to emptyList(),
+                ":core:b:impl" to listOf(":core:b:api", ":core:a:api"),
+            )),
+        )
+        assertEquals(emptyList(), FeatureFirstRules.coreDependencyCycleViolations(mapOf(
+            ":core:a:impl" to listOf(":core:a:api", ":core:b:api"),
+            ":core:b:impl" to listOf(":core:b:api"),
+        )))
+    }
+
+    @Test
+    fun portsLiveInTheApiModuleAndNowhereElse() {
+        val api = source(".port", "interface SamplePort").copy(path = "core/sample/api/src/commonMain/kotlin/SamplePort.kt")
+        val impl = source("", "internal class SampleAdapter").copy(path = "core/sample/impl/src/commonMain/kotlin/SampleAdapter.kt")
+        assertEquals(emptyList(), FeatureFirstRules.corePortPlacementViolations(listOf(api, impl)))
+
+        val violations = FeatureFirstRules.corePortPlacementViolations(listOf(
+            source("", "internal class SampleAdapter").copy(path = "core/sample/api/src/commonMain/kotlin/SampleAdapter.kt"),
+            source(".port", "interface SamplePort").copy(path = "core/sample/impl/src/commonMain/kotlin/SamplePort.kt"),
+        ))
+        assertEquals(2, violations.size)
+        assertTrue(violations.any { it.contains("holds only its port package") })
+        assertTrue(violations.any { it.contains("Ports belong in the api module") })
+    }
+
+    @Test
     fun productionGraphExcludesEveryPlatformTestConfiguration() {
         listOf("commonMainImplementation", "androidMainApi", "iosArm64MainImplementation", "implementation", "latestMainApi")
             .forEach { assertTrue(FeatureFirstRules.isProductionConfiguration(it), it) }
@@ -133,9 +197,20 @@ class CoreModulePolicyTest {
     }
 
     @Test
-    fun modulesOwnOnlyTheirFlatCapabilityNamespace() {
-        assertEquals(emptyList(), FeatureFirstRules.coreModuleShapeViolations(setOf(":core", ":core:sleep-timer")))
-        assertEquals(1, FeatureFirstRules.coreModuleShapeViolations(setOf(":core:sample:api")).size)
+    fun everyCapabilityIsAnApiAndAnImplModuleOwningOnlyItsNamespace() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.coreModuleShapeViolations(setOf(":core", ":core:sleep-timer:api", ":core:sleep-timer:impl")),
+        )
+        val misshapen = FeatureFirstRules.coreModuleShapeViolations(
+            setOf(":core:sample", ":core:sample:ports", ":core:other:api", ":core:other:impl"),
+        )
+        assertEquals(2, misshapen.size)
+        assertTrue(misshapen.all { it.contains("is not a core api or impl module") })
+        assertEquals(
+            listOf(":core:sample has no impl module. A capability is its api and impl modules together."),
+            FeatureFirstRules.coreModuleShapeViolations(setOf(":core:sample:api")),
+        )
         val source = source("", "internal class Hidden")
         assertEquals(emptyList(), FeatureFirstRules.corePackageOwnershipViolations(listOf(source)))
         assertEquals(1, FeatureFirstRules.corePackageOwnershipViolations(listOf(

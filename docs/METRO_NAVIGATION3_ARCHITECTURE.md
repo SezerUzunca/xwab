@@ -86,7 +86,7 @@ bootstrap path, not only on the Metro annotations on their constructors:
 The launcher `RecipePickerActivity` selects between these recipe Activities.
 Its UI and the shared colors, content wrappers and edge-to-edge helpers are demo
 presentation support. XWAB uses the same MetroX Activity injection for its one launcher
-Activity, with the graph and that Activity in `:shared`; iOS has no equivalent and builds its
+Activity, with the graph and that Activity in `:composition`; iOS has no equivalent and builds its
 graph in `MainViewController`.
 
 ## Responsibility boundaries
@@ -213,7 +213,7 @@ ordinary ViewModels, `ViewModelAssistedFactory` instances, and
 The upstream concrete factory uses `@Inject` and
 `@ContributesBinding(AppScope::class)`; it does not declare `@SingleIn`.
 `ViewModelGraph` exposes the factory as `metroViewModelFactory`. XWAB's
-[AppViewModelFactory](../shared/src/commonMain/kotlin/com/xwab/app/di/AppViewModelFactory.kt)
+[AppViewModelFactory](../composition/src/commonMain/kotlin/com/xwab/app/di/AppViewModelFactory.kt)
 implements the same MetroX factory contract. The maps hold providers; resolving
 the factory does not eagerly construct every screen ViewModel. XWAB additionally
 scopes its concrete factory with `@SingleIn(AppScope::class)`; that is a local
@@ -264,13 +264,13 @@ with a route key; it does not demonstrate those additional XWAB flows.
 
 | Concern | Current implementation | Relationship to the recipes |
 | --- | --- | --- |
-| Graph surface | [AppGraph](../shared/src/commonMain/kotlin/com/xwab/app/di/AppGraph.kt) extends `ViewModelGraph`; platform graphs aggregate `AppScope` | Same MetroX ViewModel graph contract |
+| Graph surface | [AppGraph](../composition/src/commonMain/kotlin/com/xwab/app/di/AppGraph.kt) extends `ViewModelGraph`; platform graphs aggregate `AppScope` | Same MetroX ViewModel graph contract |
 | Compose factory | [App](../shared/src/commonMain/kotlin/com/xwab/app/App.kt) provides `LocalMetroViewModelFactory` | Same Compose factory boundary |
-| Route arguments | [CategoryEntry](../feature/category/src/commonMain/kotlin/com/xwab/app/feature/category/navigation/CategoryEntry.kt) converts the serialized ID to `CategoryId` before assisted creation | Same assisted mechanism; the ViewModel receives a typed capability ID rather than the entire wire-format route |
-| Factory registration | [CategoryViewModel](../feature/category/src/commonMain/kotlin/com/xwab/app/feature/category/CategoryViewModel.kt) contributes its internal assisted factory to `AppScope` | Same manual assisted factory contract; project visibility rules remain applicable |
-| Entry registration | [AppEntryGraph](../shared/src/commonMain/kotlin/com/xwab/app/composition/AppEntryGraph.kt) aggregates `EntryProviderScope::class` and collects `Set<EntryProviderInstaller>`; [AppEntryProvider](../shared/src/commonMain/kotlin/com/xwab/app/composition/AppEntryProvider.kt) invokes it | Same `@ContributesTo` scope discovery and `@Provides @IntoSet` multibinding; the scope marker is Navigation 3's type rather than a common-module class |
+| Route arguments | [CategoryEntryBindings](../feature/category/impl/src/commonMain/kotlin/com/xwab/app/feature/category/navigation/CategoryEntryBindings.kt) converts the serialized ID to `CategoryId` before assisted creation | Same assisted mechanism; the ViewModel receives a typed capability ID rather than the entire wire-format route |
+| Factory registration | [CategoryViewModel](../feature/category/impl/src/commonMain/kotlin/com/xwab/app/feature/category/CategoryViewModel.kt) contributes its internal assisted factory to `AppScope` | Same manual assisted factory contract; project visibility rules remain applicable |
+| Entry registration | [AppEntryGraph](../composition/src/commonMain/kotlin/com/xwab/app/composition/AppEntryGraph.kt) aggregates `EntryProviderScope::class` in the composition root and exposes the installer set as the shell's `AppEntries`; [AppEntryProvider](../shared/src/commonMain/kotlin/com/xwab/app/composition/AppEntryProvider.kt) invokes it | Same `@ContributesTo` scope discovery and `@Provides @IntoSet` multibinding; the scope marker is Navigation 3's type rather than a common-module class |
 | Route serializers | [RouteSerializersGraph](../shared/src/commonMain/kotlin/com/xwab/app/navigation/RouteSerializersGraph.kt) aggregates `NavKey::class` contributions into `FEATURE_SERIALIZERS` | Not in the recipe, whose back stack is not restored; same discovery mechanism |
-| Navigator | [AppNavigationHost](../shared/src/commonMain/kotlin/com/xwab/app/composition/AppNavigationHost.kt) restores the saved stacks and passes them to `AppEntryGraph` as a factory input; the graph builds the one scoped `Navigator` the host and the feature callbacks share | Injected through Metro as in the recipe, but into the shell's graph only and not scoped to the application graph: features receive callbacks, and navigation state remains owned by the composition root |
+| Navigator | [AppNavigationHost](../shared/src/commonMain/kotlin/com/xwab/app/composition/AppNavigationHost.kt) restores the saved stacks, builds the one `Navigator` over them and passes it to `AppEntryGraph` as a factory input, so the host and the feature callbacks share it | Injected into the entry graph as in the recipe, but built by the shell and not scoped to the application graph: features receive callbacks, and navigation state remains owned by the shell |
 | Back-stack restoration | [RememberNavigationState](../shared/src/commonMain/kotlin/com/xwab/app/navigation/RememberNavigationState.kt) creates saved tab stacks with the registered feature serializers | Extends the basic recipes for this application's KMP and tab requirements |
 | Entry owners | [TabEntries](../shared/src/commonMain/kotlin/com/xwab/app/ui/TabEntries.kt) retains state and ViewModel decorators for every tab | Same entry-owner mechanism, preserved while another tab is selected |
 
@@ -279,34 +279,40 @@ aggregation.
 Google's [modularization guide](https://developer.android.com/guide/navigation/navigation-3/modularize)
 documents both direct entry-builder composition and DI collection.
 
-The installer-set adaptation keeps callback boundaries: each feature's public
-`.navigation` binding container consumes its own callback contract, while
-`AppEntryGraph` maps its intents to destination routes. A feature never receives
-the shared `Navigator` or imports another feature. Each feature provider returns the underlying
-`EntryProviderScope<NavKey>.() -> Unit` function type. The readable `EntryProviderInstaller`
-alias is internal to shared's composition boundary, so features need no common contract module.
+The installer-set adaptation keeps callback boundaries: each feature's impl module
+has a public `.navigation` binding container that consumes the callback contract its api module
+declares, while
+the shell's `AppEntryCallbacks` container maps its intents to destination routes. A feature never
+receives the `Navigator` or imports another feature. Each feature provider returns the underlying
+`EntryProviderScope<NavKey>.() -> Unit` function type, which the shell's `AppEntries` contract also
+uses, so features need no common contract module.
 The recipe's `ActivityScope` marker needs one; XWAB's scope markers are
 `EntryProviderScope::class` for entries and `NavKey::class` for route serializers, types both
 sides already see. [Scope aggregation][metro-aggregation] and
 [concrete graph providers][metro-providers] are documented Metro 1.4.5 APIs.
-`AppEntryGraph` aggregates the entry installers for one navigation host and receives that host's
-restored `NavigationState` as a factory input; it builds one `Navigator` over it, scoped to the
-graph, and the host's `remember(state)` keeps that graph, and its installer closures, with those stacks. Unlike the recipe, the navigator is not an application-graph singleton: its
+`AppEntryGraph` aggregates the entry installers for one navigation host and receives the navigator
+that host built over its restored `NavigationState` as a factory input; the host's
+`remember(state)` keeps the navigator, and the graph's installer closures, with those stacks. Unlike the recipe, the navigator is not an application-graph singleton: its
 stacks are the saved ones the host restores, and features never receive it. Route serializers have their own graph because saved back stacks are restored before
 that host's navigator exists.
 
 This follows the upstream installer-set mechanism and scope discovery with project-specific graph
 ownership. The recipe uses `Any`, injects `Navigator` in an Android Activity
-scope, and describes physical `api` / `impl` modules. XWAB uses `NavKey`, flat feature
-modules and composition-owned saved tab state. Tab order,
+scope, and describes physical `api` / `impl` modules. XWAB uses `NavKey`, the same
+`api` / `impl` feature modules and composition-owned saved tab state. Tab order,
 the start destination and route wire formats remain explicit and independent of
 set iteration. On Android, `MainActivity` is constructor-injected through MetroX as in the
-recipe; both platforms then hand the same ViewModel factory to the shared `App` root.
+recipe; in the composition root, both platforms then hand the same ViewModel factory and entry
+graph factory to the shell's `App` root.
 
-XWAB's flat feature modules and ports-only core boundaries continue to apply.
-This reference document does not introduce physical `api` / `impl` splits,
-feature-to-feature implementation dependencies, or feature access to core graphs.
-Those constraints are defined in the [project architecture](../README.md).
+XWAB splits each feature into `api` and `impl` as the recipe's README proposes, with
+one difference: the recipe's split exists so a feature can navigate through another
+feature's api, and XWAB keeps feature-to-feature dependencies out entirely, api
+included. Each api module's only production consumer is the shell (`:shared`), which has no
+impl module on its classpath; the composition root (`:composition`) installs them and declares
+the graphs Metro needs them for. Core keeps
+its ports-only boundaries, and features have no access to core graphs. Those
+constraints are defined in the [project architecture](../README.md).
 
 ## Verification and maintenance
 
@@ -328,13 +334,13 @@ The explanation distinguishes the following evidence:
 | Pinned `android/nav3-recipes` source | Exact setup, annotations, route types, installers, factories and navigation calls in the two Metro recipes |
 | Pinned MetroX sources and Android Developers guidance | Factory internals and lifecycle interpretation |
 | Linked local project files | XWAB implementation and its architectural constraints |
-| Project adaptation | Installer collection with feature-owned callbacks and one graph-built navigator over the stacks Compose restores; no upstream mandate is claimed |
+| Project adaptation | Installer collection with feature-owned callbacks and one host-built navigator over the stacks Compose restores, passed to the entry graph; no upstream mandate is claimed |
 
 The existing
 [NavigationCompositionTest](../shared/src/composeTest/kotlin/com/xwab/app/navigation/NavigationCompositionTest.kt)
 covers MetroX creation through the production navigation display, distinct entry
 stores, tab switching, entry cleanup and saved-state restoration. It also checks typed tab
-reselection delivery through the graph's shared `ResultEventBus`, discarding a queued event
+reselection delivery through the host's shared `ResultEventBus`, discarding a queued event
 when navigating away, and that a receiver which stays composed through that clear, including a
 list beside a detail pane, keeps receiving. Architecture
 checks enforce ViewModel registration and feature serializer installation.

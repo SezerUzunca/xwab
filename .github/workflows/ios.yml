@@ -92,9 +92,9 @@ jobs:
 
       # One task across the whole build, so a new module is picked up without touching this file.
       # It runs every module's `commonTest` on the simulator, plus the `iosTest` source sets that
-      # exist only here: the AVFoundation engine in core:playback, and the screen tests in
-      # feature:sound and feature:category, whose composables are common code with no second
-      # harness on the Android side.
+      # exist only here: the AVFoundation engine in core:playback, and the screen tests in the
+      # feature impl modules, whose composables are common code with no second harness on the
+      # Android side.
       - name: Run Simulator ARM64 tests
         # Step limits keep the job's own limit out of reach, so the cache save below always runs.
         timeout-minutes: 55
@@ -150,10 +150,11 @@ jobs:
           fi
 
       # The device target is a separate compilation; linking the framework the iOS app
-      # actually consumes is what proves every module builds for real hardware.
+      # actually consumes is what proves every module builds for real hardware. The composition
+      # root produces it, because it is the module that sees every implementation.
       - name: Link the iPhone ARM64 framework
         timeout-minutes: 30
-        run: set -o pipefail; ./gradlew -PenableIos=true :shared:linkDebugFrameworkIosArm64 --stacktrace 2>&1 | tee -a gradle-output.log
+        run: set -o pipefail; ./gradlew -PenableIos=true :composition:linkDebugFrameworkIosArm64 --stacktrace 2>&1 | tee -a gradle-output.log
 
       # The kept results above only exist once a test has run, and they download from the same
       # blob storage a job log does. Annotations come back from the API itself, so a failure that

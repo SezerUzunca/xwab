@@ -3,7 +3,7 @@ package com.xwab.app.ui
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.result.ResultEventBus
-import com.xwab.app.composition.appEntryGraph
+import com.xwab.app.composition.AppEntryGraphs
 import com.xwab.app.composition.appEntryProvider
 import com.xwab.app.composition.appEntryMetadata
 import com.xwab.app.feature.browse.navigation.BrowseRoute
@@ -86,7 +86,8 @@ class TabEntryProviderTest {
     }
 }
 
-private fun appEntries() = appEntryProvider(appEntryGraph(appNavigationState()))
+private fun appEntries() =
+    appEntryProvider(AppEntryGraphs.create(Navigator(appNavigationState(), ResultEventBus())))
 
 /** The production metadata; these tests are about identity, not what the back arrow does. */
 private fun tabEntries(tab: NavKey, provider: (NavKey) -> NavEntry<NavKey>) =
