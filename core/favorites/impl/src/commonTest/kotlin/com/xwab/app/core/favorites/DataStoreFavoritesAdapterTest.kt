@@ -180,7 +180,7 @@ class DataStoreFavoritesAdapterTest {
         dataStore.writeFailure = IllegalStateException("disk is full")
         assertEquals(FavoriteToggleResult.Unavailable, adapter.toggle("sound", "calm-waves"))
         log.assertLast {
-            severity == Severity.Error && tag == "FavoritesPort" &&
+            severity == Severity.Error && tag == "DataStoreFavoritesAdapter" &&
                 message == "Could not persist the favorite change for sound/calm-waves." &&
                 throwable?.message == "disk is full"
         }

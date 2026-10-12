@@ -18,7 +18,7 @@ internal class SleepTimerClient(
     private val mainExecutor: Executor,
     logger: Logger,
 ) {
-    private val logger = logger.withTag("AndroidSleepTimer")
+    private val logger = logger.withTag("SleepTimerClient")
     private var requestVersion = 0L
 
     fun start(

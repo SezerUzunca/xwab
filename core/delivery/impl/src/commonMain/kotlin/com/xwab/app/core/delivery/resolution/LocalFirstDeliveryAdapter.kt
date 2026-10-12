@@ -18,7 +18,7 @@ internal class LocalFirstDeliveryAdapter(
     private val prefetcher: ContentPrefetcher,
     logger: Logger,
 ) : DeliveryPort {
-    private val logger = logger.withTag("DeliveryPort")
+    private val logger = logger.withTag("LocalFirstDeliveryAdapter")
 
     override fun observeCached(key: CacheKey): Flow<Boolean> = fileStore.observeCached(key)
 

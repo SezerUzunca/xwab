@@ -24,8 +24,6 @@ internal fun createDataStore(
 ): DataStore<Preferences> = try {
     PreferenceDataStoreFactory.createWithPath(scope = scope, produceFile = producePath)
 } catch (error: Throwable) {
-    logger.withTag(TAG).e(error) { "Failed to create the preferences DataStore." }
+    logger.withTag("DataStoreFactory").e(error) { "Failed to create the preferences DataStore." }
     throw error
 }
-
-private const val TAG = "PreferencesDataStore"

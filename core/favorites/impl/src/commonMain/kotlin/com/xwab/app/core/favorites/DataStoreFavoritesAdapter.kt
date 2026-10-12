@@ -25,7 +25,7 @@ internal class DataStoreFavoritesAdapter(
     private val dataStore: DataStore<Preferences>,
     logger: Logger,
 ) : FavoritesPort {
-    private val logger = logger.withTag("FavoritesPort")
+    private val logger = logger.withTag("DataStoreFavoritesAdapter")
 
     override fun observe(namespace: String): Flow<FavoritesSnapshot> {
         val favoriteIdsKey = idsKey(namespace)
