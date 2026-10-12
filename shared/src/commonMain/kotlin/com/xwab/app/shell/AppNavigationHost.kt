@@ -1,4 +1,4 @@
-package com.xwab.app.composition
+package com.xwab.app.shell
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable

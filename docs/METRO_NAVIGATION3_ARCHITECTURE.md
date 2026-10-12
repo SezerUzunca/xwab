@@ -86,8 +86,12 @@ bootstrap path, not only on the Metro annotations on their constructors:
 The launcher `RecipePickerActivity` selects between these recipe Activities.
 Its UI and the shared colors, content wrappers and edge-to-edge helpers are demo
 presentation support. XWAB uses the same MetroX Activity injection for its one launcher
-Activity, with the graph and that Activity in `:composition`; iOS has no equivalent and builds its
-graph in `MainViewController`.
+Activity, and, as in the sample, the application module declares the graph MetroX reads and
+contributes the Activity to a scope of its own. That graph, `AndroidComponentGraph` in
+`androidApp`, holds only the Android components and includes the application graph `:composition`
+declares; the application graph cannot collect the Activity, which sits above it. iOS has no
+equivalent: the Swift `App` creates the runtime holding the iOS graph once and hands it to each
+scene's `MainViewController`.
 
 ## Responsibility boundaries
 
@@ -268,9 +272,9 @@ with a route key; it does not demonstrate those additional XWAB flows.
 | Compose factory | [App](../shared/src/commonMain/kotlin/com/xwab/app/App.kt) provides `LocalMetroViewModelFactory` | Same Compose factory boundary |
 | Route arguments | [CategoryEntryBindings](../feature/category/impl/src/commonMain/kotlin/com/xwab/app/feature/category/navigation/CategoryEntryBindings.kt) converts the serialized ID to `CategoryId` before assisted creation | Same assisted mechanism; the ViewModel receives a typed capability ID rather than the entire wire-format route |
 | Factory registration | [CategoryViewModel](../feature/category/impl/src/commonMain/kotlin/com/xwab/app/feature/category/CategoryViewModel.kt) contributes its internal assisted factory to `AppScope` | Same manual assisted factory contract; project visibility rules remain applicable |
-| Entry registration | [AppEntryGraph](../composition/src/commonMain/kotlin/com/xwab/app/composition/AppEntryGraph.kt) aggregates `EntryProviderScope::class` in the composition root and exposes the installer set as the shell's `AppEntries`; [AppEntryProvider](../shared/src/commonMain/kotlin/com/xwab/app/composition/AppEntryProvider.kt) invokes it | Same `@ContributesTo` scope discovery and `@Provides @IntoSet` multibinding; the scope marker is Navigation 3's type rather than a common-module class |
+| Entry registration | [AppEntryGraph](../composition/src/commonMain/kotlin/com/xwab/app/composition/AppEntryGraph.kt) aggregates `EntryProviderScope::class` in the composition root and exposes the installer set as the shell's `AppEntries`; [AppEntryProvider](../shared/src/commonMain/kotlin/com/xwab/app/shell/AppEntryProvider.kt) invokes it | Same `@ContributesTo` scope discovery and `@Provides @IntoSet` multibinding; the scope marker is Navigation 3's type rather than a common-module class |
 | Route serializers | [RouteSerializersGraph](../shared/src/commonMain/kotlin/com/xwab/app/navigation/RouteSerializersGraph.kt) aggregates `NavKey::class` contributions into `FEATURE_SERIALIZERS` | Not in the recipe, whose back stack is not restored; same discovery mechanism |
-| Navigator | [AppNavigationHost](../shared/src/commonMain/kotlin/com/xwab/app/composition/AppNavigationHost.kt) restores the saved stacks, builds the one `Navigator` over them and passes it to `AppEntryGraph` as a factory input, so the host and the feature callbacks share it | Injected into the entry graph as in the recipe, but built by the shell and not scoped to the application graph: features receive callbacks, and navigation state remains owned by the shell |
+| Navigator | [AppNavigationHost](../shared/src/commonMain/kotlin/com/xwab/app/shell/AppNavigationHost.kt) restores the saved stacks, builds the one `Navigator` over them and passes it to `AppEntryGraph` as a factory input, so the host and the feature callbacks share it | Injected into the entry graph as in the recipe, but built by the shell and not scoped to the application graph: features receive callbacks, and navigation state remains owned by the shell |
 | Back-stack restoration | [RememberNavigationState](../shared/src/commonMain/kotlin/com/xwab/app/navigation/RememberNavigationState.kt) creates saved tab stacks with the registered feature serializers | Extends the basic recipes for this application's KMP and tab requirements |
 | Entry owners | [TabEntries](../shared/src/commonMain/kotlin/com/xwab/app/ui/TabEntries.kt) retains state and ViewModel decorators for every tab | Same entry-owner mechanism, preserved while another tab is selected |
 
@@ -302,8 +306,9 @@ scope, and describes physical `api` / `impl` modules. XWAB uses `NavKey`, the sa
 `api` / `impl` feature modules and composition-owned saved tab state. Tab order,
 the start destination and route wire formats remain explicit and independent of
 set iteration. On Android, `MainActivity` is constructor-injected through MetroX as in the
-recipe; in the composition root, both platforms then hand the same ViewModel factory and entry
-graph factory to the shell's `App` root.
+recipe; both platforms then hand the same ViewModel factory and entry graph factory to the shell's
+`App` root — the Activity in `androidApp`, and on iOS the composition root through the shell's
+`AppViewController`.
 
 XWAB splits each feature into `api` and `impl` as the recipe's README proposes, with
 one difference: the recipe's split exists so a feature can navigate through another

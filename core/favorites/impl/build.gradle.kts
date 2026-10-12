@@ -1,5 +1,6 @@
 plugins {
     id("xwab.kmp.library")
+    id("xwab.metro")
 }
 
 kotlin {
@@ -24,6 +25,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.kermit.test)
         }
         getByName("androidDeviceTest").dependencies {
             implementation(libs.kotlin.test)

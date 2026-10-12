@@ -316,11 +316,11 @@ class FeatureFirstRulesTest {
                         "import com.xwab.app.feature.browse.navigation.BrowseRoute",
                     ),
                     "shared/src/commonMain/kotlin/AppEntryCallbacks.kt" to sharedSource(
-                        "composition",
+                        "shell",
                         "import com.xwab.app.feature.browse.navigation.BrowseEntryCallbacks as Callbacks",
                     ),
                     "shared/src/commonMain/kotlin/AppEntries.kt" to sharedSource(
-                        "composition",
+                        "shell",
                         "import com.xwab.app.feature.nowplaying.shell.NowPlayingBar",
                     ),
                 ),
@@ -348,14 +348,19 @@ class FeatureFirstRulesTest {
                     "ui",
                     "import com.xwab.app.feature.browse.navigation.*",
                 ),
-                // An api contract is still out of bounds outside navigation/composition.
+                // An api contract is still out of bounds outside navigation/shell.
                 "shared/src/commonMain/kotlin/App.kt" to sharedSource(
                     "ui",
                     "import com.xwab.app.feature.nowplaying.shell.NowPlayingBar",
                 ),
+                // `composition` is the composition root's package, not a shell boundary.
+                "shared/src/commonMain/kotlin/AppEntries.kt" to sharedSource(
+                    "composition",
+                    "import com.xwab.app.feature.nowplaying.shell.NowPlayingBar",
+                ),
             ),
         )
-        assertEquals(5, violations.size)
+        assertEquals(6, violations.size)
         assertTrue(violations.any { it.contains("androidMain") })
         assertTrue(violations.any { it.contains("iosMain") })
         assertTrue(violations.all { it.contains("other shared packages may not reference features") })
@@ -617,9 +622,11 @@ class FeatureFirstRulesTest {
     @Test
     fun fixedApplicationStructureStillDetectsStaleRules() {
         val modules = FeatureFirstRules.INDEPENDENT_SUPPORT_MODULES + FeatureFirstRules.SHELL_MODULE +
-            FeatureFirstRules.COMPOSITION_ROOT
+            FeatureFirstRules.COMPOSITION_ROOT + FeatureFirstRules.ANDROID_APP
         assertEquals(emptyList(), FeatureFirstRules.staleRuleViolations(modules))
-        assertEquals(3, FeatureFirstRules.staleRuleViolations(emptySet()).size)
+        assertEquals(4, FeatureFirstRules.staleRuleViolations(emptySet()).size)
+        assertTrue(FeatureFirstRules.staleRuleViolations(modules - ":androidApp")
+            .single().contains("ANDROID_APP"))
         assertTrue(FeatureFirstRules.staleRuleViolations(modules - ":designsystem")
             .single().contains("INDEPENDENT_SUPPORT_MODULES"))
         assertTrue(FeatureFirstRules.staleRuleViolations(modules - ":shared")
@@ -1286,6 +1293,54 @@ class FeatureFirstRulesTest {
     }
 
     @Test
+    fun theCompositionRootDrawsNothing() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.compositionRootUiViolations(
+                mapOf(
+                    "composition/src/iosMain/kotlin/MainViewController.kt" to
+                        "package com.xwab.app\n" +
+                        "import com.xwab.app.composition.AppEntryGraphs\n" +
+                        "import platform.UIKit.UIViewController\n" +
+                        "// Not `import androidx.compose.ui.window.ComposeUIViewController`: the shell's job.\n" +
+                        "fun MainViewController(runtime: AppRuntime): UIViewController = TODO()",
+                    "composition/src/commonMain/kotlin/AppEntryGraph.kt" to
+                        "package com.xwab.app.composition\n" +
+                        "import androidx.navigation3.runtime.EntryProviderScope\n",
+                ),
+            ),
+        )
+
+        val violations = FeatureFirstRules.compositionRootUiViolations(
+            mapOf(
+                "composition/src/iosMain/kotlin/MainViewController.kt" to
+                    "package com.xwab.app\n" +
+                    "import androidx.compose.ui.window.ComposeUIViewController\n",
+                "composition/src/androidMain/kotlin/MainActivity.kt" to
+                    "package com.xwab.app\n" +
+                    "import androidx.activity.ComponentActivity\n" +
+                    "import androidx.activity.compose.setContent\n",
+            ),
+        )
+        assertEquals(3, violations.size)
+        assertTrue(violations.all { it.contains("The composition root draws nothing and hosts nothing") })
+    }
+
+    @Test
+    fun theAndroidAppBuildsOnTheCompositionRootAndTheShellAlone() {
+        assertEquals(
+            emptyList(),
+            dependencyViolations(mapOf(":androidApp" to listOf(":composition", ":shared"))),
+        )
+
+        val violations = dependencyViolations(
+            mapOf(":androidApp" to listOf(":composition", ":core:sound:api", ":feature:sound:api", ":designsystem")),
+        )
+        assertEquals(3, violations.size)
+        assertTrue(violations.all { it.contains("The Android app hosts the shell's UI") })
+    }
+
+    @Test
     fun aRouteWithoutAnExplicitSerialNameIsReported() {
         val violations = FeatureFirstRules.routeSerialNameViolations(
             mapOf(
@@ -1498,7 +1553,7 @@ class FeatureFirstRulesTest {
                     internal class MeditationPlaybackResolver : PlaybackItemResolver
                     """.trimIndent(),
             ),
-            compositionSources = mapOf(
+            shellSources = mapOf(
                 "shared/src/commonMain/kotlin/AppNowPlayingSceneDecorator.kt" to
                     "SOUND_PLAYBACK_KIND -> SoundRoute(value)",
             ),
@@ -1521,7 +1576,7 @@ class FeatureFirstRulesTest {
                         internal class SoundPlaybackResolver : PlaybackItemResolver
                         """.trimIndent(),
                 ),
-                compositionSources = mapOf(
+                shellSources = mapOf(
                     "shared/src/commonMain/kotlin/AppNowPlayingSceneDecorator.kt" to
                         "SOUND_PLAYBACK_KIND -> SoundRoute(value)",
                 ),
@@ -1539,7 +1594,7 @@ class FeatureFirstRulesTest {
                     "core/other/src/commonMain/kotlin/Thing.kt" to
                         "@StringKey(SOME_OTHER_KEY)\ninternal class Thing : SomethingElse",
                 ),
-                compositionSources = emptyMap(),
+                shellSources = emptyMap(),
             ),
         )
     }
@@ -1554,7 +1609,7 @@ class FeatureFirstRulesTest {
                     "core/sound/src/commonMain/kotlin/SoundPlaybackResolver.kt" to
                         "// @StringKey(GONE_PLAYBACK_KIND)\ninternal class X : PlaybackItemResolver",
                 ),
-                compositionSources = emptyMap(),
+                shellSources = emptyMap(),
             ),
         )
     }
@@ -1585,7 +1640,7 @@ class FeatureFirstRulesTest {
                         "val TABS = listOf(TopLevelDestination(route = BrowseRoute, label = tab_browse))",
                     ),
                     "shared/src/commonMain/kotlin/AppEntryCallbacks.kt" to sharedSource(
-                        "composition",
+                        "shell",
                         """
                         fun provideBrowseCallbacks(navigator: Navigator) = BrowseEntryCallbacks(
                             onCategoryClick = { navigator.navigate(CategoryRoute (it.value)) },
@@ -1596,7 +1651,7 @@ class FeatureFirstRulesTest {
                         """.trimIndent(),
                     ),
                     "shared/src/commonMain/kotlin/PlaybackRoutes.kt" to sharedSource(
-                        "composition",
+                        "shell",
                         "fun open(kind: String) = when (kind) { STORY -> open(StoriesRoute, StoryRoute(id)) }",
                     ),
                 ),
@@ -1620,7 +1675,7 @@ class FeatureFirstRulesTest {
             ),
             shellSources = mapOf(
                 "shared/src/commonMain/kotlin/AppEntryMetadata.kt" to sharedSource(
-                    "composition",
+                    "shell",
                     """
                     import com.xwab.app.feature.sleeptimer.navigation.TimerRoute
                     fun metadata(tab: NavKey, route: NavKey) = when (tab) {
@@ -1662,6 +1717,36 @@ class FeatureFirstRulesTest {
         vararg dependencies: String,
         interfaces: Set<String> = setOf(port),
     ) = CoreModulePolicy("Test capability", featureAccessible, dependencies.toSet(), interfaces)
+
+    @Test
+    fun aCoreClassTakesItsLoggerRatherThanReachingForTheGlobalOne() {
+        assertEquals(
+            emptyList(),
+            FeatureFirstRules.globalLoggerViolations(
+                listOf(
+                    coreSource(
+                        "Adapter.kt",
+                        "",
+                        "import co.touchlab.kermit.Logger\n" +
+                            "internal class Adapter(logger: Logger) {\n" +
+                            "    // Not Logger.withTag(\"Adapter\"): the graph hands it over.\n" +
+                            "    private val logger = logger.withTag(\"Adapter\")\n" +
+                            "}",
+                    ),
+                    coreSource("Bindings.kt", "", "@Provides\nfun provideLogger(): Logger = Logger\n\n@Provides"),
+                ),
+            ),
+        )
+
+        val violations = FeatureFirstRules.globalLoggerViolations(
+            listOf(
+                coreSource("Adapter.kt", "", "internal class Adapter { private val logger = Logger.withTag(\"Adapter\") }"),
+                coreSource("Store.kt", "", "fun fail(error: Throwable) = Logger\n    .e(error) { \"Could not open.\" }"),
+            ),
+        )
+        assertEquals(2, violations.size)
+        assertTrue(violations.all { it.contains("calls Kermit's global Logger") })
+    }
 
     private fun dependencyViolations(
         graph: Map<String, List<String>>,

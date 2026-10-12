@@ -1,5 +1,6 @@
 package com.xwab.app.core.delivery
 
+import co.touchlab.kermit.Logger
 import com.xwab.app.core.delivery.cache.CachingContentFileStore
 import com.xwab.app.core.delivery.cache.ContentFileStore
 import com.xwab.app.core.delivery.port.DeliveryPort
@@ -48,6 +49,13 @@ internal interface DeliveryBindings {
         /** What the prefetcher measures its failure cooldown with. */
         @Provides
         fun provideTimeSource(): TimeSource = TimeSource.Monotonic
+
+        /**
+         * Kermit's logger, whose level the application sets before this graph is built. Each class
+         * tags its own; a test hands its class one that records what it writes.
+         */
+        @Provides
+        fun provideLogger(): Logger = Logger
     }
 }
 

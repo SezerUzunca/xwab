@@ -16,6 +16,7 @@ class KmpFeatureApiConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
             pluginManager.apply(KmpLibraryConventionPlugin::class.java)
+            pluginManager.apply(MetroConventionPlugin::class.java)
             pluginManager.apply("org.jetbrains.kotlin.plugin.serialization")
             pluginManager.apply("org.jetbrains.kotlin.plugin.compose")
 

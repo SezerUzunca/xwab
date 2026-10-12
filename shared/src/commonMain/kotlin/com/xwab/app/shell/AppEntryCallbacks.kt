@@ -1,4 +1,4 @@
-package com.xwab.app.composition
+package com.xwab.app.shell
 
 import androidx.navigation3.runtime.EntryProviderScope
 import com.xwab.app.feature.browse.navigation.BrowseEntryCallbacks

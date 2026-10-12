@@ -46,7 +46,7 @@ class PlaybackServiceDeviceTest {
             // connection has to wait for it to come back. Ten seconds was enough on some emulator
             // runs and not others, which is the whole of the flakiness this job showed.
             .get(45, TimeUnit.SECONDS)
-        client = SleepTimerClient(ContextCompat.getMainExecutor(context))
+        client = SleepTimerClient(ContextCompat.getMainExecutor(context), SilentLogger)
     }
 
     @AfterTest

@@ -1,6 +1,7 @@
-package com.xwab.app.composition
+package com.xwab.app.shell
 
 import androidx.navigation3.runtime.result.ResultEventBus
+import com.xwab.app.composition.AppEntryGraphs
 import com.xwab.app.navigation.Navigator
 import com.xwab.app.navigation.SAVEABLE_ROUTES
 import com.xwab.app.navigation.appNavigationState

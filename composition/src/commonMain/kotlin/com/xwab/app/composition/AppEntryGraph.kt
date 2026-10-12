@@ -2,6 +2,8 @@ package com.xwab.app.composition
 
 import androidx.navigation3.runtime.EntryProviderScope
 import com.xwab.app.navigation.Navigator
+import com.xwab.app.shell.AppEntries
+import com.xwab.app.shell.AppEntriesFactory
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.createGraphFactory
@@ -27,7 +29,10 @@ internal interface AppEntryGraph : AppEntries {
     }
 }
 
-/** One entry graph per navigation host. Public for the shell's tests, which draw real entries. */
+/**
+ * One entry graph per navigation host. Public for the Android app, which hands it to the shell's
+ * `App`, and for the shell's tests, which draw real entries.
+ */
 object AppEntryGraphs : AppEntriesFactory {
     override fun create(navigator: Navigator): AppEntries =
         createGraphFactory<AppEntryGraph.Factory>().create(navigator)

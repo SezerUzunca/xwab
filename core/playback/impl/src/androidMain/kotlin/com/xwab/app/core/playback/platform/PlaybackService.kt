@@ -30,7 +30,10 @@ internal class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
     private var player: ExoPlayer? = null
-    private val logger = Logger.withTag("PlaybackService")
+    // From the service's graph, like every other logger in the core. Android constructs the service,
+    // so it arrives in onCreate rather than through the constructor; every log call is a callback
+    // that runs after it.
+    private lateinit var logger: Logger
 
     private lateinit var sleepTimer: SleepTimer
 
@@ -41,6 +44,7 @@ internal class PlaybackService : MediaSessionService() {
         // graph itself is not kept.
         val graph = createGraphFactory<PlaybackServiceGraph.Factory>()
             .create(context = this, callback = SleepTimerSessionCallback())
+        logger = graph.logger.withTag("PlaybackService")
         sleepTimer = graph.sleepTimerFactory.create(
             onExpired = {
                 player?.run {

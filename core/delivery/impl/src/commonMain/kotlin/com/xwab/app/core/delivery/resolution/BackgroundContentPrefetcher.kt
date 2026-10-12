@@ -35,8 +35,9 @@ internal class BackgroundContentPrefetcher(
     private val fileStore: ContentFileStore,
     private val backgroundScope: CoroutineScope,
     private val timeSource: TimeSource,
+    logger: Logger,
 ) : ContentPrefetcher {
-    private val logger = Logger.withTag("BackgroundContentPrefetcher")
+    private val logger = logger.withTag("BackgroundContentPrefetcher")
     private val inFlight = mutableSetOf<CacheKey>()
     private val failedAt = mutableMapOf<CacheKey, TimeMark>()
     private val stateMutex = Mutex()

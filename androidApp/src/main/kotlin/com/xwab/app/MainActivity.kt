@@ -9,7 +9,6 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.xwab.app.composition.AppEntryGraphs
-import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.binding
@@ -17,10 +16,13 @@ import dev.zacsweers.metrox.android.ActivityKey
 import dev.zacsweers.metrox.viewmodel.MetroViewModelFactory
 
 /**
- * Constructed by Metro: MetroX's `AppComponentFactory` asks the application graph for it, so it
+ * Constructed by Metro: MetroX's `AppComponentFactory` asks [AndroidComponentGraph] for it, so it
  * receives what it needs instead of reaching into the application object for the graph.
+ *
+ * It hosts the app and draws the shell's [App] with what the composition root built; the screens,
+ * and the graphs behind them, belong to those two modules.
  */
-@ContributesIntoMap(AppScope::class, binding<Activity>())
+@ContributesIntoMap(AndroidComponentScope::class, binding<Activity>())
 @ActivityKey
 @Inject
 class MainActivity(private val viewModelFactory: MetroViewModelFactory) : ComponentActivity() {

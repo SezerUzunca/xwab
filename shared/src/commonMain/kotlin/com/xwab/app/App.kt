@@ -2,8 +2,8 @@ package com.xwab.app
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import com.xwab.app.composition.AppEntriesFactory
-import com.xwab.app.composition.AppNavigationHost
+import com.xwab.app.shell.AppEntriesFactory
+import com.xwab.app.shell.AppNavigationHost
 import com.xwab.app.designsystem.theme.SleepRelaxTheme
 import dev.zacsweers.metrox.viewmodel.LocalMetroViewModelFactory
 import dev.zacsweers.metrox.viewmodel.MetroViewModelFactory

@@ -1,6 +1,7 @@
 package com.xwab.app.core.favorites
 
 import androidx.datastore.core.DataStore
+import co.touchlab.kermit.Logger
 import androidx.datastore.preferences.core.Preferences
 import com.xwab.app.core.favorites.port.FavoritesPort
 import dev.zacsweers.metro.BindingContainer
@@ -33,8 +34,15 @@ internal interface FavoritesBindings {
         /** One store per file: DataStore refuses a second instance over the same path. */
         @Provides
         @SingleIn(FavoritesScope::class)
-        fun provideDataStore(file: FavoritesFile, scope: CoroutineScope): DataStore<Preferences> =
-            createDataStore(scope, file::path)
+        fun provideDataStore(file: FavoritesFile, scope: CoroutineScope, logger: Logger): DataStore<Preferences> =
+            createDataStore(scope, file::path, logger)
+
+        /**
+         * Kermit's logger, whose level the application sets before this graph is built. Each class
+         * tags its own; a test hands its class one that records what it writes.
+         */
+        @Provides
+        fun provideLogger(): Logger = Logger
     }
 }
 

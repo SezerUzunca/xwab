@@ -31,6 +31,7 @@ internal class CachingContentFileStore(
     private val root: Path,
     private val networkPort: NetworkPort,
     private val fileDispatcher: CoroutineDispatcher,
+    logger: Logger,
 ) : ContentFileStore {
     /**
      * The platform names the directory. The file system and dispatcher come from the module graph,
@@ -42,9 +43,10 @@ internal class CachingContentFileStore(
         networkPort: NetworkPort,
         fileSystem: FileSystem,
         fileDispatcher: CoroutineDispatcher,
-    ) : this(fileSystem, location.root, networkPort, fileDispatcher)
+        logger: Logger,
+    ) : this(fileSystem, location.root, networkPort, fileDispatcher, logger)
 
-    private val logger = Logger.withTag("CachingContentFileStore")
+    private val logger = logger.withTag("CachingContentFileStore")
     private val cacheRevision = MutableStateFlow(0L)
 
     override fun observeCached(key: CacheKey): Flow<Boolean> = cacheRevision.map {

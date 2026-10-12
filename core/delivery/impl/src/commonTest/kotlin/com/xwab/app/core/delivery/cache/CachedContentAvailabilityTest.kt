@@ -1,5 +1,6 @@
 package com.xwab.app.core.delivery.cache
 
+import com.xwab.app.core.delivery.SilentLogger
 import com.xwab.app.core.delivery.port.CacheKey
 import com.xwab.app.core.delivery.port.DeliveryRequest
 import com.xwab.app.core.network.port.NetworkPort
@@ -144,7 +145,7 @@ class CachedContentAvailabilityTest {
     private fun store(
         network: NetworkPort = RecordingNetwork(),
         fileSystem: FileSystem = this.fileSystem,
-    ) = CachingContentFileStore(fileSystem, root, network, Dispatchers.Unconfined)
+    ) = CachingContentFileStore(fileSystem, root, network, Dispatchers.Unconfined, SilentLogger)
 
     private fun write(key: CacheKey, bytes: ByteArray) {
         fileSystem.createDirectories(root / key.namespace)

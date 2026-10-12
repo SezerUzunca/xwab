@@ -3,6 +3,7 @@ package com.xwab.app.core.playback.platform
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import co.touchlab.kermit.Logger
 import com.xwab.app.core.playback.timer.SleepTimerClock
 import com.xwab.app.core.playback.timer.TickScheduler
 import dev.zacsweers.metro.BindingContainer
@@ -28,5 +29,12 @@ internal interface AndroidPlaybackBindings {
          */
         @Provides
         fun provideSleepTimerClock(): SleepTimerClock = SleepTimerClock(SystemClock::elapsedRealtime)
+
+        /**
+         * Kermit's logger, whose level the application sets before this graph is built. Each class
+         * tags its own; a test hands its class one that records what it writes.
+         */
+        @Provides
+        fun provideLogger(): Logger = Logger
     }
 }

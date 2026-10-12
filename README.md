@@ -9,8 +9,8 @@ The project uses Navigation 3, Metro compile-time dependency injection, and a st
 core boundary.
 
 ```text
-androidApp ─┐
-            ├── composition (composition root: Metro graphs, MainActivity, iOS framework)
+androidApp ─┐                ◄── platform apps: start the process, keep the graph, host the shell's UI
+            ├── composition (composition root: Metro graphs, iOS framework)
 iosApp ─────┘        │
                      ├── shared (app shell: App, Navigation 3 policy, tabs)
                      │        │
@@ -33,12 +33,27 @@ even on another feature's api. The app shell connects outgoing feature intents t
 
 `composition` is the one module that sees every implementation. Metro collects contributions from
 the compile classpath of the module that declares a graph, so the application graphs and the
-navigation host's entry graph live there, with the Android launcher Activity and the iOS view
-controller they construct; it also produces the iOS framework, still named `Shared`. `shared` is the
-app shell: `App`, navigation policy, tabs and the layout around destinations. Its production
+navigation host's entry graph live there; it also produces the iOS framework, still named `Shared`.
+It draws nothing and hosts nothing. `shared` is the app shell: `App`, navigation policy, tabs and
+the layout around destinations, and on iOS the view controller that holds `App`. Its production
 classpath holds feature api modules only, so the shell cannot reach an implementation even by
 mistake; it receives what the graphs build through `App`'s parameters — the ViewModel factory and
 an `AppEntriesFactory` that turns the host's navigator into the features' entries and bar.
+
+The platform apps own what only an application decides. `androidApp` builds the application graph
+from its `Context` and keeps it for the process, states the app's identity in its manifest, and
+hosts `App` in `MainActivity`, which MetroX constructs from a small component graph of the app's
+own that includes the application graph. `iosApp` creates the runtime holding the iOS graph once at
+launch, keeps it in its `App`, and hands it to each scene's view controller. Metro's and Compose's
+Gradle setup stays in the convention plugins: a compiler plugin runs per compilation, in the module
+whose code it compiles, and one project may not configure another.
+
+The native apps also choose how much is logged, before creating their application graph:
+`MainApplication` sets Kermit's minimum severity from Android's `BuildConfig.DEBUG`, and the Swift
+`App` passes its `DEBUG` choice to `createAppRuntime(isDebug:)` — `Debug` for debug builds, `Warn`
+for release. Each core module graph provides that configured logger; classes take it through their
+constructors and tag it themselves, so a test can hand them one that records. See
+[Kermit's logger setup](https://kermit.touchlab.co/docs/configuration/LOGGER_SETUP/).
 
 `designsystem` and the `testing` modules are top-level support modules. They are deliberately
 outside `core`: core reserves its public surface for ports, while UI components and reusable test
@@ -231,7 +246,7 @@ you: the shell compiles against only the capabilities it names, so add the modul
    on the api modules of the capabilities it uses.
 2. Declare its owned responsibility and exact public interfaces; specify only required core
    dependencies, by capability. Empty `dependencies=` means the capability is independent.
-3. Keep public contracts in `.port`, in the api module. Wire the internal implementation in the impl module's own
+3. Apply `xwab.metro` in the impl module. Keep public contracts in `.port`, in the api module. Wire the internal implementation in the impl module's own
    internal Metro graph, and contribute only its port to `AppScope` through a `*GraphAdapter`
    that passes the graph whatever it needs from other modules. Playable content modules also
    contribute their resolver under a stable key and keep physical sources private to the module.
@@ -365,8 +380,9 @@ playback. The architecture check requires these values to agree with the downloa
 1. A core module lacks a valid `architecture.properties` contract, exposes a different set of
    callable interfaces, or declares a dependency outside its allowed list. Missing dependency
    targets and core dependency cycles also fail.
-2. A core module depends on a non-core application module, a feature depends on another feature, or
-   anything but `composition` depends on an impl module. A capability is exactly
+2. A core module depends on a non-core application module, a feature depends on another feature,
+   anything but `composition` depends on an impl module, or `androidApp` depends on anything but
+   `composition` and `shared`. A capability is exactly
    `:core:<name>:api`, its port package alone, and `:core:<name>:impl`, holding no port; a feature
    is exactly `:feature:<name>:api` and `:feature:<name>:impl`. No other `api`/`impl` directory may
    appear.
@@ -378,11 +394,12 @@ playback. The architecture check requires these values to agree with the downloa
 4. A production core declaration outside its own exact `.port` package is public, a port member
    is non-public, or a cross-core reference bypasses the target module's `.port` package.
 5. Screen state or a feature-specific use case leaks into core; a `Repository` / DI-style
-   `Provider` abstraction appears in core; or Koin is reintroduced.
+   `Provider` abstraction appears in core; a core class calls Kermit's global `Logger` rather
+   than taking one from its module graph; or Koin is reintroduced.
 6. A feature's impl module exposes anything except the binding containers it contributes with
-   `@ContributesTo`, shared references a feature outside the navigation/composition boundary or
+   `@ContributesTo`, shared references a feature outside the navigation/shell boundary or
    by anything its api module does not declare (a wildcard import included), or the composition
-   root names a feature at all.
+   root names a feature at all or imports Compose or an Activity.
 7. Designsystem depends on an application project.
 8. A module directory is absent from the build, a core/feature module is absent from the
    composition root's compilation graph, or a feature api module from shared's. All are added
@@ -429,9 +446,12 @@ configurations, which keeps the check compatible with Gradle's isolated projects
 that does not apply the plugin makes the check fail with Gradle's "no matching variant" error
 naming it, rather than letting the rules run without it.
 
-The Metro convention additionally reports non-public contributions (errors outside feature modules,
-warnings inside them) and generates providers that allow internal contributed adapters to remain
-hidden across modules.
+`xwab.metro` configures Metro only in modules that use its graphs, injection or contributions.
+Core implementations, `composition` and `shared` apply it explicitly; the feature api and impl
+conventions apply it for their contributions. Core api modules, test fixtures and designsystem
+use the KMP/Compose conventions without Metro. The Metro convention reports non-public
+contributions (errors outside feature implementations, warnings inside them) and generates
+providers that allow internal contributed adapters to remain hidden across modules.
 
 ## Adding a feature
 
@@ -477,6 +497,7 @@ content type's favorites stay stored until something deletes them.
 ./gradlew :androidApp:assembleDebug
 ./gradlew compileAndroidHostTest
 ./gradlew testAndroidHostTest
+./gradlew :androidApp:testDebugUnitTest
 ./gradlew checkArchitecture
 ./gradlew :check
 ```

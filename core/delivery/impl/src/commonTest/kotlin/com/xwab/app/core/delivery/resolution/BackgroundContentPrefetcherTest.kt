@@ -1,5 +1,12 @@
+@file:OptIn(ExperimentalKermitApi::class)
+
 package com.xwab.app.core.delivery.resolution
 
+import co.touchlab.kermit.ExperimentalKermitApi
+import co.touchlab.kermit.Severity
+import co.touchlab.kermit.TestLogWriter
+import com.xwab.app.core.delivery.SilentLogger
+import com.xwab.app.core.delivery.recordingLogger
 import com.xwab.app.core.delivery.cache.ContentFileStore
 import com.xwab.app.core.delivery.cache.UnusableContentSourceException
 import com.xwab.app.core.delivery.port.CacheKey
@@ -28,7 +35,7 @@ class BackgroundContentPrefetcherTest {
     fun theSameFileNameInDifferentNamespacesStartsSeparateDownloads() = runBlocking {
         val fileStore = BlockingContentFileStore()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
-        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic, SilentLogger)
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sound", FILE_NAME), REMOTE_URL))
             prefetcher.prefetch(DeliveryRequest(CacheKey("story", FILE_NAME), REMOTE_URL))
@@ -44,7 +51,7 @@ class BackgroundContentPrefetcherTest {
     fun aRequestedFileIsDownloadedOnce() = runBlocking {
         val fileStore = FakeContentFileStore()
         val scope = testScope()
-        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic, SilentLogger)
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
 
@@ -59,7 +66,7 @@ class BackgroundContentPrefetcherTest {
     fun repeatedRequestsShareOneInFlightDownload() = runBlocking {
         val fileStore = BlockingContentFileStore()
         val scope = testScope()
-        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic, SilentLogger)
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
             withTimeout(TIMEOUT_MS) { fileStore.downloadStarted.await() }
@@ -77,18 +84,25 @@ class BackgroundContentPrefetcherTest {
 
     /**
      * The caller is never told: a track that cannot be cached still plays from HTTPS, so a failed
-     * prefetch is a log line and nothing else.
+     * prefetch is a log line and nothing else — one, after the last attempt, rather than one per try.
      */
     @Test
     fun aFailingDownloadIsRetriedThreeTimesAndThenGivenUpQuietly() = runBlocking {
         val fileStore = FailingContentFileStore()
         val scope = testScope()
-        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
+        val log = TestLogWriter(loggable = Severity.Verbose)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic, recordingLogger(log))
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
 
             withTimeout(RETRY_TIMEOUT_MS) { fileStore.attemptsExhausted.await() }
+            scope.settle()
             assertEquals(3, fileStore.attempts)
+            log.assertCount(1)
+            log.assertLast {
+                severity == Severity.Warn && tag == "BackgroundContentPrefetcher" &&
+                    message.startsWith("Could not cache") && throwable?.message == "The audio host is unreachable."
+            }
         } finally {
             scope.cancel()
         }
@@ -102,7 +116,7 @@ class BackgroundContentPrefetcherTest {
     fun aFileThatJustFailedIsNotRetriedAgainImmediately() = runBlocking {
         val fileStore = FailingContentFileStore()
         val scope = testScope()
-        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic, SilentLogger)
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
             scope.settle()
@@ -122,7 +136,7 @@ class BackgroundContentPrefetcherTest {
         val fileStore = FailingContentFileStore()
         val time = FakeTimeSource()
         val scope = testScope()
-        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, time)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, time, SilentLogger)
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
             scope.settle()
@@ -145,12 +159,18 @@ class BackgroundContentPrefetcherTest {
     fun anUnusableSourceIsNotRetriedAtAll() = runBlocking {
         val fileStore = UnusableContentFileStore()
         val scope = testScope()
-        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic)
+        val log = TestLogWriter(loggable = Severity.Verbose)
+        val prefetcher = BackgroundContentPrefetcher(fileStore, scope, TimeSource.Monotonic, recordingLogger(log))
         try {
             prefetcher.prefetch(DeliveryRequest(CacheKey("sample", FILE_NAME), REMOTE_URL))
             scope.settle()
 
             assertEquals(1, fileStore.attempts, "an unusable source should not be retried")
+            log.assertCount(1)
+            log.assertLast {
+                severity == Severity.Warn && tag == "BackgroundContentPrefetcher" &&
+                    message.startsWith("Will not cache") && throwable is UnusableContentSourceException
+            }
         } finally {
             scope.cancel()
         }

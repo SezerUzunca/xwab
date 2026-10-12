@@ -16,8 +16,9 @@ import java.util.concurrent.Executor
 @Inject
 internal class SleepTimerClient(
     private val mainExecutor: Executor,
+    logger: Logger,
 ) {
-    private val logger = Logger.withTag("AndroidSleepTimer")
+    private val logger = logger.withTag("AndroidSleepTimer")
     private var requestVersion = 0L
 
     fun start(

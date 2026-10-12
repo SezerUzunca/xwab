@@ -1,6 +1,7 @@
 plugins {
     // Content storage and transport require no UI or bundled resource pipeline.
     id("xwab.kmp.library")
+    id("xwab.metro")
 }
 
 kotlin {
@@ -18,6 +19,7 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.okio.fakefilesystem)
             implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.kermit.test)
         }
     }
 }

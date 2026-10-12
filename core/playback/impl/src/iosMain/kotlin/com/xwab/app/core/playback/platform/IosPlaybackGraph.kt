@@ -1,5 +1,6 @@
 package com.xwab.app.core.playback.platform
 
+import co.touchlab.kermit.Logger
 import com.xwab.app.core.playback.port.PlaybackEnginePort
 import com.xwab.app.core.playback.timer.SleepTimerClock
 import com.xwab.app.core.playback.timer.TickScheduler
@@ -75,6 +76,13 @@ internal interface IosPlaybackGraph {
 
     @Provides
     fun provideNowPlayingInfoCenter(): MPNowPlayingInfoCenter = MPNowPlayingInfoCenter.defaultCenter()
+
+    /**
+     * Kermit's logger, whose level the application sets before this graph is built. Each class
+     * tags its own; a test hands its class one that records what it writes.
+     */
+    @Provides
+    fun provideLogger(): Logger = Logger
 }
 
 /**

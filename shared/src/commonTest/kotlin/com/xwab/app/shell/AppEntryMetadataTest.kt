@@ -1,6 +1,6 @@
 @file:OptIn(androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi::class)
 
-package com.xwab.app.composition
+package com.xwab.app.shell
 
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldDefaults
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
