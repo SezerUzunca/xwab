@@ -2,6 +2,8 @@ package com.xwab.app.composition
 
 import androidx.navigation3.runtime.EntryProviderScope
 import com.xwab.app.navigation.Navigator
+import com.xwab.app.shell.AppEntries
+import com.xwab.app.shell.AppEntriesFactory
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.createGraphFactory

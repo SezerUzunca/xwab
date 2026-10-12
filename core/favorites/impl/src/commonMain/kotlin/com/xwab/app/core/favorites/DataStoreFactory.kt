@@ -17,10 +17,14 @@ internal fun interface FavoritesFile {
     fun path(): Path
 }
 
-internal fun createDataStore(scope: CoroutineScope, producePath: () -> Path): DataStore<Preferences> = try {
+internal fun createDataStore(
+    scope: CoroutineScope,
+    producePath: () -> Path,
+    logger: Logger,
+): DataStore<Preferences> = try {
     PreferenceDataStoreFactory.createWithPath(scope = scope, produceFile = producePath)
 } catch (error: Throwable) {
-    Logger.e(error, tag = TAG) { "Failed to create the preferences DataStore." }
+    logger.withTag(TAG).e(error) { "Failed to create the preferences DataStore." }
     throw error
 }
 

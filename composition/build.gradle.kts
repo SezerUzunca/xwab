@@ -11,6 +11,7 @@
  */
 plugins {
     id("xwab.kmp.compose")
+    id("xwab.metro")
 }
 
 kotlin {
@@ -52,6 +53,12 @@ kotlin {
             // The graph owns the ViewModel factory that feature entries read from composition. Its
             // type is in `AppGraph`'s signature, which the platform apps read.
             api(libs.metrox.viewmodel)
+        }
+        if (gradle.extra["enableIos"] as Boolean) {
+            iosMain.dependencies {
+                // Swift supplies the logging policy through the runtime factory; Kermit stays in Kotlin.
+                implementation(libs.kermit)
+            }
         }
         // The application graph checks and the app's integration scenario, written once for the two
         // places a production graph can be built: an Android device, which has a `Context`, and the

@@ -133,7 +133,7 @@ abstract class CheckArchitectureTask : DefaultTask() {
             FeatureFirstRules.unregisteredRouteViolations(productionSources(root, "feature")) +
             FeatureFirstRules.unroutedPlaybackKindViolations(
                 coreSources = productionSources(root, "core"),
-                compositionSources = productionSources(root, "shared"),
+                shellSources = productionSources(root, "shared"),
             ) +
             FeatureFirstRules.unopenedRouteViolations(
                 featureSources = productionSources(root, "feature"),
@@ -161,7 +161,8 @@ abstract class CheckArchitectureTask : DefaultTask() {
             FeatureFirstRules.wireFormatViolations(coreSources, policies) +
             FeatureFirstRules.coreVisibilityViolations(coreSources, policies) +
             FeatureFirstRules.coreImportViolations(coreSources) +
-            FeatureFirstRules.legacyCoreAbstractionViolations(coreSources)
+            FeatureFirstRules.legacyCoreAbstractionViolations(coreSources) +
+            FeatureFirstRules.globalLoggerViolations(coreSources)
 
         if (violations.isNotEmpty()) {
             throw GradleException(

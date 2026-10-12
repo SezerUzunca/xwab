@@ -7,6 +7,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
+import co.touchlab.kermit.Logger
 import com.xwab.app.core.playback.port.AudioPlayerState
 import com.xwab.app.core.playback.port.AudioSource
 import com.xwab.app.core.playback.port.PlaybackCommand
@@ -43,6 +44,7 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 @SingleIn(PlaybackScope::class)
 @Inject
+@Suppress("LongParameterList") // What the module graph supplies, as on iOS.
 internal class AndroidPlaybackFacade(
     private val clock: SleepTimerClock,
     sleepTimerTickerFactory: SleepTimerTicker.Factory,
@@ -50,7 +52,10 @@ internal class AndroidPlaybackFacade(
     storeFactory: PlaybackStore.Factory,
     private val loadTimeoutScheduler: TickScheduler,
     connectionFactory: MediaControllerConnection.Factory,
+    logger: Logger,
 ) : PlaybackEnginePort, Player.Listener {
+
+    private val logger = logger.withTag("AndroidPlaybackFacade")
 
     init {
         check(Looper.myLooper() == Looper.getMainLooper()) {
@@ -353,6 +358,12 @@ internal class AndroidPlaybackFacade(
                 it.operationId == operationId && it.source == source
             } ?: return@schedule
             clearPendingLoad()
+            // The player reports nothing here: it is still waiting. The screen shows a timeout, and
+            // this is the only record of which source never became ready.
+            logger.e {
+                "Audio source ${source.id} did not become ready within " +
+                    "$PLAYBACK_READINESS_TIMEOUT_MS ms (operation $operationId)."
+            }
             dispatch(
                 PlaybackMessage.EngineFailed(
                     timedOut.operationId,

@@ -21,6 +21,9 @@ internal object FeatureFirstRules {
     /** Drawing and hosting a screen: Compose UI, and the Activity that holds it on Android. */
     private val UI_HOST_IMPORT = Regex("""^(?:androidx\.compose|androidx\.activity)\.""")
 
+    /** Kermit's global logger called rather than taken: `Logger.withTag(…)`, `Logger.e { … }`. */
+    private val GLOBAL_LOGGER_CALL = Regex("""\bLogger\s*\.\s*[A-Za-z_]""")
+
     val USE_CASE_DECLARATION =
         Regex("""^\s*(?:internal\s+|public\s+)?class\s+(\w+UseCase)\b""", RegexOption.MULTILINE)
 
@@ -552,7 +555,7 @@ internal object FeatureFirstRules {
      */
     fun compositionRootUiViolations(sources: Map<String, String>): List<String> =
         sources.flatMap { (path, source) ->
-            IMPORT.findAll(source)
+            IMPORT.findAll(codeOnly(source))
                 .map { it.groupValues[1] }
                 .filter { UI_HOST_IMPORT.containsMatchIn(it) }
                 .map { import ->
@@ -572,7 +575,7 @@ internal object FeatureFirstRules {
      * compiler has nothing left to say.
      *
      * So the build says it instead. A module that registers a resolver under a kind has declared
-     * that the app can play that kind; if the composition root never mentions the same constant,
+     * that the app can play that kind; if the app shell never mentions the same constant,
      * something is playable with no screen to open from the now-playing bar.
      *
      * Keyed on the constant's *name* rather than its value, which is the whole point of each
@@ -581,7 +584,7 @@ internal object FeatureFirstRules {
      */
     fun unroutedPlaybackKindViolations(
         coreSources: Map<String, String>,
-        compositionSources: Map<String, String>,
+        shellSources: Map<String, String>,
     ): List<String> {
         val contributed = coreSources
             .filterValues { it.contains("PlaybackItemResolver") }
@@ -592,9 +595,9 @@ internal object FeatureFirstRules {
             }
         if (contributed.isEmpty()) return emptyList()
 
-        val composition = compositionSources.values.joinToString("\n", transform = ::codeOnly)
+        val shell = shellSources.values.joinToString("\n", transform = ::codeOnly)
         return contributed
-            .filterNot { (_, constant) -> Regex("""\b$constant\b""").containsMatchIn(composition) }
+            .filterNot { (_, constant) -> Regex("""\b$constant\b""").containsMatchIn(shell) }
             .map { (path, constant) ->
                 "$path registers a playback resolver under $constant, but nothing in the app shell " +
                     "names that kind. Something the app can play has no screen to open: give it a " +
@@ -986,22 +989,26 @@ internal object FeatureFirstRules {
     }
 
     /**
-     * Every shared source set observes the same composition and navigation boundary. Which feature
+     * Every shared source set observes the same navigation and shell boundary. Which feature
      * declarations the shell can name at all is settled by its classpath: only feature api modules
      * are on it, because only the composition root may depend on an implementation.
+     *
+     * The shell's wiring package is `shell`, not `composition`: that name belongs to the composition
+     * root, and a shared package spelled the same would put the shell's contracts and the root's
+     * graphs in one package across two modules.
      */
     fun sharedFeatureReferenceViolations(sources: Map<String, String>): List<String> =
         sources.flatMap { (path, source) ->
             val code = codeOnly(source)
             val packageName = PACKAGE.find(code)?.groupValues?.get(1).orEmpty()
-            val isCompositionBoundary = packageName.isWithin("com.xwab.app.navigation") ||
-                packageName.isWithin("com.xwab.app.composition")
-            if (isCompositionBoundary) return@flatMap emptyList()
+            val isContractBoundary = packageName.isWithin("com.xwab.app.navigation") ||
+                packageName.isWithin("com.xwab.app.shell")
+            if (isContractBoundary) return@flatMap emptyList()
 
             references(code, QUALIFIED_FEATURE_REFERENCE)
                 .filter { it.isWithin("com.xwab.app.feature") }
                 .map { reference ->
-                    "$path references $reference. Shared navigation/composition may reference feature " +
+                    "$path references $reference. Shared navigation/shell may reference feature " +
                         "api contracts; other shared packages may not reference features."
                 }
                 .toList()
@@ -1215,6 +1222,25 @@ internal object FeatureFirstRules {
                 }
             }.toList()
         }.sorted()
+
+    /**
+     * A core class takes its logger through its constructor and tags it; it does not reach for
+     * Kermit's global one.
+     *
+     * The global logger is where the application sets its level, and each module graph hands that
+     * same logger on, so production writes are unchanged — what changes is that a test can hand a
+     * class a logger that records, which is how a fallback that only leaves a log line is tested.
+     * Providing it (`= Logger`, no call) is the graph's job and passes. The playback service, which
+     * Android constructs, takes it from its own graph in `onCreate`.
+     */
+    fun globalLoggerViolations(sources: List<CoreSource>): List<String> =
+        sources
+            .filter { GLOBAL_LOGGER_CALL.containsMatchIn(codeOnly(it.source)) }
+            .map { source ->
+                "${source.path} calls Kermit's global Logger. Take a Logger through the constructor, " +
+                    "which its module graph provides, and tag it there with withTag."
+            }
+            .sorted()
 
     /** Core uses capability ports and concrete adapters, never repository/provider seams. */
     fun legacyCoreAbstractionViolations(sources: List<CoreSource>): List<String> =

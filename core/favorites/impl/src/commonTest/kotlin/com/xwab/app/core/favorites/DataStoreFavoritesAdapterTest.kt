@@ -1,6 +1,11 @@
+@file:OptIn(ExperimentalKermitApi::class)
+
 package com.xwab.app.core.favorites
 
 import androidx.datastore.core.DataStore
+import co.touchlab.kermit.ExperimentalKermitApi
+import co.touchlab.kermit.Severity
+import co.touchlab.kermit.TestLogWriter
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.mutablePreferencesOf
@@ -36,7 +41,7 @@ class DataStoreFavoritesAdapterTest {
     @Test
     fun explicitMembershipIsIdempotentAndKeepsOtherIdsAndNamespaces() = runTest {
         val store = FakePreferencesDataStore()
-        val adapter = DataStoreFavoritesAdapter(store)
+        val adapter = DataStoreFavoritesAdapter(store, SilentLogger)
         adapter.setFavorite("sound", "rain", true)
         adapter.setFavorite("sound", "rain", true)
         adapter.setFavorite("sound", "ocean", true)
@@ -45,7 +50,7 @@ class DataStoreFavoritesAdapterTest {
 
         adapter.setFavorite("sound", "rain", false)
         adapter.setFavorite("sound", "rain", false)
-        val reopened = DataStoreFavoritesAdapter(store)
+        val reopened = DataStoreFavoritesAdapter(store, SilentLogger)
         assertEquals(setOf("ocean"), reopened.observe("sound").first().ids)
         assertEquals(setOf("rain"), reopened.observe("story").first().ids)
     }
@@ -53,8 +58,8 @@ class DataStoreFavoritesAdapterTest {
     @Test
     fun concurrentRestoreRequestsFromSeparateAdaptersDoNotToggleTheItemOff() = runTest {
         val store = FakePreferencesDataStore()
-        val firstScreen = DataStoreFavoritesAdapter(store)
-        val secondScreen = DataStoreFavoritesAdapter(store)
+        val firstScreen = DataStoreFavoritesAdapter(store, SilentLogger)
+        val secondScreen = DataStoreFavoritesAdapter(store, SilentLogger)
         val entered = CompletableDeferred<Unit>()
         val releaseWrite = CompletableDeferred<Unit>()
         store.beforeNextWrite = {
@@ -76,7 +81,7 @@ class DataStoreFavoritesAdapterTest {
     @Test
     fun explicitMembershipValidatesInputsAndPreservesFailureAndCancellation() = runTest {
         val store = FakePreferencesDataStore()
-        val adapter = DataStoreFavoritesAdapter(store)
+        val adapter = DataStoreFavoritesAdapter(store, SilentLogger)
         assertFailsWith<IllegalArgumentException> { adapter.setFavorite("../sound", "rain", true) }
         assertFailsWith<IllegalArgumentException> { adapter.setFavorite("sound", " ", false) }
         adapter.setFavorite("sound", "rain", true)
@@ -93,12 +98,12 @@ class DataStoreFavoritesAdapterTest {
     @Test
     fun identicalIdsInDifferentNamespacesAreIndependentAndPersist() = runTest {
         val store = FakePreferencesDataStore()
-        val adapter = DataStoreFavoritesAdapter(store)
+        val adapter = DataStoreFavoritesAdapter(store, SilentLogger)
         adapter.toggle("sound", "shared-id")
         adapter.toggle("story", "shared-id")
         adapter.toggle("sound", "shared-id")
 
-        val reopened = DataStoreFavoritesAdapter(store)
+        val reopened = DataStoreFavoritesAdapter(store, SilentLogger)
         assertEquals(emptySet(), reopened.observe("sound").first { it.isAvailable }.ids)
         assertEquals(setOf("shared-id"), reopened.observe("story").first { it.isAvailable }.ids)
     }
@@ -106,17 +111,18 @@ class DataStoreFavoritesAdapterTest {
     @Test
     fun favoritesAlreadyInTheStoreSurviveOtherNamespacesAndToggles() = runTest {
         val store = FakePreferencesDataStore().apply { store(setOf("gentle-rain")) }
-        val adapter = DataStoreFavoritesAdapter(store)
+        val adapter = DataStoreFavoritesAdapter(store, SilentLogger)
         adapter.toggle("story", "night")
         assertEquals(setOf("gentle-rain"), adapter.observe("sound").first { it.isAvailable }.ids)
         adapter.toggle("sound", "gentle-rain")
-        assertEquals(emptySet(), DataStoreFavoritesAdapter(store).observe("sound").first { it.isAvailable }.ids)
+        val reread = DataStoreFavoritesAdapter(store, SilentLogger)
+        assertEquals(emptySet(), reread.observe("sound").first { it.isAvailable }.ids)
         assertEquals(setOf("night"), adapter.observe("story").first { it.isAvailable }.ids)
     }
 
     @Test
     fun invalidKeysFailBeforeWriting() = runTest {
-        val adapter = DataStoreFavoritesAdapter(FakePreferencesDataStore())
+        val adapter = DataStoreFavoritesAdapter(FakePreferencesDataStore(), SilentLogger)
         assertFailsWith<IllegalArgumentException> { adapter.observe("") }
         assertFailsWith<IllegalArgumentException> { adapter.toggle("../story", "id") }
         assertFailsWith<IllegalArgumentException> { adapter.toggle("story", " ") }
@@ -125,7 +131,7 @@ class DataStoreFavoritesAdapterTest {
 
     @Test
     fun togglingAddsAndThenRemovesTheId() = runTest {
-        val adapter = DataStoreFavoritesAdapter(FakePreferencesDataStore())
+        val adapter = DataStoreFavoritesAdapter(FakePreferencesDataStore(), SilentLogger)
 
         adapter.toggle("sound", "gentle-rain")
         assertEquals(setOf("gentle-rain"), adapter.observe("sound").first { it.isAvailable }.ids)
@@ -140,33 +146,44 @@ class DataStoreFavoritesAdapterTest {
         assertEquals(setOf("calm-waves"), adapter.observe("sound").first { it.isAvailable }.ids)
     }
 
+    /** Five failed reads are one outage, so they leave one warning rather than five. */
     @Test
     fun aTransientReadFailureIsRetriedRatherThanLeavingFavoritesEmptyForever() = runTest {
         val dataStore = FakePreferencesDataStore()
-        val adapter = DataStoreFavoritesAdapter(dataStore)
+        val log = TestLogWriter(loggable = Severity.Verbose)
+        val adapter = DataStoreFavoritesAdapter(dataStore, recordingLogger(log))
         adapter.toggle("sound", "gentle-rain")
         dataStore.failingReads = 5
 
         assertEquals(setOf("gentle-rain"), adapter.observe("sound").first { it.isAvailable }.ids)
         assertEquals(0, dataStore.failingReads)
+        log.assertCount(1)
+        log.assertLast { severity == Severity.Warn && message == "Could not read the favorites; retrying." }
     }
 
     @Test
     fun readFailuresAreReportedAsUnavailable() = runTest {
         val dataStore = FakePreferencesDataStore().apply { failingReads = Int.MAX_VALUE }
-        val adapter = DataStoreFavoritesAdapter(dataStore)
+        val adapter = DataStoreFavoritesAdapter(dataStore, SilentLogger)
 
         assertEquals(listOf(FavoritesSnapshot(emptySet(), isAvailable = false)), adapter.observe("sound").take(1).toList())
     }
 
+    /** The screen hears only "unavailable"; what the disk said is in the log, and nowhere else. */
     @Test
     fun aFailedWriteReturnsFailureWithoutChangingTheStoredIds() = runTest {
         val dataStore = FakePreferencesDataStore()
-        val adapter = DataStoreFavoritesAdapter(dataStore)
+        val log = TestLogWriter(loggable = Severity.Verbose)
+        val adapter = DataStoreFavoritesAdapter(dataStore, recordingLogger(log))
         adapter.toggle("sound", "gentle-rain")
 
         dataStore.writeFailure = IllegalStateException("disk is full")
         assertEquals(FavoriteToggleResult.Unavailable, adapter.toggle("sound", "calm-waves"))
+        log.assertLast {
+            severity == Severity.Error && tag == "FavoritesPort" &&
+                message == "Could not persist the favorite change for sound/calm-waves." &&
+                throwable?.message == "disk is full"
+        }
 
         dataStore.writeFailure = null
         assertEquals(setOf("gentle-rain"), adapter.observe("sound").first { it.isAvailable }.ids)
@@ -176,7 +193,7 @@ class DataStoreFavoritesAdapterTest {
     fun aStoredIdThatCannotNameATrackIsDroppedRatherThanThrown() = runTest {
         val dataStore = FakePreferencesDataStore()
         dataStore.store(setOf("gentle-rain", "", "   ", "calm-waves"))
-        val adapter = DataStoreFavoritesAdapter(dataStore)
+        val adapter = DataStoreFavoritesAdapter(dataStore, SilentLogger)
 
         assertEquals(
             setOf("gentle-rain", "calm-waves"),
@@ -187,7 +204,7 @@ class DataStoreFavoritesAdapterTest {
     @Test
     fun anExistingCollectorRetainsIdsAndRecoversAfterAReadFailure() = runTest {
         val store = FakePreferencesDataStore().apply { store(setOf("rain")) }
-        val adapter = DataStoreFavoritesAdapter(store)
+        val adapter = DataStoreFavoritesAdapter(store, SilentLogger)
         val snapshots = mutableListOf<FavoritesSnapshot>()
         backgroundScope.launch { adapter.observe("sound").collect { snapshots += it } }
         runCurrent()
@@ -206,7 +223,7 @@ class DataStoreFavoritesAdapterTest {
     @Test
     fun cancellingAnObserverStopsRetriesAndWriteCancellationPropagates() = runTest {
         val store = FakePreferencesDataStore().apply { failingReads = 100 }
-        val adapter = DataStoreFavoritesAdapter(store)
+        val adapter = DataStoreFavoritesAdapter(store, SilentLogger)
         val observer = launch { adapter.observe("sound").collect() }
         runCurrent()
         observer.cancelAndJoin()

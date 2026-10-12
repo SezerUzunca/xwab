@@ -1,5 +1,6 @@
 plugins {
     id("xwab.kmp.library")
+    id("xwab.metro")
 }
 
 kotlin {

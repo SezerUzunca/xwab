@@ -1,4 +1,4 @@
-package com.xwab.app.composition
+package com.xwab.app.shell
 
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.story.port.STORY_PLAYBACK_KIND

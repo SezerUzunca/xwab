@@ -15,10 +15,12 @@ import java.util.concurrent.Executor
  * it is created.
  */
 @AssistedInject
+@Suppress("LongParameterList") // What the module graph supplies, plus the owner's three callbacks.
 internal class MediaControllerConnection(
     context: Context,
     private val sessionToken: SessionToken,
     private val mainExecutor: Executor,
+    logger: Logger,
     @Assisted private val onConnected: (MediaController) -> Unit,
     @Assisted private val onControllerDisconnected: (MediaController) -> Unit,
     @Assisted private val onConnectionFailed: () -> Unit,
@@ -34,7 +36,7 @@ internal class MediaControllerConnection(
     }
 
     private val appContext = context.applicationContext
-    private val logger = Logger.withTag("MediaControllerConnection")
+    private val logger = logger.withTag("MediaControllerConnection")
 
     private var pendingConnectionFuture: ListenableFuture<MediaController>? = null
     private var activeMediaController: MediaController? = null

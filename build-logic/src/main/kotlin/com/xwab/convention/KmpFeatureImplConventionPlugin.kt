@@ -13,7 +13,7 @@ import org.jetbrains.compose.resources.ResourcesExtension
  *
  * The routes and callback contracts live in the sibling `api` module, which this convention adds,
  * so an implementation always compiles against its own contract and never names another feature's.
- * Only the app shell depends on an implementation; `checkArchitecture` refuses any other edge.
+ * Only the composition root installs an implementation; `checkArchitecture` refuses any other edge.
  *
  * Capability modules are deliberately **not** here. A feature declares the ones it reads in its own
  * build file, which lets `checkArchitecture` enforce adapter boundaries as dependency edges — a feature
@@ -29,6 +29,7 @@ class KmpFeatureImplConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
             pluginManager.apply(KmpComposeConventionPlugin::class.java)
+            pluginManager.apply(MetroConventionPlugin::class.java)
             pluginManager.apply("org.jetbrains.kotlin.plugin.serialization")
             // A feature contributes MetroX ViewModel entries. An assisted ViewModel registers its
             // nested `@AssistedFactory`, which Metro binds as itself rather than through a generated

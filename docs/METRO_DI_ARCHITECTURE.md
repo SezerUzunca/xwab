@@ -1,6 +1,6 @@
 # Metro DI architecture and scope
 
-October 9, 2026. This document describes the source tree reviewed on this date, with Metro 1.4.5, including the platform-specific network graphs and the platform apps' ownership of the application graph. It separates Metro's dependency-injection mechanisms from this project's port boundaries and resource ownership. Navigation composition and entry lifetimes are documented in [Navigation 3 architecture](NAVIGATION3_ARCHITECTURE.md).
+October 12, 2026. This document describes the source tree reviewed on this date, with Metro 1.4.5, including the platform-specific network graphs and the platform apps' ownership of the application graph. It separates Metro's dependency-injection mechanisms from this project's port boundaries and resource ownership. Navigation composition and entry lifetimes are documented in [Navigation 3 architecture](NAVIGATION3_ARCHITECTURE.md).
 
 ## Versions
 
@@ -15,7 +15,8 @@ The version catalog is the source of truth. The official documentation's latest 
 
 | Component | Responsibility |
 | --- | --- |
-| `xwab.kmp.library` | Apply Metro to library modules, generate contribution providers and reject unsupported non-public contributions |
+| `xwab.kmp.library` | Configure KMP targets, SDK levels, lint, static analysis and architecture reporting |
+| `xwab.metro` | Apply Metro to modules that use DI, generate contribution providers and reject unsupported non-public contributions |
 | `xwab.kmp.feature.api` | Configure a feature's contract module: routes, their serializer contributions and callback / shell chrome contracts, with no UI toolkit or ViewModel |
 | `xwab.kmp.feature.impl` | Configure feature contributions, including the diagnostic policy for internal assisted ViewModel factories, and add the sibling api module |
 | Android / iOS application graph | Aggregate installed `AppScope` contributions and expose the MetroX ViewModel integration |
@@ -53,22 +54,35 @@ Kotlin visibility and Gradle dependency declarations establish the boundaries; t
 
 Android provides its application `Context` through `AndroidAppGraph.Factory`, using `@Provides @GraphPrivate`. `MainApplication`, in `androidApp`, implements MetroX's `MetroApplication` and creates the application graph once, lazily. MetroX's `AppComponentFactory` (API 28+, hence `minSdk` 28) constructor-injects `MainActivity` from `AndroidComponentGraph`, which `androidApp` declares beside the Activity: a graph collects only its own module's compile classpath, and the Activity sits above `:composition`. That graph implements `MetroAppComponentProviders`, includes the application graph through `@Includes` — whose accessors, the `MetroViewModelFactory` among them, become its bindings — and has its own scope, `AndroidComponentScope`, as Metro's Android sample contributes Activities to an `ActivityScope`; under `AppScope` it would also collect the composition root's own contributions. The Activity passes the factory to `App` with `AppEntryGraphs`, the factory for each navigation host's entry graph. MetroX Android is a dependency of `androidApp` alone, so the device-test APKs of `:composition` and `:shared` keep AndroidX's default component factory. Lint's `Instantiatable` check is silenced on the Activity as in Metro's Android sample.
 
-iOS provides no factory input. The Swift `App` calls `createAppRuntime()` once at launch and keeps the `AppRuntime` it returns — an opaque holder of the iOS application graph, so the framework header carries one type rather than the graph's bindings — and passes it to `MainViewController(runtime:)` for each scene. That function hands the graph's ViewModel factory and `AppEntryGraphs` to the shell's `AppViewController`, which wraps `App` in a `ComposeUIViewController`. Platform capability graphs derive their own native values.
+iOS provides no graph factory input. The Swift `App` calls `createAppRuntime(isDebug:)` once at launch with its build configuration's `DEBUG` choice and keeps the `AppRuntime` it returns — an opaque holder of the iOS application graph, so the framework header carries one type rather than the graph's bindings — and passes it to `MainViewController(runtime:)` for each scene. That function hands the graph's ViewModel factory and `AppEntryGraphs` to the shell's `AppViewController`, which wraps `App` in a `ComposeUIViewController`. Platform capability graphs derive their own native values.
+
+Logging is decided by the native apps and distributed by Metro:
+
+- **The level is the apps' one decision.** Only they know whether the build is a debug one: the KMP library plugin has no build types and no `BuildConfig`, and Swift owns its `DEBUG` flag. `MainApplication` calls `Logger.setMinSeverity` (`Debug` in debug builds, `Warn` in release) in its initializer, because MetroX builds the graphs while Android installs the content providers, before `onCreate`; the iOS runtime factory does the same from Swift's `isDebug` before creating the graph. Nothing else is set: Kermit's global logger already writes through `platformLogWriter()`, its default level is `Verbose`, and every class tags its own logger.
+- **Each module graph provides that logger.** `DeliveryBindings`, `FavoritesBindings`, `AndroidPlaybackBindings` and `IosPlaybackGraph` provide `Logger` as Kermit's global instance, unqualified. Classes take it through their constructors and apply their tag with `withTag`; tagging at the injection site, as Kermit's Koin helpers do, would need a qualifier or an assisted factory per tag in Metro.
+- **Tests hand a class their own logger.** Tests that do not read logs pass a logger with no writers; the silent fallbacks — a prefetch that gives up, a favourite that cannot be written — assert their line through `kermit-test`'s `TestLogWriter`.
+- **`PlaybackService` takes it from its own graph.** Android constructs the service, so `PlaybackServiceGraph` exposes the logger and the service tags it in `onCreate`, before any callback can log. `checkArchitecture` refuses any global `Logger` call in core production code.
+
+Kermit is a direct dependency of `androidApp` and of `composition`'s `iosMain` bridge; Swift sees no Kermit types. See [Kermit's logger setup](https://kermit.touchlab.co/docs/configuration/LOGGER_SETUP/) and [testing](https://kermit.touchlab.co/docs/TESTING), which recommends injecting logger instances.
 
 `composition/build.gradle.kts` includes all core and feature modules from the module lists discovered by settings, and `shared/build.gradle.kts` the feature api modules; none is listed by hand. The shell's tests also depend on `:composition` and the modules it installs, because a dynamic graph is generated from its own compilation's classpath; test configurations are not production dependencies. Metro discovers contributions from the compilation classpath: annotating a class in an uninstalled module does not install that module. Architecture checks enforce module registration and dependency direction.
 
-The base convention sets:
+The `xwab.metro` convention sets:
 
 ```kotlin
 metro.generateContributionProviders.set(true)
 metro.nonPublicContributionSeverity.set(DiagnosticSeverity.ERROR)
 ```
 
+Core implementations, `composition` and `shared` apply this convention explicitly. Feature api
+and impl conventions apply it for their serializer, entry and ViewModel contributions. Core api
+modules, test fixtures and designsystem have no Metro declarations and do not apply it.
+
 Generated contribution providers allow an internal `@ContributesBinding` adapter to contribute its public bound port across a module boundary. This is Metro's documented cross-module mechanism, not a public implementation API written by the project. [Contribution providers](https://github.com/ZacSweers/metro/blob/1.4.5/docs/aggregation.md#generatecontributionproviders).
 
 This mechanism does not make an internal `@ContributesTo` binding container accessible to an application graph generated in another module. Under the current rules, SDK providers belong in the core module's own graph. A container included by a local graph can remain internal because both are compiled within the same module.
 
-Features override the diagnostic severity to `WARN`. Their internal nested assisted factories contribute as their own factory type; the existing declarations locally suppress `NON_PUBLIC_CONTRIBUTION_WARNING`. This narrow suppression does not disable the diagnostic for the rest of a feature.
+Feature implementations override the diagnostic severity to `WARN`. Their internal nested assisted factories contribute as their own factory type; the existing declarations locally suppress `NON_PUBLIC_CONTRIBUTION_WARNING`. This narrow suppression does not disable the diagnostic for the rest of a feature.
 
 ## Capability graphs
 
@@ -315,6 +329,10 @@ An adapter identity assertion alone does not directly prove SDK-object identity 
 
 Android host tests run on the JVM. A host test cannot construct a `Context`. That is why the Android delivery graph takes a cache directory, while favorites and playback, which need the `Context`, are tested on a device. Favorites, playback and application-graph device tests require Android instrumentation. iOS graph tests run on the simulator. CI runs the iOS simulator tests on pull requests and pushes to `main`, since iOS builds and execution require macOS. Everything Android — architecture checks, host and device tests, detekt, lint and APK builds — runs locally before a PR; the Android workflow, including its device job, starts only on manual dispatch. The device job runs each module's `connectedAndroidTest` in its own Gradle invocation. Under the configuration cache, tasks of different modules run in parallel, and two instrumentation runs at once overloaded the two-core emulator. Consult the current workflows and test reports for execution results.
 
+The iOS workflow also links the device framework and builds the actual Swift app in Debug for
+the ARM64 simulator with `xcodebuild`. This compiles the Swift entry points against the generated
+Kotlin framework through the Xcode build script; Kotlin tests alone do not cover that boundary.
+
 Two transport limitations remain relevant to interpreting network configuration: Darwin does not support Ktor's 10-second `connectTimeoutMillis`, although the 30-second socket timeout is supported. A response interrupted mid-body is covered on the real OkHttp engine by `RealEngineInterruptionTest`, which also caught HTTP/2 ending such a body without an error; the adapter now compares the streamed bytes with the declared length. Darwin has no equivalent real-engine test. These are transport configuration/coverage issues, not missing Metro bindings. [Ktor timeout support](https://ktor.io/docs/client-timeout.html#limitations), [module coverage note](../core/network/README.md).
 
 Source and documentation references were checked for this document. On a Windows machine where Gradle stops with "Unable to establish loopback connection", set `JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=<a short directory>`. The JDK's Unix-domain socket cannot be created under a long temporary path. Local runs cover Android host tests, device tests on an emulator, lint, `staticAnalysis` and `checkArchitecture`; iOS execution is verified by CI.
@@ -323,7 +341,7 @@ Source and documentation references were checked for this document. On a Windows
 
 1. Declare its responsibility, allowed dependencies, public interfaces and feature access in `architecture.properties`.
 2. Keep its public contract and models in `.port`; keep implementations and DI declarations internal.
-3. Use constructor injection and local bindings. Provide external library/platform objects inside the module graph.
+3. Apply `xwab.metro` in the impl module, use constructor injection and local bindings, and provide external library/platform objects inside the module graph.
 4. Pass required ports and platform runtime inputs through a graph factory. Use assisted factories for caller-owned runtime values.
 5. Export the capability through a scoped port bridge. Add a shared holder only when multiple bridges must use the same graph.
 6. Register a content resolver under its pinned kind when the capability introduces playable content. Keep required shell routing/serialization consistent with that kind.
@@ -356,6 +374,7 @@ Avoid creating public containers outside `.port` or moving SDK configuration int
 
 - [Root architecture and rules](../README.md)
 - [Library convention](../build-logic/src/main/kotlin/com/xwab/convention/KmpLibraryConventionPlugin.kt)
+- [Metro convention](../build-logic/src/main/kotlin/com/xwab/convention/MetroConventionPlugin.kt)
 - [Feature api convention](../build-logic/src/main/kotlin/com/xwab/convention/KmpFeatureApiConventionPlugin.kt)
 - [Feature impl convention](../build-logic/src/main/kotlin/com/xwab/convention/KmpFeatureImplConventionPlugin.kt)
 - [Architecture task](../build-logic/src/main/kotlin/com/xwab/convention/CheckArchitectureTask.kt)

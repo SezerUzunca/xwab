@@ -1,5 +1,6 @@
 package com.xwab.app.core.delivery.cache
 
+import com.xwab.app.core.delivery.SilentLogger
 import com.xwab.app.core.network.port.NetworkPort
 import com.xwab.app.core.network.port.NetworkResponse
 import com.xwab.app.core.delivery.port.CacheKey
@@ -198,6 +199,7 @@ class CachingContentFileStoreTest {
         root = ROOT,
         networkPort = network,
         fileDispatcher = Dispatchers.Default,
+        logger = SilentLogger,
     )
 
     private fun writeFile(name: String, bytes: ByteArray) {

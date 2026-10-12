@@ -4,12 +4,13 @@
  * contract. Feature implementations, and the application graph that collects them, belong to
  * `:composition`, which depends on this module and hands it what the graphs build.
  *
- * Built on `xwab.kmp.compose` like every other Compose module, so targets, SDK levels, Metro, lint,
+ * Built on `xwab.kmp.compose` like every other Compose module, so targets, SDK levels, lint,
  * detekt and the architecture report come from one place. It used to spell all of that out itself
  * and drifted with it: moving to compileSdk 37.1 took three edits instead of one.
  */
 plugins {
     id("xwab.kmp.compose")
+    id("xwab.metro")
 }
 
 compose.resources {

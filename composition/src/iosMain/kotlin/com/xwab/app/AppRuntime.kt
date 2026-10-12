@@ -1,5 +1,7 @@
 package com.xwab.app
 
+import co.touchlab.kermit.Logger
+import co.touchlab.kermit.Severity
 import com.xwab.app.di.AppGraph
 import com.xwab.app.di.createAppGraph
 
@@ -12,5 +14,14 @@ import com.xwab.app.di.createAppGraph
  */
 class AppRuntime internal constructor(internal val graph: AppGraph)
 
-/** Called once, by the iOS app at launch. */
-fun createAppRuntime(): AppRuntime = AppRuntime(createAppGraph())
+/**
+ * Called once, by the iOS app at launch, with whether its build configuration is a debug one.
+ *
+ * That is the one logging decision the app makes: how much a debug and a release build write.
+ * Kermit's global logger already writes to the platform log, and every module tags its own logger;
+ * the modules receive that logger from their graphs, so it is set before the graph is built.
+ */
+fun createAppRuntime(isDebug: Boolean): AppRuntime {
+    Logger.setMinSeverity(if (isDebug) Severity.Debug else Severity.Warn)
+    return AppRuntime(createAppGraph())
+}

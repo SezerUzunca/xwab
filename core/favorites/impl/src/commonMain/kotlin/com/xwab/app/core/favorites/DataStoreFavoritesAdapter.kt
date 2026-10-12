@@ -23,22 +23,30 @@ import kotlinx.coroutines.flow.retryWhen
 @Inject
 internal class DataStoreFavoritesAdapter(
     private val dataStore: DataStore<Preferences>,
+    logger: Logger,
 ) : FavoritesPort {
-    private val logger = Logger.withTag("FavoritesPort")
+    private val logger = logger.withTag("FavoritesPort")
 
     override fun observe(namespace: String): Flow<FavoritesSnapshot> {
         val favoriteIdsKey = idsKey(namespace)
         return flow {
             var lastIds = emptySet<String>()
+            // One warning per outage, not one per retry: a disk that stays unreadable would
+            // otherwise write the same line every few seconds for as long as a screen observes.
+            var outageReported = false
             emitAll(dataStore.data
                 .map { preferences ->
                     lastIds = preferences[favoriteIdsKey].orEmpty()
                         .filterTo(mutableSetOf()) { it.isNotBlank() }
+                    outageReported = false
                     FavoritesSnapshot(lastIds)
                 }
                 .retryWhen { error, attempt ->
                     if (error is CancellationException || error !is Exception) throw error
-                    logger.w(error) { "Could not read the favorites; retrying." }
+                    if (!outageReported) {
+                        outageReported = true
+                        logger.w(error) { "Could not read the favorites; retrying." }
+                    }
                     emit(FavoritesSnapshot(lastIds, isAvailable = false))
                     delay((RETRY_DELAY_MS shl attempt.coerceAtMost(5L).toInt()).milliseconds)
                     true

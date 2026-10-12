@@ -51,7 +51,7 @@ import com.xwab.app.feature.favorites.navigation.FavoritesRoute
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import androidx.navigation3.runtime.result.ResultEventBus
-import com.xwab.app.composition.appEntryMetadata
+import com.xwab.app.shell.appEntryMetadata
 import com.xwab.app.TestRootOwner
 import com.xwab.app.designsystem.components.LocalBackButtonVisibility
 import com.xwab.app.designsystem.theme.SleepRelaxTheme

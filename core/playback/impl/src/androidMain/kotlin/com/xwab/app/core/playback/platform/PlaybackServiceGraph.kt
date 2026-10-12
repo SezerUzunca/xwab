@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.annotation.OptIn
+import co.touchlab.kermit.Logger
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
@@ -43,6 +44,9 @@ internal interface PlaybackServiceGraph {
     val player: ExoPlayer
     val mediaSession: MediaSession
     val sleepTimerFactory: SleepTimer.Factory
+
+    /** The service's own logger: Android constructs the service, so it takes this in `onCreate`. */
+    val logger: Logger
 
     /**
      * How this app identifies itself to a host it streams from, or null when it does not say.

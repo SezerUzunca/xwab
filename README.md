@@ -48,6 +48,13 @@ launch, keeps it in its `App`, and hands it to each scene's view controller. Met
 Gradle setup stays in the convention plugins: a compiler plugin runs per compilation, in the module
 whose code it compiles, and one project may not configure another.
 
+The native apps also choose how much is logged, before creating their application graph:
+`MainApplication` sets Kermit's minimum severity from Android's `BuildConfig.DEBUG`, and the Swift
+`App` passes its `DEBUG` choice to `createAppRuntime(isDebug:)` — `Debug` for debug builds, `Warn`
+for release. Each core module graph provides that configured logger; classes take it through their
+constructors and tag it themselves, so a test can hand them one that records. See
+[Kermit's logger setup](https://kermit.touchlab.co/docs/configuration/LOGGER_SETUP/).
+
 `designsystem` and the `testing` modules are top-level support modules. They are deliberately
 outside `core`: core reserves its public surface for ports, while UI components and reusable test
 fakes are not application capability ports.
@@ -239,7 +246,7 @@ you: the shell compiles against only the capabilities it names, so add the modul
    on the api modules of the capabilities it uses.
 2. Declare its owned responsibility and exact public interfaces; specify only required core
    dependencies, by capability. Empty `dependencies=` means the capability is independent.
-3. Keep public contracts in `.port`, in the api module. Wire the internal implementation in the impl module's own
+3. Apply `xwab.metro` in the impl module. Keep public contracts in `.port`, in the api module. Wire the internal implementation in the impl module's own
    internal Metro graph, and contribute only its port to `AppScope` through a `*GraphAdapter`
    that passes the graph whatever it needs from other modules. Playable content modules also
    contribute their resolver under a stable key and keep physical sources private to the module.
@@ -387,9 +394,10 @@ playback. The architecture check requires these values to agree with the downloa
 4. A production core declaration outside its own exact `.port` package is public, a port member
    is non-public, or a cross-core reference bypasses the target module's `.port` package.
 5. Screen state or a feature-specific use case leaks into core; a `Repository` / DI-style
-   `Provider` abstraction appears in core; or Koin is reintroduced.
+   `Provider` abstraction appears in core; a core class calls Kermit's global `Logger` rather
+   than taking one from its module graph; or Koin is reintroduced.
 6. A feature's impl module exposes anything except the binding containers it contributes with
-   `@ContributesTo`, shared references a feature outside the navigation/composition boundary or
+   `@ContributesTo`, shared references a feature outside the navigation/shell boundary or
    by anything its api module does not declare (a wildcard import included), or the composition
    root names a feature at all or imports Compose or an Activity.
 7. Designsystem depends on an application project.
@@ -438,9 +446,12 @@ configurations, which keeps the check compatible with Gradle's isolated projects
 that does not apply the plugin makes the check fail with Gradle's "no matching variant" error
 naming it, rather than letting the rules run without it.
 
-The Metro convention additionally reports non-public contributions (errors outside feature modules,
-warnings inside them) and generates providers that allow internal contributed adapters to remain
-hidden across modules.
+`xwab.metro` configures Metro only in modules that use its graphs, injection or contributions.
+Core implementations, `composition` and `shared` apply it explicitly; the feature api and impl
+conventions apply it for their contributions. Core api modules, test fixtures and designsystem
+use the KMP/Compose conventions without Metro. The Metro convention reports non-public
+contributions (errors outside feature implementations, warnings inside them) and generates
+providers that allow internal contributed adapters to remain hidden across modules.
 
 ## Adding a feature
 

@@ -34,6 +34,7 @@ import platform.Foundation.NSThread
  */
 @SingleIn(PlaybackScope::class)
 @Inject
+@Suppress("LongParameterList") // What the module graph supplies, as on Android.
 internal class IosPlaybackFacade(
     private val clock: SleepTimerClock,
     sleepTimerTickerFactory: SleepTimerTicker.Factory,
@@ -41,6 +42,7 @@ internal class IosPlaybackFacade(
     engineFactory: IosPlaybackEngine.Factory,
     mediaSessionFactory: AppleMediaSession.Factory,
     createNowPlayingInfoPublisher: () -> NowPlayingInfoPublisher,
+    logger: Logger,
 ) : PlaybackEnginePort {
     init {
         check(NSThread.isMainThread) { "IosPlaybackFacade must be created on the main thread." }
@@ -52,7 +54,7 @@ internal class IosPlaybackFacade(
         onFadeVolume = { engine.volume = it },
     )
     override val sleepTimerState: StateFlow<SleepTimerState> = sleepTimer.state
-    private val logger = Logger.withTag("IosPlaybackFacade")
+    private val logger = logger.withTag("IosPlaybackFacade")
 
     private val store = storeFactory.create(executeEffects = ::executeEffects, onStateChanged = ::publishState)
     private val playbackState: PlaybackState get() = store.state

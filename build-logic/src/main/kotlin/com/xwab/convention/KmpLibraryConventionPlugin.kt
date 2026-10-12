@@ -1,7 +1,5 @@
 package com.xwab.convention
 
-import dev.zacsweers.metro.gradle.DiagnosticSeverity
-import dev.zacsweers.metro.gradle.MetroPluginExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -10,7 +8,8 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
  * `xwab.kmp.library` — the baseline every library module in this build shares: KMP targets, the
  * macOS guard around the iOS ones, the SDK levels, the JVM target and `kotlin-test`.
  *
- * A module applying this declares only its own `namespace` and its own dependencies.
+ * A module applying this declares its own `namespace` and dependencies. Modules with Metro
+ * declarations also apply `xwab.metro`; the feature conventions do that themselves.
  */
 class KmpLibraryConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
@@ -27,16 +26,6 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             pluginManager.apply(ModuleArchitectureReportPlugin::class.java)
             // Kotlin static analysis, with this module's pre-existing findings in its baseline.
             pluginManager.apply(DetektConventionPlugin::class.java)
-            // Compile-time DI for every module. Metro is inert without its annotations, and
-            // applying it here means no module has to remember to.
-            pluginManager.apply("dev.zacsweers.metro")
-            extensions.configure(MetroPluginExtension::class.java) { metro ->
-                // Metro generates a public provider for the bound port while the contributed
-                // adapter itself stays internal to its module. This is the cross-module mode the
-                // port boundary relies on; exposing implementation bindings would undo it.
-                metro.generateContributionProviders.set(true)
-                metro.nonPublicContributionSeverity.set(DiagnosticSeverity.ERROR)
-            }
 
             kotlinMultiplatform {
                 if (iosEnabled) {

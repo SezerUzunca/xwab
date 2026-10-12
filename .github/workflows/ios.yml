@@ -29,9 +29,9 @@ jobs:
     # only playback code, which has no Compose dependency; the feature screen tests brought it out.
     runs-on: macos-26
     # A cold Kotlin/Native cache after a library update needs more than 45: the Compose 1.12 run
-    # spent 24 minutes on its first test link alone. The two long steps carry their own limits
-    # below (55 + 30), so this one is only ever the backstop.
-    timeout-minutes: 95
+    # spent 24 minutes on its first test link alone. Simulator tests, device framework linking and
+    # the Swift app build carry their own limits below (55 + 30 + 20).
+    timeout-minutes: 115
 
     steps:
       - name: Check out repository
@@ -156,6 +156,22 @@ jobs:
         timeout-minutes: 30
         run: set -o pipefail; ./gradlew -PenableIos=true :composition:linkDebugFrameworkIosArm64 --stacktrace 2>&1 | tee -a gradle-output.log
 
+      # Kotlin tests and framework linking do not compile the Swift entry points or validate
+      # their generated Kotlin API names. Build the actual app through its Xcode integration.
+      - name: Build the Swift app for the ARM64 simulator
+        timeout-minutes: 20
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project iosApp/iosApp.xcodeproj \
+            -target iosApp \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee -a gradle-output.log
+
       # The kept results above only exist once a test has run, and they download from the same
       # blob storage a job log does. Annotations come back from the API itself, so a failure that
       # happens while compiling — before any test — is still readable.
@@ -163,10 +179,10 @@ jobs:
         if: failure()
         run: |
           if [ ! -f gradle-output.log ]; then
-            echo "::error::The step failed before Gradle produced any output."
+            echo "::error::The step failed before the build produced any output."
             exit 0
           fi
-          detail=$(grep -hE "^e: |^FAILURE: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference|Could not (resolve|find|determine)" gradle-output.log | head -12 || true)
+          detail=$(grep -hE "^e: |^FAILURE: |error: |What went wrong|Task .* FAILED|^Caused by: |violation|Unresolved reference|Could not (resolve|find|determine)" gradle-output.log | head -12 || true)
           if [ -z "$detail" ]; then
             detail=$(tail -12 gradle-output.log || true)
           fi

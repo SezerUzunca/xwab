@@ -4,8 +4,8 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.result.ResultEventBus
 import com.xwab.app.composition.AppEntryGraphs
-import com.xwab.app.composition.appEntryProvider
-import com.xwab.app.composition.appEntryMetadata
+import com.xwab.app.shell.appEntryProvider
+import com.xwab.app.shell.appEntryMetadata
 import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute

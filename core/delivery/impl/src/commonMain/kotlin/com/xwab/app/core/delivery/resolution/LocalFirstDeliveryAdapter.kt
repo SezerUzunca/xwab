@@ -16,8 +16,9 @@ import kotlinx.coroutines.flow.Flow
 internal class LocalFirstDeliveryAdapter(
     private val fileStore: ContentFileStore,
     private val prefetcher: ContentPrefetcher,
+    logger: Logger,
 ) : DeliveryPort {
-    private val logger = Logger.withTag("DeliveryPort")
+    private val logger = logger.withTag("DeliveryPort")
 
     override fun observeCached(key: CacheKey): Flow<Boolean> = fileStore.observeCached(key)
 

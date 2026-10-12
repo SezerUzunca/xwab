@@ -1,7 +1,7 @@
 package com.xwab.app
 
 import androidx.compose.ui.window.ComposeUIViewController
-import com.xwab.app.composition.AppEntriesFactory
+import com.xwab.app.shell.AppEntriesFactory
 import dev.zacsweers.metrox.viewmodel.MetroViewModelFactory
 import platform.UIKit.UIViewController
 

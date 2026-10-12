@@ -37,6 +37,8 @@ dependencies {
     implementation(libs.metrox.android)
     implementation(libs.metrox.viewmodel)
     implementation(libs.androidx.activity.compose)
+    // The application owns the global logging policy, configured before its graphs are built.
+    implementation(libs.kermit)
 
     debugImplementation(libs.compose.uiTooling)
 
@@ -45,6 +47,10 @@ dependencies {
 
 android {
     namespace = "com.xwab.app"
+    buildFeatures {
+        // The native application selects Kermit's debug/release policy.
+        buildConfig = true
+    }
     compileSdk {
         version = release(libs.versions.android.compileSdk.get().toInt()) {
             minorApiLevel = libs.versions.android.compileSdkMinor.get().toInt()
