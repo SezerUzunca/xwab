@@ -5,6 +5,7 @@
     <string name="tab_favorites">Favorites</string>
     <string name="tab_stories">Stories</string>
     <string name="tab_shuffle">Shuffle</string>
+    <string name="tab_after_shift">After Shift</string>
     <string name="choose_category">Choose a category</string>
     <string name="choose_sound">Choose a sound</string>
     <string name="choose_story">Choose a story</string>

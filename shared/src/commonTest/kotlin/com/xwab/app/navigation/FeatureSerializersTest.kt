@@ -93,6 +93,7 @@ class FeatureSerializersTest {
     fun routeSerialNamesAreTheSavedWireFormat() {
         assertEquals(
             listOf(
+                "com.xwab.app.feature.aftershift.navigation.AfterShiftRoute",
                 "com.xwab.app.feature.browse.navigation.BrowseRoute",
                 "com.xwab.app.feature.category.navigation.CategoryRoute",
                 "com.xwab.app.feature.favorites.navigation.FavoritesRoute",
