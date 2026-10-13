@@ -1,7 +1,10 @@
 # Xwab
 
 Xwab is a Kotlin Multiplatform sleep-sound app for Android and iOS. It is account-free, streams
-audio on first play, caches sounds for later playback, and streams public-domain sleep stories.
+audio on first play, caches sounds for later playback, and streams public-domain sleep stories. Its
+Shuffle tab speaks cognitive-shuffle words — unrelated, easy-to-picture things, eight seconds
+apart — with the device's own text-to-speech voice, rendered on the device into a track the same
+player plays.
 
 ## Architecture
 
@@ -18,7 +21,7 @@ iosApp ─────┘        │
                      │                 ▲
                      └── feature:<name>:impl           ◄── only the composition root installs these
                               │                            browse · favorites · category
-                              │                            sound · story · nowplaying
+                              │                            sound · story · shuffle · nowplaying
                               └── core:<name>:api      ◄── public ports; everyone compiles against these
                                        ▲
                                   core:<name>:impl     ◄── internal Metro adapters; only the composition root installs these
@@ -93,13 +96,15 @@ There is no shared repository abstraction. A feature consumes the narrow capabil
 | `:core:delivery` | `DeliveryPort`, `DeliveryRequest` and `CacheKey` |
 | `:core:favorites` | `FavoritesPort` |
 | `:core:story` | `StoryPort`, story metadata models and `STORY_PLAYBACK_KIND` |
+| `:core:shuffle` | `ShufflePort`, word-deck metadata models and `SHUFFLE_PLAYBACK_KIND` |
 | `:core:session` | `PlaybackPort` and session models; `PlaybackItemResolver`, `ItemResolution` and `PlaybackPolicy` for content adapters, behind the `PlaybackResolverApi` opt-in |
 | `:core:playback` | `PlaybackEnginePort` and engine command/state types |
 | `:core:network` | `NetworkPort` and transport-neutral response/error types |
 
 Every core module wires its own implementation in its own internal Metro graph (`SoundGraph`,
 `StoryGraph`, `SessionGraph`, and per platform `AndroidNetworkGraph` / `IosNetworkGraph`,
-`AndroidDeliveryGraph` / `IosDeliveryGraph`, `AndroidFavoritesGraph` / `IosFavoritesGraph` and `AndroidPlaybackGraph` /
+`AndroidDeliveryGraph` / `IosDeliveryGraph`, `AndroidFavoritesGraph` / `IosFavoritesGraph`,
+`AndroidShuffleGraph` / `IosShuffleGraph` and `AndroidPlaybackGraph` /
 `IosPlaybackGraph`), scoped to that module (`@SingleIn(DeliveryScope::class)`
 and so on). Library objects are provided there with `@Provides` — the `HttpClient`, the DataStore —
 and internal services bind their internal interfaces there, so the delivery cache store and the
@@ -153,6 +158,7 @@ core/
 ├── network     api · impl
 ├── sound       api · impl
 ├── story       api · impl
+├── shuffle     api · impl
 ├── delivery    api · impl
 ├── favorites   api · impl
 ├── session     api · impl
@@ -168,6 +174,7 @@ feature/
 ├── category    api · impl
 ├── favorites   api · impl
 ├── nowplaying  api · impl
+├── shuffle     api · impl
 ├── sound       api · impl
 └── story       api · impl
 ```
@@ -187,6 +194,7 @@ source naming something a feature api module does not declare.
 | Module | Owns | Delegates |
 |---|---|---|
 | `sound` / `story` | Catalog metadata, private sources and lookup, stable content identities, playback resolver and policy | Sounds delegate cache/download work to `DeliveryPort`; stories stream directly |
+| `shuffle` | Word-deck metadata, private word lists, rendering a deck's words into a local track with the device's voice, playback resolver and policy | Speech to the platform's text-to-speech engine; no network or download cache |
 | `session` | Current playback intent, request ordering, summary for screens and the resolver contract it consumes | Item resolution and platform commands through ports |
 | `playback` | Native engine, media controls, playback state, sleep timer execution | No application module dependency |
 | `delivery` | Local-first delivery, downloads, cache validation and cleanup | HTTP through `NetworkPort` |
@@ -198,7 +206,8 @@ playable content module contributes its own `PlaybackItemResolver`; the session 
 kind through the consumer-owned port in `com.xwab.app.core.session.port`. A resolver reads its
 own metadata and source and returns a content-neutral resolution. There is no separate source
 registry or source registration step.
-Sound depends on session and delivery; story depends on session; session depends only on playback.
+Sound depends on session and delivery; story and shuffle depend on session; session depends only on
+playback.
 Features cannot depend on delivery, network or the native engine. The resolver contract is public
 in Kotlin because content modules implement it across module boundaries, and Kotlin has no
 visibility for "these modules only" yet. Two checks stand in for one. The compiler rejects any use of
@@ -274,10 +283,11 @@ package; the entry providers that draw those routes live in its impl module. Onl
 navigation-composition boundary may name the api declarations; feature code publishes intent
 callbacks and does not name destination features.
 
-`BrowseRoute` is the initial destination. Browse, Favorites and Stories are top-level destinations;
-Category, Sound and Story details are nested destinations. Every content row opens its detail from
+`BrowseRoute` is the initial destination. Browse, Favorites, Stories and Shuffle are top-level
+destinations; Category, Sound and Story details are nested destinations. Every content row opens its detail from
 the row body; only its explicit play/pause button changes playback. `StoryRoute(storyId)` opens the
-selected story's description, author, narrator and duration. Each tab retains its own history and saved screen state.
+selected story's description, author, narrator and duration. `ShuffleRoute` is one screen: each word
+deck with its play/pause, the session's sleep timer, and how to listen. Each tab retains its own history and saved screen state.
 
 `AppNavigationHost` builds and remembers the `Navigator` and its result bus over the stacks it
 restored. Each feature contributes two Metro binding containers: its impl module a `@Provides
@@ -320,7 +330,8 @@ local devices, because on CI's emulator it exceeded Compose's test timeout.
 Its api module declares the `NowPlayingBar` contract in its `shell` package, and its impl module
 contributes the bar to the composition root's `AppEntryGraph` beside the entry installers; the
 shell draws it from `AppEntries.nowPlayingBar` without its implementation on its classpath. Tapping the bar opens the playing item's own screen in the tab it
-belongs to — `SoundRoute` under Sounds, `StoryRoute` under Stories — as a fresh selection from that
+belongs to — `SoundRoute` under Sounds, `StoryRoute` under Stories, a word deck to the Shuffle
+tab's one screen — as a fresh selection from that
 tab's root, or returns to it if that detail is already open there. The tab the listener was on
 keeps its stack. The shell owns that mapping; nowplaying consumes only the content-neutral session
 port.
@@ -362,7 +373,12 @@ Sound details show "Available offline" only while that signal is true, otherwise
 required". Readiness updates as cached files become available or are removed.
 `StoryPlaybackResolver` reads metadata through `StoryPort`, looks up its own internal HTTPS source
 and returns it for streaming without caching; story details state that internet is required.
-Both resolvers supply metadata and loop policy through
+`ShufflePlaybackResolver` has no address to look up: it draws a fresh selection of the deck's words,
+has the device's text-to-speech voice speak each one (once per voice; spoken words are kept), lays
+them out one per interval in a WAV file under the cache directory and returns that file's path. The
+first play of a deck takes a few seconds, which the session reports as preparing; a device without
+a voice for the deck's language gets a retryable failure. See [core/shuffle](core/shuffle/README.md).
+All three resolvers supply metadata and loop policy through
 `PlaybackItemResolver`; neither the session nor the platform engine needs to know the content type.
 
 Android playback uses Media3; iOS playback uses AVFoundation. Platform implementations are

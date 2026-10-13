@@ -39,6 +39,7 @@ kotlin {
             implementation(projects.core.session.api)
             implementation(projects.core.sound.api)
             implementation(projects.core.story.api)
+            implementation(projects.core.shuffle.api)
             implementation(projects.designsystem)
 
             implementation(libs.compose.ui)

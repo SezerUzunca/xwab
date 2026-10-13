@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Android 11 hides other apps' services unless the app says which it looks for. Without this,
+      TextToSpeech finds no engine and the shuffle's words cannot be spoken.
+      https://developer.android.com/training/package-visibility/use-cases
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
+</manifest>
