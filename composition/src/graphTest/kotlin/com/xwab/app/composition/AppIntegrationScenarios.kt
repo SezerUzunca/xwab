@@ -70,10 +70,10 @@ internal fun realEntriesOpenACategoryFromBrowse(createGraph: (OfflineCatalog) ->
 
 /**
  * Every screen the app has, opened through its real entry on the production graph: the sound's own
- * screen, the Favorites tab, the Stories tab, a story's own screen and the Shuffle tab, after Browse
- * and Category.
+ * screen, the Favorites tab, the Stories tab, a story's own screen, the Shuffle tab and the After
+ * Shift tab, after Browse and Category.
  *
- * Together with the bar on the root, that resolves all eight contributed ViewModels — five plain,
+ * Together with the bar on the root, that resolves all nine contributed ViewModels — six plain,
  * three through assisted factories with the id their route carries — rather than only checking the
  * maps are non-empty, as the graph test does. A screen whose ViewModel or installer never reached
  * the graph throws here when it opens.
@@ -111,6 +111,12 @@ internal fun realEntriesOpenEveryScreen(createGraph: (OfflineCatalog) -> AppGrap
         onAllNodes(TAB)[SHUFFLE_TAB].performClick()
         waitUntilAtLeastOneExists(hasText(SHUFFLE_TITLE), TIMEOUT_MS)
         waitUntilAtLeastOneExists(hasText(SHUFFLE_DECK), TIMEOUT_MS)
+
+        // The After Shift tab: the production guides, and the note field over the production notes
+        // store, which reading leaves unwritten.
+        onAllNodes(TAB)[AFTER_SHIFT_TAB].performClick()
+        waitUntilAtLeastOneExists(hasText(AFTER_SHIFT_NOTE_TITLE), TIMEOUT_MS)
+        waitUntilAtLeastOneExists(hasText(AFTER_SHIFT_GUIDE), TIMEOUT_MS)
     } finally {
         runOnIdle { owner.close() }
     }
@@ -156,17 +162,21 @@ private const val RESELECTIONS = 3
  */
 private val SELECTED_TAB = isSelected() and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
 
-/** Every navigation tab, in the shell's order: Browse, Favorites, Stories, Shuffle. */
+/** Every navigation tab, in the shell's order: Browse, Favorites, Stories, Shuffle, After Shift. */
 private val TAB = SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
 private const val FAVORITES_TAB = 1
 private const val STORIES_TAB = 2
 private const val SHUFFLE_TAB = 3
+private const val AFTER_SHIFT_TAB = 4
 
 /**
  * `feature:sound`'s `internet_required`, `feature:favorites`' `favorites_title`, `feature:shuffle`'s
- * `shuffle_title`, and the title of the deck `core:shuffle` ships.
+ * `shuffle_title`, the title of the deck `core:shuffle` ships, `feature:after-shift`'s
+ * `after_shift_note_title` and the first guide `core:guide` ships.
  */
 private const val SOUND_ONLINE_ONLY = "Internet required"
 private const val FAVORITES_TITLE = "Favorite sounds"
 private const val SHUFFLE_TITLE = "Cognitive Shuffle"
 private const val SHUFFLE_DECK = "Everyday Things"
+private const val AFTER_SHIFT_NOTE_TITLE = "Park it for later"
+private const val AFTER_SHIFT_GUIDE = "Muscle Relaxation"

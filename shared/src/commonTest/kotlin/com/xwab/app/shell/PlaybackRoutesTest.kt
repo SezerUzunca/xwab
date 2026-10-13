@@ -1,8 +1,10 @@
 package com.xwab.app.shell
 
+import com.xwab.app.core.guide.port.GUIDE_PLAYBACK_KIND
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.shuffle.port.SHUFFLE_PLAYBACK_KIND
 import com.xwab.app.core.story.port.STORY_PLAYBACK_KIND
+import com.xwab.app.feature.aftershift.navigation.AfterShiftRoute
 import com.xwab.app.feature.shuffle.navigation.ShuffleRoute
 import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.feature.sound.navigation.SoundRoute
@@ -59,6 +61,19 @@ class PlaybackRoutesTest {
         assertEquals(ShuffleRoute, state.topLevelRoute)
         assertEquals(listOf<NavKey>(ShuffleRoute), state.currentBackStack)
         assertEquals(listOf<NavKey>(BrowseRoute, CategoryRoute("rain")), state.backStacks.getValue(BrowseRoute))
+    }
+
+    /** A guide, like a deck, plays from its tab's one screen, which is where the bar takes it. */
+    @Test
+    fun aPlayingGuideOpensTheAfterShiftTab() {
+        val state = navigationState()
+        val navigator = Navigator(state, ResultEventBus())
+
+        openPlaybackDetails(PlaybackItemId(GUIDE_PLAYBACK_KIND, "muscle-relaxation"), navigator::openInTab)
+
+        assertEquals(AfterShiftRoute, state.topLevelRoute)
+        assertEquals(listOf<NavKey>(AfterShiftRoute), state.currentBackStack)
+        assertEquals(null, AfterShiftRoute.playbackItem())
     }
 
     /** The tab the listener was on keeps its stack; Back from the item returns to its own list. */
@@ -141,6 +156,7 @@ class PlaybackRoutesTest {
             FavoritesRoute to mutableListOf<NavKey>(FavoritesRoute),
             StoriesRoute to mutableListOf<NavKey>(StoriesRoute),
             ShuffleRoute to mutableListOf<NavKey>(ShuffleRoute),
+            AfterShiftRoute to mutableListOf<NavKey>(AfterShiftRoute),
         ),
     )
 }

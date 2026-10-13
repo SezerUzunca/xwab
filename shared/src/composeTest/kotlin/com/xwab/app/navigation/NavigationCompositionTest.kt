@@ -45,6 +45,7 @@ import androidx.navigationevent.NavigationEventDispatcherOwner
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.rememberNavigationEventDispatcherOwner
 import androidx.savedstate.compose.LocalSavedStateRegistryOwner
+import com.xwab.app.feature.aftershift.navigation.AfterShiftRoute
 import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
@@ -227,7 +228,7 @@ class NavigationCompositionTest {
             runOnIdle { assertTrue(harness.reselections.isEmpty(), "returning to the root is not a reselection") }
 
             // Typed explicitly: Kotlin/Native cannot infer assertEquals' T from the routes' intersection type.
-            val tabs = listOf<NavKey>(BrowseRoute, FavoritesRoute, StoriesRoute, ShuffleRoute)
+            val tabs = listOf<NavKey>(BrowseRoute, FavoritesRoute, StoriesRoute, ShuffleRoute, AfterShiftRoute)
             tabs.forEachIndexed { index, tab ->
                 runOnIdle {
                     if (harness.state.topLevelRoute != tab) harness.navigator.selectTab(tab)
@@ -502,6 +503,7 @@ private class NavigationHarness {
                 FavoritesRoute -> ResultEffect<FavoritesRoute> { reselections += it }
                 StoriesRoute -> ResultEffect<StoriesRoute> { reselections += it }
                 ShuffleRoute -> ResultEffect<ShuffleRoute> { reselections += it }
+                AfterShiftRoute -> ResultEffect<AfterShiftRoute> { reselections += it }
             }
         }
         val owner = checkNotNull(LocalViewModelStoreOwner.current)

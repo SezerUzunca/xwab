@@ -1,0 +1,29 @@
+<resources>
+    <string name="after_shift_title">After Shift</string>
+    <string name="after_shift_subtitle">Wind down for daytime sleep</string>
+    <string name="after_shift_safety">Start once you are home and settled, never while driving.</string>
+
+    <string name="after_shift_note_title">Park it for later</string>
+    <string name="after_shift_note_body">Write down what is on your mind for after you wake. It stays on this phone.</string>
+    <string name="after_shift_note_hint">Call the bank, pick up groceries…</string>
+    <string name="after_shift_note_label">Things to do after you wake</string>
+    <string name="after_shift_note_save">Save</string>
+    <string name="after_shift_note_clear">Clear</string>
+    <string name="after_shift_note_saved">Saved for later</string>
+    <string name="after_shift_note_failed">Could not save. Your note is still here; try again.</string>
+
+    <string name="after_shift_guides_title">Unwind</string>
+    <string name="after_shift_guides_empty">No guides yet</string>
+    <string name="after_shift_guide_minutes">About %1$d min, spoken by your device</string>
+    <!-- The first play speaks the whole guide with the device's voice. -->
+    <string name="after_shift_guide_preparing">Preparing the guide… The first time takes a little while.</string>
+    <string name="after_shift_guide_not_found">This guide is no longer available</string>
+    <string name="after_shift_guide_unavailable">Could not prepare the guide. Check that your device has an English text-to-speech voice, then tap play to try again.</string>
+    <string name="after_shift_guide_could_not_play">Could not play the guide</string>
+
+    <string name="after_shift_tips_title">Before you lie down</string>
+    <string name="after_shift_tip_dark">Make the room as dark as you can.</string>
+    <string name="after_shift_tip_quiet">Put your phone on Do Not Disturb.</string>
+    <string name="after_shift_tip_cool">Keep the room cool and quiet.</string>
+    <string name="after_shift_research_note">The guides draw on published research into progressive muscle relaxation and guided imagery. They are for relaxation, not a medical treatment.</string>
+</resources>

@@ -2,17 +2,20 @@ package com.xwab.app.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation3.runtime.NavKey
+import com.xwab.app.feature.aftershift.navigation.AfterShiftRoute
 import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesRoute
 import com.xwab.app.feature.shuffle.navigation.ShuffleRoute
 import com.xwab.app.feature.story.navigation.StoriesRoute
 import org.jetbrains.compose.resources.StringResource
 import xwab.shared.generated.resources.Res
+import xwab.shared.generated.resources.tab_after_shift
 import xwab.shared.generated.resources.tab_browse
 import xwab.shared.generated.resources.tab_favorites
 import xwab.shared.generated.resources.tab_shuffle
@@ -60,5 +63,10 @@ internal val TOP_LEVEL_DESTINATIONS: List<TopLevelDestination> = listOf(
         route = ShuffleRoute,
         label = Res.string.tab_shuffle,
         icon = Icons.Filled.Shuffle,
+    ),
+    TopLevelDestination(
+        route = AfterShiftRoute,
+        label = Res.string.tab_after_shift,
+        icon = Icons.Filled.Bedtime,
     ),
 )
