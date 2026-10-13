@@ -26,6 +26,8 @@ internal fun openPlaybackDetails(item: PlaybackItemId, open: (tab: NavKey, route
         SOUND_PLAYBACK_KIND -> open(BrowseRoute, SoundRoute(item.value))
         STORY_PLAYBACK_KIND -> open(StoriesRoute, StoryRoute(item.value))
         // Every deck plays from the tab's root, so that is the deck's own screen; a guide likewise.
+        // An out-of-bed guide plays from the lying-awake screen, but its kind does not say which
+        // use a guide has, so it opens After Shift's root too, one tap from that screen.
         SHUFFLE_PLAYBACK_KIND -> open(ShuffleRoute, ShuffleRoute)
         GUIDE_PLAYBACK_KIND -> open(AfterShiftRoute, AfterShiftRoute)
         // There is one script, so its screen takes no id.

@@ -95,6 +95,7 @@ class FeatureSerializersTest {
             listOf(
                 "com.xwab.app.feature.aftershift.navigation.AfterShiftRoute",
                 "com.xwab.app.feature.browse.navigation.BrowseRoute",
+                "com.xwab.app.feature.cantsleep.navigation.CantSleepRoute",
                 "com.xwab.app.feature.category.navigation.CategoryRoute",
                 "com.xwab.app.feature.favorites.navigation.FavoritesRoute",
                 "com.xwab.app.feature.rehearsal.navigation.RehearsalRoute",

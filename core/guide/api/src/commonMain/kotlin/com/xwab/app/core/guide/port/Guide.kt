@@ -30,6 +30,7 @@ value class GuideId(val value: String) {
  * @param minutes roughly how long it runs. The device's voice sets the exact pace, so this is a
  *   promise of "about", which is how a screen should put it.
  * @param languageTag the BCP 47 tag of the voice that speaks it, such as `en-US`.
+ * @param use when it is meant to be heard, which decides the screen that offers it.
  */
 data class Guide(
     val id: GuideId,
@@ -37,6 +38,7 @@ data class Guide(
     val description: String,
     val minutes: Int,
     val languageTag: String,
+    val use: GuideUse,
 ) {
     init {
         require(title.isNotBlank()) { "A guide needs a title: ${id.value}" }
@@ -44,6 +46,18 @@ data class Guide(
         require(minutes > 0) { "A guide runs for some time: ${id.value}" }
         require(languageTag.isNotBlank()) { "A guide needs a voice language: ${id.value}" }
     }
+}
+
+/** When a guide is meant to be heard. A screen offers the guides of its own use and no others. */
+enum class GuideUse {
+    /** Lying down to sleep: relaxation and imagery that end in rest. */
+    WindDown,
+
+    /**
+     * Up and out of bed after lying awake: something calm and a little dull to listen to until
+     * sleepiness returns. It never asks the listener to lie down or close their eyes.
+     */
+    OutOfBed,
 }
 
 /** Read access to the guides. Their scripts and the spoken tracks stay private to this module. */

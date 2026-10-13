@@ -3,6 +3,7 @@ package com.xwab.app.feature.aftershift
 import com.xwab.app.core.guide.port.GUIDE_PLAYBACK_KIND
 import com.xwab.app.core.guide.port.Guide
 import com.xwab.app.core.guide.port.GuideId
+import com.xwab.app.core.guide.port.GuideUse
 import com.xwab.app.core.guide.port.GuidePort
 import com.xwab.app.core.notes.port.NoteSaveResult
 import com.xwab.app.core.notes.port.NotesPort
@@ -159,6 +160,21 @@ class AfterShiftViewModelTest {
         assertTrue(model.note.value.canSave, "still something to save")
     }
 
+    /** A guide for out of bed belongs to the screen for lying awake; the timer never starts it here. */
+    @Test
+    fun onlyWindDownGuidesAreListed() = runTest(dispatcher) {
+        val port = FakePlaybackPort()
+        val guides = FakeGuides(listOf(guide("awake", GuideUse.OutOfBed), guide("relax")))
+        val model = AfterShiftViewModel(ObserveAfterShiftContentUseCase(guides, port), port, FakeNotes())
+        collectState(model)
+        advanceUntilIdle()
+
+        assertEquals(listOf(RELAX), ready(model).guides.map { it.id })
+        model.startSleepTimer(600_000L)
+        advanceUntilIdle()
+        assertEquals(ITEM, port.playedItemId)
+    }
+
     /** The key is a name on disk: changing it strands every parked note. */
     @Test
     fun theNoteKeepsItsKey() {
@@ -184,7 +200,8 @@ class AfterShiftViewModelTest {
     }
 }
 
-private fun guide(id: String) = Guide(GuideId(id), id, "A test guide.", minutes = 5, languageTag = "en-US")
+private fun guide(id: String, use: GuideUse = GuideUse.WindDown) =
+    Guide(GuideId(id), id, "A test guide.", minutes = 5, languageTag = "en-US", use = use)
 
 /** One feature reads these ports, so their fakes live with it rather than in `testing`. */
 private class FakeGuides(private val guides: List<Guide>) : GuidePort {
