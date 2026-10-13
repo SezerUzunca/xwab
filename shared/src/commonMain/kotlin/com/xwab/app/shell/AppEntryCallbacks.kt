@@ -1,11 +1,14 @@
 package com.xwab.app.shell
 
 import androidx.navigation3.runtime.EntryProviderScope
+import com.xwab.app.feature.aftershift.navigation.AfterShiftEntryCallbacks
 import com.xwab.app.feature.browse.navigation.BrowseEntryCallbacks
 import com.xwab.app.feature.browse.navigation.BrowseRoute
 import com.xwab.app.feature.category.navigation.CategoryEntryCallbacks
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesEntryCallbacks
+import com.xwab.app.feature.rehearsal.navigation.RehearsalEntryCallbacks
+import com.xwab.app.feature.rehearsal.navigation.RehearsalRoute
 import com.xwab.app.feature.sound.navigation.SoundEntryCallbacks
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoriesEntryCallbacks
@@ -49,6 +52,17 @@ object AppEntryCallbacks {
 
     @Provides
     fun provideSoundCallbacks(navigator: Navigator): SoundEntryCallbacks = SoundEntryCallbacks(
+        onBack = navigator::goBack,
+    )
+
+    /** Rewriting a nightmare opens its own screen inside After Shift, so Back returns to the tab. */
+    @Provides
+    fun provideAfterShiftCallbacks(navigator: Navigator): AfterShiftEntryCallbacks = AfterShiftEntryCallbacks(
+        onRewriteNightmare = { navigator.navigate(RehearsalRoute) },
+    )
+
+    @Provides
+    fun provideRehearsalCallbacks(navigator: Navigator): RehearsalEntryCallbacks = RehearsalEntryCallbacks(
         onBack = navigator::goBack,
     )
 

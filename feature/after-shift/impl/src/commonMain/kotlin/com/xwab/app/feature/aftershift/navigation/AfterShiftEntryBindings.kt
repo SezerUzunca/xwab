@@ -10,17 +10,19 @@ import dev.zacsweers.metro.Provides
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 
 /**
- * The After Shift tab's one screen. It sends no intents of its own: its guides play in place and
- * its note is kept in place, so there is no callback contract for the shell to supply.
+ * The After Shift tab's root. Its guides play in place and its note is kept in place; its one
+ * intent, rewriting a nightmare, goes to the shell through its callback contract.
  */
 @ContributesTo(EntryProviderScope::class)
 @BindingContainer
 object AfterShiftEntryBindings {
     @Provides
     @IntoSet
-    fun provideEntryProviderInstaller(): EntryProviderScope<NavKey>.() -> Unit = {
+    fun provideEntryProviderInstaller(
+        callbacks: AfterShiftEntryCallbacks,
+    ): EntryProviderScope<NavKey>.() -> Unit = {
         entry<AfterShiftRoute> {
-            AfterShiftScreenRoute(viewModel = metroViewModel())
+            AfterShiftScreenRoute(onRewriteNightmare = callbacks.onRewriteNightmare, viewModel = metroViewModel())
         }
     }
 }

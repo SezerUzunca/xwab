@@ -41,6 +41,7 @@ kotlin {
             implementation(projects.core.story.api)
             implementation(projects.core.shuffle.api)
             implementation(projects.core.guide.api)
+            implementation(projects.core.rehearsal.api)
             implementation(projects.designsystem)
 
             implementation(libs.compose.ui)
