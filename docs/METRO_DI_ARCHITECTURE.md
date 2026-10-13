@@ -1,6 +1,6 @@
 # Metro DI architecture and scope
 
-October 12, 2026. This document describes the source tree reviewed on this date, with Metro 1.4.5, including the platform-specific network graphs and the platform apps' ownership of the application graph. It separates Metro's dependency-injection mechanisms from this project's port boundaries and resource ownership. Navigation composition and entry lifetimes are documented in [Navigation 3 architecture](NAVIGATION3_ARCHITECTURE.md).
+October 13, 2026. This document describes the source tree reviewed on this date, with Metro 1.4.5, including the platform-specific network graphs, the platform apps' ownership of the application graph and the cognitive-shuffle capability. It separates Metro's dependency-injection mechanisms from this project's port boundaries and resource ownership. Navigation composition and entry lifetimes are documented in [Navigation 3 architecture](NAVIGATION3_ARCHITECTURE.md).
 
 ## Versions
 
@@ -23,7 +23,7 @@ The version catalog is the source of truth. The official documentation's latest 
 | `AndroidComponentGraph` | In `androidApp`: include the application graph and build the Android components MetroX's `AppComponentFactory` asks for — the launcher Activity |
 | Internal capability graph | Construct and connect one core module's implementation, SDK objects and internal services |
 | `*GraphAdapter` | Contribute a capability port to the application graph and pass external inputs into the local graph |
-| `*GraphHolder` | Build one local graph shared by multiple bridges; used by sound and story |
+| `*GraphHolder` | Build one local graph shared by multiple bridges; used by sound, story and, per platform, shuffle |
 | `@BindingContainer` | Share binding declarations between graphs without making the container a complete graph |
 | Feature ViewModel factory | Combine injected dependencies with runtime route arguments through MetroX |
 | `AppEntryGraph` | In `:composition`: aggregate the entry installers and the now-playing bar features contribute to `EntryProviderScope::class`, with the shell's navigation callbacks, over the navigator the host passes in |
@@ -59,7 +59,7 @@ iOS provides no graph factory input. The Swift `App` calls `createAppRuntime(isD
 Logging is decided by the native apps and distributed by Metro:
 
 - **The level is the apps' one decision.** Only they know whether the build is a debug one: the KMP library plugin has no build types and no `BuildConfig`, and Swift owns its `DEBUG` flag. `MainApplication` calls `Logger.setMinSeverity` (`Debug` in debug builds, `Warn` in release) in its initializer, because MetroX builds the graphs while Android installs the content providers, before `onCreate`; the iOS runtime factory does the same from Swift's `isDebug` before creating the graph. Nothing else is set: Kermit's global logger already writes through `platformLogWriter()`, its default level is `Verbose`, and every class tags its own logger.
-- **Each module graph provides that logger.** `DeliveryBindings`, `FavoritesBindings`, `AndroidPlaybackBindings` and `IosPlaybackGraph` provide `Logger` as Kermit's global instance, unqualified. Classes take it through their constructors and apply their tag with `withTag`; tagging at the injection site, as Kermit's Koin helpers do, would need a qualifier or an assisted factory per tag in Metro.
+- **Each module graph provides that logger.** `DeliveryBindings`, `FavoritesBindings`, `ShuffleBindings`, `AndroidPlaybackBindings` and `IosPlaybackGraph` provide `Logger` as Kermit's global instance, unqualified. Classes take it through their constructors and apply their tag with `withTag`; tagging at the injection site, as Kermit's Koin helpers do, would need a qualifier or an assisted factory per tag in Metro.
 - **Tests hand a class their own logger.** Tests that do not read logs pass a logger with no writers; the silent fallbacks — a prefetch that gives up, a favourite that cannot be written — assert their line through `kermit-test`'s `TestLogWriter`.
 - **`PlaybackService` takes it from its own graph.** Android constructs the service, so `PlaybackServiceGraph` exposes the logger and the service tags it in `onCreate`, before any callback can log. `checkArchitecture` refuses any global `Logger` call in core production code.
 
@@ -95,6 +95,7 @@ Feature implementations override the diagnostic severity to `WARN`. Their intern
 | `core:session` | `SessionGraph`, `SessionScope` | `PlaybackEnginePort` and the contributed resolver provider map | `PlaybackPort` |
 | `core:sound` | `SoundGraph`, `SoundScope` | `DeliveryPort` | `SoundPort` and one `PlaybackItemResolver` map entry |
 | `core:story` | `StoryGraph`, `StoryScope` | None | `StoryPort` and one `PlaybackItemResolver` map entry |
+| `core:shuffle` | `AndroidShuffleGraph` / `IosShuffleGraph`, `ShuffleScope` | Android `Context`, for the text-to-speech engine and the cache directory; iOS resolves its file manager locally | `ShufflePort` and one `PlaybackItemResolver` map entry |
 
 Android playback additionally has `PlaybackServiceGraph` with `PlaybackServiceScope`. Its inputs are the service's `Context` and `MediaSession.Callback`; its player and session belong to that service instance, independently of the application graph.
 
@@ -109,7 +110,7 @@ Application graph (AppScope)
 
 External capability ports travel through the local graph's factory as `@Provides` inputs. Local graphs do not implicitly inherit application bindings. They also do not depend on another module's concrete graph.
 
-For a single exported port, the bridge creates the graph directly. Sound and story export a catalog and a resolver, so each uses one scoped holder shared by its two bridges. Constructing a graph in each bridge would create separate module instances. `GraphAdapter` and `GraphHolder` are project composition patterns built from official Metro APIs, not Metro annotations or framework-managed lifecycle owners.
+For a single exported port, the bridge creates the graph directly. Sound, story and shuffle export a catalog and a resolver, so each uses one scoped holder shared by its two bridges; shuffle's graph differs by platform, so each platform declares its own holder and bridges beside its graph, and `ShuffleBindings` carries what they share. Constructing a graph in each bridge would create separate module instances. `GraphAdapter` and `GraphHolder` are project composition patterns built from official Metro APIs, not Metro annotations or framework-managed lifecycle owners.
 
 ## Injection, providers and factories
 
@@ -167,6 +168,7 @@ one graph.
 | Delivery cache store | Shared within `DeliveryScope` by the adapter and background prefetcher |
 | Sound source index and playback resolver | Cached in `SoundScope`; catalog and resolver share one validated source index |
 | Story catalog and playback resolver | Cached in `StoryScope`; the resolver validates and indexes private stream sources once per graph |
+| Shuffle renderer, spoken words and tracks | Renderer cached in `ShuffleScope`, rendering one track at a time; the platform voice is opened for each render and closed once its words are spoken. Files live under the cache directory: words kept per voice, one track per deck |
 | Delivery background scope | Provided once in `DeliveryScope`; background work uses `SupervisorJob` and `Dispatchers.Default` |
 | Android service player and media session | Cached in `PlaybackServiceScope`; explicitly released by the service |
 | iOS `AVQueuePlayer` | Unscoped provider; the engine can obtain a fresh player after a media-services reset |
@@ -193,7 +195,7 @@ Metro's experimental suspend-provider support concerns asynchronous dependency c
 
 ## Content registration and replaceability
 
-Sound and story contribute resolver bridges to `AppScope` using `@ContributesIntoMap` and `@StringKey` with their stable playback kinds. The application graph aggregates the map; `SessionGraphAdapter` passes it to the session graph. The session implements selection and playback coordination without importing sound or story implementations. [Official map contributions](https://github.com/ZacSweers/metro/blob/1.4.5/docs/aggregation.md#contributesintosetcontributesintomap).
+Sound, story and shuffle contribute resolver bridges to `AppScope` using `@ContributesIntoMap` and `@StringKey` with their stable playback kinds. The application graph aggregates the map; `SessionGraphAdapter` passes it to the session graph. The session implements selection and playback coordination without importing sound or story implementations. [Official map contributions](https://github.com/ZacSweers/metro/blob/1.4.5/docs/aggregation.md#contributesintosetcontributesintomap).
 
 The bridge requests `Map<String, () -> PlaybackItemResolver>`, so Metro supplies providers for the
 existing contributions. Constructing or observing the session does not instantiate every resolver.
@@ -266,10 +268,11 @@ The current feature registrations use these two patterns:
 | `feature:sound` | `SoundViewModel` | Assisted injection; `assistedMetroViewModel()` | `TrackId` from the route |
 | `feature:story` | `StoriesViewModel` | Plain injection; `metroViewModel()` | None |
 | `feature:story` | `StoryDetailViewModel` | Assisted injection; `assistedMetroViewModel()` | `StoryId` from the route |
+| `feature:shuffle` | `ShuffleViewModel` | Plain injection; `metroViewModel()` | None |
 
 Category, sound and story-detail entries supply their typed IDs to generated assisted factories. Despite its name, `ManualViewModelAssistedFactory` is an official MetroX interface; these implementations are generated by Metro. Its role is to let the entry supply runtime arguments explicitly.
 
-Feature-owned use cases receive their capability ports through constructor `@Inject`. The sound, category and favorites use cases consume `SoundPort`, `FavoritesPort` and `PlaybackPort`; the story list and detail use cases consume `StoryPort` and `PlaybackPort`. Browse and now-playing inject their ports directly into their ViewModels. MetroX registration and lookup supply the construction path; the features declare assisted factory interfaces where needed, and Metro generates their implementations.
+Feature-owned use cases receive their capability ports through constructor `@Inject`. The sound, category and favorites use cases consume `SoundPort`, `FavoritesPort` and `PlaybackPort`; the story list and detail use cases consume `StoryPort` and `PlaybackPort`; the shuffle use case consumes `ShufflePort` and `PlaybackPort`. Browse and now-playing inject their ports directly into their ViewModels. MetroX registration and lookup supply the construction path; the features declare assisted factory interfaces where needed, and Metro generates their implementations.
 
 `FavoritesViewModel` keeps `timeSource: TimeSource = TimeSource.Monotonic` as an intentional [optional binding](https://github.com/ZacSweers/metro/blob/1.4.5/docs/bindings.md#optional-bindings). Metro uses the default when the application graph has no `TimeSource` binding; an installed binding can supply another clock. `FavoritesRemovalTest` passes a `TestTimeSource` through the constructor and advances it to verify the ten-second Undo window without waiting for wall-clock time. This feature clock remains a constructor default, independently of the explicit infrastructure providers described above.
 
@@ -306,6 +309,7 @@ The following tests exist in the current source tree. Listing them describes cov
 | `RealEngineInterruptionTest` | The production client on the real OkHttp engine against a local HTTPS server that drops the connection mid-body, over HTTP/2 and HTTP/1.1 (Android host only) |
 | `SoundGraphTest` | Production manifest providers, scoped catalog/resolver wiring, and playback/offline availability using the same delivery cache key |
 | `StoryGraphTest` | Production manifest providers, scoped catalog/resolver wiring, and contributed provider-map resolution of every published story |
+| `ShuffleGraphTest`, `AndroidShuffleGraphTest`, `IosShuffleGraphTest` | On the host, `ShuffleBindings` in a test graph with only the voice and cache location handed in: scoped catalog/resolver sharing and every shipped deck rendered to the real file system. On a device, the unmodified Android graph, the device's engine speaking a word and the shipped deck rendered with it (skipped on an image without a text-to-speech engine). On the simulator, the iOS graph and its cache location, without speaking |
 | `SessionGraphTest` | Lazy resolver creation, resuming without creating a resolver, application-map provider aggregation and operation without installed content resolvers |
 | `AndroidDeliveryGraphTest`, `IosDeliveryGraphTest`, `DeliveryGraphChecks` | Platform graph wiring, adapter identity and shared cache visibility during prefetch; dynamic graph resource replacements. On Android, the unmodified graph also downloads to a real temporary directory and resolves the file next time |
 | `AndroidFavoritesGraphTest`, `IosFavoritesGraphTest` | Lazy file callback and adapter identity; unmodified platform graphs write a favorite to disk and read it back |
@@ -315,9 +319,9 @@ The following tests exist in the current source tree. Listing them describes cov
 | `AndroidComponentGraphTest` | In `androidApp`, on the host: the launcher Activity is in the component graph's map MetroX reads, which a contribution to the wrong scope would leave empty and crash only at launch |
 | `NavigationCompositionTest` | MetroX resolution with entry owners, restoration, saved-state handles and root chrome ownership; typed tab reselection through the host's shared result bus, queued-event cleanup, and delivery to a receiver that stays composed through a cleanup |
 | `AppEntryCallbacksTest` | The shell's callback container on a real navigator: each feature intent's destination and id, and detail Back callbacks |
-| `AndroidAppIntegrationTest`, `IosAppIntegrationTest` | In `:composition`, where every feature's resources reach the test bundle: the real app root on the production graph, only the catalog replaced through a dynamic graph: repeated Browse reselection scrolls the real list to its start, then a category tap reaches the Category screen with its assisted ViewModel. A second scenario opens every screen — the sound, Favorites, Stories and a story — with favourites and the story catalog replaced as well, so nothing is written to the device |
+| `AndroidAppIntegrationTest`, `IosAppIntegrationTest` | In `:composition`, where every feature's resources reach the test bundle: the real app root on the production graph, only the catalog replaced through a dynamic graph: repeated Browse reselection scrolls the real list to its start, then a category tap reaches the Category screen with its assisted ViewModel. A second scenario opens every screen — the sound, Favorites, Stories, a story and Shuffle — with favourites and the story catalog replaced as well, so nothing is written to the device |
 
-For features, `AndroidAppGraphTest` and `IosAppGraphTest` call `assertEveryViewModelResolves`. That helper checks factory identity, that `viewModelProviders` and `manualAssistedFactoryProviders` are nonempty, and whether each registered manual assisted factory matches its class key. It does not assert the complete expected set of feature registrations or instantiate every plain ViewModel. `checkArchitecture` checks source annotations and module dependencies; individual ViewModel and use-case tests construct models with fakes to verify behavior. `realEntriesOpenEveryScreen`, in the integration tests, closes that gap: it opens every screen through its real entry on the production graph, so all seven contributed ViewModels — four plain, three through assisted factories with their route ids — are resolved and drawn. Removing the story detail factory's registration fails it with MetroX's "No manual viewModel provider found", while the graph test still passes.
+For features, `AndroidAppGraphTest` and `IosAppGraphTest` call `assertEveryViewModelResolves`. That helper checks factory identity, that `viewModelProviders` and `manualAssistedFactoryProviders` are nonempty, and whether each registered manual assisted factory matches its class key. It does not assert the complete expected set of feature registrations or instantiate every plain ViewModel. `checkArchitecture` checks source annotations and module dependencies; individual ViewModel and use-case tests construct models with fakes to verify behavior. `realEntriesOpenEveryScreen`, in the integration tests, closes that gap: it opens every screen through its real entry on the production graph, so all eight contributed ViewModels — five plain, three through assisted factories with their route ids — are resolved and drawn. Removing the story detail factory's registration fails it with MetroX's "No manual viewModel provider found", while the graph test still passes.
 
 Graph tests follow three patterns:
 

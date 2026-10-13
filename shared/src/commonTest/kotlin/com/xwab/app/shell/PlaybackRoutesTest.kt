@@ -1,7 +1,9 @@
 package com.xwab.app.shell
 
 import com.xwab.app.core.session.port.PlaybackItemId
+import com.xwab.app.core.shuffle.port.SHUFFLE_PLAYBACK_KIND
 import com.xwab.app.core.story.port.STORY_PLAYBACK_KIND
+import com.xwab.app.feature.shuffle.navigation.ShuffleRoute
 import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.feature.sound.navigation.SoundRoute
 import com.xwab.app.feature.story.navigation.StoryRoute
@@ -43,6 +45,20 @@ class PlaybackRoutesTest {
         }
 
         assertEquals(listOf<Pair<NavKey, NavKey>>(StoriesRoute to StoryRoute("moonlit-forest")), opened)
+    }
+
+    /** A deck has no screen of its own; it plays from the Shuffle tab's root, which is where it opens. */
+    @Test
+    fun aPlayingDeckOpensTheShuffleTabAndLeavesTheCurrentTabAlone() {
+        val state = navigationState()
+        val navigator = Navigator(state, ResultEventBus())
+        navigator.navigate(CategoryRoute("rain"))
+
+        openPlaybackDetails(PlaybackItemId(SHUFFLE_PLAYBACK_KIND, "everyday-things"), navigator::openInTab)
+
+        assertEquals(ShuffleRoute, state.topLevelRoute)
+        assertEquals(listOf<NavKey>(ShuffleRoute), state.currentBackStack)
+        assertEquals(listOf<NavKey>(BrowseRoute, CategoryRoute("rain")), state.backStacks.getValue(BrowseRoute))
     }
 
     /** The tab the listener was on keeps its stack; Back from the item returns to its own list. */
@@ -114,6 +130,8 @@ class PlaybackRoutesTest {
         assertEquals(PlaybackItemId(STORY_PLAYBACK_KIND, "bedtime"), StoryRoute("bedtime").playbackItem())
         assertEquals(null, BrowseRoute.playbackItem())
         assertEquals(null, CategoryRoute("rain").playbackItem())
+        // The Shuffle screen is about every deck, as a list is, so it keeps the bar.
+        assertEquals(null, ShuffleRoute.playbackItem())
     }
 
     private fun navigationState() = NavigationState(
@@ -122,6 +140,7 @@ class PlaybackRoutesTest {
             BrowseRoute to mutableListOf<NavKey>(BrowseRoute),
             FavoritesRoute to mutableListOf<NavKey>(FavoritesRoute),
             StoriesRoute to mutableListOf<NavKey>(StoriesRoute),
+            ShuffleRoute to mutableListOf<NavKey>(ShuffleRoute),
         ),
     )
 }

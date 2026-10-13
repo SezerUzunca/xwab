@@ -183,6 +183,8 @@ jobs:
       # rather than through a pipe.
       #
       # `:core:favorites` builds its Android graph here for the same reason: it takes a Context.
+      # So does `:core:shuffle`, whose voice is the device's text-to-speech engine; this plain AOSP
+      # image may have none, and then its two speaking tests report as skipped.
       # Each module gets its own Gradle invocation. Under the configuration cache, tasks of
       # different modules run in parallel, and two instrumentation runs at once overloaded this
       # two-core emulator. Playback's main-thread graph test then timed out, and adb stopped
@@ -198,6 +200,7 @@ jobs:
       DEVICE_TEST_SCRIPT: >-
         { ./gradlew :core:playback:impl:connectedAndroidTest --stacktrace &&
         ./gradlew :core:favorites:impl:connectedAndroidTest --stacktrace &&
+        ./gradlew :core:shuffle:impl:connectedAndroidTest --stacktrace &&
         ./gradlew :composition:connectedAndroidTest --stacktrace; }
         > gradle-output.log 2>&1; status=$?; cat gradle-output.log; exit $status
 

@@ -59,6 +59,15 @@ URL returned HTTP 200 with `audio/mpeg` content at verification time. The five a
 checked on 2026-08-06; every source page still marked its recording Public domain or CC0 and its MP3
 transcode as completed.
 
+## Cognitive Shuffle words
+
+No recording. The Shuffle tab's words are spoken on the listener's own device by its text-to-speech
+voice (Android `TextToSpeech`, iOS `AVSpeechSynthesizer`) and written to the app's cache; nothing is
+downloaded and no voice ships with the app. The word list in `core/shuffle`'s manifest was written
+for this app. The technique, serial diverse imagining or the "cognitive shuffle", comes from
+published research by Luc P. Beaudoin; no word list, recording or name from his mySleepButton app
+is used.
+
 ## Removed: the bundled copies
 
 The first five recordings above used to ship inside the app as MP3 files derived from the same

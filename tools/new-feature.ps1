@@ -68,7 +68,7 @@ plugins {
 kotlin {
     android { namespace = "com.xwab.app.feature.${pkg}.api" }
 
-    // If a callback contract names a core type, publish that one port with `api`, for example:
+    // If a callback contract names a core type, publish that one port with ``api``, for example:
     // sourceSets {
     //     commonMain.dependencies {
     //         api(projects.core.sound.api)
@@ -197,7 +197,7 @@ private fun ${Pascal}Screen(
 }
 "@
 
-Write-GeneratedFile (Join-Path $navSrc "${Pascal}Entry.kt") @"
+Write-GeneratedFile (Join-Path $navSrc "${Pascal}EntryBindings.kt") @"
 package com.xwab.app.feature.${pkg}.navigation
 
 import androidx.navigation3.runtime.EntryProviderScope

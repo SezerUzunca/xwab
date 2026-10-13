@@ -70,9 +70,10 @@ internal fun realEntriesOpenACategoryFromBrowse(createGraph: (OfflineCatalog) ->
 
 /**
  * Every screen the app has, opened through its real entry on the production graph: the sound's own
- * screen, the Favorites tab, the Stories tab and a story's own screen, after Browse and Category.
+ * screen, the Favorites tab, the Stories tab, a story's own screen and the Shuffle tab, after Browse
+ * and Category.
  *
- * Together with the bar on the root, that resolves all seven contributed ViewModels — four plain,
+ * Together with the bar on the root, that resolves all eight contributed ViewModels — five plain,
  * three through assisted factories with the id their route carries — rather than only checking the
  * maps are non-empty, as the graph test does. A screen whose ViewModel or installer never reached
  * the graph throws here when it opens.
@@ -81,8 +82,8 @@ internal fun realEntriesOpenACategoryFromBrowse(createGraph: (OfflineCatalog) ->
  * modules, which this module installs but cannot read.
  */
 internal fun realEntriesOpenEveryScreen(createGraph: (OfflineCatalog) -> AppGraph) = runComposeUiTest(
-    // Five waits of up to TIMEOUT_MS each; the first carries the engine's start on a slow emulator.
-    testTimeout = 4.minutes,
+    // A wait of up to TIMEOUT_MS per screen; the first carries the engine's start on a slow emulator.
+    testTimeout = 6.minutes,
 ) {
     val owner = setApp(createGraph(OfflineCatalog()))
     try {
@@ -104,6 +105,12 @@ internal fun realEntriesOpenEveryScreen(createGraph: (OfflineCatalog) -> AppGrap
         waitUntilAtLeastOneExists(hasText(STORY), TIMEOUT_MS)
         onNodeWithText(STORY).performClick()
         waitUntilAtLeastOneExists(hasText("Narrated by $NARRATOR"), TIMEOUT_MS)
+
+        // The Shuffle tab lists the shipped deck from the production catalog: nothing is spoken
+        // until play is pressed, so there is nothing to replace.
+        onAllNodes(TAB)[SHUFFLE_TAB].performClick()
+        waitUntilAtLeastOneExists(hasText(SHUFFLE_TITLE), TIMEOUT_MS)
+        waitUntilAtLeastOneExists(hasText(SHUFFLE_DECK), TIMEOUT_MS)
     } finally {
         runOnIdle { owner.close() }
     }
@@ -149,11 +156,17 @@ private const val RESELECTIONS = 3
  */
 private val SELECTED_TAB = isSelected() and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
 
-/** Every navigation tab, in the shell's order: Browse, Favorites, Stories. */
+/** Every navigation tab, in the shell's order: Browse, Favorites, Stories, Shuffle. */
 private val TAB = SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
 private const val FAVORITES_TAB = 1
 private const val STORIES_TAB = 2
+private const val SHUFFLE_TAB = 3
 
-/** `feature:sound`'s `internet_required` and `feature:favorites`' `favorites_title`. */
+/**
+ * `feature:sound`'s `internet_required`, `feature:favorites`' `favorites_title`, `feature:shuffle`'s
+ * `shuffle_title`, and the title of the deck `core:shuffle` ships.
+ */
 private const val SOUND_ONLINE_ONLY = "Internet required"
 private const val FAVORITES_TITLE = "Favorite sounds"
+private const val SHUFFLE_TITLE = "Cognitive Shuffle"
+private const val SHUFFLE_DECK = "Everyday Things"

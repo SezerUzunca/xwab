@@ -1,0 +1,17 @@
+<resources>
+    <string name="shuffle_title">Cognitive Shuffle</string>
+    <string name="shuffle_subtitle">Picture each word, then let it go</string>
+    <string name="shuffle_empty">No word decks yet</string>
+    <string name="shuffle_pace">A new word every %1$d seconds, spoken by your device</string>
+    <!-- The first play speaks every word with the device's voice, which takes a few seconds. -->
+    <string name="shuffle_preparing">Preparing the words…</string>
+    <string name="shuffle_not_found">This deck is no longer available</string>
+    <string name="shuffle_unavailable">Could not prepare the words. Check that your device has an English text-to-speech voice, then tap play to try again.</string>
+    <string name="shuffle_could_not_play">Could not play the words</string>
+    <string name="shuffle_how_title">How it works</string>
+    <string name="shuffle_step_listen">Press play, lie back and close your eyes.</string>
+    <string name="shuffle_step_picture">When you hear a word, picture it for a few seconds: its shape, its color, where it might be.</string>
+    <string name="shuffle_step_let_go">Let it go when the next word arrives. There is nothing to connect and nothing to remember.</string>
+    <string name="shuffle_step_drift">If your thoughts drift back to your day, just wait for the next word. Set the sleep timer so the words stop on their own.</string>
+    <string name="shuffle_research_note">Based on research by Luc P. Beaudoin into serial diverse imagining, also known as the cognitive shuffle. Early studies are promising; it is not a medical treatment.</string>
+</resources>
