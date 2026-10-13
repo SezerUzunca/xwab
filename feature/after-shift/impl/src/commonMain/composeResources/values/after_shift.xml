@@ -21,6 +21,10 @@
     <string name="after_shift_guide_unavailable">Could not prepare the guide. Check that your device has an English text-to-speech voice, then tap play to try again.</string>
     <string name="after_shift_guide_could_not_play">Could not play the guide</string>
 
+    <string name="after_shift_nightmare_title">Recurring nightmares?</string>
+    <string name="after_shift_nightmare_body">Rewrite one, then rehearse the new version while you are awake.</string>
+    <string name="after_shift_nightmare_open">Rewrite a nightmare</string>
+
     <string name="after_shift_tips_title">Before you lie down</string>
     <string name="after_shift_tip_dark">Make the room as dark as you can.</string>
     <string name="after_shift_tip_quiet">Put your phone on Do Not Disturb.</string>

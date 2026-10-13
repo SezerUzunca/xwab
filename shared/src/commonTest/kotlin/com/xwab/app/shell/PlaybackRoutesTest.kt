@@ -1,7 +1,9 @@
 package com.xwab.app.shell
 
 import com.xwab.app.core.guide.port.GUIDE_PLAYBACK_KIND
+import com.xwab.app.core.rehearsal.port.REHEARSAL_PLAYBACK_KIND
 import com.xwab.app.core.session.port.PlaybackItemId
+import com.xwab.app.feature.rehearsal.navigation.RehearsalRoute
 import com.xwab.app.core.shuffle.port.SHUFFLE_PLAYBACK_KIND
 import com.xwab.app.core.story.port.STORY_PLAYBACK_KIND
 import com.xwab.app.feature.aftershift.navigation.AfterShiftRoute
@@ -74,6 +76,22 @@ class PlaybackRoutesTest {
         assertEquals(AfterShiftRoute, state.topLevelRoute)
         assertEquals(listOf<NavKey>(AfterShiftRoute), state.currentBackStack)
         assertEquals(null, AfterShiftRoute.playbackItem())
+    }
+
+    /** The rewritten nightmare has a screen of its own under After Shift; Back returns to the tab's root. */
+    @Test
+    fun aPlayingRehearsalOpensItsScreenUnderAfterShift() {
+        val state = navigationState()
+        val navigator = Navigator(state, ResultEventBus())
+        navigator.navigate(StoriesRoute)
+
+        openPlaybackDetails(PlaybackItemId(REHEARSAL_PLAYBACK_KIND, "cbf29ce484222325"), navigator::openInTab)
+
+        assertEquals(AfterShiftRoute, state.topLevelRoute)
+        assertEquals(listOf<NavKey>(AfterShiftRoute, RehearsalRoute), state.currentBackStack)
+        assertEquals(null, RehearsalRoute.playbackItem(), "the screen keeps the bar, as After Shift does")
+        navigator.goBack()
+        assertEquals(listOf<NavKey>(AfterShiftRoute), state.currentBackStack)
     }
 
     /** The tab the listener was on keeps its stack; Back from the item returns to its own list. */

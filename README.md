@@ -4,8 +4,9 @@ Xwab is a Kotlin Multiplatform sleep-sound app for Android and iOS. It is accoun
 audio on first play, caches sounds for later playback, and streams public-domain sleep stories. Its
 Shuffle tab speaks cognitive-shuffle words — unrelated, easy-to-picture things, eight seconds
 apart — and its After Shift tab, for winding down after a night shift, plays spoken relaxation
-guides and keeps a note of what to do after waking. Both are spoken by the device's own
-text-to-speech voice, rendered on the device into a track the same player plays.
+guides and keeps a note of what to do after waking. From it, a screen of its own keeps a recurring
+nightmare the listener has rewritten and reads it back for imagery rehearsal. All three are spoken by
+the device's own text-to-speech voice, rendered on the device into a track the same player plays.
 
 ## Architecture
 
@@ -22,7 +23,7 @@ iosApp ─────┘        │
                      │                 ▲
                      └── feature:<name>:impl           ◄── only the composition root installs these
                               │                            browse · favorites · category
-                              │                            sound · story · shuffle · after-shift
+                              │                            sound · story · shuffle · after-shift · rehearsal
                               │                            nowplaying
                               └── core:<name>:api      ◄── public ports; everyone compiles against these
                                        ▲
@@ -100,6 +101,7 @@ There is no shared repository abstraction. A feature consumes the narrow capabil
 | `:core:story` | `StoryPort`, story metadata models and `STORY_PLAYBACK_KIND` |
 | `:core:shuffle` | `ShufflePort`, word-deck metadata models and `SHUFFLE_PLAYBACK_KIND` |
 | `:core:guide` | `GuidePort`, relaxation-guide metadata models and `GUIDE_PLAYBACK_KIND` |
+| `:core:rehearsal` | `RehearsalPort`, the listener's script and its id, `REHEARSAL_SCRIPT_MAX_LENGTH` and `REHEARSAL_PLAYBACK_KIND` |
 | `:core:speech` | `SpeechPort`, `SpeechRequest`, its segments, `NoiseBed` and `SpeechResult`, for content modules |
 | `:core:notes` | `NotesPort` and `NoteSaveResult` |
 | `:core:session` | `PlaybackPort` and session models; `PlaybackItemResolver`, `ItemResolution` and `PlaybackPolicy` for content adapters, behind the `PlaybackResolverApi` opt-in |
@@ -107,7 +109,7 @@ There is no shared repository abstraction. A feature consumes the narrow capabil
 | `:core:network` | `NetworkPort` and transport-neutral response/error types |
 
 Every core module wires its own implementation in its own internal Metro graph (`SoundGraph`,
-`StoryGraph`, `ShuffleGraph`, `GuideGraph`, `SessionGraph`, and per platform `AndroidNetworkGraph` /
+`StoryGraph`, `ShuffleGraph`, `GuideGraph`, `RehearsalGraph`, `SessionGraph`, and per platform `AndroidNetworkGraph` /
 `IosNetworkGraph`, `AndroidDeliveryGraph` / `IosDeliveryGraph`, `AndroidFavoritesGraph` /
 `IosFavoritesGraph`, `AndroidNotesGraph` / `IosNotesGraph`, `AndroidSpeechGraph` / `IosSpeechGraph`
 and `AndroidPlaybackGraph` / `IosPlaybackGraph`), scoped to that module (`@SingleIn(DeliveryScope::class)`
@@ -165,6 +167,7 @@ core/
 ├── story       api · impl
 ├── shuffle     api · impl
 ├── guide       api · impl
+├── rehearsal   api · impl
 ├── speech      api · impl
 ├── delivery    api · impl
 ├── favorites   api · impl
@@ -183,6 +186,7 @@ feature/
 ├── category    api · impl
 ├── favorites   api · impl
 ├── nowplaying  api · impl
+├── rehearsal   api · impl
 ├── shuffle     api · impl
 ├── sound       api · impl
 └── story       api · impl
@@ -204,6 +208,7 @@ source naming something a feature api module does not declare.
 |---|---|---|
 | `sound` / `story` | Catalog metadata, private sources and lookup, stable content identities, playback resolver and policy | Sounds delegate cache/download work to `DeliveryPort`; stories stream directly |
 | `shuffle` / `guide` | Word-deck or guide metadata, private word lists or scripts, what each track says, playback resolver and policy | Voicing to `SpeechPort`; no network or download cache |
+| `rehearsal` | The listener's rewritten nightmare and its id, the framing around it, playback resolver and policy | Storage to `NotesPort`, voicing to `SpeechPort` |
 | `speech` | Speaking content modules' text with the platform's text-to-speech into local tracks, kept per voice | The platform's voice; no catalog knowledge |
 | `notes` | Persistence of the listener's own short notes under caller-owned keys | No knowledge of what a note is for |
 | `session` | Current playback intent, request ordering, summary for screens and the resolver contract it consumes | Item resolution and platform commands through ports |
@@ -218,6 +223,7 @@ kind through the consumer-owned port in `com.xwab.app.core.session.port`. A reso
 own metadata and source and returns a content-neutral resolution. There is no separate source
 registry or source registration step.
 Sound depends on session and delivery; story on session; shuffle and guide on session and speech;
+rehearsal on notes, session and speech;
 session depends only on playback.
 Features cannot depend on delivery, speech, network or the native engine. The resolver contract is public
 in Kotlin because content modules implement it across module boundaries, and Kotlin has no
@@ -295,12 +301,15 @@ navigation-composition boundary may name the api declarations; feature code publ
 callbacks and does not name destination features.
 
 `BrowseRoute` is the initial destination. Browse, Favorites, Stories, Shuffle and After Shift are
-top-level destinations; Category, Sound and Story details are nested destinations. Every content row opens its detail from
+top-level destinations; Category, Sound and Story details and the nightmare screen are nested destinations. Every content row opens its detail from
 the row body; only its explicit play/pause button changes playback. `StoryRoute(storyId)` opens the
 selected story's description, author, narrator and duration. `ShuffleRoute` is one screen: each word
 deck with its play/pause, the session's sleep timer, and how to listen. `AfterShiftRoute` is one
-screen too: a note for after waking, each guide with its play/pause, the sleep timer and a few
-plain points about the room. Each tab retains its own history and saved screen state.
+screen too: a note for after waking, each guide with its play/pause, the sleep timer, the way to
+the nightmare screen and a few plain points about the room. `RehearsalRoute`, pushed from there,
+holds the steps of imagery rehearsal, the listener's one rewritten nightmare and its play/pause; it
+has no sleep timer, since rehearsal is practised awake. Each tab retains its own history and saved
+screen state.
 
 `AppNavigationHost` builds and remembers the `Navigator` and its result bus over the stacks it
 restored. Each feature contributes two Metro binding containers: its impl module a `@Provides
@@ -344,7 +353,8 @@ Its api module declares the `NowPlayingBar` contract in its `shell` package, and
 contributes the bar to the composition root's `AppEntryGraph` beside the entry installers; the
 shell draws it from `AppEntries.nowPlayingBar` without its implementation on its classpath. Tapping the bar opens the playing item's own screen in the tab it
 belongs to — `SoundRoute` under Sounds, `StoryRoute` under Stories, a word deck to the Shuffle
-tab's one screen and a guide to After Shift's — as a fresh selection from that
+tab's one screen, a guide to After Shift's and the rewritten nightmare to its screen under After
+Shift — as a fresh selection from that
 tab's root, or returns to it if that detail is already open there. The tab the listener was on
 keeps its stack. The shell owns that mapping; nowplaying consumes only the content-neutral session
 port.
@@ -394,7 +404,10 @@ resolver returns that file's path. A first play takes a few seconds, which the s
 preparing; a device without a voice for the language gets a retryable failure. See
 [core/speech](core/speech/README.md), [core/shuffle](core/shuffle/README.md) and
 [core/guide](core/guide/README.md).
-All four resolvers supply metadata and loop policy through
+`RehearsalPlaybackResolver` does the same with the listener's own script, which it reads through
+`NotesPort`; each wording is a playback item of its own, since the session resumes an item it
+already holds — see [core/rehearsal](core/rehearsal/README.md).
+All five resolvers supply metadata and loop policy through
 `PlaybackItemResolver`; neither the session nor the platform engine needs to know the content type.
 
 Android playback uses Media3; iOS playback uses AVFoundation. Platform implementations are

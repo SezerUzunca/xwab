@@ -1,0 +1,30 @@
+<resources>
+    <string name="rehearsal_title">Rewrite a Nightmare</string>
+    <string name="rehearsal_subtitle">Imagery rehearsal, practised while you are awake</string>
+
+    <string name="rehearsal_steps_title">How it works</string>
+    <string name="rehearsal_step_choose">Pick one nightmare that keeps coming back. Start with one that is not your worst.</string>
+    <string name="rehearsal_step_change">Write a new version of it. Change anything you like: the place, the people, what happens, how it ends. It does not have to be realistic.</string>
+    <string name="rehearsal_step_short">Keep it short and calm, a few sentences written as if it is happening now. Leave out the frightening details of the old dream.</string>
+    <string name="rehearsal_step_daily">Once a day, while awake, listen and picture the new version for a few minutes. Rehearse only the new dream, never the old one.</string>
+
+    <string name="rehearsal_field_label">Your new dream</string>
+    <string name="rehearsal_field_hint">I am back on the beach, but this time the wave carries me gently onto the warm sand…</string>
+    <string name="rehearsal_field_count">%1$d / %2$d</string>
+    <string name="rehearsal_save">Save</string>
+    <string name="rehearsal_clear">Clear</string>
+    <string name="rehearsal_saved">Saved on this phone</string>
+    <string name="rehearsal_save_failed">Could not save. Your words are still here; try again.</string>
+
+    <string name="rehearsal_listen_title">Listen and rehearse</string>
+    <string name="rehearsal_listen_body">Your device reads your new dream with pauses to picture each part, then gives you time to go through it once more. It takes a few minutes.</string>
+    <string name="rehearsal_listen_empty">Write your new dream above to listen to it.</string>
+    <!-- The first play of each wording speaks it with the device's voice. -->
+    <string name="rehearsal_preparing">Preparing… The first time takes a little while.</string>
+    <string name="rehearsal_not_found">This version is no longer saved. Tap play to hear the current one.</string>
+    <string name="rehearsal_unavailable">Could not prepare your dream. Check that your device has an English text-to-speech voice, then tap play to try again.</string>
+    <string name="rehearsal_could_not_play">Could not play your dream</string>
+
+    <string name="rehearsal_safety">If your nightmares follow a traumatic event, or rehearsing brings back strong distress, stop and talk to a doctor or therapist.</string>
+    <string name="rehearsal_research_note">Based on imagery rehearsal, a published technique for recurring nightmares. Your words stay on this phone. This is a self-help exercise, not a medical treatment.</string>
+</resources>

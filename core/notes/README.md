@@ -3,7 +3,9 @@
 `port/NotesPort.kt` is the module's only public port interface. It keeps the listener's own short
 text notes on this device and nowhere else, each under a key its caller owns, as favourites live
 under a caller's namespace. This module knows nothing of what a note is for: the After Shift screen
-keeps the errands a listener parks for after they wake under `after-shift`, a key it pins itself.
+keeps the errands a listener parks for after they wake under `after-shift`, and
+[rehearsal](../rehearsal/README.md) keeps the listener's rewritten nightmare under `rehearsal`; each
+caller pins its own key.
 
 `observe(key)` emits the stored text, or an empty one when there is none; `save(key, text)` replaces
 it, and a blank text removes it. A file that cannot be read shows as an empty note and is logged; a
