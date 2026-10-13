@@ -1,5 +1,8 @@
+@file:OptIn(PlaybackResolverApi::class)
+
 package com.xwab.app.core.shuffle
 
+import com.xwab.app.core.session.port.PlaybackResolverApi
 import dev.zacsweers.metro.createGraph
 import kotlin.test.Test
 import kotlin.test.assertEquals
