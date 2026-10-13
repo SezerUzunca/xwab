@@ -1,89 +1,97 @@
-@file:OptIn(PlaybackResolverApi::class, ExperimentalKermitApi::class)
+@file:OptIn(PlaybackResolverApi::class)
 
 package com.xwab.app.core.shuffle
 
-import co.touchlab.kermit.ExperimentalKermitApi
-import co.touchlab.kermit.Severity
-import co.touchlab.kermit.TestLogWriter
 import com.xwab.app.core.session.port.ItemResolution
 import com.xwab.app.core.session.port.PlaybackResolverApi
+import com.xwab.app.core.speech.port.SpeechSegment
 import kotlin.random.Random
-import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import co.touchlab.kermit.Logger
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
-import okio.Path.Companion.toPath
-import okio.fakefilesystem.FakeFileSystem
 
 class ShufflePlaybackResolverTest {
-    private val fileSystem = FakeFileSystem()
-
-    @AfterTest
-    fun closeFileSystem() {
-        fileSystem.checkNoOpenFiles()
-        fileSystem.close()
-    }
-
     @Test
-    fun aDeckBecomesALoopingLocalTrackUnderItsOwnName() = runTest {
-        val resolution = resolver().resolve(TEST_DECK)
+    fun aDeckBecomesALoopingTrackUnderItsOwnName() = runTest {
+        val speech = FakeSpeech()
 
-        val resolved = assertIs<ItemResolution.Resolved>(resolution)
-        assertTrue(resolved.uri.startsWith("/cache/shuffle/tracks/"), resolved.uri)
-        assertTrue(fileSystem.exists(resolved.uri.toPath()), "the players open the file the resolver names")
+        val resolved = assertIs<ItemResolution.Resolved>(resolver(speech).resolve(TEST_DECK))
+
+        assertEquals("/cache/speech/tracks/shuffle/test-deck.1.wav", resolved.uri)
         assertEquals("Test Deck", resolved.title)
         assertEquals("Test Deck", resolved.displayName)
         assertNull(resolved.artist)
         assertTrue(resolved.policy.looping, "a track repeats until the sleep timer stops it")
     }
 
+    /** Half a second of quiet, then the word held to the rest of the interval: each word a slot. */
     @Test
-    fun anUnknownDeckIsNotFound() = runTest {
-        assertEquals(ItemResolution.NotFound, resolver().resolve("no-such-deck"))
+    fun eachWordTakesOneIntervalWithoutRepeating() = runTest {
+        val speech = FakeSpeech()
+
+        resolver(speech).resolve(TEST_DECK)
+
+        val request = speech.requests.single()
+        assertEquals("shuffle", request.folder)
+        assertEquals("en-US", request.languageTag)
+        assertFalse(request.reuse, "every play is a new selection")
+        val words = request.segments.filterIsInstance<SpeechSegment.Spoken>()
+        assertEquals(3, words.size)
+        assertEquals(words.map { it.text }.toSet().size, words.size, "no word twice in one track")
+        assertTrue(words.all { it.text in wordList().words && it.minSeconds == 2.5 })
+        assertEquals(List(3) { SpeechSegment.Pause(0.5) }, request.segments.filterIsInstance<SpeechSegment.Pause>())
     }
 
-    /** No voice for the deck's language is worth another tap once one is installed, and a log line. */
     @Test
-    fun aDeckTheDeviceCannotSpeakIsUnavailableAndLogged() = runTest {
-        val log = TestLogWriter(loggable = Severity.Verbose)
+    fun everyPlayDrawsANewOrder() = runTest {
+        val speech = FakeSpeech()
+        val resolver = resolver(speech, words = wordList(wordsPerTrack = 4))
 
-        val speechless = resolver(voice = FakeVoice(fileSystem, available = false), logger = recordingLogger(log))
+        repeat(5) { resolver.resolve(TEST_DECK) }
 
-        assertIs<ItemResolution.Unavailable>(speechless.resolve(TEST_DECK))
-        assertEquals(Severity.Warn, log.logs.single().severity)
+        val orders = speech.requests.map { request ->
+            request.segments.filterIsInstance<SpeechSegment.Spoken>().map { it.text }
+        }
+        assertNotEquals(1, orders.toSet().size, "five plays, one order: $orders")
+    }
+
+    @Test
+    fun anUnknownDeckIsNotFound() = runTest {
+        assertEquals(ItemResolution.NotFound, resolver(FakeSpeech()).resolve("no-such-deck"))
+    }
+
+    /** No voice for the deck's language is worth another tap once one is installed. */
+    @Test
+    fun aDeckSpeechCannotVoiceIsUnavailable() = runTest {
+        val resolution = resolver(FakeSpeech(unavailable = "No en-US voice.")).resolve(TEST_DECK)
+
+        assertEquals(ItemResolution.Unavailable("No en-US voice."), resolution)
     }
 
     @Test
     fun aDeckWithoutWordsIsUnavailable() = runTest {
-        assertIs<ItemResolution.Unavailable>(resolver(wordLists = emptyList()).resolve(TEST_DECK))
+        assertIs<ItemResolution.Unavailable>(resolver(FakeSpeech(), wordLists = emptyList()).resolve(TEST_DECK))
     }
 
     @Test
-    fun aDeckCanHaveOnlyOneWordList() = runTest {
-        assertFailsWith<IllegalArgumentException> { resolver(wordLists = listOf(wordList(), wordList())) }
+    fun aDeckCanHaveOnlyOneWordList() {
+        assertFailsWith<IllegalArgumentException> { resolver(FakeSpeech(), wordLists = listOf(wordList(), wordList())) }
     }
 
-    private fun TestScope.resolver(
-        voice: WordVoice = FakeVoice(fileSystem),
-        wordLists: List<ShuffleWordList> = listOf(wordList()),
-        logger: Logger = SilentLogger,
+    private fun resolver(
+        speech: FakeSpeech,
+        words: ShuffleWordList = wordList(),
+        wordLists: List<ShuffleWordList> = listOf(words),
     ) = ShufflePlaybackResolver(
         catalog = ManifestShuffleCatalogAdapter(listOf(deck())),
         wordLists = wordLists,
-        renderer = ShuffleTrackRenderer(
-            voice = voice,
-            location = { "/cache/shuffle".toPath() },
-            fileSystem = fileSystem,
-            fileDispatcher = StandardTestDispatcher(testScheduler),
-            random = Random(1),
-        ),
-        logger = logger,
+        speech = speech,
+        random = Random(1),
     )
 }
