@@ -10,8 +10,9 @@ import dev.zacsweers.metro.Provides
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 
 /**
- * The After Shift tab's root. Its guides play in place and its note is kept in place; its two
- * intents, lying awake and rewriting a nightmare, go to the shell through its callback contract.
+ * The After Shift tab's root. Its guides play in place and its note is kept in place; its three
+ * intents, lying awake, rewriting a nightmare and a nap, go to the shell through its callback
+ * contract.
  */
 @ContributesTo(EntryProviderScope::class)
 @BindingContainer
@@ -25,6 +26,7 @@ object AfterShiftEntryBindings {
             AfterShiftScreenRoute(
                 onRewriteNightmare = callbacks.onRewriteNightmare,
                 onCantSleep = callbacks.onCantSleep,
+                onNap = callbacks.onNap,
                 viewModel = metroViewModel(),
             )
         }

@@ -73,10 +73,10 @@ internal fun realEntriesOpenACategoryFromBrowse(createGraph: (OfflineCatalog) ->
 /**
  * Every screen the app has, opened through its real entry on the production graph: the sound's own
  * screen, the Favorites tab, the Stories tab, a story's own screen, the Shuffle tab, the After
- * Shift tab and the two screens opened from it, for a nightmare and for lying awake, after Browse
- * and Category.
+ * Shift tab and the three screens opened from it, for a nightmare, for lying awake and for a nap,
+ * after Browse and Category.
  *
- * Together with the bar on the root, that resolves all eleven contributed ViewModels — eight plain,
+ * Together with the bar on the root, that resolves all twelve contributed ViewModels — nine plain,
  * three through assisted factories with the id their route carries — rather than only checking the
  * maps are non-empty, as the graph test does. A screen whose ViewModel or installer never reached
  * the graph throws here when it opens.
@@ -132,6 +132,14 @@ internal fun realEntriesOpenEveryScreen(createGraph: (OfflineCatalog) -> AppGrap
         waitUntilAtLeastOneExists(hasText(AFTER_SHIFT_CANT_SLEEP), TIMEOUT_MS)
         onNodeWithText(AFTER_SHIFT_CANT_SLEEP).performScrollTo().performClick()
         waitUntilAtLeastOneExists(hasText(CANT_SLEEP_GUIDE), TIMEOUT_MS)
+
+        // Back again, then the nap screen through the third callback, with its warning and the
+        // naps the production catalog ships.
+        onNodeWithContentDescription(BACK).performClick()
+        waitUntilAtLeastOneExists(hasText(AFTER_SHIFT_NAP), TIMEOUT_MS)
+        onNodeWithText(AFTER_SHIFT_NAP).performScrollTo().performClick()
+        waitUntilAtLeastOneExists(hasText(NAP_WARNING), TIMEOUT_MS)
+        waitUntilAtLeastOneExists(hasText(NAP_SHORTEST), TIMEOUT_MS)
     } finally {
         runOnIdle { owner.close() }
     }
@@ -189,7 +197,8 @@ private const val AFTER_SHIFT_TAB = 4
  * `shuffle_title`, the title of the deck `core:shuffle` ships, `feature:after-shift`'s
  * `after_shift_note_title`, the first guide `core:guide` ships, `feature:after-shift`'s
  * `after_shift_nightmare_open`, `feature:rehearsal`'s `rehearsal_field_label`, `feature:after-shift`'s
- * `after_shift_cant_sleep_open` and the out-of-bed guide `core:guide` ships.
+ * `after_shift_cant_sleep_open`, the out-of-bed guide `core:guide` ships, `feature:after-shift`'s
+ * `after_shift_nap_open`, `feature:nap`'s `nap_not_alarm_title` and the shortest nap `core:nap` ships.
  */
 private const val SOUND_ONLINE_ONLY = "Internet required"
 private const val FAVORITES_TITLE = "Favorite sounds"
@@ -201,6 +210,9 @@ private const val AFTER_SHIFT_REWRITE = "Rewrite a nightmare"
 private const val REHEARSAL_FIELD_LABEL = "Your new dream"
 private const val AFTER_SHIFT_CANT_SLEEP = "Can’t sleep"
 private const val CANT_SLEEP_GUIDE = "Out of Bed"
+private const val AFTER_SHIFT_NAP = "Take a nap"
+private const val NAP_WARNING = "This is not an alarm"
+private const val NAP_SHORTEST = "10-Minute Nap"
 
 /** `designsystem`'s `back`, the back arrow's content description. */
 private const val BACK = "Back"

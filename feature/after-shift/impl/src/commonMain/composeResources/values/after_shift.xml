@@ -29,6 +29,10 @@
     <string name="after_shift_nightmare_body">Rewrite one, then rehearse the new version while you are awake.</string>
     <string name="after_shift_nightmare_open">Rewrite a nightmare</string>
 
+    <string name="after_shift_nap_title">Nap before your shift?</string>
+    <string name="after_shift_nap_body">A short nap of 10 to 20 minutes, with a voice to wake you.</string>
+    <string name="after_shift_nap_open">Take a nap</string>
+
     <string name="after_shift_tips_title">Before you lie down</string>
     <string name="after_shift_tip_dark">Make the room as dark as you can.</string>
     <string name="after_shift_tip_quiet">Put your phone on Do Not Disturb.</string>
