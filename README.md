@@ -5,7 +5,8 @@ audio on first play, caches sounds for later playback, and streams public-domain
 Shuffle tab speaks cognitive-shuffle words — unrelated, easy-to-picture things, eight seconds
 apart — and its After Shift tab, for winding down after a night shift, plays spoken relaxation
 guides and keeps a note of what to do after waking. From it, a screen of its own keeps a recurring
-nightmare the listener has rewritten and reads it back for imagery rehearsal. All three are spoken by
+nightmare the listener has rewritten and reads it back for imagery rehearsal, and another says what
+to do when sleep will not come, with a guide to hear out of bed. All of it is spoken by
 the device's own text-to-speech voice, rendered on the device into a track the same player plays.
 
 ## Architecture
@@ -24,6 +25,7 @@ iosApp ─────┘        │
                      └── feature:<name>:impl           ◄── only the composition root installs these
                               │                            browse · favorites · category
                               │                            sound · story · shuffle · after-shift · rehearsal
+                              │                            cant-sleep
                               │                            nowplaying
                               └── core:<name>:api      ◄── public ports; everyone compiles against these
                                        ▲
@@ -183,6 +185,7 @@ testing/
 feature/
 ├── after-shift api · impl
 ├── browse      api · impl
+├── cant-sleep  api · impl
 ├── category    api · impl
 ├── favorites   api · impl
 ├── nowplaying  api · impl
@@ -301,12 +304,13 @@ navigation-composition boundary may name the api declarations; feature code publ
 callbacks and does not name destination features.
 
 `BrowseRoute` is the initial destination. Browse, Favorites, Stories, Shuffle and After Shift are
-top-level destinations; Category, Sound and Story details and the nightmare screen are nested destinations. Every content row opens its detail from
+top-level destinations; Category, Sound and Story details and the nightmare and lying-awake screens are nested destinations. Every content row opens its detail from
 the row body; only its explicit play/pause button changes playback. `StoryRoute(storyId)` opens the
 selected story's description, author, narrator and duration. `ShuffleRoute` is one screen: each word
 deck with its play/pause, the session's sleep timer, and how to listen. `AfterShiftRoute` is one
 screen too: a note for after waking, each guide with its play/pause, the sleep timer, the way to
-the nightmare screen and a few plain points about the room. `RehearsalRoute`, pushed from there,
+the screens for lying awake and for a nightmare, and a few plain points about the room. `CantSleepRoute`,
+pushed from there, holds the stimulus-control steps and the guides meant for out of bed. `RehearsalRoute`, pushed from there,
 holds the steps of imagery rehearsal, the listener's one rewritten nightmare and its play/pause; it
 has no sleep timer, since rehearsal is practised awake. Each tab retains its own history and saved
 screen state.

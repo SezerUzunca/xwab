@@ -1,15 +1,22 @@
 # Guide
 
 `port/Guide.kt` holds the module's only public port interface, `GuidePort`, which serves spoken
-relaxation guides to features: a guide's name, description, rough length and voice language. Each
+guides to features: a guide's name, description, rough length, voice language and `GuideUse`. Each
 guide's script lives in an internal `GuideScript` manifest, read only by `GuidePlaybackResolver`,
 which implements session's consumer-owned `PlaybackItemResolver` and contributes it under
 `GUIDE_PLAYBACK_KIND`. Screens play a guide through the session and never see its script.
 
-The guides were written for this app: a muscle-relaxation guide that tenses and releases one group
-of muscles at a time, gently and skipping anything that hurts, and three imagery guides — a beach,
-a forest path, a cabin in the rain. They draw on published research into progressive muscle
-relaxation and guided imagery; they promise no sleep, and the screen says they are not a treatment.
+`GuideUse` says when a guide is meant to be heard, and each screen keeps its own: `WindDown`, lying
+down to sleep, on After Shift; `OutOfBed`, sitting up after lying awake, on the lying-awake screen.
+
+The guides were written for this app. For winding down: a muscle-relaxation guide that tenses and
+releases one group of muscles at a time, gently and skipping anything that hurts, and three imagery
+guides — a beach, a forest path, a cabin in the rain. For out of bed: one guide that gives
+permission to be up, then walks through a few plain chores in the mind, and leaves going back to bed
+to the listener's own sleepiness, as stimulus control does; a test keeps it from telling them to
+close their eyes or lie down. They draw on published research into progressive muscle relaxation,
+guided imagery and stimulus control; they promise no sleep, and the screens say they are not a
+treatment.
 
 ## How a guide becomes audio
 

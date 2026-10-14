@@ -3,6 +3,7 @@
 package com.xwab.app.core.guide
 
 import com.xwab.app.core.guide.port.GuideId
+import com.xwab.app.core.guide.port.GuideUse
 import com.xwab.app.core.session.port.ItemResolution
 import com.xwab.app.core.session.port.PlaybackResolverApi
 import com.xwab.app.core.speech.port.SpeechPort
@@ -33,7 +34,7 @@ class GuideTest {
     @Test
     fun theShippedGuidesKeepTheirIds() {
         assertEquals(
-            listOf("muscle-relaxation", "quiet-beach", "forest-path", "rain-cabin"),
+            listOf("muscle-relaxation", "quiet-beach", "forest-path", "rain-cabin", "out-of-bed"),
             guides.map { it.id.value },
         )
     }
@@ -51,6 +52,19 @@ class GuideTest {
             val seconds = 3.0 + CLOSING_SECONDS + script.lines.sumOf { it.pauseSeconds } + words / WORDS_PER_SECOND
             val declared = guide.minutes * 60.0
             assertTrue(abs(seconds - declared) / declared < 1.0 / 3, "${guide.id} runs about ${seconds / 60} min")
+        }
+    }
+
+    /**
+     * The out-of-bed guide is heard sitting up after lying awake. Stimulus control sends the
+     * listener back to bed only once they are sleepy, so it must not settle them down where they sit.
+     */
+    @Test
+    fun theOutOfBedGuideNeverSettlesTheListenerDownWhereTheySit() {
+        assertEquals(listOf("out-of-bed"), guides.filter { it.use == GuideUse.OutOfBed }.map { it.id.value })
+        val spoken = guideScripts.single { it.guideId == "out-of-bed" }.lines.joinToString(" ") { it.text.lowercase() }
+        listOf("close your eyes", "eyes close", "lie down", "drift").forEach { phrase ->
+            assertFalse(phrase in spoken, "the out-of-bed guide says \"$phrase\"")
         }
     }
 

@@ -1,0 +1,23 @@
+<resources>
+    <string name="cant_sleep_title">Can’t Sleep?</string>
+    <string name="cant_sleep_subtitle">What to do when sleep will not come</string>
+
+    <string name="cant_sleep_steps_title">If you have been lying awake</string>
+    <string name="cant_sleep_step_get_up">If you have been awake for what feels like a while, about twenty minutes, get up. Do not check the clock; a rough sense is enough.</string>
+    <string name="cant_sleep_step_elsewhere">Go to another room, or sit somewhere away from the bed. Keep the lights low.</string>
+    <string name="cant_sleep_step_quiet">Do something quiet and a little dull until you feel sleepy: listen to the guide below, or read something undemanding. Leave work, news and other screens for later.</string>
+    <string name="cant_sleep_step_return">Go back to bed only when you feel sleepy. If you lie awake again, get up again. It can take a few nights before this gets easier.</string>
+    <string name="cant_sleep_step_bed">Keep your bed for sleep, and get up at your usual time, however the night went.</string>
+    <string name="cant_sleep_brightness">Turn your screen brightness down while you listen.</string>
+
+    <string name="cant_sleep_guides_title">Listen out of bed</string>
+    <string name="cant_sleep_guides_empty">No guides yet</string>
+    <string name="cant_sleep_guide_minutes">About %1$d min, spoken by your device</string>
+    <!-- The first play speaks the whole guide with the device's voice. -->
+    <string name="cant_sleep_guide_preparing">Preparing the guide… The first time takes a little while.</string>
+    <string name="cant_sleep_guide_not_found">This guide is no longer available</string>
+    <string name="cant_sleep_guide_unavailable">Could not prepare the guide. Check that your device has an English text-to-speech voice, then tap play to try again.</string>
+    <string name="cant_sleep_guide_could_not_play">Could not play the guide</string>
+
+    <string name="cant_sleep_research_note">Based on stimulus control, part of cognitive behavioural therapy for insomnia. If you struggle to sleep most nights for more than a few weeks, talk to a doctor. This is not a medical treatment.</string>
+</resources>

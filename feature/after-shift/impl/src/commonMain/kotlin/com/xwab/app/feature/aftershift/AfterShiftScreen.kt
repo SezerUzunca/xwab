@@ -27,6 +27,7 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.navigation3.runtime.result.ResultEffect
 import com.xwab.app.core.guide.port.Guide
 import com.xwab.app.core.guide.port.GuideId
+import com.xwab.app.core.guide.port.GuideUse
 import com.xwab.app.core.session.port.PlaybackFailure
 import com.xwab.app.designsystem.components.LoadingContent
 import com.xwab.app.designsystem.components.PlayPauseButton
@@ -41,6 +42,9 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import xwab.feature.after_shift.generated.resources.Res
+import xwab.feature.after_shift.generated.resources.after_shift_cant_sleep_body
+import xwab.feature.after_shift.generated.resources.after_shift_cant_sleep_open
+import xwab.feature.after_shift.generated.resources.after_shift_cant_sleep_title
 import xwab.feature.after_shift.generated.resources.after_shift_guide_could_not_play
 import xwab.feature.after_shift.generated.resources.after_shift_guide_minutes
 import xwab.feature.after_shift.generated.resources.after_shift_guide_not_found
@@ -61,7 +65,11 @@ import xwab.feature.after_shift.generated.resources.after_shift_tips_title
 import xwab.feature.after_shift.generated.resources.after_shift_title
 
 @Composable
-internal fun AfterShiftScreenRoute(viewModel: AfterShiftViewModel, onRewriteNightmare: () -> Unit) {
+internal fun AfterShiftScreenRoute(
+    viewModel: AfterShiftViewModel,
+    onRewriteNightmare: () -> Unit,
+    onCantSleep: () -> Unit,
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val note by viewModel.note.collectAsStateWithLifecycle()
     val sleepTimerRemainingMs by viewModel.sleepTimerRemainingMs.collectAsStateWithLifecycle()
@@ -83,6 +91,7 @@ internal fun AfterShiftScreenRoute(viewModel: AfterShiftViewModel, onRewriteNigh
                 onTimerStart = viewModel::startSleepTimer,
                 onTimerCancel = viewModel::cancelSleepTimer,
                 onRewriteNightmare = onRewriteNightmare,
+                onCantSleep = onCantSleep,
             ),
             sleepTimerRemainingMs = sleepTimerRemainingMs,
             scrollState = scrollState,
@@ -100,13 +109,14 @@ internal class AfterShiftActions(
     val onTimerStart: (Long) -> Unit,
     val onTimerCancel: () -> Unit,
     val onRewriteNightmare: () -> Unit,
+    val onCantSleep: () -> Unit,
 )
 
 /**
  * A tab's root, read top to bottom in the order the time after a night shift runs: get home, put
- * tomorrow's errands down somewhere, then lie down with a guide and the timer. Below them, the way
- * to the nightmare exercise, which is done awake and so comes after, then a few plain points about
- * the room, and where the guides come from.
+ * tomorrow's errands down somewhere, then lie down with a guide and the timer. Below them, what to
+ * do if sleep does not come, then the nightmare exercise, which is done awake, then a few plain
+ * points about the room, and where the guides come from.
  */
 @Composable
 internal fun AfterShiftScreen(
@@ -132,7 +142,19 @@ internal fun AfterShiftScreen(
                 onTimerCancel = actions.onTimerCancel,
             )
             Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraLarge))
-            NightmareCard(actions.onRewriteNightmare)
+            WayOutCard(
+                Res.string.after_shift_cant_sleep_title,
+                Res.string.after_shift_cant_sleep_body,
+                Res.string.after_shift_cant_sleep_open,
+                actions.onCantSleep,
+            )
+            Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingMedium))
+            WayOutCard(
+                Res.string.after_shift_nightmare_title,
+                Res.string.after_shift_nightmare_body,
+                Res.string.after_shift_nightmare_open,
+                actions.onRewriteNightmare,
+            )
             Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraLarge))
             Tips()
         }
@@ -233,22 +255,22 @@ private fun GuideStatus(guideId: GuideId, state: AfterShiftState) {
     }
 }
 
-/** The way to rewriting a recurring nightmare, which has a screen of its own. */
+/** The way to a screen of its own: lying awake, or rewriting a recurring nightmare. */
 @Composable
-private fun NightmareCard(onRewriteNightmare: () -> Unit) {
+private fun WayOutCard(title: StringResource, body: StringResource, action: StringResource, onOpen: () -> Unit) {
     Column(Modifier.fillMaxWidth().glassCard().padding(SleepRelaxTheme.dimens.spacingLarge)) {
-        SectionTitle(Res.string.after_shift_nightmare_title)
+        SectionTitle(title)
         Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraSmall))
         Text(
-            stringResource(Res.string.after_shift_nightmare_body),
+            stringResource(body),
             style = SleepRelaxTheme.typography.bodyMedium,
             color = SleepRelaxTheme.colors.textSecondary,
         )
         SleepRelaxTextButton(
-            onClick = dropUnlessResumed(block = onRewriteNightmare),
+            onClick = dropUnlessResumed(block = onOpen),
             modifier = Modifier.align(Alignment.End),
         ) {
-            Text(stringResource(Res.string.after_shift_nightmare_open))
+            Text(stringResource(action))
         }
     }
 }
@@ -310,11 +332,12 @@ private fun AfterShiftScreenPreview() {
                         description = "Tense and release each part of your body in turn. A good place to start.",
                         minutes = 8,
                         languageTag = "en-US",
+                        use = GuideUse.WindDown,
                     ),
                 ),
             ),
             note = ParkedNote(draft = "Call the bank"),
-            actions = AfterShiftActions({}, {}, {}, {}, {}, {}, {}),
+            actions = AfterShiftActions({}, {}, {}, {}, {}, {}, {}, {}),
         )
     }
 }

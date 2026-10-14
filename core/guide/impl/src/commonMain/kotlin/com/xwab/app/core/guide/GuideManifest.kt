@@ -2,13 +2,15 @@ package com.xwab.app.core.guide
 
 import com.xwab.app.core.guide.port.Guide
 import com.xwab.app.core.guide.port.GuideId
+import com.xwab.app.core.guide.port.GuideUse
 
 /**
  * The guides this build ships. A guide's id is stored on devices — in the engine's source id and
  * the now-playing state — so keep it once it has shipped.
  *
- * The scripts were written for this app. They draw on two published techniques, progressive muscle
- * relaxation and imagery distraction; none of them promises sleep, and the screen says the same.
+ * The scripts were written for this app. They draw on published techniques: progressive muscle
+ * relaxation and imagery distraction for winding down, and stimulus control for the guide heard out
+ * of bed. None of them promises sleep, and the screens say the same.
  */
 internal val guides: List<Guide> = listOf(
     Guide(
@@ -18,6 +20,7 @@ internal val guides: List<Guide> = listOf(
             "A good place to start.",
         minutes = 8,
         languageTag = ENGLISH,
+        use = GuideUse.WindDown,
     ),
     Guide(
         id = GuideId(QUIET_BEACH),
@@ -25,6 +28,7 @@ internal val guides: List<Guide> = listOf(
         description = "Walk along an early-morning shore and rest to the sound of slow waves.",
         minutes = 4,
         languageTag = ENGLISH,
+        use = GuideUse.WindDown,
     ),
     Guide(
         id = GuideId(FOREST_PATH),
@@ -32,6 +36,7 @@ internal val guides: List<Guide> = listOf(
         description = "Follow a soft path through tall trees to a slow, clear stream.",
         minutes = 4,
         languageTag = ENGLISH,
+        use = GuideUse.WindDown,
     ),
     Guide(
         id = GuideId(RAIN_CABIN),
@@ -39,6 +44,57 @@ internal val guides: List<Guide> = listOf(
         description = "Rest in a warm cabin while steady rain falls on the roof.",
         minutes = 4,
         languageTag = ENGLISH,
+        use = GuideUse.WindDown,
+    ),
+    Guide(
+        id = GuideId(OUT_OF_BED),
+        title = "Out of Bed",
+        description = "For when sleep will not come: a calm, unhurried voice to keep you company " +
+            "until you feel sleepy again.",
+        minutes = 8,
+        languageTag = ENGLISH,
+        use = GuideUse.OutOfBed,
+    ),
+)
+
+/**
+ * Heard sitting up, out of bed, with the lights low: the listener has been lying awake. It gives
+ * permission first, because effort and worry about sleep are what keep it away, then something
+ * plain and slow to follow — a few ordinary chores, done unhurriedly in the mind. It never asks the
+ * listener to lie down or close their eyes; it ends by leaving the choice of going back to bed to
+ * their own sleepiness, as stimulus control does.
+ */
+private val outOfBedScript = GuideScript(
+    OUT_OF_BED,
+    listOf(
+        line("You are up, and that is fine. Getting up when sleep will not come is the right thing to do.", 4),
+        line("Sit somewhere comfortable, away from the bed, and keep the lights low.", 6),
+        line("There is nothing you need to achieve now. Sleep is not something you can push. It comes on its own.", 6),
+        line("For now, let's do something slow and ordinary, just in your mind.", 5),
+        line("Picture a basket of clean towels, still a little warm.", 8),
+        line("Take the first one out. It is pale blue. Shake it out once, and lay it flat.", 10),
+        line("Fold it in half, lengthwise. Smooth the fold with your hand.", 10),
+        line("Fold it in half again, and once more. Set it to one side.", 10),
+        line("Take the next towel. This one is white, and a little larger.", 8),
+        line("Shake it out. Lay it flat. Fold it in half, and smooth the fold.", 12),
+        line("Fold it again, and again, and place it on top of the blue one.", 12),
+        line("The pile is neat. There is no hurry to finish.", 10),
+        line("Now picture a kitchen drawer full of spoons, forks and knives, all mixed together.", 8),
+        line("Take out one spoon and put it on the left. Take out a fork and put it in the middle.", 10),
+        line("Another spoon goes on the left, beside the first.", 10),
+        line("A knife goes on the right. Then another fork, in the middle.", 12),
+        line("Keep sorting at your own pace. Spoons on the left, forks in the middle, knives on the right.", 25),
+        line("If your mind wanders off to something else, that is all right. Simply come back to the drawer.", 20),
+        line("Now picture a quiet room, and walk slowly around it in your mind.", 8),
+        line("There is a chair by the window. A lamp on a small table. A plant that needs a little water.", 12),
+        line("Notice the colour of the walls. Notice the floor under your feet.", 12),
+        line("Count the books on a shelf, slowly, one at a time. One. Two. Three. Four.", 15),
+        line("Five. Six. Seven. If you lose count, start again at one. It does not matter.", 20),
+        line("Let your shoulders drop, and your breath slow down on its own.", 15),
+        line("Notice whether your eyelids feel heavy, or you are starting to yawn.", 8),
+        line("If you feel sleepy now, go back to bed.", 5),
+        line("If you do not, that is fine too. Stay up a little longer.", 3),
+        line("Come back to bed when sleepiness arrives.", 5),
     ),
 )
 
@@ -142,6 +198,7 @@ internal val guideScripts: List<GuideScript> = listOf(
             line("Let it carry you toward sleep.", 5),
         ),
     ),
+    outOfBedScript,
 )
 
 /** How long a muscle is held, and how long it rests afterwards. */
@@ -152,4 +209,5 @@ private const val MUSCLE_RELAXATION = "muscle-relaxation"
 private const val QUIET_BEACH = "quiet-beach"
 private const val FOREST_PATH = "forest-path"
 private const val RAIN_CABIN = "rain-cabin"
+private const val OUT_OF_BED = "out-of-bed"
 private const val ENGLISH = "en-US"
