@@ -1,0 +1,23 @@
+<resources>
+    <string name="nap_title">Nap</string>
+    <string name="nap_subtitle">A short nap, with a voice to wake you</string>
+
+    <string name="nap_not_alarm_title">This is not an alarm</string>
+    <string name="nap_not_alarm_body">A phone call, another app’s sound or low media volume can keep the wake-up from being heard. Before a shift, or any nap you must not oversleep, set your phone’s own alarm too.</string>
+
+    <string name="nap_choose_title">Choose a length</string>
+    <string name="nap_spoken">Soft noise, then your device’s voice wakes you</string>
+    <!-- The first play makes the whole track with the device's voice. -->
+    <string name="nap_preparing">Preparing… The first time takes a little while.</string>
+    <string name="nap_not_found">This nap is no longer available</string>
+    <string name="nap_unavailable">Could not prepare the nap. Check that your device has an English text-to-speech voice, then tap play to try again.</string>
+    <string name="nap_could_not_play">Could not play the nap</string>
+
+    <string name="nap_tips_title">For a good nap</string>
+    <string name="nap_tip_start">Lie down as soon as you press play: the time includes falling asleep.</string>
+    <string name="nap_tip_volume">Turn your media volume up enough to hear the voice.</string>
+    <string name="nap_tip_shift">Before a night shift, a nap in the late afternoon or early evening helps you stay alert.</string>
+    <string name="nap_tip_short">Short naps leave you less groggy. If you wake slowly, give yourself a few minutes before driving.</string>
+
+    <string name="nap_research_note">Published studies find naps of 10 to 20 minutes improve alertness with little grogginess afterwards. This is not a medical treatment.</string>
+</resources>

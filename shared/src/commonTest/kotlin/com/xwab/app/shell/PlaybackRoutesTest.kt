@@ -1,7 +1,9 @@
 package com.xwab.app.shell
 
 import com.xwab.app.core.guide.port.GUIDE_PLAYBACK_KIND
+import com.xwab.app.core.nap.port.NAP_PLAYBACK_KIND
 import com.xwab.app.core.rehearsal.port.REHEARSAL_PLAYBACK_KIND
+import com.xwab.app.feature.nap.navigation.NapRoute
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.feature.rehearsal.navigation.RehearsalRoute
 import com.xwab.app.core.shuffle.port.SHUFFLE_PLAYBACK_KIND
@@ -92,6 +94,19 @@ class PlaybackRoutesTest {
         assertEquals(null, RehearsalRoute.playbackItem(), "the screen keeps the bar, as After Shift does")
         navigator.goBack()
         assertEquals(listOf<NavKey>(AfterShiftRoute), state.currentBackStack)
+    }
+
+    /** A nap plays from its screen under After Shift, which is where the bar takes it. */
+    @Test
+    fun aPlayingNapOpensItsScreenUnderAfterShift() {
+        val state = navigationState()
+        val navigator = Navigator(state, ResultEventBus())
+
+        openPlaybackDetails(PlaybackItemId(NAP_PLAYBACK_KIND, "nap-20"), navigator::openInTab)
+
+        assertEquals(AfterShiftRoute, state.topLevelRoute)
+        assertEquals(listOf<NavKey>(AfterShiftRoute, NapRoute), state.currentBackStack)
+        assertEquals(null, NapRoute.playbackItem(), "the screen keeps the bar, as After Shift does")
     }
 
     /** The tab the listener was on keeps its stack; Back from the item returns to its own list. */

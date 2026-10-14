@@ -2,6 +2,7 @@ package com.xwab.app.shell
 
 import androidx.navigation3.runtime.NavKey
 import com.xwab.app.core.guide.port.GUIDE_PLAYBACK_KIND
+import com.xwab.app.core.nap.port.NAP_PLAYBACK_KIND
 import com.xwab.app.core.rehearsal.port.REHEARSAL_PLAYBACK_KIND
 import com.xwab.app.core.session.port.PlaybackItemId
 import com.xwab.app.core.shuffle.port.SHUFFLE_PLAYBACK_KIND
@@ -9,6 +10,7 @@ import com.xwab.app.core.sound.port.SOUND_PLAYBACK_KIND
 import com.xwab.app.core.story.port.STORY_PLAYBACK_KIND
 import com.xwab.app.feature.aftershift.navigation.AfterShiftRoute
 import com.xwab.app.feature.browse.navigation.BrowseRoute
+import com.xwab.app.feature.nap.navigation.NapRoute
 import com.xwab.app.feature.rehearsal.navigation.RehearsalRoute
 import com.xwab.app.feature.shuffle.navigation.ShuffleRoute
 import com.xwab.app.feature.sound.navigation.SoundRoute
@@ -18,7 +20,7 @@ import com.xwab.app.feature.story.navigation.StoryRoute
 /**
  * Opens a playing item's own screen, in the tab that item belongs to: a sound under Sounds, a
  * story under Stories, a word deck on the Shuffle tab's one screen, a guide on After Shift's and
- * the listener's rewritten nightmare on its screen under After Shift.
+ * the listener's rewritten nightmare and a nap on their screens under After Shift.
  * [open] receives that tab and the item's route.
  */
 internal fun openPlaybackDetails(item: PlaybackItemId, open: (tab: NavKey, route: NavKey) -> Unit) {
@@ -32,6 +34,7 @@ internal fun openPlaybackDetails(item: PlaybackItemId, open: (tab: NavKey, route
         GUIDE_PLAYBACK_KIND -> open(AfterShiftRoute, AfterShiftRoute)
         // There is one script, so its screen takes no id.
         REHEARSAL_PLAYBACK_KIND -> open(AfterShiftRoute, RehearsalRoute)
+        NAP_PLAYBACK_KIND -> open(AfterShiftRoute, NapRoute)
         else -> return
     }
 }

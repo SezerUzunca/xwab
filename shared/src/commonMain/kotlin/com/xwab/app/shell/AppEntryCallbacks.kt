@@ -9,6 +9,8 @@ import com.xwab.app.feature.cantsleep.navigation.CantSleepRoute
 import com.xwab.app.feature.category.navigation.CategoryEntryCallbacks
 import com.xwab.app.feature.category.navigation.CategoryRoute
 import com.xwab.app.feature.favorites.navigation.FavoritesEntryCallbacks
+import com.xwab.app.feature.nap.navigation.NapEntryCallbacks
+import com.xwab.app.feature.nap.navigation.NapRoute
 import com.xwab.app.feature.rehearsal.navigation.RehearsalEntryCallbacks
 import com.xwab.app.feature.rehearsal.navigation.RehearsalRoute
 import com.xwab.app.feature.sound.navigation.SoundEntryCallbacks
@@ -57,11 +59,17 @@ object AppEntryCallbacks {
         onBack = navigator::goBack,
     )
 
-    /** Lying awake and rewriting a nightmare open their own screens inside After Shift, so Back returns to the tab. */
+    /** Lying awake, a nightmare and a nap open their own screens inside After Shift, so Back returns to the tab. */
     @Provides
     fun provideAfterShiftCallbacks(navigator: Navigator): AfterShiftEntryCallbacks = AfterShiftEntryCallbacks(
         onRewriteNightmare = { navigator.navigate(RehearsalRoute) },
         onCantSleep = { navigator.navigate(CantSleepRoute) },
+        onNap = { navigator.navigate(NapRoute) },
+    )
+
+    @Provides
+    fun provideNapCallbacks(navigator: Navigator): NapEntryCallbacks = NapEntryCallbacks(
+        onBack = navigator::goBack,
     )
 
     @Provides

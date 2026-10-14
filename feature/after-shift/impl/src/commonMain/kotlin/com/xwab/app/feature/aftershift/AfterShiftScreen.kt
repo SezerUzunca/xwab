@@ -52,6 +52,9 @@ import xwab.feature.after_shift.generated.resources.after_shift_guide_preparing
 import xwab.feature.after_shift.generated.resources.after_shift_guide_unavailable
 import xwab.feature.after_shift.generated.resources.after_shift_guides_empty
 import xwab.feature.after_shift.generated.resources.after_shift_guides_title
+import xwab.feature.after_shift.generated.resources.after_shift_nap_body
+import xwab.feature.after_shift.generated.resources.after_shift_nap_open
+import xwab.feature.after_shift.generated.resources.after_shift_nap_title
 import xwab.feature.after_shift.generated.resources.after_shift_nightmare_body
 import xwab.feature.after_shift.generated.resources.after_shift_nightmare_open
 import xwab.feature.after_shift.generated.resources.after_shift_nightmare_title
@@ -69,6 +72,7 @@ internal fun AfterShiftScreenRoute(
     viewModel: AfterShiftViewModel,
     onRewriteNightmare: () -> Unit,
     onCantSleep: () -> Unit,
+    onNap: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val note by viewModel.note.collectAsStateWithLifecycle()
@@ -92,6 +96,7 @@ internal fun AfterShiftScreenRoute(
                 onTimerCancel = viewModel::cancelSleepTimer,
                 onRewriteNightmare = onRewriteNightmare,
                 onCantSleep = onCantSleep,
+                onNap = onNap,
             ),
             sleepTimerRemainingMs = sleepTimerRemainingMs,
             scrollState = scrollState,
@@ -110,13 +115,14 @@ internal class AfterShiftActions(
     val onTimerCancel: () -> Unit,
     val onRewriteNightmare: () -> Unit,
     val onCantSleep: () -> Unit,
+    val onNap: () -> Unit,
 )
 
 /**
  * A tab's root, read top to bottom in the order the time after a night shift runs: get home, put
  * tomorrow's errands down somewhere, then lie down with a guide and the timer. Below them, what to
- * do if sleep does not come, then the nightmare exercise, which is done awake, then a few plain
- * points about the room, and where the guides come from.
+ * do if sleep does not come, then the nightmare exercise, which is done awake, then a nap before the
+ * next shift, then a few plain points about the room, and where the guides come from.
  */
 @Composable
 internal fun AfterShiftScreen(
@@ -154,6 +160,13 @@ internal fun AfterShiftScreen(
                 Res.string.after_shift_nightmare_body,
                 Res.string.after_shift_nightmare_open,
                 actions.onRewriteNightmare,
+            )
+            Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingMedium))
+            WayOutCard(
+                Res.string.after_shift_nap_title,
+                Res.string.after_shift_nap_body,
+                Res.string.after_shift_nap_open,
+                actions.onNap,
             )
             Spacer(Modifier.height(SleepRelaxTheme.dimens.spacingExtraLarge))
             Tips()
@@ -337,7 +350,7 @@ private fun AfterShiftScreenPreview() {
                 ),
             ),
             note = ParkedNote(draft = "Call the bank"),
-            actions = AfterShiftActions({}, {}, {}, {}, {}, {}, {}, {}),
+            actions = AfterShiftActions({}, {}, {}, {}, {}, {}, {}, {}, {}),
         )
     }
 }

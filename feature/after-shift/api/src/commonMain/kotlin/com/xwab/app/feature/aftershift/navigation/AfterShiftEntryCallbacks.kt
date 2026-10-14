@@ -6,4 +6,6 @@ class AfterShiftEntryCallbacks(
     val onRewriteNightmare: () -> Unit,
     /** The listener is lying awake; where that leads is the shell's to decide. */
     val onCantSleep: () -> Unit,
+    /** The listener wants a short nap with a wake-up; where that leads is the shell's to decide. */
+    val onNap: () -> Unit,
 )
